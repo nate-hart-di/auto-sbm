@@ -1,0 +1,51 @@
+/* MAP ROW **************************************************/
+#mapRow {
+  position: relative;
+  .mapwrap {
+    height: 600px;
+  }
+}
+#map-canvas {
+  height: 100%;
+}
+/* DIRECTIONS BOX **************************************************/
+#directionsBox {
+  padding: 50px 0;
+  text-align: left;
+  width: 400px;
+  position: absolute;
+  top: 200px;
+  left: 50px;
+  background: #fff;
+  text-align: left;
+  color: #111;
+  font-family: "Lato", sans-serif;
+  .getdirectionstext {
+    display: inline-block;
+    font-size: 24px;
+    margin: 0;
+  }
+  .locationtext {
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+  .address {
+    margin-bottom: 20px;
+  }
+}
+@media (max-width: 920px) {
+  #mapRow {
+    .mapwrap {
+      height: 250px;
+    }
+    #directionsBox {
+      width: unset;
+      height: 100%;
+      top: 0;
+      left: 0;
+      padding: 20px;
+      max-width: 45%;
+    }
+  }
+}
