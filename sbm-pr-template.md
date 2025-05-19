@@ -1,14 +1,9 @@
 ## What
 
-Added interior page styles to sb-inside.scss
-
-- Migrated sitemap styles
-- Added menu item styles
-- Integrated map component styles
-- Added cookie banner styles
-
-Added VDP styles to sb-vdp.scss
-Added VRP styles to sb-vrp.scss
+- Migrated interior page styles from inside.scss and style.scss to sb-inside.scss
+- Migrated LVRP, LVDP Styles to sb-lvrp.scss and sb-lvdp.scss
+- Added FCA Direction Row Styles
+- Added FCA Cookie Banner styles
 
 ## Why
 
@@ -21,8 +16,8 @@ Within the di-websites-platform directory:
 ```bash
 git checkout main
 git pull
-git checkout BRANCH_NAME
-just start DEALER_SLUG prod
+git checkout spitzermotorsofmansfieldcdjr-sbm0525
+just start spitzermotorsofmansfieldcdjr prod
 ```
 
 - Review all code found in "Files Changed"

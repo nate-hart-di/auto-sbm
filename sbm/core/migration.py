@@ -10,9 +10,11 @@ from ..utils.path import get_dealer_theme_dir
 from ..utils.command import execute_command
 from .git import git_operations
 from ..scss.parser import extract_styles
+from ..scss.enhanced_parser import analyze_style_scss
 from ..scss.transformer import transform_scss
 from ..scss.validator import validate_scss_syntax
 from .maps import migrate_map_components
+from ..oem.factory import OEMFactory
 
 
 def run_just_start(slug):
@@ -95,12 +97,34 @@ def migrate_styles(slug):
     try:
         theme_dir = get_dealer_theme_dir(slug)
         
-        # Extract styles from source files
+        # Extract styles from standard source files
         styles = extract_styles(slug, theme_dir)
         
         if not styles:
             logger.error(f"No styles extracted for {slug}")
             return False
+        
+        # Also analyze style.scss for additional styles
+        logger.info(f"Looking for additional styles in style.scss for {slug}")
+        
+        # Check if we should use the legacy parser
+        use_improved_parser = os.environ.get('USE_LEGACY_PARSER') != 'true'
+        if use_improved_parser:
+            logger.info("Using improved style parser for multi-selector rules")
+        else:
+            logger.info("Using legacy style parser")
+            
+        style_scss_styles = analyze_style_scss(theme_dir, use_improved_parser)
+        
+        # Merge styles from both sources
+        for file_name, content in style_scss_styles.items():
+            if content.strip():
+                if file_name in styles and styles[file_name].strip():
+                    styles[file_name] += f"\n\n/* Additional styles extracted from style.scss */\n{content}"
+                    logger.info(f"Added {len(content.splitlines())} lines from style.scss to {file_name}")
+                else:
+                    styles[file_name] = f"/* Styles extracted from style.scss */\n{content}"
+                    logger.info(f"Created {file_name} with {len(content.splitlines())} lines from style.scss")
         
         # Process and write each style file
         for file_name, content in styles.items():
@@ -128,7 +152,7 @@ def migrate_styles(slug):
         return False
 
 
-def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False):
+def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None):
     """
     Migrate a dealer theme to the Site Builder platform.
     
@@ -138,11 +162,18 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         force_reset (bool): Whether to reset existing Site Builder files
         skip_git (bool): Whether to skip Git operations
         skip_maps (bool): Whether to skip map components migration
+        oem_handler (BaseOEMHandler, optional): Manually specified OEM handler
         
     Returns:
         bool: True if successful, False otherwise
     """
     logger.info(f"Starting migration for {slug}")
+    
+    # Create the appropriate OEM handler for this slug if not provided
+    if oem_handler is None:
+        oem_handler = OEMFactory.detect_from_theme(slug)
+    
+    logger.info(f"Using {oem_handler} for {slug}")
     
     # Perform Git operations if not skipped
     if not skip_git:
@@ -173,12 +204,12 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
-    if not add_predetermined_styles(slug):
+    if not add_predetermined_styles(slug, oem_handler):
         logger.warning(f"Could not add all predetermined styles for {slug}")
     
     # Migrate map components if not skipped
     if not skip_maps:
-        if not migrate_map_components(slug):
+        if not migrate_map_components(slug, oem_handler):
             logger.error(f"Failed to migrate map components for {slug}")
             return False
         
@@ -188,13 +219,13 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     return True
 
 
-def add_predetermined_styles(slug):
+def add_predetermined_styles(slug, oem_handler=None):
     """
-    Add predetermined styles like cookie banner and directions row.
-    This function adds these styles directly without any parsing or transformation.
+    Add predetermined styles for cookie disclaimer and directions row.
     
     Args:
         slug (str): Dealer theme slug
+        oem_handler (BaseOEMHandler, optional): OEM handler for the dealer
         
     Returns:
         bool: True if successful, False otherwise
@@ -210,6 +241,11 @@ def add_predetermined_styles(slug):
         if not os.path.exists(sb_inside_path):
             logger.warning(f"sb-inside.scss not found for {slug}")
             return False
+        
+        # Use OEM factory to get handler if not provided
+        if oem_handler is None:
+            oem_handler = OEMFactory.detect_from_theme(slug)
+            logger.info(f"Using {oem_handler} for {slug}")
         
         # 1. Add cookie banner styles (directly from source file)
         cookie_banner_source = os.path.join(os.getcwd(), 'stellantis', 'add-to-sb-inside', 'stellantis-cookie-banner-styles.scss')
@@ -232,94 +268,25 @@ def add_predetermined_styles(slug):
         else:
             logger.warning(f"Cookie banner styles source file not found at {cookie_banner_source}")
         
-        # 2. Add directions row styles (directly from source file)
-        directions_row_source = os.path.join(os.getcwd(), 'stellantis', 'add-to-sb-inside', 'stellantis-directions-row-styles.scss')
-        if os.path.exists(directions_row_source):
-            with open(directions_row_source, 'r') as f:
-                directions_styles = f.read()
-                
-            # Check if directions row styles already exist
-            with open(sb_inside_path, 'r') as f:
-                content = f.read()
-                
-            if '#mapRow' not in content and '#directionsBox' not in content:
-                # Append the directions styles
-                with open(sb_inside_path, 'a') as f:
-                    f.write("\n\n" + directions_styles)
-                
-                logger.info(f"Added directions row styles to sb-inside.scss for {slug}")
-            else:
-                logger.info(f"Directions row styles already exist in sb-inside.scss for {slug}")
-        else:
-            # If directions file not found, use the styles from the add_directions_row_styles function
-            directions_styles = """
-/* MAP ROW **************************************************/
-#mapRow {
-  position: relative;
-  .mapwrap {
-    height: 600px;
-  }
-}
-#map-canvas {
-  height: 100%;
-}
-/* DIRECTIONS BOX **************************************************/
-#directionsBox {
-  padding: 50px 0;
-  text-align: left;
-  width: 400px;
-  position: absolute;
-  top: 200px;
-  left: 50px;
-  background: #fff;
-  text-align: left;
-  color: #111;
-  font-family: "Lato", sans-serif;
-  .getdirectionstext {
-    display: inline-block;
-    font-size: 24px;
-    margin: 0;
-  }
-  .locationtext {
-    text-transform: uppercase;
-    font-weight: 700;
-    margin-bottom: 20px;
-  }
-  .address {
-    margin-bottom: 20px;
-  }
-}
-@media (max-width: 920px) {
-  #mapRow {
-    .mapwrap {
-      height: 250px;
-    }
-    #directionsBox {
-      width: unset;
-      height: 100%;
-      top: 0;
-      left: 0;
-      padding: 20px;
-      max-width: 45%;
-    }
-  }
-}"""
+        # 2. Add directions row styles using OEM handler
+        # Check if directions row styles already exist
+        with open(sb_inside_path, 'r') as f:
+            content = f.read()
+        
+        if '#mapRow' not in content and '#directionsBox' not in content:
+            # Get directions styles from OEM handler
+            directions_styles = oem_handler.get_directions_styles()
             
-            # Check if directions row styles already exist
-            with open(sb_inside_path, 'r') as f:
-                content = f.read()
-                
-            if '#mapRow' not in content and '#directionsBox' not in content:
-                # Append the directions styles
-                with open(sb_inside_path, 'a') as f:
-                    f.write("\n\n" + directions_styles)
-                
-                logger.info(f"Added directions row styles to sb-inside.scss for {slug} (using default styles)")
-            else:
-                logger.info(f"Directions row styles already exist in sb-inside.scss for {slug}")
+            # Append the directions styles
+            with open(sb_inside_path, 'a') as f:
+                f.write("\n\n" + directions_styles)
+            
+            logger.info(f"Added {oem_handler.name} directions row styles to sb-inside.scss for {slug}")
+        else:
+            logger.info(f"Directions row styles already exist in sb-inside.scss for {slug}")
         
         return True
         
     except Exception as e:
         logger.error(f"Error adding predetermined styles: {e}")
-        return False 
+        return False

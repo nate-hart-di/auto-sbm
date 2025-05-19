@@ -1,0 +1,10 @@
+2025-05-19 15:50:47,700 - sbm - INFO - Processing style.scss for spitzermotorsofmansfieldcdjr in /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr
+2025-05-19 15:50:47,701 - sbm - INFO - Found style.scss at /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr/css/style.scss
+2025-05-19 15:50:47,701 - sbm - INFO - Analyzing 196 lines in style.scss
+2025-05-19 15:50:47,701 - sbm - INFO - Found 32 total style rules
+2025-05-19 15:50:47,702 - sbm - INFO -   - VDP rules: 1
+2025-05-19 15:50:47,702 - sbm - INFO -   - VRP rules: 0
+2025-05-19 15:50:47,702 - sbm - INFO -   - Inside rules: 31
+2025-05-19 15:50:47,702 - sbm - INFO - Added VDP styles to /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr/sb-vdp.scss
+2025-05-19 15:50:47,702 - sbm - INFO - Added Inside styles to /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr/sb-inside.scss
+2025-05-19 15:50:47,703 - sbm - INFO - Saved categorized styles to test-output/ directory

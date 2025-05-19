@@ -1,0 +1,48 @@
+2025-05-19 15:26:45,539 - sbm - INFO - Site Builder Migration Tool - Starting migration process
+2025-05-19 15:26:45,539 - sbm - INFO - Processing spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,573 - sbm - INFO - Starting migration for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,574 - sbm - INFO - Detected OEM for spitzermotorsofmansfieldcdjr based on theme content: StellantisHandler
+2025-05-19 15:26:45,574 - sbm - INFO - Using StellantisHandler(spitzermotorsofmansfieldcdjr) for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,574 - sbm - INFO - Creating Site Builder files for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,574 - sbm - INFO - Created sb-inside.scss
+2025-05-19 15:26:45,574 - sbm - INFO - Created sb-vdp.scss
+2025-05-19 15:26:45,575 - sbm - INFO - Created sb-vrp.scss
+2025-05-19 15:26:45,575 - sbm - INFO - Migrating styles for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,576 - sbm - INFO - Extracting styles for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,576 - sbm - INFO - Extracting VDP styles
+2025-05-19 15:26:45,576 - sbm - WARNING - File not found: /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr/style.scss
+2025-05-19 15:26:45,576 - sbm - INFO - Extracting VRP styles
+2025-05-19 15:26:45,577 - sbm - WARNING - File not found: /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr/style.scss
+2025-05-19 15:26:45,577 - sbm - INFO - Extracting Inside page styles
+2025-05-19 15:26:45,577 - sbm - WARNING - File not found: /Users/nathanhart/di-websites-platform/dealer-themes/spitzermotorsofmansfieldcdjr/style.scss
+2025-05-19 15:26:45,578 - sbm - INFO - Analyzing 196 lines from style.scss
+2025-05-19 15:26:45,578 - sbm - INFO - Adding 1 style.scss sections to VDP styles
+2025-05-19 15:26:45,578 - sbm - INFO - Extracted 210 lines for sb-vdp.scss
+2025-05-19 15:26:45,578 - sbm - INFO - Extracted 213 lines for sb-vrp.scss
+2025-05-19 15:26:45,578 - sbm - WARNING - No styles extracted for sb-inside.scss
+2025-05-19 15:26:45,578 - sbm - INFO - Looking for additional styles in style.scss for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,578 - sbm - INFO - Analyzing style.scss for page-specific styles
+2025-05-19 15:26:45,580 - sbm - INFO - Extracted 0 lines from style.scss for sb-vdp.scss
+2025-05-19 15:26:45,580 - sbm - INFO - Extracted 0 lines from style.scss for sb-vrp.scss
+2025-05-19 15:26:45,580 - sbm - INFO - Extracted 0 lines from style.scss for sb-inside.scss
+2025-05-19 15:26:45,580 - sbm - INFO - Transforming SCSS content for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,584 - sbm - INFO - Wrote 210 lines to sb-vdp.scss
+2025-05-19 15:26:45,584 - sbm - INFO - Validating SCSS syntax for sb-vdp.scss
+2025-05-19 15:26:45,586 - sbm - INFO - Brace count: 53 opening, 53 closing
+2025-05-19 15:26:45,586 - sbm - INFO - Final brace count: 53 opening, 53 closing
+2025-05-19 15:26:45,587 - sbm - INFO - Transforming SCSS content for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,589 - sbm - INFO - Wrote 213 lines to sb-vrp.scss
+2025-05-19 15:26:45,589 - sbm - INFO - Validating SCSS syntax for sb-vrp.scss
+2025-05-19 15:26:45,591 - sbm - INFO - Brace count: 56 opening, 56 closing
+2025-05-19 15:26:45,591 - sbm - INFO - Final brace count: 56 opening, 56 closing
+2025-05-19 15:26:45,592 - sbm - WARNING - No content for sb-inside.scss, skipping
+2025-05-19 15:26:45,592 - sbm - INFO - Adding predetermined styles for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,594 - sbm - INFO - Added cookie banner styles to sb-inside.scss for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,595 - sbm - INFO - Loading style file: /Users/nathanhart/auto-sbm/stellantis/add-to-sb-inside/stellantis-directions-row-styles.scss
+2025-05-19 15:26:45,596 - sbm - INFO - Added Stellantis directions row styles to sb-inside.scss for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,596 - sbm - INFO - Starting map components migration for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,596 - sbm - INFO - Searching for map shortcodes in spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,605 - sbm - INFO - No map shortcodes found for spitzermotorsofmansfieldcdjr, skipping map migration
+2025-05-19 15:26:45,605 - sbm - INFO - Map components migrated successfully for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,605 - sbm - INFO - Migration completed successfully for spitzermotorsofmansfieldcdjr
+2025-05-19 15:26:45,605 - sbm - INFO - Migration process complete

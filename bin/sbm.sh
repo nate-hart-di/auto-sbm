@@ -19,6 +19,7 @@ FORCE_RESET=false
 SKIP_GIT=false
 SKIP_MAPS=false
 PLATFORM_DIR=""
+OEM_HANDLER=""
 VERBOSE=false
 
 # Color codes
@@ -40,11 +41,12 @@ show_usage() {
     echo "  --force-reset        Force reset Site Builder files if they already exist"
     echo "  --skip-git           Skip Git operations (checkout, branch creation)"
     echo "  --skip-maps          Skip map components migration"
+    echo "  --oem=NAME           Specify the OEM handler to use (e.g., 'stellantis', 'default')"
     echo "  --platform-dir=DIR   Set the DI Websites Platform directory"
     echo "  --verbose            Enable verbose output"
     echo "  --help               Show this help message"
     echo ""
-    echo "Example: $0 fiatofportland --skip-just"
+    echo "Example: $0 fiatofportland --skip-just --oem=stellantis"
     echo ""
 }
 
@@ -66,7 +68,8 @@ check_dealer_started() {
     fi
     
     # Check if the current site matches the slug
-    local current_site=$(grep -o '"slug":"[^"]*' "$site_json" | cut -d':' -f2 | tr -d '"')
+    local current_site
+    current_site=$(grep -o '"slug":"[^"]*' "$site_json" | cut -d':' -f2 | tr -d '"')
     
     if [ "$current_site" != "$slug" ]; then
         echo -e "${YELLOW}Different site currently started: $current_site${NC}"
@@ -111,7 +114,10 @@ start_dealer() {
         fi
         
         # Change to the platform directory
-        cd "$PLATFORM_DIR"
+        cd "$PLATFORM_DIR" || {
+            echo -e "${RED}Failed to change to platform directory: $PLATFORM_DIR${NC}"
+            return 1
+        }
         
         # Run the just start command
         just start "$slug" prod
@@ -159,11 +165,19 @@ run_migration() {
         COMMAND="$COMMAND --verbose"
     fi
     
+    # Add OEM handler if specified
+    if [ -n "$OEM_HANDLER" ]; then
+        COMMAND="$COMMAND --oem $OEM_HANDLER"
+    fi
+    
     # Add the slug
     COMMAND="$COMMAND $slug"
     
     # Run the command
-    cd "$PARENT_DIR"
+    cd "$PARENT_DIR" || {
+        echo -e "${RED}Failed to change to parent directory: $PARENT_DIR${NC}"
+        return 1
+    }
     echo "Executing: $COMMAND"
     eval "$COMMAND"
     
@@ -236,6 +250,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_MAPS=true
             shift
             ;;
+        --oem=*)
+            OEM_HANDLER="${1#*=}"
+            shift
+            ;;
         --platform-dir=*)
             PLATFORM_DIR="${1#*=}"
             shift
@@ -295,4 +313,4 @@ for slug in "${SLUGS[@]}"; do
 done
 
 echo -e "${GREEN}All operations completed.${NC}"
-exit 0 
+exit 0

@@ -383,6 +383,124 @@ def extract_cookie_disclaimer_styles():
 """
 
 
+def analyze_style_scss(style_scss_content):
+    """
+    Analyze style.scss content and categorize sections by page type.
+    
+    Args:
+        style_scss_content (str): Content of style.scss file
+        
+    Returns:
+        dict: Categorized styles by page type
+    """
+    # Initialize a dictionary to hold styles for each category
+    categorized_styles = {
+        "vdp": [],   # Styles for sb-vdp.scss
+        "vrp": [],   # Styles for sb-vrp.scss
+        "inside": [] # Styles for sb-inside.scss (default)
+    }
+    
+    # Skip if content is empty
+    if not style_scss_content:
+        return categorized_styles
+    
+    # Extract content after imports
+    content = extract_content_after_imports(style_scss_content)
+    
+    # Process the SCSS content section by section
+    # First, split by major comment blocks
+    sections = re.split(r'(/\*+|\*+/|//+\s*[\-=\*]{3,}|//+\s*[A-Z\s/]{3,}\s*//+\s*[\-=\*]{3,})', content)
+    processed_sections = []
+    
+    current_section = ""
+    for section in sections:
+        if not section or section.strip() == "":
+            continue
+            
+        # If it's a comment marker, start a new section
+        if re.match(r'(/\*+|\*+/|//+\s*[\-=\*]{3,}|//+\s*[A-Z\s/]{3,}\s*//+\s*[\-=\*]{3,})', section):
+            if current_section.strip():
+                processed_sections.append(current_section)
+            current_section = section
+        else:
+            current_section += section
+    
+    # Add the last section
+    if current_section.strip():
+        processed_sections.append(current_section)
+    
+    # Now process each section individually
+    for section in processed_sections:
+        # VDP patterns
+        vdp_patterns = [
+            r'\bvdp\b', 
+            r'\blvdp\b', 
+            r'\bpage-template-vehicle\b',
+            r'\bvehicle-detail\b',
+            r'\.page-template-page-lightning\.template-vdp\b'
+        ]
+        
+        # VRP patterns
+        vrp_patterns = [
+            r'\bvrp\b', 
+            r'\blvrp\b', 
+            r'\bvehicle-list\b',
+            r'\bsrp\b',
+            r'\bpage-template-inventory\b',
+            r'\.page-template-page-lightning\.template-srp\b'
+        ]
+        
+        # Inside page patterns (common elements that should be in sb-inside.scss)
+        inside_patterns = [
+            r'\bheader\b',
+            r'\bfooter\b',
+            r'\bnavigation\b',
+            r'\bheader-container\b',
+            r'\bfooter-row\b',
+            r'\bmenu\b',
+            r'\bnavbar\b',
+            r'\blogo\b',
+            r'\bbreadcrumb\b',
+            r'#header\b',
+            r'#footer\b',
+            r'\.di-stacks\b',
+            r'\.cookie-banner\b',
+            r'\.message-bar\b',
+            r'\.contentcontainer\b',
+            r'\.header-right\b'
+        ]
+        
+        # Check VDP patterns first
+        if any(re.search(pattern, section, re.IGNORECASE) for pattern in vdp_patterns):
+            categorized_styles["vdp"].append(section)
+            continue
+            
+        # Check VRP patterns next
+        if any(re.search(pattern, section, re.IGNORECASE) for pattern in vrp_patterns):
+            categorized_styles["vrp"].append(section)
+            continue
+        
+        # Check Inside patterns last (more specific than the default)
+        if any(re.search(pattern, section, re.IGNORECASE) for pattern in inside_patterns):
+            categorized_styles["inside"].append(section)
+            continue
+            
+        # If no specific pattern matched, look at the comment blocks for clues
+        if re.search(r'(HEADER|NAVIGATION|FOOTER|LAYOUT|GLOBAL|TABLET|MOBILE)', section, re.IGNORECASE):
+            categorized_styles["inside"].append(section)
+            continue
+            
+        # Last check for selectors that are likely to be inside page related
+        if re.search(r'(body|html|\*|\#page|\#main|\#content|\#wrapper|\.page|\.entry|\.\btop\b)', section, re.IGNORECASE):
+            categorized_styles["inside"].append(section)
+            continue
+            
+        # If still no match, default to inside
+        categorized_styles["inside"].append(section)
+    
+    return categorized_styles
+
+
 def extract_styles(slug, theme_dir):
     """
     Extract all relevant styles for Site Builder files.
@@ -397,18 +515,88 @@ def extract_styles(slug, theme_dir):
     logger.info(f"Extracting styles for {slug}")
     
     try:
+        # Extract base styles from respective files
+        vdp_styles = extract_vdp_styles(theme_dir)
+        vrp_styles = extract_vrp_styles(theme_dir)
+        inside_styles = extract_inside_styles(theme_dir)
+        
+        # Look for style.scss in various locations
+        style_content = read_scss_file(os.path.join(theme_dir, "css", "style.scss"))
+        if not style_content:
+            style_content = read_scss_file(os.path.join(theme_dir, "style.scss"))
+        
+        # If style.scss exists, analyze and categorize its styles
+        if style_content:
+            logger.info(f"Analyzing {len(style_content.splitlines())} lines from style.scss")
+            categorized_styles = analyze_style_scss(style_content)
+            
+            # Format and append style.scss sections to the appropriate files
+            if categorized_styles["vdp"]:
+                logger.info(f"Adding {len(categorized_styles['vdp'])} style.scss sections to VDP styles")
+                
+                # Join all VDP-specific sections from style.scss
+                style_scss_vdp = "\n\n".join([
+                    f"/* style.scss section */\n{section.strip()}" 
+                    for section in categorized_styles["vdp"] if section.strip()
+                ])
+                
+                # Add to existing VDP styles if any exist
+                if style_scss_vdp:
+                    if vdp_styles:
+                        vdp_styles += f"\n\n/* From style.scss */\n{style_scss_vdp}"
+                    else:
+                        vdp_styles = f"/* Styles from style.scss */\n\n{style_scss_vdp}"
+            
+            # Do the same for VRP styles
+            if categorized_styles["vrp"]:
+                logger.info(f"Adding {len(categorized_styles['vrp'])} style.scss sections to VRP styles")
+                
+                # Join all VRP-specific sections from style.scss
+                style_scss_vrp = "\n\n".join([
+                    f"/* style.scss section */\n{section.strip()}" 
+                    for section in categorized_styles["vrp"] if section.strip()
+                ])
+                
+                # Add to existing VRP styles if any exist
+                if style_scss_vrp:
+                    if vrp_styles:
+                        vrp_styles += f"\n\n/* From style.scss */\n{style_scss_vrp}"
+                    else:
+                        vrp_styles = f"/* Styles from style.scss */\n\n{style_scss_vrp}"
+            
+            # And for Inside styles (default)
+            if categorized_styles["inside"]:
+                logger.info(f"Adding {len(categorized_styles['inside'])} style.scss sections to Inside styles")
+                
+                # Join all Inside-specific sections from style.scss
+                style_scss_inside = "\n\n".join([
+                    f"/* style.scss section */\n{section.strip()}" 
+                    for section in categorized_styles["inside"] if section.strip()
+                ])
+                
+                # Add to existing Inside styles if any exist
+                if style_scss_inside:
+                    if inside_styles:
+                        inside_styles += f"\n\n/* From style.scss */\n{style_scss_inside}"
+                    else:
+                        inside_styles = f"/* Styles from style.scss */\n\n{style_scss_inside}"
+        
+        # Create the final styles dictionary
         styles = {
-            "sb-vdp.scss": extract_vdp_styles(theme_dir),
-            "sb-vrp.scss": extract_vrp_styles(theme_dir),
-            "sb-inside.scss": extract_inside_styles(theme_dir)
+            "sb-vdp.scss": vdp_styles,
+            "sb-vrp.scss": vrp_styles,
+            "sb-inside.scss": inside_styles
         }
         
         # Log the number of styles extracted for each file
         for file, content in styles.items():
-            logger.info(f"Extracted {len(content.splitlines())} lines for {file}")
+            if content:
+                logger.info(f"Extracted {len(content.splitlines())} lines for {file}")
+            else:
+                logger.warning(f"No styles extracted for {file}")
         
         return styles
         
     except Exception as e:
         logger.error(f"Error extracting styles: {e}")
-        return {} 
+        return {}

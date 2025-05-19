@@ -60,6 +60,11 @@ def parse_args():
     )
     
     parser.add_argument(
+        "--oem",
+        help="Manually specify the OEM handler to use (e.g., 'stellantis', 'default')"
+    )
+    
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Enable verbose output"
@@ -185,6 +190,21 @@ def main():
         try:
             # Import here to avoid circular dependencies
             from .core.migration import migrate_dealer_theme
+            from .oem.factory import OEMFactory
+            
+            # Create OEM handler if specified
+            oem_handler = None
+            if args.oem:
+                logger.info(f"Using manually specified OEM: {args.oem}")
+                # Create a handler based on the specified OEM
+                if args.oem.lower() == 'stellantis':
+                    from .oem.stellantis import StellantisHandler
+                    oem_handler = StellantisHandler(slug)
+                elif args.oem.lower() == 'default':
+                    from .oem.default import DefaultHandler
+                    oem_handler = DefaultHandler(slug)
+                else:
+                    logger.warning(f"Unknown OEM specified: {args.oem}, falling back to auto-detection")
             
             # Migrate the dealer theme
             if not migrate_dealer_theme(
@@ -192,7 +212,8 @@ def main():
                 skip_just=args.skip_just, 
                 force_reset=args.force_reset,
                 skip_git=args.skip_git,
-                skip_maps=args.skip_maps
+                skip_maps=args.skip_maps,
+                oem_handler=oem_handler
             ):
                 success = False
         
@@ -205,4 +226,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

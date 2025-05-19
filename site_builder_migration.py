@@ -1400,12 +1400,17 @@ if __name__ == "__main__":
     parser.add_argument('slugs', nargs='+', help='Dealer theme slug(s) to migrate')
     parser.add_argument('--platform-dir', dest='platform_dir', help='Path to the DI Websites Platform directory')
     parser.add_argument('--skip-just', action='store_true', help='Skip the just start command')
+    parser.add_argument('--legacy-parser', action='store_true', help='Use the legacy style parser instead of the improved parser')
     
     args = parser.parse_args()
     
     # Set platform directory from command line if provided
     if args.platform_dir:
         os.environ['DI_WEBSITES_PLATFORM_DIR'] = args.platform_dir
+    
+    # Set the parser type in the environment for modules to access
+    if args.legacy_parser:
+        os.environ['USE_LEGACY_PARSER'] = 'true'
     
     # Run migration for each slug
     for slug in args.slugs:
@@ -1414,7 +1419,4 @@ if __name__ == "__main__":
             test_direct_migration(slug)
         else:
             # Run normal migration with just start
-            main(slugs=[slug])
-
-# Uncomment to test a specific dealer theme
-# test_direct_migration('fiatofportland') 
+            main(slugs=[slug]) 

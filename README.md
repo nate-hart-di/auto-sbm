@@ -26,10 +26,27 @@ The SBM tool suite automates the process of migrating dealer websites to the Sit
 
 ## Workflow
 
+### OEM Support
+
+The SBM tool now has modular support for different Original Equipment Manufacturers (OEMs). This allows for brand-specific customizations during the migration process.
+
+Currently supported OEMs:
+
+- **Stellantis** (Chrysler, Dodge, Jeep, Ram, Fiat, CDJR brands)
+- **Default** (generic handler for all other brands)
+
+You can manually specify the OEM handler using the `--oem` option:
+
+```bash
+./sbm.sh < dealer-slug > --oem stellantis
+```
+
+For more details on OEM handlers and how to create new ones, see the [OEM module documentation](sbm/oem/README.md).
+
 ### 1. Start the Dealer Website
 
 ```bash
-./start-dealer.sh <dealer-slug> prod
+./start-dealer.sh < dealer-slug > prod
 ```
 
 This script:
@@ -90,7 +107,7 @@ This script:
 ### `start-dealer.sh`
 
 ```bash
-./start-dealer.sh <dealer-slug> [environment]
+./start-dealer.sh < dealer-slug > [environment]
 ```
 
 - `dealer-slug`: The dealer theme to start
@@ -127,8 +144,8 @@ This script:
 ### Quick Migration
 
 ```bash
-./start-dealer.sh fiatofportland prod  # Start the dealer first
-./sbm.sh fiatofportland                # Run the migration
+./start-dealer.sh fiatofportland prod # Start the dealer first
+./sbm.sh fiatofportland               # Run the migration
 ```
 
 ### Create PR Only
