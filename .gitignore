@@ -24,3 +24,15 @@ _.secret
 _.secrets
 _.config.local
 _.local
+
+# Log files
+logs/
+*.log
+
+# Test output
+tests/output/
+test-output/
+
+# Other temporary files
+tmp/
+.DS_Store
