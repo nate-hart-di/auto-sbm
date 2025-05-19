@@ -1,0 +1,26 @@
+# Ignore environment variable files
+
+.env
+.env.\*
+_.env
+_.env.\*
+
+# Common environment/config files
+
+_.env.local
+_.env.development
+_.env.test
+_.env.production
+
+# Python virtual environment and cache
+
+venv/
+**pycache**/
+\*.pyc
+
+# Other secrets/configs
+
+_.secret
+_.secrets
+_.config.local
+_.local
