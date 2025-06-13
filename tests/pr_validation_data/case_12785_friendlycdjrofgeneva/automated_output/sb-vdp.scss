@@ -1,0 +1,30 @@
+// Legacy VDP styles
+.vehicle-details {
+    display: flex;
+    flex-direction: column;
+    
+    .price {
+        @include font_size(24px);
+        color: var(--primary);
+        font-weight: bold;
+    }
+    
+    .features {
+        background: linear-gradient(to right, #f8f9fa, #e9ecef);
+        padding: 20px;
+        
+        @media (min-width: 1024px) {
+            flex-direction: row;
+        }
+    }
+}
+
+.gallery {
+    @include absolute(top, 0, right, 0);
+    width: 100%;
+    
+    img {
+        border-radius: 8px;
+        max-width: 100%;
+    }
+}

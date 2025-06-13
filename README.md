@@ -1,63 +1,112 @@
-# SBM Tool V2 - Site Builder Migration
+# SBM Tool V2 - Development Branch
 
-**One-command automation** for converting DealerInspire dealer themes to Site Builder format.
+**Complete development environment** for the Site Builder Migration Tool V2.
 
-## 🚀 Quick Install
+## 🎯 Branch Structure
+
+- **`main` branch**: Clean, user-focused repository for end users
+- **`dev` branch**: Complete development environment (you are here)
+
+## 🚀 Quick Development Setup
 
 ```bash
-pip install sbm-v2
+# Clone and switch to dev branch
+git clone git@github.com:nate-hart-di/auto-sbm.git
+cd auto-sbm
+git checkout dev
+
+# Install in development mode
+pip install -e .
+
+# Install development dependencies
+pip install -e .[dev]
+
+# Run tests
+pytest
+
+# Run full validation suite
+pytest tests/pr_validation_data/
 ```
 
-## 🎯 Quick Start
+## 📋 What's Here (Dev Branch)
+
+- 🧪 **Complete test suites** - All test scenarios and validation
+- 📊 **Test validation data** - Real PR validation cases (10+ dealer scenarios)
+- 📚 **Development documentation** - Architecture, analysis, guides
+- 🔧 **Development tools** - Scripts, workflows, templates
+- 📈 **Analysis reports** - Compliance, standards, metrics
+
+## 🧪 Testing
+
+### Test Structure
+
+```
+tests/
+├── pr_validation_data/     # Real PR test cases
+│   ├── case_11699_*/      # Spitzer Motors validation
+│   ├── case_12755_*/      # Maserati examples
+│   └── ...                # 10+ real dealer scenarios
+├── test_*.py              # Unit and integration tests
+└── conftest.py            # Test configuration
+```
+
+### Running Tests
 
 ```bash
-# 1. Setup dealer migration
-sbm setup your-dealer-slug --auto-start
+# All tests
+pytest
 
-# 2. Run migration
-sbm migrate your-dealer-slug
+# Specific test categories
+pytest tests/test_workflow.py
+pytest tests/pr_validation_data/
 
-# 3. Create pull request
-sbm create-pr
+# With coverage
+pytest --cov=sbm --cov-report=html
 ```
 
-## 📋 What It Does
+## 📚 Documentation Structure
 
-- ✅ **Converts SCSS files** to Site Builder format
-- ✅ **Updates mixins** to modern CSS
-- ✅ **Handles Git workflow** automatically
-- ✅ **Creates GitHub PR** with proper templates
+```
+docs/
+├── development/           # Development guides and changelog
+├── analysis/             # Technical analysis and compliance
+├── guides/               # Migration rules and K8 guides
+├── quickstart/           # New user and AI assistant onboarding
+├── templates/            # PR templates and boilerplates
+└── test-logs/           # Test execution logs
+```
 
-## 🔧 Requirements
+## 🔧 Development Workflow
 
-- Python 3.8+
-- Access to `~/di-websites-platform` directory
-- GitHub CLI (`gh`) authenticated
+1. **Work in dev branch**: Make all changes here
+2. **Run tests**: Validate changes with full test suite
+3. **Update docs**: Document changes in relevant docs
+4. **Merge to main**: When ready for release, merge clean changes to main
+5. **Main branch**: Stays clean and user-focused
 
-## 📚 Commands
+## 📊 Validation Coverage
 
-| Command                         | Purpose                      |
-| ------------------------------- | ---------------------------- |
-| `sbm doctor`                    | Check system health          |
-| `sbm setup <slug> --auto-start` | Prepare dealer for migration |
-| `sbm migrate <slug>`            | Run the migration            |
-| `sbm create-pr`                 | Create GitHub pull request   |
+- ✅ **10+ Real PR Test Cases** - Validated against actual migrations
+- ✅ **50+ Dealer Patterns** - Comprehensive pattern coverage
+- ✅ **100% Core Functionality** - All features tested
+- ✅ **Production Metrics** - Performance and reliability testing
 
-## 🚨 Getting Help
+## 🎯 Quick Commands
 
-1. **Always try first:** `sbm doctor`
-2. **Issues?** Check [troubleshooting guide](TROUBLESHOOTING.md)
-3. **Bugs?** Report at [GitHub Issues](https://github.com/nate-hart-di/auto-sbm/issues)
+```bash
+# Switch to user branch
+git checkout main
 
-## 🔧 Development
+# Switch to dev branch
+git checkout dev
 
-**For developers**: See the [development repository](https://github.com/nate-hart-di/auto-sbm-dev) which contains:
+# Sync latest changes
+git pull origin dev
 
-- Complete test suites
-- Development documentation
-- Validation data
-- Analysis reports
+# Run full validation
+pytest tests/pr_validation_data/ -v
+```
 
 ---
 
-**Need more details?** See [Complete Documentation](DOCS.md)
+**User branch**: `git checkout main` for clean, user-focused repository

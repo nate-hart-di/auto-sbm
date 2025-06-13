@@ -1,0 +1,29 @@
+// Legacy SCSS with common patterns to test
+@import 'mixins';
+
+.header {
+    @include absolute(top, 0, left, 0);
+    @include flexbox();
+    @include gradient(#093382, #1a5490);
+    background: #008001;
+    
+    @media (min-width: 920px) {
+        @include font_size(18px);
+    }
+}
+
+.cta-button {
+    @include border-radius(4px);
+    background: $primary;
+    color: #ffffff;
+    
+    &:hover {
+        background: #e20000;
+    }
+}
+
+.vehicle-grid {
+    @include flexbox();
+    @include flex-wrap(wrap);
+    gap: 20px;
+}
