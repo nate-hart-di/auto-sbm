@@ -10,7 +10,7 @@ from sbm.utils.errors import (
     ValidationError,
     GitError,
     SCSSError,
-    Context7Error,
+
     OEMError,
     FileOperationError,
     ConfigurationError
@@ -23,7 +23,7 @@ __all__ = [
     "ValidationError", 
     "GitError",
     "SCSSError",
-    "Context7Error",
+
     "OEMError",
     "FileOperationError",
     "ConfigurationError"

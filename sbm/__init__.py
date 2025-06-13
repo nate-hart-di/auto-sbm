@@ -1,8 +1,8 @@
 """
 SBM Tool V2 - Site Builder Migration Tool
 
-Team-friendly, Context7-powered migration tool for DealerInspire dealer websites.
-Optimized for Stellantis dealers with enhanced SCSS processing capabilities.
+Team-friendly migration tool for DealerInspire dealer websites.
+Automated SCSS processing and Site Builder migration capabilities.
 """
 
 __version__ = "2.0.0"

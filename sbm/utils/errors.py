@@ -123,37 +123,6 @@ class SCSSError(SBMError):
         })
 
 
-class Context7Error(SBMError):
-    """Context7 MCP server errors."""
-    
-    def __init__(self, message: str, server_url: Optional[str] = None, 
-                 status_code: Optional[int] = None, response: Optional[str] = None):
-        suggestions = {
-            "connection refused": "Ensure Context7 MCP server is running and accessible.",
-            "timeout": "Check network connectivity and server response time.",
-            "unauthorized": "Verify your Context7 API key is correct and valid.",
-            "not found": "Check the Context7 server URL and endpoint configuration.",
-            "server error": "Context7 server encountered an error. Check server logs.",
-        }
-        
-        suggestion = None
-        for error_pattern, error_suggestion in suggestions.items():
-            if error_pattern.lower() in message.lower():
-                suggestion = error_suggestion
-                break
-        
-        if not suggestion:
-            suggestion = (
-                "Check Context7 server status and configuration. "
-                "You can disable Context7 integration with SKIP_CONTEXT7=true if needed."
-            )
-        
-        super().__init__(message, suggestion, {
-            "server_url": server_url,
-            "status_code": status_code,
-            "response": response
-        })
-
 
 class OEMError(SBMError):
     """OEM handler errors."""

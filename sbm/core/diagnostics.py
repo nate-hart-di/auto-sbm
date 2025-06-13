@@ -26,7 +26,7 @@ class SystemDiagnostics:
             "checks": {
                 "config": {"status": "pass", "message": "Configuration valid"},
                 "git": {"status": "pass", "message": "Git available"},
-                "context7": {"status": "warning", "message": "Server not responding"}
+
             }
         }
     

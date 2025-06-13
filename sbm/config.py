@@ -2,7 +2,7 @@
 Configuration management for SBM Tool V2.
 
 Handles environment variables, validation, and configuration for all components
-including Context7 integration, Git operations, and Stellantis-specific settings.
+including Git operations and GitHub integration.
 """
 
 import os
@@ -12,16 +12,6 @@ from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
 from sbm.utils.errors import ConfigurationError
-
-
-@dataclass
-class Context7Config:
-    """Context7 MCP server configuration."""
-    
-    server_url: str = "http://localhost:3001"
-    api_key: Optional[str] = None
-    timeout: int = 30
-    enabled: bool = True
 
 
 @dataclass
@@ -44,34 +34,7 @@ class GitHubConfig:
     repo: str = "di-websites-platform"
 
 
-@dataclass
-class StellantisConfig:
-    """Stellantis-specific processing configuration."""
-    
-    enhanced_mode: bool = True
-    brand_detection: str = "auto"
-    map_processing: bool = True
-    
-    # Brand patterns for detection
-    brand_patterns: Dict[str, List[str]] = field(default_factory=lambda: {
-        'chrysler': ['chrysler', 'chryslerof', 'chrysler-'],
-        'dodge': ['dodge', 'dodgeof', 'dodge-'],
-        'jeep': ['jeep', 'jeepof', 'jeep-'],
-        'ram': ['ram', 'ramof', 'ram-', 'ramtrucks'],
-        'fiat': ['fiat', 'fiatof', 'fiat-'],
-        'cdjr': ['cdjr', 'cdjrof', 'chryslerdodgejeepram'],
-        'fca': ['fca', 'fcaof', 'fiat-chrysler']
-    })
 
-
-@dataclass
-class DemoConfig:
-    """Demo mode configuration for live presentations."""
-    
-    enabled: bool = False
-    timeout: int = 300
-    skip_git: bool = False
-    skip_startup: bool = False
 
 
 class Config:
@@ -126,13 +89,7 @@ class Config:
             "app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme"
         )
         
-        # Context7 configuration
-        self.context7 = Context7Config(
-            server_url=os.getenv("CONTEXT7_SERVER_URL", "http://localhost:3001"),
-            api_key=self._get_context7_key(),
-            timeout=int(os.getenv("CONTEXT7_TIMEOUT", "30")),
-            enabled=not self._get_bool("SKIP_CONTEXT7", False)
-        )
+
         
         # Git configuration
         self.git = GitConfig(
@@ -150,20 +107,7 @@ class Config:
             repo=os.getenv("GITHUB_REPO", "di-websites-platform")
         )
         
-        # Stellantis configuration
-        self.stellantis = StellantisConfig(
-            enhanced_mode=self._get_bool("STELLANTIS_ENHANCED_MODE", True),
-            brand_detection=os.getenv("STELLANTIS_BRAND_DETECTION", "auto"),
-            map_processing=self._get_bool("STELLANTIS_MAP_PROCESSING", True)
-        )
-        
-        # Demo configuration
-        self.demo = DemoConfig(
-            enabled=self._get_bool("DEMO_MODE", False),
-            timeout=int(os.getenv("DEMO_TIMEOUT", "300")),
-            skip_git=self._get_bool("DEMO_SKIP_GIT", False),
-            skip_startup=self._get_bool("DEMO_SKIP_STARTUP", False)
-        )
+
         
         # General settings
         self.force_reset = self._get_bool("SBM_FORCE_RESET", False)
@@ -234,12 +178,7 @@ class Config:
             "di_platform_dir": str(self.di_platform_dir),
             "dealer_themes_dir": str(self.dealer_themes_dir),
             "common_theme_dir": str(self.common_theme_dir),
-            "context7": {
-                "server_url": self.context7.server_url,
-                "timeout": self.context7.timeout,
-                "enabled": self.context7.enabled,
-                "api_key_set": bool(self.context7.api_key)
-            },
+
             "git": {
                 "user_name": self.git.user_name,
                 "user_email": self.git.user_email,
@@ -252,17 +191,7 @@ class Config:
                 "repo": self.github.repo,
                 "token_set": bool(self.github.token)
             },
-            "stellantis": {
-                "enhanced_mode": self.stellantis.enhanced_mode,
-                "brand_detection": self.stellantis.brand_detection,
-                "map_processing": self.stellantis.map_processing
-            },
-            "demo": {
-                "enabled": self.demo.enabled,
-                "timeout": self.demo.timeout,
-                "skip_git": self.demo.skip_git,
-                "skip_startup": self.demo.skip_startup
-            },
+
             "general": {
                 "force_reset": self.force_reset,
                 "skip_validation": self.skip_validation,
@@ -298,25 +227,7 @@ class Config:
         # Fallback to environment
         return os.getenv("GITHUB_TOKEN")
     
-    def _get_context7_key(self) -> Optional[str]:
-        """Get Context7 API key from MCP config or environment."""
-        # Try MCP config first
-        try:
-            mcp_config_path = Path.home() / ".cursor" / "mcp.json"
-            if mcp_config_path.exists():
-                import json
-                with open(mcp_config_path) as f:
-                    mcp_config = json.load(f)
-                    context7_env = mcp_config.get("mcpServers", {}).get("context7-mcp", {}).get("args", [])
-                    # Look for --key argument
-                    for i, arg in enumerate(context7_env):
-                        if arg == "--key" and i + 1 < len(context7_env):
-                            return context7_env[i + 1]
-        except Exception:
-            pass
-        
-        # Fallback to environment
-        return os.getenv("CONTEXT7_API_KEY")
+
 
 
 # Global configuration instance

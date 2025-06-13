@@ -151,24 +151,7 @@ class SBMLogger:
         self.console.print(panel)
         self.console.print()
     
-    def context7_status(self, enabled: bool, server_url: str) -> None:
-        """Display Context7 integration status."""
-        status = "🟢 CONNECTED" if enabled else "🔴 DISABLED"
-        status_style = "green" if enabled else "red"
-        
-        status_text = Text()
-        status_text.append(f"Status: {status}\n", style=f"bold {status_style}")
-        status_text.append(f"Server: {server_url}", style="dim white")
-        
-        panel = Panel(
-            status_text,
-            title="Context7 MCP Integration",
-            border_style=status_style,
-            box=box.ROUNDED
-        )
-        
-        self.console.print(panel)
-        self.console.print()
+
     
     def start_progress(self, description: str = "Processing...") -> None:
         """Start progress tracking."""

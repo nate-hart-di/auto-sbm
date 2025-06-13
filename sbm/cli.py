@@ -35,8 +35,8 @@ def cli(ctx, verbose, log_level, log_file, config):
     """
     SBM Tool V2 - Site Builder Migration Tool
     
-    Team-friendly, Context7-powered migration tool for DealerInspire dealer websites.
-    Optimized for Stellantis dealers with enhanced SCSS processing capabilities.
+    Team-friendly migration tool for DealerInspire dealer websites.
+    Automated SCSS processing and Site Builder migration capabilities.
     """
     # Ensure context object exists
     ctx.ensure_object(dict)
@@ -51,15 +51,9 @@ def cli(ctx, verbose, log_level, log_file, config):
         ctx.obj['config'] = get_config(config)
         ctx.obj['logger'] = get_logger()
         
-        # Show demo banner if enabled
-        if ctx.obj['config'].demo.enabled:
-            ctx.obj['logger'].demo_banner()
+
             
-        # Show Context7 status - DISABLED
-        # ctx.obj['logger'].context7_status(
-        #     ctx.obj['config'].context7.enabled,
-        #     ctx.obj['config'].context7.server_url
-        # )
+
         
     except Exception as e:
         console.print(f"❌ Configuration error: {e}", style="red")
@@ -342,35 +336,7 @@ def config_info(ctx):
         paths_branch.add(f"Dealer Themes: {config_dict['dealer_themes_dir']}")
         paths_branch.add(f"Common Theme: {config_dict['common_theme_dir']}")
         
-        # Context7
-        context7_branch = tree.add("🔗 Context7 Integration")
-        c7_config = config_dict['context7']
-        status = "🟢 Enabled" if c7_config['enabled'] else "🔴 Disabled"
-        context7_branch.add(f"Status: {status}")
-        context7_branch.add(f"Server: {c7_config['server_url']}")
-        context7_branch.add(f"Timeout: {c7_config['timeout']}s")
-        
-        # Git
-        git_branch = tree.add("📝 Git Configuration")
-        git_config = config_dict['git']
-        git_branch.add(f"User: {git_config['user_name']} <{git_config['user_email']}>")
-        git_branch.add(f"Default Branch: {git_config['default_branch']}")
-        git_branch.add(f"Reviewers: {', '.join(git_config['default_reviewers'])}")
-        
-        # Stellantis
-        stellantis_branch = tree.add("🚗 Stellantis Configuration")
-        s_config = config_dict['stellantis']
-        stellantis_branch.add(f"Enhanced Mode: {'✅' if s_config['enhanced_mode'] else '❌'}")
-        stellantis_branch.add(f"Brand Detection: {s_config['brand_detection']}")
-        stellantis_branch.add(f"Map Processing: {'✅' if s_config['map_processing'] else '❌'}")
-        
-        # Demo mode
-        if config_dict['demo']['enabled']:
-            demo_branch = tree.add("🎯 Demo Mode")
-            demo_config = config_dict['demo']
-            demo_branch.add(f"Timeout: {demo_config['timeout']}s")
-            demo_branch.add(f"Skip Git: {'✅' if demo_config['skip_git'] else '❌'}")
-            demo_branch.add(f"Skip Startup: {'✅' if demo_config['skip_startup'] else '❌'}")
+
         
         console.print()
         console.print(tree)
@@ -429,20 +395,7 @@ def doctor(ctx, list_themes, check_git):
             if len(themes) > 10:
                 logger.info(f"  ... and {len(themes) - 10} more")
         
-        # Context7 check disabled
-        # if check_context7:
-        #     try:
-        #         from sbm.scss.context7 import Context7Client
-        #         client = Context7Client(config.context7)
-        #         checks['Context7 Connection'] = {
-        #             'passed': client.test_connection(),
-        #             'message': config.context7.server_url
-        #         }
-        #     except Exception as e:
-        #         checks['Context7 Connection'] = {
-        #             'passed': False,
-        #             'message': str(e)
-        #         }
+
         
         if check_git:
             try:

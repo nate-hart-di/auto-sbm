@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sbm-v2"
 version = "2.4.0"
-description = "Site Builder Migration Tool V2 - Team-friendly, Context7-powered migration tool for DealerInspire dealer websites"
+description = "Site Builder Migration Tool V2 - Team-friendly migration tool for DealerInspire dealer websites"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "DealerInspire Development Team"},
 ]
-keywords = ["dealerinspire", "migration", "scss", "context7", "stellantis"]
+keywords = ["dealerinspire", "migration", "scss", "site-builder"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
