@@ -3,7 +3,7 @@
 ## 🚀 Installation (One Command)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash
+pip install sbm-v2
 ```
 
 ## 🎯 Basic Usage
@@ -38,9 +38,9 @@ sbm create-pr
    source ~/.zshrc
    ```
 3. **GitHub issues?** `gh auth login`
-4. **Everything broken?** Re-run setup:
+4. **Everything broken?** Reinstall:
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash
+   pip install sbm-v2 --force-reinstall
    ```
 
 ## 📋 Migration Checklist
