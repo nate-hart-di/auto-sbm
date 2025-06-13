@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+PROJECT IDENTITY:
+- SBM Tool V2 - Site Builder Migration Tool for DealerInspire
+- Purpose: Automate conversion of legacy SCSS dealer themes to Site Builder format
+- Location: /Users/nathanhart/Desktop/projects/automation/sbm-v2
+- Tech Stack: Python 3.8+, Click CLI, GitHub CLI, regex-based SCSS processing
+
+REQUIRED READING (in order):
+1. docs/AI_MEMORY_REFERENCE.md - Master orientation for AI assistants
+2. docs/quickstart/AI_ASSISTANT_QUICKSTART.md - Complete project architecture
+3. docs/development/CHANGELOG.md - Recent changes and current state
+
+CORE ARCHITECTURE PRINCIPLES:
+- Modular Design: Each component has single responsibility
+- Auto-Detection Over Configuration: Detect ~/di-websites-platform, read ~/.cursor/mcp.json
+- Regex-Based Processing: NOT AST - flexibility over perfect parsing
+- Error Handling: Comprehensive try/catch with user-friendly messages
+- Type Hints: Required for all functions and methods

@@ -1,0 +1,18 @@
+{
+  "pr_number": 12765,
+  "dealer": "example_non_stellantis_2",
+  "complexity": "simple",
+  "oem": "non-stellantis",
+  "base_commit": "6a4f1e8d",
+  "files_to_test": [
+    "style.scss",
+    "lvdp.scss",
+    "lvrp.scss",
+    "inside.scss"
+  ],
+  "expected_outputs": [
+    "sb-inside.scss",
+    "sb-vdp.scss",
+    "sb-vrp.scss"
+  ]
+}
