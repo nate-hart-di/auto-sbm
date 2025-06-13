@@ -4,6 +4,12 @@
 
 > **Version 2.5.0** - Enhanced color variable conversion | **Status: ✅ Production Ready**
 
+## 📋 Quick Start for New Users
+
+**⚡ Need to get started quickly?** → [**Quick Reference Card**](QUICK_REFERENCE.md)
+
+**🛠️ First time using this tool?** → Follow the installation guide below
+
 ## 🚀 Quick Start
 
 ### Prerequisites
