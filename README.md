@@ -51,12 +51,19 @@ sbm create-pr
 
 ## 🔧 Development
 
-**For developers**: See the [development repository](https://github.com/nate-hart-di/auto-sbm-dev) which contains:
+**For developers**: Use the development branch which contains complete test suites, documentation, and validation data:
 
-- Complete test suites
-- Development documentation
-- Validation data
-- Analysis reports
+```bash
+git checkout dev # Switch to development branch
+pytest           # Run full test suite
+```
+
+The `dev` branch includes:
+
+- Complete test suites (10+ real PR validation cases)
+- Development documentation and analysis
+- Validation data and compliance reports
+- Development guides and templates
 
 ---
 
