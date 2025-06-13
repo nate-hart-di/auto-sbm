@@ -49,6 +49,15 @@ sbm create-pr
 2. **Issues?** Check [troubleshooting guide](TROUBLESHOOTING.md)
 3. **Bugs?** Report at [GitHub Issues](https://github.com/nate-hart-di/auto-sbm/issues)
 
+## 🔧 Development
+
+**For developers**: See the [development repository](https://github.com/nate-hart-di/auto-sbm-dev) which contains:
+
+- Complete test suites
+- Development documentation
+- Validation data
+- Analysis reports
+
 ---
 
 **Need more details?** See [Complete Documentation](DOCS.md)
