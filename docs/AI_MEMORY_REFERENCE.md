@@ -60,9 +60,10 @@ If you're an AI assistant working on the SBM Tool V2 project, **start here**:
 **Project**: SBM Tool V2 - Site Builder Migration tool for DealerInspire dealer websites  
 **Purpose**: Converts legacy SCSS themes to Site Builder format  
 **Tech**: Python/Click CLI, regex-based SCSS processing, GitHub CLI integration  
-**Location**: `/Users/nathanhart/Desktop/projects/automation/sbm-v2`  
-**Version**: 2.4.0  
-**Status**: ✅ Production Ready
+**Repository**: `https://github.com/nate-hart-di/auto-sbm`  
+**Version**: 2.5.0  
+**Status**: ✅ Production Ready  
+**Installation**: One-command automated setup: `curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash`
 
 ## 🚨 Critical Standards
 

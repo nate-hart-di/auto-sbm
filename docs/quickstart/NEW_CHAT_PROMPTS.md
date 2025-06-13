@@ -6,7 +6,7 @@
 I'm working on the SBM Tool V2 project - a Site Builder Migration tool for DealerInspire dealer websites.
 
 Key context:
-- Project location: /Users/nathanhart/Desktop/projects/automation/sbm-v2
+- Repository: https://github.com/nate-hart-di/auto-sbm
 - Purpose: Converts legacy SCSS themes to Site Builder format
 - Tech stack: Python/Click CLI, regex-based SCSS processing, GitHub CLI integration
 - Key files: sbm/scss/processor.py (SCSS conversion), sbm/cli.py (CLI interface), sbm/core/git_operations.py (PR creation)
@@ -22,7 +22,7 @@ Current focus: [DESCRIBE WHAT YOU'RE WORKING ON]
 I'm working on SBM Tool V2 - a DealerInspire Site Builder migration tool. This is a mature Python CLI tool that automates SCSS theme conversions.
 
 Project context:
-- Location: /Users/nathanhart/Desktop/projects/automation/sbm-v2
+- Repository: https://github.com/nate-hart-di/auto-sbm
 - Main package: sbm/ with CLI, SCSS processor, validation, and git operations
 - Key transformations: mixin replacement, color variables, breakpoint standardization
 - Integration: GitHub CLI for PR creation with Stellantis templates
@@ -38,7 +38,7 @@ I need help with: [SPECIFIC DEVELOPMENT TASK]
 I'm troubleshooting the SBM Tool V2 - a Site Builder migration tool for DealerInspire themes.
 
 Quick context:
-- Python CLI tool at /Users/nathanhart/Desktop/projects/automation/sbm-v2
+- Python CLI tool repository: https://github.com/nate-hart-di/auto-sbm
 - Main command: `sbm migrate` with flags --force, --create-pr, --dry-run
 - Debugging: Always start with `sbm doctor` for environment diagnostics
 - Config: Auto-detects ~/di-websites-platform, reads ~/.cursor/mcp.json

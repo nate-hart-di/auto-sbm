@@ -24,7 +24,7 @@
 ### Project Structure
 
 ```
-sbm-v2/
+auto-sbm/
 ├── sbm/                    # Main package
 │   ├── cli.py             # Click-based CLI interface
 │   ├── config.py          # Configuration management
@@ -126,8 +126,8 @@ sbm-v2/
 
 ### Installation Issues
 
-- **Permission denied**: Remove old aliases, reinstall with `pip install -e .`
-- **Command not found**: Add `~/.local/bin` to PATH
+- **Permission denied**: Re-run automated setup: `curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash`
+- **Command not found**: Add `~/.local/bin` to PATH or re-run setup script
 - **GitHub auth**: Ensure `gh auth login` is completed
 
 ### Migration Issues

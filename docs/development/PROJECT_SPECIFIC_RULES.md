@@ -4,7 +4,7 @@
 
 **Project**: SBM Tool V2 - Site Builder Migration Tool for DealerInspire
 **Purpose**: Automate conversion of legacy SCSS dealer themes to Site Builder format
-**Location**: `/Users/nathanhart/Desktop/projects/automation/sbm-v2`
+**Repository**: `https://github.com/nate-hart-di/auto-sbm`
 **Tech Stack**: Python 3.8+, Click CLI, GitHub CLI, regex-based SCSS processing
 
 ### **ALWAYS READ FIRST**

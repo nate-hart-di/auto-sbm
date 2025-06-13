@@ -47,16 +47,25 @@ Test execution logs and validation results
 
 ## 🚀 Quick Start
 
+### Installation (One Command)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash
+```
+
+### Getting Started
+
 1. **For New Users**: Start with the [New User Quickstart](./quickstart/NEW_USER_QUICKSTART.md)
 2. **For AI Assistants**: Read the [AI Assistant Quickstart](./quickstart/AI_ASSISTANT_QUICKSTART.md)
 3. **For Migrations**: Follow the [K8 SBM Guide](./guides/K8%20SBM%20Guide.md)
 
 ## 📈 Project Status
 
-**Current Version**: 2.4.0  
+**Current Version**: 2.5.0  
 **Status**: ✅ Production Ready  
 **Automation Coverage**: 100% of K8 SBM Guide requirements  
-**Success Rate**: 100% on comprehensive testing
+**Success Rate**: 100% on comprehensive testing  
+**Installation**: One-command automated setup available
 
 ## 📝 Contributing
 
