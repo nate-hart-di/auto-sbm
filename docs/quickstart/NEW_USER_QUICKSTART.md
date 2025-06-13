@@ -11,15 +11,30 @@
 
 ### 1. Install the Tool
 
-```bash
-# Clone and install
-git clone <repository-url>
-cd sbm-v2
-pip install -e .
+**Easiest Way: Automated Setup**
 
-# Install shell completion (optional but recommended)
-sbm install-completion
+```bash
+# Download and run the setup script (installs everything automatically)
+curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash
 ```
+
+**Alternative: Manual Installation**
+
+```bash
+# Clone the repository
+git clone git@github.com:nate-hart-di/auto-sbm.git
+cd auto-sbm
+
+# Run the setup script
+./setup.sh
+```
+
+The setup script will install:
+
+- Python 3.8+ (if needed)
+- GitHub CLI (if needed)
+- All required dependencies
+- The SBM tool itself
 
 ### 2. Configure Your Environment
 

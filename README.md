@@ -13,27 +13,139 @@
 - GitHub CLI (`gh`) installed and authenticated
 - Configuration in `~/.cursor/mcp.json` (optional)
 
-### Installation
+### Easy Installation (Recommended)
+
+**Option 1: Automated Setup (5 minutes)**
 
 ```bash
-git clone <repository-url>
-cd sbm-v2
-pip install -e .
+# Download and run the automated setup script
+curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash
+```
 
-# Verify installation
+This script will automatically:
+
+- ✅ Install Python 3.8+ (if needed)
+- ✅ Install GitHub CLI (if needed)
+- ✅ Install all dependencies
+- ✅ Configure the tool
+- ✅ Verify everything works
+
+**Option 2: Manual Installation**
+
+If you prefer to install manually or the automated script doesn't work:
+
+```bash
+# 1. Clone the repository
+git clone git@github.com:nate-hart-di/auto-sbm.git
+cd auto-sbm
+
+# 2. Run the setup script
+./setup.sh
+
+# 3. Verify installation
 sbm doctor
 ```
 
-### Your First Migration
+**Option 3: Step-by-Step Manual Installation**
+
+<details>
+<summary>Click here for detailed manual installation steps</summary>
+
+**Step 1: Install Prerequisites**
 
 ```bash
-# 1. Setup git workflow and Docker container
+# Install Homebrew (if not already installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Python 3.8+
+brew install python3
+
+# Install GitHub CLI
+brew install gh
+
+# Authenticate with GitHub
+gh auth login
+```
+
+**Step 2: Clone and Install Tool**
+
+```bash
+# Clone the repository
+git clone git@github.com:nate-hart-di/auto-sbm.git
+cd auto-sbm
+
+# Install the tool
+python3 -m pip install -e .
+
+# Add to PATH (if needed)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Step 3: Verify Installation**
+
+```bash
+sbm doctor
+```
+
+</details>
+
+### Your First Migration (Step-by-Step Guide)
+
+**Step 1: Find Your Dealer Slug**
+The "slug" is the dealer's unique identifier. You can find it in the dealer theme folder name:
+
+```bash
+# Look in the dealer-themes directory
+ls ~/di-websites-platform/dealer-themes/
+# Example: friendlycdjrofgeneva, larryhopkinstonhonda, etc.
+```
+
+**Step 2: Setup Git Workflow**
+
+```bash
+# Replace 'friendlycdjrofgeneva' with your dealer's slug
 sbm setup friendlycdjrofgeneva --auto-start
+```
 
-# 2. Run migration
+This will:
+
+- Create a new git branch
+- Setup the dealer theme files
+- Start the Docker container (takes 1-2 minutes)
+
+**Step 3: Run the Migration**
+
+```bash
+# Replace 'friendlycdjrofgeneva' with your dealer's slug
 sbm migrate friendlycdjrofgeneva
+```
 
-# 3. Create PR
+This will:
+
+- Convert SCSS files to Site Builder format
+- Replace mixins with CSS
+- Update color variables
+- Create the new sb-\*.scss files
+
+**Step 4: Create Pull Request**
+
+```bash
+sbm create-pr
+```
+
+This will:
+
+- Create a GitHub PR with the changes
+- Use the correct PR template
+- Open the PR in your browser
+
+**Complete Example:**
+
+```bash
+# For dealer 'friendlycdjrofgeneva'
+sbm setup friendlycdjrofgeneva --auto-start
+sbm migrate friendlycdjrofgeneva
 sbm create-pr
 ```
 
@@ -225,28 +337,88 @@ Add to `~/.cursor/mcp.json`:
 - ✅ **100%** - Color variable conversion (common patterns)
 - ✅ **100%** - Transform/transition mixins
 
-## 🚨 Troubleshooting
+## 🚨 Troubleshooting & Support
 
-### Quick Diagnostics
+### Quick Diagnostics (Run This First!)
 
 ```bash
-# First, always run diagnostics
+# Always start with diagnostics - this tells you what's wrong
 sbm doctor
-
-# Common fixes
-pip install -e . --force-reinstall # Reinstall if command not found
-gh auth login                      # GitHub authentication
-rm -rf ~/.local/bin/sbm*           # Clear old installations
 ```
 
-### Common Issues
+### Most Common Issues & Solutions
 
-| Issue                      | Solution                                |
-| -------------------------- | --------------------------------------- |
-| `command not found: sbm`   | Add `~/.local/bin` to PATH              |
-| GitHub PR creation fails   | Run `gh auth login`                     |
-| Migration validation fails | Check theme has required files          |
-| Docker container not ready | Wait for `just start {slug}` completion |
+**❌ Problem: "command not found: sbm"**
+
+```bash
+# Solution 1: Add to PATH and restart terminal
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# Solution 2: If that doesn't work, reinstall
+python3 -m pip install -e . --force-reinstall
+```
+
+**❌ Problem: "GitHub PR creation fails"**
+
+```bash
+# Solution: Authenticate with GitHub
+gh auth login
+# Follow the prompts to authenticate
+```
+
+**❌ Problem: "Python 3.8+ required"**
+
+```bash
+# Solution: Install/upgrade Python
+brew install python3
+# Then re-run the setup script
+```
+
+**❌ Problem: "Permission denied" errors**
+
+```bash
+# Solution: Fix permissions
+sudo chown -R $(whoami) ~/.local
+python3 -m pip install -e . --user --force-reinstall
+```
+
+**❌ Problem: Migration fails with validation errors**
+
+```bash
+# Solution 1: Check if dealer theme exists
+ls ~/di-websites-platform/dealer-themes/your-slug
+
+# Solution 2: Force migration (skip validation)
+sbm migrate your-slug --force
+```
+
+**❌ Problem: "Docker container not ready"**
+
+```bash
+# Solution: Wait for Docker to finish starting
+# The 'just start {slug}' command takes 1-2 minutes
+# Look for "Server is ready" message
+```
+
+### Need More Help?
+
+1. **Run Diagnostics**: `sbm doctor` shows detailed system status
+2. **Check Logs**: Look for error messages in the terminal output
+3. **Reinstall**: Run `./setup.sh` again to fix most issues
+4. **GitHub Issues**: Report bugs at https://github.com/nate-hart-di/auto-sbm/issues
+
+### Emergency Reset (If Nothing Works)
+
+```bash
+# Remove everything and start fresh
+rm -rf ~/.local/bin/sbm*
+rm -rf ~/.cursor/mcp.json
+pip uninstall sbm-v2 -y
+
+# Then re-run setup
+curl -fsSL https://raw.githubusercontent.com/nate-hart-di/auto-sbm/master/setup.sh | bash
+```
 
 ## 📞 Support
 
