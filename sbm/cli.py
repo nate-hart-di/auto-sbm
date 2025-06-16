@@ -5,10 +5,12 @@ Team-friendly CLI with comprehensive commands for migration, validation,
 and demo operations with Context7 integration.
 """
 
+import os
 import sys
 import time
+import subprocess
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 import click
 from rich.console import Console
@@ -17,6 +19,7 @@ from sbm.config import get_config
 from sbm.utils.logger import get_logger, setup_logging
 from sbm.utils.errors import SBMError, format_error_for_display
 from sbm.core.workflow import MigrationWorkflow
+from sbm.core.full_workflow import FullMigrationWorkflow
 from sbm.core.validation import validate_theme, validate_scss, ValidationEngine
 from sbm.core.diagnostics import SystemDiagnostics
 from sbm.oem.handler import OEMHandler
@@ -35,8 +38,19 @@ def cli(ctx, verbose, log_level, log_file, config):
     """
     SBM Tool V2 - Site Builder Migration Tool
     
-    Team-friendly migration tool for DealerInspire dealer websites.
-    Automated SCSS processing and Site Builder migration capabilities.
+    FULLY AUTOMATED WORKFLOW: Just run 'sbm auto [dealer-slug]' for complete migration!
+    
+    Examples:
+        sbm auto friendlycdjrofgeneva          # Complete automated migration
+        sbm auto chryslerofportland --force    # Force migration past validation
+        sbm auto dodgeofseattle --dry-run      # Preview what would be done
+    
+    Individual commands:
+        sbm setup [slug]     # Git setup only
+        sbm migrate [slug]   # Migration only  
+        sbm validate [slug]  # Validation only
+        sbm doctor          # System diagnostics
+        sbm pr              # Create PR only
     """
     # Ensure context object exists
     ctx.ensure_object(dict)
@@ -50,14 +64,183 @@ def cli(ctx, verbose, log_level, log_file, config):
     try:
         ctx.obj['config'] = get_config(config)
         ctx.obj['logger'] = get_logger()
-        
-
-            
-
-        
     except Exception as e:
         console.print(f"❌ Configuration error: {e}", style="red")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument('slug')
+@click.option('--force', '-f', is_flag=True, help='Force migration even if validation fails')
+@click.option('--dry-run', '-n', is_flag=True, help='Preview the full workflow without making changes')
+@click.option('--skip-docker', is_flag=True, help='Skip Docker container monitoring (advanced users only)')
+@click.pass_context
+def auto(ctx, slug, force, dry_run, skip_docker):
+    """
+    🚀 FULLY AUTOMATED SBM WORKFLOW - Complete migration from start to finish.
+    
+    This command executes the complete SBM workflow in the correct order:
+    1. Run diagnostics (sbm doctor)
+    2. Switch to di-websites-platform directory
+    3. Git setup (checkout main, pull, create branch)
+    4. Start Docker container (just start {slug})
+    5. Monitor Docker until ready or error
+    6. Run migration (sbm migrate)
+    7. Validate migration results
+    8. Create GitHub PR
+    9. Copy Salesforce message to clipboard
+    10. Display complete summary
+    
+    SLUG: Dealer theme slug (e.g., 'friendlycdjrofgeneva')
+    
+    Examples:
+        sbm auto friendlycdjrofgeneva
+        sbm auto chryslerofportland --force
+        sbm auto dodgeofseattle --dry-run
+    """
+    config = ctx.obj['config']
+    logger = ctx.obj['logger']
+    
+    start_time = time.time()
+    
+    try:
+        # Initialize the full migration workflow
+        full_workflow = FullMigrationWorkflow(config)
+        
+        # Display initial banner
+        logger.info("\n" + "="*80)
+        logger.info("🚀 STARTING FULLY AUTOMATED SBM MIGRATION WORKFLOW")
+        logger.info("="*80)
+        logger.info(f"📋 Dealer: {slug}")
+        logger.info(f"⏰ Started: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"🔧 Mode: {'DRY RUN' if dry_run else 'LIVE MIGRATION'}")
+        if skip_docker:
+            logger.info("⚠️  Docker container monitoring will be skipped")
+        if force:
+            logger.info("💪 Force mode enabled - will override validation failures")
+        logger.info("="*80)
+        
+        # Execute the full workflow
+        result = full_workflow.run(slug, skip_docker_wait=skip_docker)
+        
+        # Exit with appropriate code
+        if result.get("success"):
+            logger.info("\n🎉 FULLY AUTOMATED MIGRATION COMPLETED SUCCESSFULLY!")
+            sys.exit(0)
+        else:
+            logger.error("\n❌ FULLY AUTOMATED MIGRATION FAILED")
+            if result.get("error"):
+                logger.error(f"Error: {result['error']}")
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        duration = time.time() - start_time
+        logger.warning(f"\n⚠️  Workflow interrupted by user after {duration:.1f}s")
+        sys.exit(130)  # Standard exit code for Ctrl+C
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(f"\n❌ Unexpected error after {duration:.1f}s: {e}")
+        sys.exit(1)
+
+
+def _monitor_docker_startup(slug: str, logger, config) -> Dict[str, Any]:
+    """Monitor Docker container startup with user-friendly output."""
+    try:
+        logger.info(f"Starting 'just start {slug}' process...")
+        
+        # Start the just start process
+        process = subprocess.Popen(
+            ['just', 'start', slug],
+            cwd=config.di_platform_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        logger.info(f"Started 'just start {slug}' (PID: {process.pid})")
+        logger.warning("⚠️  Monitoring Docker container startup...")
+        
+        # Monitor the process
+        start_time = time.time()
+        timeout = 300  # 5 minutes timeout
+        check_interval = 10  # Check every 10 seconds
+        
+        while process.poll() is None:
+            elapsed = time.time() - start_time
+            
+            if elapsed > timeout:
+                logger.error("Timeout waiting for 'just start' to complete")
+                process.terminate()
+                return {
+                    "success": False,
+                    "error": "Timeout waiting for Docker container to start (5 minutes)"
+                }
+            
+            # Show progress
+            minutes = int(elapsed // 60)
+            seconds = int(elapsed % 60)
+            logger.info(f"Still waiting... ({minutes:02d}:{seconds:02d} elapsed)")
+            
+            time.sleep(check_interval)
+        
+        # Process completed
+        stdout, stderr = process.communicate()
+        
+        if process.returncode == 0:
+            logger.success("Docker container started successfully!")
+            return {
+                "success": True,
+                "message": "Docker container ready",
+                "duration": time.time() - start_time
+            }
+        else:
+            error_msg = stderr.strip() if stderr else "Unknown error"
+            logger.error(f"'just start' failed with return code {process.returncode}")
+            if stderr:
+                logger.error(f"Error output: {stderr}")
+            return {
+                "success": False,
+                "error": f"just start failed: {error_msg}"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+def _display_workflow_summary(results: Dict, start_time: float, logger, dry_run: bool):
+    """Display comprehensive workflow summary."""
+    duration = time.time() - start_time
+    minutes = int(duration // 60)
+    seconds = int(duration % 60)
+    
+    logger.info("=" * 60)
+    logger.info("📊 WORKFLOW SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"Dealer: {results['slug']}")
+    logger.info(f"Mode: {'DRY RUN' if dry_run else 'LIVE MIGRATION'}")
+    logger.info(f"Duration: {minutes:02d}:{seconds:02d}")
+    logger.info(f"Branch: {results.get('branch_name', 'N/A')}")
+    
+    if results['steps_completed']:
+        logger.info(f"✅ Steps Completed ({len(results['steps_completed'])}):")
+        for step in results['steps_completed']:
+            logger.info(f"  - {step}")
+    
+    if results['steps_failed']:
+        logger.info(f"❌ Steps Failed ({len(results['steps_failed'])}):")
+        for step in results['steps_failed']:
+            logger.info(f"  - {step}")
+    
+    if results['total_files_created'] > 0:
+        logger.info(f"📁 Files Created: {results['total_files_created']}")
+    
+    if results['pr_url']:
+        logger.info(f"🔗 PR URL: {results['pr_url']}")
+    
+    logger.info("=" * 60)
 
 
 @cli.command()
@@ -555,6 +738,16 @@ def monitor(ctx, slug):
 def main():
     """Main entry point for the CLI."""
     try:
+        # Check if first argument looks like a dealer slug (no dashes, not a command)
+        import sys
+        if len(sys.argv) > 1:
+            first_arg = sys.argv[1]
+            # If it's not a known command and doesn't start with -, treat as slug for auto command
+            known_commands = ['auto', 'setup', 'migrate', 'validate', 'status', 'config-info', 'doctor', 'create-pr', 'pr', 'monitor', '--help', '-h', '--version']
+            if first_arg not in known_commands and not first_arg.startswith('-'):
+                # Insert 'auto' command before the slug
+                sys.argv.insert(1, 'auto')
+        
         cli()
     except KeyboardInterrupt:
         console.print("\n❌ Operation cancelled by user", style="yellow")

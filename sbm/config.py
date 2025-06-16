@@ -34,6 +34,16 @@ class GitHubConfig:
     repo: str = "di-websites-platform"
 
 
+@dataclass
+class DemoConfig:
+    """Demo/testing mode configuration."""
+    
+    enabled: bool = False
+    skip_git: bool = False
+    timeout: int = 300
+    skip_startup: bool = False
+
+
 
 
 
@@ -105,6 +115,14 @@ class Config:
             token=self._get_github_token(),
             org=os.getenv("GITHUB_ORG", "carsdotcom"),
             repo=os.getenv("GITHUB_REPO", "di-websites-platform")
+        )
+        
+        # Demo configuration
+        self.demo = DemoConfig(
+            enabled=self._get_bool("DEMO_MODE", False),
+            skip_git=self._get_bool("DEMO_SKIP_GIT", False),
+            timeout=int(os.getenv("DEMO_TIMEOUT", "300")),
+            skip_startup=self._get_bool("DEMO_SKIP_STARTUP", False)
         )
         
 
@@ -190,6 +208,12 @@ class Config:
                 "org": self.github.org,
                 "repo": self.github.repo,
                 "token_set": bool(self.github.token)
+            },
+            "demo": {
+                "enabled": self.demo.enabled,
+                "skip_git": self.demo.skip_git,
+                "timeout": self.demo.timeout,
+                "skip_startup": self.demo.skip_startup
             },
 
             "general": {

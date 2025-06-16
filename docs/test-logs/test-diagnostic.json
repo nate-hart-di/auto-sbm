@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-06-12T20:52:06.846907Z",
+  "checks": {
+    "Configuration": {
+      "passed": true,
+      "message": "Configuration loaded successfully"
+    },
+    "DI Platform Directory": {
+      "passed": true,
+      "message": "/Users/nathanhart/di-websites-platform"
+    },
+    "Dealer Themes Directory": {
+      "passed": true,
+      "message": "/Users/nathanhart/di-websites-platform/dealer-themes"
+    }
+  }
+}

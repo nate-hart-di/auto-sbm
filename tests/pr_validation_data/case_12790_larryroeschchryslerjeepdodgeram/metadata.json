@@ -1,0 +1,18 @@
+{
+  "pr_number": 12790,
+  "dealer": "larryroeschchryslerjeepdodgeram",
+  "complexity": "medium",
+  "oem": "stellantis",
+  "base_commit": "8a2b4c6d",
+  "files_to_test": [
+    "style.scss",
+    "lvdp.scss",
+    "lvrp.scss",
+    "inside.scss"
+  ],
+  "expected_outputs": [
+    "sb-inside.scss",
+    "sb-vdp.scss",
+    "sb-vrp.scss"
+  ]
+}

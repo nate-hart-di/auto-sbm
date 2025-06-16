@@ -1,0 +1,32 @@
+// Legacy VRP styles  
+.vehicle-listing {
+    @include flexbox();
+    @include flex-wrap(wrap);
+    gap: 16px;
+    
+    .vehicle-card {
+        @include box-shadow(0, 2px, 8px, rgba(0,0,0,0.1));
+        @include border-radius(6px);
+        background: #ffffff;
+        
+        .price {
+            color: #32CD32;
+            @include font_size(20px);
+        }
+        
+        @media (min-width: 920px) {
+            flex: 0 0 calc(50% - 8px);
+        }
+    }
+}
+
+.filters {
+    @include gradient(#f1f3f4, #e8eaed);
+    padding: 16px;
+    
+    .filter-group {
+        @include flexbox();
+        @include align-items(center);
+        margin-bottom: 12px;
+    }
+}
