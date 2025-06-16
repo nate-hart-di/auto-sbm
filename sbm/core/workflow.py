@@ -189,11 +189,20 @@ class MigrationWorkflow:
         """Run Git setup step."""
         self._set_current_step("git_setup")
         git_ops = GitOperations(self.config)
-        branch_name = git_ops.create_branch(f"{slug}-sbm{time.strftime('%m%d')}")
-        result = {
-            "branch_name": branch_name,
-            "repository_ready": True
-        }
+        branch_result = git_ops.create_branch(slug)
+        
+        if branch_result.get("success", False):
+            result = {
+                "branch_name": branch_result["branch"],
+                "repository_ready": True
+            }
+        else:
+            result = {
+                "branch_name": None,
+                "repository_ready": False,
+                "error": branch_result.get("error", "Unknown error creating branch")
+            }
+        
         self._complete_step("git_setup", result)
         return result
     

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from sbm.config import Config
 from sbm.utils.logger import get_logger
+from sbm.utils.errors import GitError
 
 
 class GitOperations:
@@ -21,69 +22,238 @@ class GitOperations:
         self.config = config
         self.logger = get_logger("git")
     
-    def monitor_just_start(self, slug: str) -> Dict[str, Any]:
-        """Monitor the 'just start' process and wait for completion."""
+    def monitor_just_start(self, slug: str, use_prod_db: bool = False) -> Dict[str, Any]:
+        """Monitor an existing 'just start' process with real-time output visible to user."""
         import time
+        import psutil
         
-        self.logger.step(f"Starting 'just start {slug}' process...")
+        just_start_cmd = f"just start {slug} prod" if use_prod_db else f"just start {slug}"
+        self.logger.step(f"Monitoring '{just_start_cmd}' process...")
+        self.logger.warning("⚠️  Looking for existing 'just start' process...")
+        self.logger.warning(f"⚠️  Make sure you've already run '{just_start_cmd}' in another terminal")
         
         try:
-            # Start the just start process
-            process = subprocess.Popen(
-                ['just', 'start', slug],
-                cwd=self.config.di_platform_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
+            # Look for existing just start process
+            just_start_process = None
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info['cmdline']
+                    if cmdline and 'just' in cmdline and 'start' in cmdline and slug in cmdline:
+                        just_start_process = proc
+                        self.logger.info(f"Found existing 'just start {slug}' process (PID: {proc.pid})")
+                        break
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            if not just_start_process:
+                self.logger.warning("No existing 'just start' process found. Starting new one...")
+                # Fall back to starting the process ourselves
+                cmd = ['just', 'start', slug]
+                if use_prod_db:
+                    cmd.append('prod')
+                process = subprocess.Popen(
+                    cmd,
+                    cwd=self.config.di_platform_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                    text=True,
+                    bufsize=1,  # Line buffered
+                    universal_newlines=True
+                )
+            else:
+                # Monitor the existing process by tailing Docker logs
+                self.logger.info("Monitoring existing process via Docker logs...")
+                # First check if the container exists, if not wait for it
+                container_name = f'di-websites-platform-{slug}-1'
+                
+                # Wait for container to be created (up to 60 seconds)
+                container_exists = False
+                for i in range(60):
+                    try:
+                        result = subprocess.run(['docker', 'inspect', container_name], 
+                                              capture_output=True, check=True)
+                        container_exists = True
+                        break
+                    except subprocess.CalledProcessError:
+                        time.sleep(1)
+                
+                if not container_exists:
+                    self.logger.warning(f"Container {container_name} not found after 60 seconds, falling back to starting new process...")
+                    cmd = ['just', 'start', slug]
+                    if use_prod_db:
+                        cmd.append('prod')
+                    process = subprocess.Popen(
+                        cmd,
+                        cwd=self.config.di_platform_dir,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True
+                    )
+                else:
+                    process = subprocess.Popen(
+                        ['docker', 'logs', '-f', container_name],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True
+                    )
             
             self.logger.info(f"Started 'just start {slug}' (PID: {process.pid})")
-            self.logger.warning("⚠️  Monitoring Docker container startup...")
+            print("=" * 60)
+            print(f"DOCKER STARTUP OUTPUT FOR {slug.upper()}")
+            print("=" * 60)
             
-            # Monitor the process
+            # Monitor the process with real-time output
             start_time = time.time()
             timeout = 300  # 5 minutes timeout
+            output_lines = []
+            happy_coding_detected = False
             
-            while process.poll() is None:
+            # Read output line by line in real-time
+            while True:
+                # Check if process is still running
+                if process.poll() is not None and not happy_coding_detected:
+                    break
+                    
+                # Check for timeout
                 elapsed = time.time() - start_time
-                
                 if elapsed > timeout:
                     self.logger.error("Timeout waiting for 'just start' to complete")
                     process.terminate()
+                    print("=" * 60)
                     return {
                         "success": False,
-                        "error": "Timeout waiting for Docker container to start"
+                        "error": "Timeout waiting for Docker container to start (5 minutes)"
                     }
                 
-                # Check every 5 seconds
-                time.sleep(5)
-                self.logger.info(f"Still waiting... ({int(elapsed)}s elapsed)")
+                # Read a line of output
+                try:
+                    line = process.stdout.readline()
+                    if line:
+                        # Print the line immediately so user can see it
+                        print(line.rstrip())
+                        output_lines.append(line.rstrip())
+                        
+                        # Check for common success indicators
+                        line_lower = line.lower()
+                        
+                        # Check for mysqldump error and handle it
+                        if 'mysqldump transfer failed' in line_lower or 'file contained invalid output' in line_lower:
+                            self.logger.warning("⚠️  Detected mysqldump error - this is common and usually not critical for SBM")
+                            self.logger.info("Continuing to monitor for successful startup...")
+                        
+                        if any(indicator in line_lower for indicator in [
+                            'happy coding', 'server started', 'ready', 'listening on', 
+                            'compiled successfully', 'webpack compiled', 'development server is running',
+                            'finished make:vhosts', 'welcome to the di website platform'
+                        ]):
+                            self.logger.info(f"Detected startup indicator: {line.strip()}")
+                            
+                            # If we see "Happy coding!" - that's the definitive completion signal
+                            if 'happy coding' in line_lower:
+                                self.logger.success("✅ 🎉 Docker startup completed - detected 'Happy coding!' message")
+                                happy_coding_detected = True
+                                # Terminate the process and exit immediately
+                                try:
+                                    process.terminate()
+                                except:
+                                    pass
+                                print("=" * 60)
+                                # CRITICAL FIX: Return success immediately when Happy coding! is detected
+                                return {
+                                    "success": True,
+                                    "message": "Docker container ready - Happy coding! detected",
+                                    "duration": time.time() - start_time,
+                                    "output": output_lines
+                                }
+                    else:
+                        # No output, sleep briefly but check if we already detected happy coding
+                        if happy_coding_detected:
+                            break
+                        time.sleep(0.1)
+                except:
+                    if happy_coding_detected:
+                        break
+                    # If there's an error but we detected happy coding, still return success
+                    if any('happy coding' in line.lower() for line in output_lines):
+                        return {
+                            "success": True,
+                            "message": "Docker container ready - Happy coding! detected",
+                            "duration": time.time() - start_time,
+                            "output": output_lines
+                        }
+                    break
             
-            # Process completed
-            stdout, stderr = process.communicate()
+            # If we get here and happy_coding_detected is True, return success
+            if happy_coding_detected:
+                return {
+                    "success": True,
+                    "message": "Docker container ready - Happy coding! detected",
+                    "duration": time.time() - start_time,
+                    "output": output_lines
+                }
             
-            if process.returncode == 0:
-                self.logger.success("Docker container started successfully!")
+            # Process completed, get final output
+            try:
+                remaining_output, _ = process.communicate(timeout=5)
+                if remaining_output:
+                    print(remaining_output)
+                    output_lines.extend(remaining_output.split('\n'))
+            except:
+                pass
+            
+            print("=" * 60)
+            
+            # Check if we detected "Happy coding!" in the complete output
+            happy_coding_in_output = any('happy coding' in line.lower() for line in output_lines)
+            
+            if process.returncode == 0 or happy_coding_in_output:
+                self.logger.success("✅ Docker container started successfully!")
                 self.logger.info("Ready to proceed with migration")
                 return {
                     "success": True,
                     "message": "Docker container ready",
-                    "duration": time.time() - start_time
+                    "duration": time.time() - start_time,
+                    "output": output_lines
                 }
             else:
+                # Look for error indicators in output, but exclude mysqldump errors
+                error_lines = [line for line in output_lines if any(err in line.lower() for err in [
+                    'error', 'failed', 'exception', 'cannot', 'unable'
+                ]) and not any(ignore in line.lower() for ignore in [
+                    'mysqldump transfer failed', 'file contained invalid output'
+                ])]
+                
+                # If we only have mysqldump errors, consider it a success if we got other indicators
+                if not error_lines and any('mysqldump' in line.lower() for line in output_lines):
+                    self.logger.warning("⚠️  Only mysqldump errors detected - treating as successful startup")
+                    return {
+                        "success": True,
+                        "message": "Docker container ready (with mysqldump warnings)",
+                        "duration": time.time() - start_time,
+                        "output": output_lines
+                    }
+                
+                error_msg = "Docker startup failed"
+                if error_lines:
+                    error_msg = f"Docker startup failed: {error_lines[-1]}"
+                
                 self.logger.error(f"'just start' failed with return code {process.returncode}")
-                if stderr:
-                    self.logger.error(f"Error output: {stderr}")
                 return {
                     "success": False,
-                    "error": f"just start failed: {stderr or 'Unknown error'}"
+                    "error": error_msg,
+                    "output": output_lines
                 }
                 
         except Exception as e:
-            self.logger.error(f"Failed to start/monitor 'just start' process: {e}")
+            self.logger.error(f"Error monitoring just start: {e}")
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Failed to monitor Docker startup: {e}",
+                "output": []
             }
 
     def pre_migration_setup(self, slug: str, auto_start: bool = False) -> Dict[str, Any]:
@@ -101,20 +271,21 @@ class GitOperations:
             self.logger.info("Fetching and pruning...")
             subprocess.run(['git', 'fetch', '--prune'], check=True, capture_output=True)
             
-            # Check status
+            # Check status and handle uncommitted changes
             status_result = subprocess.run(['git', 'status', '--porcelain'], 
                                          capture_output=True, text=True, check=True)
             if status_result.stdout.strip():
-                self.logger.warning("Working directory has uncommitted changes")
+                self.logger.warning("Working directory has uncommitted changes, stashing them...")
+                subprocess.run(['git', 'stash'], check=True, capture_output=True)
             
             # Step 2: git pull (second pull as specified)
             self.logger.info("Second pull to ensure up-to-date...")
             subprocess.run(['git', 'pull'], check=True, capture_output=True)
             
-            # Step 3: Create branch with correct naming
+            # Step 3: Create branch with correct naming - FIXED to use MMYY format (month+year)
             import datetime
-            date_suffix = datetime.datetime.now().strftime("%m%y")  # MMYY format
-            branch_name = f"{slug}-SBM{date_suffix}"
+            date_suffix = datetime.datetime.now().strftime("%m%y")  # Use MMYY format (month+year)
+            branch_name = f"{slug}-sbm{date_suffix}"  # lowercase 'sbm'
             
             # Check if branch already exists
             try:
@@ -133,7 +304,7 @@ class GitOperations:
                 # If there's any issue, try creating with a unique suffix
                 import time
                 unique_suffix = int(time.time()) % 10000
-                branch_name = f"{slug}-SBM{date_suffix}-{unique_suffix}"
+                branch_name = f"{slug}-sbm{date_suffix}-{unique_suffix}"
                 self.logger.info(f"Creating unique branch: {branch_name}")
                 subprocess.run(['git', 'checkout', '-b', branch_name], check=True, capture_output=True)
             
@@ -142,7 +313,7 @@ class GitOperations:
             subprocess.run(['git', 'sparse-checkout', 'add', f'dealer-themes/{slug}'], 
                          check=True, capture_output=True)
             
-            self.logger.success("Pre-migration git setup completed")
+            self.logger.success(f"✅ Pre-migration git setup completed - Branch: {branch_name}")
             
             if auto_start:
                 # Automatically start and monitor the just start process
@@ -187,26 +358,104 @@ class GitOperations:
                 "error": error_msg
             }
 
-    def create_branch(self, slug: str) -> str:
-        """Create a migration branch."""
+    def create_branch(self, slug: str) -> Dict[str, Any]:
+        """Create a migration branch with actual git operations."""
         import datetime
-        date_suffix = datetime.datetime.now().strftime("%m%d")
-        branch_name = f"{slug}-sbm{date_suffix}"
-        self.logger.info(f"Creating branch: {branch_name}")
-        return branch_name
+        date_suffix = datetime.datetime.now().strftime("%m%y")  # MMYY format (month+year)
+        branch_name = f"{slug}-sbm{date_suffix}"  # lowercase 'sbm'
+        
+        try:
+            self.logger.info(f"Creating branch: {branch_name}")
+            
+            # Check if branch already exists
+            result = subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch_name}'], 
+                                  capture_output=True, cwd=self.config.di_platform_dir)
+            if result.returncode == 0:
+                # Branch exists, switch to it
+                self.logger.info(f"Branch {branch_name} already exists, switching to it...")
+                subprocess.run(['git', 'checkout', branch_name], check=True, capture_output=True, cwd=self.config.di_platform_dir)
+            else:
+                # Branch doesn't exist, create it
+                self.logger.info(f"Creating new branch: {branch_name}")
+                subprocess.run(['git', 'checkout', '-b', branch_name], check=True, capture_output=True, cwd=self.config.di_platform_dir)
+            
+            self.logger.success(f"✅ Successfully created/switched to branch: {branch_name}")
+            
+            return {
+                "success": True,
+                "branch": branch_name,
+                "message": "Branch created successfully"
+            }
+            
+        except subprocess.CalledProcessError as e:
+            # If there's any issue, try creating with a unique suffix
+            try:
+                import time
+                unique_suffix = int(time.time()) % 10000
+                branch_name = f"{slug}-sbm{date_suffix}-{unique_suffix}"
+                self.logger.info(f"Creating unique branch: {branch_name}")
+                subprocess.run(['git', 'checkout', '-b', branch_name], check=True, capture_output=True, cwd=self.config.di_platform_dir)
+                
+                return {
+                    "success": True,
+                    "branch": branch_name,
+                    "message": "Branch created with unique suffix"
+                }
+            except subprocess.CalledProcessError as fallback_error:
+                error_msg = f"Failed to create branch: {fallback_error}"
+                self.logger.error(error_msg)
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
+        except Exception as e:
+            error_msg = f"Unexpected error creating branch: {e}"
+            self.logger.error(error_msg)
+            return {
+                "success": False,
+                "error": error_msg
+            }
     
     def commit_changes(self, message: str, files: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Commit changes to git repository."""
+        """Commit changes to git repository with better error handling."""
         try:
+            # Check if we're in a git repository
+            if not self._is_git_repo():
+                error_msg = "Not in a git repository"
+                self.logger.error(error_msg)
+                return {"committed": False, "error": error_msg}
+            
             # Add files to staging area
             if files:
                 for file_path in files:
-                    subprocess.run(['git', 'add', file_path], check=True, capture_output=True)
-                    self.logger.debug(f"Added {file_path} to staging area")
+                    # Check if file exists before trying to add it
+                    if not os.path.exists(file_path):
+                        error_msg = f"File does not exist: {file_path}"
+                        self.logger.error(error_msg)
+                        return {"committed": False, "error": error_msg}
+                    
+                    try:
+                        result = subprocess.run(['git', 'add', file_path], 
+                                              check=True, capture_output=True, text=True, cwd=self.config.di_platform_dir)
+                        self.logger.debug(f"Added {file_path} to staging area")
+                    except subprocess.CalledProcessError as e:
+                        error_msg = f"Failed to add {file_path} to git: {e}"
+                        if e.stderr:
+                            error_msg += f" - {e.stderr.strip()}"
+                        self.logger.error(error_msg)
+                        return {"committed": False, "error": error_msg}
             else:
                 # Add all changes if no specific files provided
-                subprocess.run(['git', 'add', '.'], check=True, capture_output=True)
-                self.logger.debug("Added all changes to staging area")
+                try:
+                    subprocess.run(['git', 'add', '.'], 
+                                 check=True, capture_output=True, text=True)
+                    self.logger.debug("Added all changes to staging area")
+                except subprocess.CalledProcessError as e:
+                    error_msg = f"Failed to add changes to git: {e}"
+                    if e.stderr:
+                        error_msg += f" - {e.stderr.strip()}"
+                    self.logger.error(error_msg)
+                    return {"committed": False, "error": error_msg}
             
             # Check if there are any changes to commit
             status_result = subprocess.run(['git', 'status', '--porcelain'], 
@@ -216,13 +465,37 @@ class GitOperations:
                 return {"committed": False, "message": "No changes to commit"}
             
             # Commit the changes
-            subprocess.run(['git', 'commit', '-m', message], check=True, capture_output=True)
-            self.logger.info(f"Committed changes: {message}")
-            
-            return {"committed": True, "message": message}
+            try:
+                commit_result = subprocess.run(['git', 'commit', '-m', message], 
+                                             check=True, capture_output=True, text=True)
+                self.logger.success(f"✅ Committed changes: {message}")
+                return {"committed": True, "message": message}
+            except subprocess.CalledProcessError as e:
+                # Clean up error message - don't include random stdout/stderr
+                error_msg = f"Command '['git', 'commit', '-m', '{message}']' returned non-zero exit status {e.returncode}."
+                
+                # Only include stderr if it's actually from git and not mixed with other output
+                if e.stderr and e.stderr.strip():
+                    stderr_lines = e.stderr.strip().split('\n')
+                    # Filter out non-git related lines (like Docker build output)
+                    git_error_lines = [line for line in stderr_lines 
+                                     if any(keyword in line.lower() for keyword in 
+                                           ['git', 'commit', 'nothing to commit', 'working tree clean', 
+                                            'author', 'email', 'config', 'branch'])]
+                    if git_error_lines:
+                        error_msg += f" Git error: {git_error_lines[0]}"
+                
+                self.logger.error(f"Failed to commit changes: {error_msg}")
+                return {"committed": False, "error": error_msg}
             
         except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to commit changes: {e}"
+            error_msg = f"Git operation failed: {e}"
+            if hasattr(e, 'stderr') and e.stderr:
+                error_msg += f" - {e.stderr.strip()}"
+            self.logger.error(error_msg)
+            return {"committed": False, "error": error_msg}
+        except Exception as e:
+            error_msg = f"Unexpected error during commit: {e}"
             self.logger.error(error_msg)
             return {"committed": False, "error": error_msg}
 
@@ -269,10 +542,33 @@ class GitOperations:
             }
             
         except Exception as e:
-            self.logger.error(f"PR creation failed: {e}")
+            error_str = str(e)
+            self.logger.error(f"PR creation failed: {error_str}")
+            
+            # Check if it's an "already exists" error and handle gracefully
+            if "already exists" in error_str:
+                # Try to extract PR URL from error message
+                import re
+                url_match = re.search(r'(https://github\.com/[^\s]+)', error_str)
+                if url_match:
+                    existing_pr_url = url_match.group(1)
+                    self.logger.info(f"PR already exists: {existing_pr_url}")
+                    
+                    # Still copy Salesforce message since migration completed
+                    pr_content = self._build_stellantis_pr_content(slug, branch_name, {})
+                    self._copy_salesforce_message_to_clipboard(pr_content['what_section'], existing_pr_url)
+                    
+                    return {
+                        "success": True,  # Mark as success since PR exists
+                        "pr_url": existing_pr_url,
+                        "branch": branch_name,
+                        "title": pr_content['title'],
+                        "existing": True
+                    }
+            
             return {
                 "success": False,
-                "error": str(e)
+                "error": error_str
             }
     
     def _is_git_repo(self) -> bool:

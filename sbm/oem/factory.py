@@ -6,20 +6,33 @@ Creates appropriate OEM handlers based on dealer theme analysis.
 
 from typing import Dict, Any
 from sbm.config import Config
-from sbm.oem.handler import OEMHandler
+from sbm.oem.base import BaseOEMHandler
+from sbm.oem.stellantis import StellantisHandler
+from sbm.oem.default import DefaultHandler
 
 
-class OEMFactory:
+class OEMHandlerFactory:
     """Factory for creating OEM handlers."""
     
-    @staticmethod
-    def create_handler(slug: str, config: Config) -> OEMHandler:
-        """Create appropriate OEM handler for a dealer theme."""
-        return OEMHandler(config)
+    def __init__(self, config: Config):
+        """Initialize factory with config."""
+        self.config = config
+    
+    def get_handler(self, slug: str) -> BaseOEMHandler:
+        """Get appropriate OEM handler for a dealer slug."""
+        # Try Stellantis first
+        stellantis_handler = StellantisHandler(self.config)
+        stellantis_result = stellantis_handler.detect_oem(slug)
+        
+        if stellantis_result["confidence"] > 0.5:
+            return stellantis_handler
+        
+        # Default fallback
+        return DefaultHandler(self.config)
     
     @staticmethod
     def detect_oem(slug: str) -> Dict[str, Any]:
-        """Detect OEM from dealer slug."""
+        """Quick OEM detection without creating handler."""
         stellantis_brands = ["chrysler", "dodge", "jeep", "ram", "fiat", "cdjr"]
         
         for brand in stellantis_brands:
