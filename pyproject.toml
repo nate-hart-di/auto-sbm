@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sbm-v2"
-version = "2.4.0"
+version = "2.5.0"
 description = "Site Builder Migration Tool V2 - Team-friendly migration tool for DealerInspire dealer websites"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -48,10 +48,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dealerinspire/sbm-v2"
-Repository = "https://github.com/dealerinspire/sbm-v2"
-Documentation = "https://github.com/dealerinspire/sbm-v2/docs"
-"Bug Tracker" = "https://github.com/dealerinspire/sbm-v2/issues"
+Homepage = "https://github.com/nate-hart-di/auto-sbm"
+Repository = "https://github.com/nate-hart-di/auto-sbm"
+Documentation = "https://github.com/nate-hart-di/auto-sbm/docs"
+"Bug Tracker" = "https://github.com/nate-hart-di/auto-sbm/issues"
 
 [project.scripts]
 sbm = "sbm.cli:main"
