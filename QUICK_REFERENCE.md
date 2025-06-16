@@ -10,9 +10,9 @@ pip install sbm-v2
 
 ```bash
 # Complete migration - just provide the dealer slug!
-sbm friendlycdjrofgeneva
+sbm [slug]
 # OR explicitly use auto command
-sbm auto friendlycdjrofgeneva
+sbm auto [slug]
 
 # That's it! The tool automatically handles:
 # ✅ System diagnostics

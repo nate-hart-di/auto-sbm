@@ -1,11 +1,13 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../../../../di-websites-platform/dealer-themes"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "path": ".",
+    },
+    {
+      "path": "../../../../di-websites-platform/dealer-themes",
+    },
+  ],
+  "settings": {
+    "git.ignoreLimitWarning": true,
+  },
 }

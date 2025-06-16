@@ -9,9 +9,9 @@
 pip install sbm-v2
 
 # Run complete automated migration
-sbm friendlycdjrofgeneva
+sbm [slug]
 # OR
-sbm auto friendlycdjrofgeneva
+sbm auto [slug]
 ```
 
 That's it! The tool automatically handles:
@@ -56,9 +56,9 @@ That's it! The tool automatically handles:
 
 ```bash
 # Complete migration - just provide the dealer slug
-sbm friendlycdjrofgeneva
+sbm [slug]
 # OR explicitly use auto command
-sbm auto friendlycdjrofgeneva
+sbm auto [slug]
 
 # Force migration past validation warnings
 sbm auto chryslerofportland --force
@@ -77,13 +77,13 @@ sbm auto jeepnorthwest --skip-docker
 sbm doctor
 
 # Git setup only
-sbm setup friendlycdjrofgeneva
+sbm setup [slug]
 
 # Migration only
-sbm migrate friendlycdjrofgeneva
+sbm migrate [slug]
 
 # Validation only
-sbm validate friendlycdjrofgeneva
+sbm validate [slug]
 
 # Create PR only
 sbm pr

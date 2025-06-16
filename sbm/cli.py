@@ -23,6 +23,7 @@ from sbm.core.full_workflow import FullMigrationWorkflow
 from sbm.core.validation import validate_theme, validate_scss, ValidationEngine
 from sbm.core.diagnostics import SystemDiagnostics
 from sbm.oem.handler import OEMHandler
+from sbm.oem.factory import OEMHandlerFactory
 
 
 console = Console()
@@ -74,8 +75,9 @@ def cli(ctx, verbose, log_level, log_file, config):
 @click.option('--force', '-f', is_flag=True, help='Force migration even if validation fails')
 @click.option('--dry-run', '-n', is_flag=True, help='Preview the full workflow without making changes')
 @click.option('--skip-docker', is_flag=True, help='Skip Docker container monitoring (advanced users only)')
+@click.option('--prod', '-p', is_flag=True, help='Use production database for Docker container')
 @click.pass_context
-def auto(ctx, slug, force, dry_run, skip_docker):
+def auto(ctx, slug, force, dry_run, skip_docker, prod):
     """
     🚀 FULLY AUTOMATED SBM WORKFLOW - Complete migration from start to finish.
     
@@ -97,6 +99,9 @@ def auto(ctx, slug, force, dry_run, skip_docker):
         sbm auto friendlycdjrofgeneva
         sbm auto chryslerofportland --force
         sbm auto dodgeofseattle --dry-run
+        sbm auto roncartercdjrinalvin --prod    # Use production database
+        sbm roncartercdjrinalvin -p             # Shorthand for production mode
+        sbm roncartercdjrinalvin prod           # Alternative syntax
     """
     config = ctx.obj['config']
     logger = ctx.obj['logger']
@@ -118,10 +123,12 @@ def auto(ctx, slug, force, dry_run, skip_docker):
             logger.info("⚠️  Docker container monitoring will be skipped")
         if force:
             logger.info("💪 Force mode enabled - will override validation failures")
+        if prod:
+            logger.info("🏭 Production database mode enabled")
         logger.info("="*80)
         
         # Execute the full workflow
-        result = full_workflow.run(slug, skip_docker_wait=skip_docker)
+        result = full_workflow.run(slug, skip_docker_wait=skip_docker, use_prod_db=prod)
         
         # Exit with appropriate code
         if result.get("success"):
@@ -144,63 +151,102 @@ def auto(ctx, slug, force, dry_run, skip_docker):
 
 
 def _monitor_docker_startup(slug: str, logger, config) -> Dict[str, Any]:
-    """Monitor Docker container startup with user-friendly output."""
+    """Monitor Docker container startup with real-time output visible to user."""
     try:
         logger.info(f"Starting 'just start {slug}' process...")
+        logger.warning("⚠️  You will see the Docker startup output below...")
+        logger.warning("⚠️  If prompted for login or passwords, please respond in the terminal")
         
-        # Start the just start process
+        # Start the just start process with real-time output
         process = subprocess.Popen(
             ['just', 'start', slug],
             cwd=config.di_platform_dir,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            stderr=subprocess.STDOUT,  # Merge stderr into stdout
+            text=True,
+            bufsize=1,  # Line buffered
+            universal_newlines=True
         )
         
         logger.info(f"Started 'just start {slug}' (PID: {process.pid})")
-        logger.warning("⚠️  Monitoring Docker container startup...")
+        print("=" * 60)
+        print(f"DOCKER STARTUP OUTPUT FOR {slug.upper()}")
+        print("=" * 60)
         
-        # Monitor the process
+        # Monitor the process with real-time output
         start_time = time.time()
         timeout = 300  # 5 minutes timeout
-        check_interval = 10  # Check every 10 seconds
+        output_lines = []
         
-        while process.poll() is None:
+        # Read output line by line in real-time
+        while True:
+            # Check if process is still running
+            if process.poll() is not None:
+                break
+                
+            # Check for timeout
             elapsed = time.time() - start_time
-            
             if elapsed > timeout:
                 logger.error("Timeout waiting for 'just start' to complete")
                 process.terminate()
+                print("=" * 60)
                 return {
                     "success": False,
                     "error": "Timeout waiting for Docker container to start (5 minutes)"
                 }
             
-            # Show progress
-            minutes = int(elapsed // 60)
-            seconds = int(elapsed % 60)
-            logger.info(f"Still waiting... ({minutes:02d}:{seconds:02d} elapsed)")
-            
-            time.sleep(check_interval)
+            # Read a line of output
+            try:
+                line = process.stdout.readline()
+                if line:
+                    # Print the line immediately so user can see it
+                    print(line.rstrip())
+                    output_lines.append(line.rstrip())
+                    
+                    # Check for common success indicators
+                    line_lower = line.lower()
+                    if any(indicator in line_lower for indicator in [
+                        'server started', 'ready', 'listening on', 'compiled successfully',
+                        'webpack compiled', 'development server is running'
+                    ]):
+                        logger.info(f"Detected startup indicator: {line.strip()}")
+                else:
+                    # No output, sleep briefly
+                    time.sleep(0.1)
+            except:
+                break
         
-        # Process completed
-        stdout, stderr = process.communicate()
+        # Process completed, get final output
+        remaining_output, _ = process.communicate()
+        if remaining_output:
+            print(remaining_output)
+            output_lines.extend(remaining_output.split('\n'))
+        
+        print("=" * 60)
         
         if process.returncode == 0:
             logger.success("Docker container started successfully!")
             return {
                 "success": True,
                 "message": "Docker container ready",
-                "duration": time.time() - start_time
+                "duration": time.time() - start_time,
+                "output": output_lines
             }
         else:
-            error_msg = stderr.strip() if stderr else "Unknown error"
+            # Look for error indicators in output
+            error_lines = [line for line in output_lines if any(err in line.lower() for err in [
+                'error', 'failed', 'exception', 'cannot', 'unable'
+            ])]
+            
+            error_msg = "Docker startup failed"
+            if error_lines:
+                error_msg = f"Docker startup failed: {error_lines[-1]}"
+            
             logger.error(f"'just start' failed with return code {process.returncode}")
-            if stderr:
-                logger.error(f"Error output: {stderr}")
             return {
                 "success": False,
-                "error": f"just start failed: {error_msg}"
+                "error": error_msg,
+                "output": output_lines
             }
             
     except Exception as e:
@@ -463,7 +509,8 @@ def status(ctx, slug):
             }
         
         # Check OEM detection
-        oem_handler = OEMFactory.create_handler(slug, config)
+        factory = OEMHandlerFactory(config)
+        oem_handler = factory.get_handler(slug)
         status_info['oem'] = {
             'detected': oem_handler.get_oem_name(),
             'brand': oem_handler.detect_brand(slug)
@@ -698,8 +745,9 @@ cli.add_command(create_pr, name='pr')
 
 @cli.command()
 @click.argument('slug')
+@click.option('--prod', '-p', is_flag=True, help='Use production database for Docker container')
 @click.pass_context
-def monitor(ctx, slug):
+def monitor(ctx, slug, prod):
     """
     Monitor the 'just start' process for a dealer theme.
     
@@ -719,7 +767,7 @@ def monitor(ctx, slug):
         from sbm.core.git_operations import GitOperations
         git_ops = GitOperations(config)
         
-        result = git_ops.monitor_just_start(slug)
+        result = git_ops.monitor_just_start(slug, prod)
         
         if result['success']:
             logger.success("Docker container is ready!")
@@ -743,10 +791,17 @@ def main():
         if len(sys.argv) > 1:
             first_arg = sys.argv[1]
             # If it's not a known command and doesn't start with -, treat as slug for auto command
-            known_commands = ['auto', 'setup', 'migrate', 'validate', 'status', 'config-info', 'doctor', 'create-pr', 'pr', 'monitor', '--help', '-h', '--version']
+            known_commands = ['auto', 'setup', 'migrate', 'validate', 'status', 'config-info', 'doctor', 'create-pr', 'pr', 'monitor', '--help', '-h', '--version', 'prod']
             if first_arg not in known_commands and not first_arg.startswith('-'):
-                # Insert 'auto' command before the slug
-                sys.argv.insert(1, 'auto')
+                # Check if second argument is 'prod' - if so, add -p flag
+                if len(sys.argv) > 2 and sys.argv[2] == 'prod':
+                    # Remove 'prod' and add -p flag: slug prod -> auto slug -p
+                    sys.argv.pop(2)  # Remove 'prod'
+                    sys.argv.insert(1, 'auto')  # Insert 'auto' before slug
+                    sys.argv.append('-p')  # Add -p flag at the end
+                else:
+                    # Insert 'auto' command before the slug
+                    sys.argv.insert(1, 'auto')
         
         cli()
     except KeyboardInterrupt:

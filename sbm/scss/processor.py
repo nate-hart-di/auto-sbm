@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 from sbm.config import Config
 from sbm.utils.logger import get_logger
+from sbm.oem.factory import OEMHandlerFactory
 
 
 class SCSSProcessor:
@@ -18,6 +19,7 @@ class SCSSProcessor:
         """Initialize SCSS processor."""
         self.config = config
         self.logger = get_logger("scss")
+        self.oem_factory = OEMHandlerFactory(config)
     
     def process_theme(self, slug: str) -> Dict[str, Any]:
         """
@@ -61,6 +63,11 @@ class SCSSProcessor:
         
         # Extract any existing general styles from legacy files
         existing_styles = self._extract_general_styles(theme_path)
+        
+        # Get OEM-specific styles (FCA for Stellantis dealers)
+        oem_handler = self.oem_factory.get_handler(slug)
+        additional_styles = oem_handler.get_additional_styles("sb-inside")
+        oem_styles_content = "\n\n".join(additional_styles) if additional_styles else ""
         
         content = f"""/*
 \tSite Builder Inside Styles
@@ -151,7 +158,9 @@ class SCSSProcessor:
 \t\t\tmax-width: 90%;
 \t\t}}
 \t}}
-}}"""
+}}
+
+{oem_styles_content}"""
         
         # Write the file
         with open(sb_inside_path, 'w') as f:
