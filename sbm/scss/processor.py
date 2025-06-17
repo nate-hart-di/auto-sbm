@@ -62,12 +62,22 @@ class SCSSProcessor:
         map_components = self._get_standard_map_components()
         
         # Extract any existing general styles from legacy files
-        existing_styles = self._extract_general_styles(theme_path)
+        existing_styles_raw = self._extract_general_styles(theme_path)
+        existing_styles = self._process_legacy_content(existing_styles_raw) if existing_styles_raw else ""
         
         # Get OEM-specific styles (FCA for Stellantis dealers)
         oem_handler = self.oem_factory.get_handler(slug)
         additional_styles = oem_handler.get_additional_styles("sb-inside")
-        oem_styles_content = "\n\n".join(additional_styles) if additional_styles else ""
+        
+        # Process OEM styles through variable conversion to ensure compliance
+        if additional_styles:
+            processed_oem_styles = []
+            for style in additional_styles:
+                processed_style = self._process_legacy_content(style)
+                processed_oem_styles.append(processed_style)
+            oem_styles_content = "\n\n".join(processed_oem_styles)
+        else:
+            oem_styles_content = ""
         
         content = f"""/*
 \tSite Builder Inside Styles
@@ -176,7 +186,8 @@ class SCSSProcessor:
         sb_vdp_path = theme_path / "sb-vdp.scss"
         
         # Extract VDP styles from legacy files
-        vdp_styles = self._extract_vdp_styles(theme_path)
+        vdp_styles_raw = self._extract_vdp_styles(theme_path)
+        vdp_styles = self._process_legacy_content(vdp_styles_raw) if vdp_styles_raw else ""
         
         # Create the complete file content with proper header
         content = f"""/*
@@ -205,7 +216,8 @@ class SCSSProcessor:
         sb_vrp_path = theme_path / "sb-vrp.scss"
         
         # Extract VRP styles from legacy files
-        vrp_styles = self._extract_vrp_styles(theme_path)
+        vrp_styles_raw = self._extract_vrp_styles(theme_path)
+        vrp_styles = self._process_legacy_content(vrp_styles_raw) if vrp_styles_raw else ""
         
         # Create the complete file content with proper header
         content = f"""/*

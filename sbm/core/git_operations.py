@@ -41,7 +41,7 @@ class GitOperations:
                     if proc.info['cmdline'] and 'just' in proc.info['cmdline'][0] and 'start' in ' '.join(proc.info['cmdline']):
                         if slug in ' '.join(proc.info['cmdline']):
                             process = proc
-                            break
+                        break
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
             

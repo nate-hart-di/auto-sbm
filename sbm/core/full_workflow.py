@@ -718,7 +718,7 @@ class FullMigrationWorkflow:
                 self.logger.success(f"✅ Pull request (existing): {pr_url}")
                 self.logger.info("ℹ️  Migration changes have been added to the existing PR")
             else:
-                self.logger.success(f"✅ Pull request created: {pr_url}")
+            self.logger.success(f"✅ Pull request created: {pr_url}")
                 self.logger.info("🎉 New pull request successfully created!")
             
             # Salesforce message is handled automatically in create_pr

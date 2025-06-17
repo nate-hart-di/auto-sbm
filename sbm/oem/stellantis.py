@@ -47,7 +47,6 @@ class StellantisHandler(BaseOEMHandler):
         """Get FCA-specific styles to inject."""
         if file_type == "sb-inside":
             return [
-                self._get_fca_direction_row_styles(),
                 self._get_fca_cookie_banner_styles()
             ]
         elif file_type == "sb-home":
@@ -59,53 +58,8 @@ class StellantisHandler(BaseOEMHandler):
     def get_enhanced_features(self) -> List[str]:
         """Get list of Stellantis enhanced features."""
         return [
-            "FCA Direction Row Styles",
             "FCA Cookie Banner styles"
         ]
-    
-    def _get_fca_direction_row_styles(self) -> str:
-        """Get FCA Direction Row styles for Stellantis dealers."""
-        return '''
-/* FCA DIRECTION ROW STYLES */
-#mapRow {
-    position: relative;
-    
-    .mapwrap {
-        height: 600px;
-    }
-}
-
-#map-canvas {
-    height: 100%;
-}
-
-#directionsBox {
-    padding: 50px 0;
-    text-align: left;
-    width: 400px;
-    position: absolute;
-    top: 200px;
-    left: 50px;
-    background: $white;
-    color: $black;
-    font-family: 'Lato', sans-serif;
-}
-
-@media (min-width: 768px) {
-    #mapRow .mapwrap {
-        height: 400px;
-    }
-}
-
-@media (min-width: 1024px) {
-    #mapRow .mapwrap {
-        height: 600px;
-    }
-    
-    #directionsBox {
-        max-width: 45%;
-    }
-}'''
     
     def _get_fca_cookie_banner_styles(self) -> str:
         """Get FCA Cookie Banner styles for Stellantis dealers."""
@@ -116,8 +70,8 @@ class StellantisHandler(BaseOEMHandler):
     bottom: 0;
     left: 0;
     right: 0;
-    background: $primary;
-    color: $white;
+    background: var(--primary, #333);
+    color: var(--white, #fff);
     padding: 1rem;
     z-index: 9999;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
@@ -151,18 +105,18 @@ class StellantisHandler(BaseOEMHandler):
             transition: background 0.2s;
             
             &.accept {
-                background: $cta;
-                color: $white;
+                background: var(--cta, #007cba);
+                color: var(--white, #fff);
                 
                 &:hover {
-                    background: $ctahover;
+                    background: var(--ctahover, #005a87);
                 }
             }
             
             &.decline {
                 background: transparent;
-                color: $white;
-                border: 1px solid $white;
+                color: var(--white, #fff);
+                border: 1px solid var(--white, #fff);
                 
                 &:hover {
                     background: rgba(255, 255, 255, 0.1);
