@@ -18,10 +18,12 @@ That's it! The tool automatically handles:
 
 - ✅ System diagnostics
 - ✅ Git workflow (checkout main, pull, create branch)
-- ✅ Docker container startup (`just start`)
+- ✅ Docker container startup (`just start`) with smart 10s detection
 - ✅ SCSS migration and conversion
+- ✅ File saving with auto-formatting triggers
+- ✅ Gulp compilation monitoring in `dealerinspire_legacy_assets`
 - ✅ Validation and error checking
-- ✅ GitHub PR creation
+- ✅ GitHub PR creation with enhanced error handling
 - ✅ Salesforce message generation
 
 ## 📋 What Gets Automated
@@ -30,12 +32,13 @@ That's it! The tool automatically handles:
 
 1. **Diagnostics** - Verify environment and dependencies
 2. **Git Setup** - Switch to main, pull, create migration branch
-3. **Docker Startup** - Run and monitor `just start [slug]` until ready
+3. **Docker Startup** - Run and monitor `just start [slug]` until ready (10s detection)
 4. **Migration** - Convert legacy SCSS to Site Builder format
-5. **Validation** - Ensure migration meets standards
-6. **PR Creation** - Generate GitHub PR with proper content
-7. **Salesforce Integration** - Copy message to clipboard
-8. **Summary Report** - Complete workflow results
+5. **File Saving & Gulp** - Save files with formatting triggers and verify compilation
+6. **Validation** - Ensure migration meets standards
+7. **PR Creation** - Generate GitHub PR with proper content
+8. **Salesforce Integration** - Copy message to clipboard
+9. **Summary Report** - Complete workflow results
 
 ### File Transformations
 
@@ -154,7 +157,10 @@ sbm auto [dealer-slug] [options]
 
 The automated workflow includes intelligent error handling:
 
-- **Docker Startup Fails**: Prompts to retry `just start`
+- **Docker Startup Fails**: Smart retry logic with helpful suggestions (up to 3 attempts)
+- **Gulp Compilation Issues**: Real-time monitoring and error detection
+- **PR Already Exists**: Graceful handling without false error messages
+- **File Timing Issues**: Enhanced synchronization prevents git conflicts
 - **Validation Warnings**: Option to continue with `--force`
 - **Git Issues**: Clear error messages and suggestions
 - **Missing Dependencies**: Automatic detection and guidance
@@ -168,6 +174,22 @@ After each migration, you'll see:
 - ⏱️ Total workflow duration
 - 🔗 GitHub PR URL
 - 📋 Complete summary report
+
+## 🎯 Quality Assurance Features
+
+### Gulp Compilation Monitoring
+
+- **Container Detection**: Automatically finds `dealerinspire_legacy_assets` container
+- **Real-time Monitoring**: Watches gulp compilation logs for 45 seconds
+- **Error Detection**: Identifies SCSS/CSS compilation errors before git operations
+- **Smart Fallbacks**: Graceful handling if gulp monitoring fails
+- **File Saving**: Triggers auto-formatters by properly saving all generated files
+
+### Git Timing Improvements
+
+- **File Synchronization**: Extended timing to prevent uncommitted changes
+- **sb-vdp.scss Fix**: Specific timing improvements for this frequently-modified file
+- **System Sync**: Explicit file system sync before git operations
 
 ## 🎯 Stellantis Optimization
 

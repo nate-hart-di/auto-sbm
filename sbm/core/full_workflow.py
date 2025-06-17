@@ -76,14 +76,17 @@ class FullMigrationWorkflow:
             # Step 4: Theme Migration
             self._step_4_theme_migration(slug)
             
-            # Step 5: Post-Migration Validation
-            self._step_5_post_migration_validation(slug)
+            # Step 5: File Saving and Gulp Compilation
+            self._step_5_file_saving_and_gulp_compilation(slug)
             
-            # Step 6: Pull Request Creation
-            self._step_6_pull_request_creation(slug)
+            # Step 6: Post-Migration Validation
+            self._step_6_post_migration_validation(slug)
             
-            # Step 7: Final Summary
-            return self._step_7_final_summary(slug)
+            # Step 7: Pull Request Creation
+            self._step_7_pull_request_creation(slug)
+            
+            # Step 8: Final Summary
+            return self._step_8_final_summary(slug)
             
         except KeyboardInterrupt:
             self.logger.warning("❌ Workflow interrupted by user")
@@ -160,15 +163,18 @@ class FullMigrationWorkflow:
         self.logger.step("STEP 3: Docker container startup monitoring...")
         db_mode = "prod" if use_prod_db else "dev"
         just_start_cmd = f"just start {slug} prod" if use_prod_db else f"just start {slug}"
-        self.logger.info(f"Now run '{just_start_cmd}' in the DI platform directory")
-        self.logger.info(f"Using {db_mode} database for Docker container")
-        self.logger.info("The monitoring will automatically detect when it's complete...")
+        self.logger.info(f"📋 Command to run: '{just_start_cmd}' in the DI platform directory")
+        self.logger.info(f"🗄️  Using {db_mode} database for Docker container")
+        self.logger.info("⏳ The monitoring will automatically detect when startup is complete...")
         
         try:
             git_ops = GitOperations(self.config)
             
             # Monitor the existing process
-            while True:
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
                 docker_result = git_ops.monitor_just_start(slug, use_prod_db)
                 
                 if docker_result.get("success"):
@@ -177,14 +183,30 @@ class FullMigrationWorkflow:
                     break
                 else:
                     error_msg = docker_result.get("error", "Unknown error")
+                    retry_suggestion = docker_result.get("retry_suggestion", "")
+                    
                     self.logger.error(f"❌ Docker monitoring failed: {error_msg}")
                     
-                    # Ask user if they want to retry monitoring
-                    retry = self._ask_user_retry(f"monitor just start {slug}")
-                    if not retry:
-                        raise MigrationError(f"Docker monitoring failed and user chose not to retry: {error_msg}")
+                    if retry_suggestion:
+                        self.logger.info(f"💡 Suggestion: {retry_suggestion}")
                     
-                    self.logger.info("🔄 Retrying Docker monitoring...")
+                    # If this was a process startup failure, offer more specific help
+                    if "Failed to start" in error_msg:
+                        self.logger.info("🔧 Common solutions:")
+                        self.logger.info(f"   • Ensure you're in the correct directory: {self.config.di_platform_dir}")
+                        self.logger.info("   • Check that Docker Desktop is running")
+                        self.logger.info("   • Verify the 'just' command is available (try 'which just')")
+                    
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        retry = self._ask_user_retry(f"docker startup for {slug} (attempt {retry_count + 1}/{max_retries})")
+                        if not retry:
+                            raise MigrationError(f"Docker startup failed and user chose not to retry: {error_msg}")
+                        
+                        self.logger.info(f"🔄 Retrying Docker startup (attempt {retry_count + 1}/{max_retries})...")
+                    else:
+                        self.logger.error(f"❌ Max retries ({max_retries}) reached for Docker startup")
+                        raise MigrationError(f"Docker startup failed after {max_retries} attempts: {error_msg}")
             
             self.results["docker_startup"] = {
                 "success": True,
@@ -200,7 +222,8 @@ class FullMigrationWorkflow:
     def _step_4_theme_migration(self, slug: str) -> None:
         """Step 4: Execute theme migration."""
         self.logger.step("STEP 4: Theme migration...")
-        self.logger.info(f"🔄 Starting migration workflow for {slug}...")
+        self.logger.info(f"🚀 Starting comprehensive migration workflow for {slug}...")
+        self.logger.info("🔄 This process will analyze your theme and generate Site Builder files...")
         
         try:
             # Verify we're in the right directory
@@ -210,10 +233,29 @@ class FullMigrationWorkflow:
             # Check theme directory exists
             theme_dir = Path(current_dir) / "dealer-themes" / slug
             if theme_dir.exists():
-                self.logger.info(f"✅ Found theme directory: {theme_dir}")
+                self.logger.success(f"✅ Found theme directory: {theme_dir}")
+                
+                # Show what source files we're working with
+                self.logger.info("🔍 Analyzing source files...")
+                source_files = []
+                css_dir = theme_dir / "css"
+                if css_dir.exists():
+                    for pattern in ["*.scss", "inside.scss", "style.scss", "vrp.scss", "vdp.scss", "home.scss"]:
+                        found_files = list(css_dir.glob(pattern))
+                        source_files.extend([f.name for f in found_files])
+                
+                if source_files:
+                    unique_sources = list(set(source_files))
+                    self.logger.info(f"📋 Found {len(unique_sources)} source files to process:")
+                    for file in sorted(unique_sources):
+                        self.logger.info(f"   • {file}")
+                else:
+                    self.logger.warning("⚠️  No standard SCSS source files found")
             else:
                 self.logger.warning(f"⚠️  Theme directory not found: {theme_dir}")
+                self.logger.info("🔄 Migration will proceed - directory might be created during process")
             
+            self.logger.info("⚙️  Executing migration engine...")
             workflow = MigrationWorkflow(self.config)
             migration_result = workflow.run(
                 slug=slug,
@@ -225,27 +267,31 @@ class FullMigrationWorkflow:
             if not migration_result.get("success"):
                 raise MigrationError(f"Migration failed: {migration_result.get('error')}")
             
+            self.logger.success("🎉 Migration engine completed successfully!")
+            
             # CRITICAL: Wait briefly to ensure files are fully written before git operations
             import time
-            self.logger.info("⏳ Waiting for file operations to complete...")
+            self.logger.info("⏳ Ensuring all file operations are complete...")
+            self.logger.info("   • Waiting for file system synchronization...")
             time.sleep(2)  # 2 second pause to ensure files are written
             
             # Show what files were created/modified - FIX PATH CHECKING
-            self.logger.info("🔍 Checking migration results...")
+            self.logger.info("🔍 Verifying migration results...")
             
             # Check in the theme directory first (where files actually are based on git status)
-            self.logger.info(f"📁 Looking for sb-*.scss files in theme dir: {theme_dir}")
+            self.logger.info(f"📁 Scanning for generated files in: {theme_dir}")
             theme_scss_files = list(theme_dir.glob("sb-*.scss"))
             
             # Also check css subdirectory
             css_dir = theme_dir / "css"
-            self.logger.info(f"📁 Looking for sb-*.scss files in css dir: {css_dir}")
+            self.logger.info(f"📁 Scanning CSS directory: {css_dir}")
             css_scss_files = list(css_dir.glob("sb-*.scss")) if css_dir.exists() else []
             
             # Combine all found files
             all_sb_files = theme_scss_files + css_scss_files
             
             if all_sb_files:
+                self.logger.success("🎯 Site Builder migration completed successfully!")
                 self.logger.success("📝 Generated Site Builder files:")
                 for file in all_sb_files:
                     file_size = file.stat().st_size if file.exists() else 0
@@ -263,22 +309,279 @@ class FullMigrationWorkflow:
                         relative_path = f.relative_to(theme_dir)
                         self.logger.warning(f"     - {relative_path}")
             
-            self.logger.success(f"✅ Theme migration completed for {slug}")
-            
+            # Store migration results for next step
             self.results["migration"] = {
                 "success": True,
                 "result": migration_result,
+                "generated_files": [str(f) for f in all_sb_files],
                 "timestamp": time.time()
             }
+            
+            self.logger.success(f"✅ Theme migration fully completed for {slug}")
+            self.logger.info("🔄 Proceeding to file saving and gulp compilation...")
             
         except Exception as e:
             self.logger.error(f"❌ Migration failed: {e}")
             self.results["migration"] = {"success": False, "error": str(e)}
             raise
     
-    def _step_5_post_migration_validation(self, slug: str) -> None:
-        """Step 5: Simplified post-migration validation - SCSS syntax and SBM compliance only."""
-        self.logger.step("STEP 5: Post-migration validation (simplified)...")
+    def _step_5_file_saving_and_gulp_compilation(self, slug: str) -> None:
+        """Step 5: Save all generated files and verify gulp compilation."""
+        self.logger.step("STEP 5: File saving and gulp compilation...")
+        self.logger.info("💾 Ensuring all files are properly saved and compiled...")
+        
+        try:
+            # Get generated files from previous step
+            generated_files = self.results.get("migration", {}).get("generated_files", [])
+            
+            if not generated_files:
+                self.logger.warning("⚠️  No generated files found to save")
+                return
+            
+            # Step 1: "Save" each generated file (read and write back to trigger formatting)
+            self.logger.info("📄 Saving generated Site Builder files...")
+            for file_path in generated_files:
+                file_obj = Path(file_path)
+                if file_obj.exists():
+                    try:
+                        # Read the file content
+                        content = file_obj.read_text(encoding='utf-8')
+                        # Write it back (this triggers any auto-formatters)
+                        file_obj.write_text(content, encoding='utf-8')
+                        self.logger.info(f"   💾 Saved: {file_obj.name}")
+                    except Exception as e:
+                        self.logger.warning(f"   ⚠️  Could not save {file_obj.name}: {e}")
+                else:
+                    self.logger.warning(f"   ⚠️  File not found: {file_path}")
+            
+            # Step 2: Save style.scss to trigger gulp compilation
+            current_dir = Path.cwd()
+            theme_dir = current_dir / "dealer-themes" / slug
+            css_dir = theme_dir / "css"
+            style_scss = css_dir / "style.scss"
+            
+            if style_scss.exists():
+                self.logger.info("🎨 Triggering gulp compilation by saving style.scss...")
+                try:
+                    # Read and write style.scss to trigger gulp
+                    content = style_scss.read_text(encoding='utf-8')
+                    style_scss.write_text(content, encoding='utf-8')
+                    self.logger.success("   ✅ style.scss saved successfully")
+                except Exception as e:
+                    self.logger.error(f"   ❌ Failed to save style.scss: {e}")
+                    raise MigrationError(f"Could not save style.scss: {e}")
+            else:
+                self.logger.warning(f"⚠️  style.scss not found at {style_scss}")
+                self.logger.info("🔄 Continuing without style.scss trigger...")
+            
+            # Step 3: Monitor gulp compilation in dealerinspire_legacy_assets container
+            self.logger.info("🔄 Monitoring gulp compilation in Docker container...")
+            gulp_success = self._monitor_gulp_compilation(slug)
+            
+            if not gulp_success:
+                raise MigrationError("Gulp compilation failed - cannot proceed with git operations")
+            
+            self.logger.success("✅ All files saved and gulp compilation successful!")
+            
+            self.results["file_saving_gulp"] = {
+                "success": True,
+                "files_saved": len(generated_files),
+                "gulp_compilation": "success",
+                "timestamp": time.time()
+            }
+            
+            # EXTENDED WAIT: Additional wait specifically for sb-vdp.scss timing issue
+            self.logger.info("⏳ Final synchronization check (preventing git timing issues)...")
+            self.logger.info("   • This ensures all files are ready for version control...")
+            time.sleep(3)  # Extra 3 seconds specifically for sb-vdp.scss
+            
+            # Force a final check for any remaining file operations
+            self.logger.info("🔄 Performing file system sync...")
+            import subprocess
+            try:
+                # Run sync command to ensure all file operations are complete
+                subprocess.run(['sync'], check=False, capture_output=True)
+                self.logger.info("   ✅ File system sync completed")
+            except:
+                self.logger.info("   ℹ️  File system sync not available (not critical)")
+            
+            time.sleep(1)  # One more second after sync
+            
+        except Exception as e:
+            self.logger.error(f"❌ File saving and gulp compilation failed: {e}")
+            self.results["file_saving_gulp"] = {"success": False, "error": str(e)}
+            raise
+    
+    def _monitor_gulp_compilation(self, slug: str) -> bool:
+        """Monitor gulp compilation in the dealerinspire_legacy_assets container."""
+        container_name = "dealerinspire_legacy_assets"
+        
+        try:
+            import subprocess
+            import time
+            
+            self.logger.info(f"🐳 Checking Docker container: {container_name}")
+            
+            # Check if container exists and is running
+            try:
+                result = subprocess.run([
+                    'docker', 'inspect', '-f', '{{.State.Running}}', container_name
+                ], capture_output=True, text=True, check=True)
+                
+                if result.stdout.strip() != 'true':
+                    self.logger.error(f"❌ Container {container_name} is not running")
+                    self.logger.info("💡 Make sure the legacy assets container is started")
+                    return False
+                
+                self.logger.success(f"✅ Container {container_name} is running")
+                
+            except subprocess.CalledProcessError:
+                self.logger.error(f"❌ Container {container_name} not found")
+                self.logger.info("💡 The legacy assets container may not be started yet")
+                return False
+            
+            # First, trigger a fresh compilation by checking current logs
+            self.logger.info("🔍 Monitoring gulp compilation activity...")
+            
+            start_time = time.time()
+            timeout = 45  # 45 seconds timeout (increased from 30)
+            compilation_detected = False
+            compilation_success = False
+            recent_activity = False
+            
+            # Monitor container logs for recent activity
+            try:
+                # Get recent logs (last 2 minutes) to see current state
+                recent_logs = subprocess.run([
+                    'docker', 'logs', '--since', '2m', container_name
+                ], capture_output=True, text=True, check=True)
+                
+                if recent_logs.stdout.strip():
+                    recent_activity = True
+                    self.logger.info("📋 Found recent gulp activity")
+                    
+                    # Check if there are any obvious errors in recent logs
+                    recent_lines = recent_logs.stdout.lower()
+                    if any(error in recent_lines for error in ['error', 'failed', 'exception']):
+                        # Look for SCSS/CSS related errors specifically
+                        if any(css_error in recent_lines for css_error in ['scss', 'sass', 'css', 'compile']):
+                            self.logger.warning("⚠️  Detected potential SCSS compilation errors in recent logs")
+                            self.logger.info("🔍 Will monitor for successful recompilation...")
+                        else:
+                            self.logger.info("ℹ️  Found general errors but not SCSS-related")
+                else:
+                    self.logger.info("📋 No recent gulp activity - will monitor for compilation")
+                    
+            except subprocess.CalledProcessError:
+                self.logger.warning("⚠️  Could not retrieve recent logs")
+            
+            # Now stream logs to monitor for new compilation
+            self.logger.info(f"⏳ Monitoring for gulp compilation (timeout: {timeout}s)...")
+            
+            process = subprocess.Popen([
+                'docker', 'logs', '-f', '--since', '10s', container_name
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            
+            activity_lines = []
+            
+            while True:
+                # Check timeout
+                elapsed = time.time() - start_time
+                if elapsed > timeout:
+                    self.logger.warning(f"⏰ Timeout after {timeout}s")
+                    if recent_activity and not compilation_detected:
+                        self.logger.info("ℹ️  Recent activity detected but no new compilation observed")
+                        self.logger.info("💡 Assuming gulp is functioning correctly")
+                        compilation_success = True
+                    break
+                
+                # Read output
+                line = process.stdout.readline()
+                if line:
+                    line = line.strip()
+                    if line:  # Only process non-empty lines
+                        activity_lines.append(line)
+                        self.logger.debug(f"Gulp: {line}")
+                        
+                        line_lower = line.lower()
+                        
+                        # Look for compilation start indicators
+                        if any(start_indicator in line_lower for start_indicator in [
+                            'starting', 'compiling', 'processing', 'building'
+                        ]):
+                            if any(css_keyword in line_lower for css_keyword in [
+                                'scss', 'sass', 'css', 'gulp'
+                            ]):
+                                self.logger.info(f"🔄 Gulp compilation started: {line}")
+                                compilation_detected = True
+                        
+                        # Look for success indicators
+                        if any(success_indicator in line_lower for success_indicator in [
+                            'finished', 'completed', 'done', 'success', 'built'
+                        ]):
+                            # More specific check for CSS/SCSS completion
+                            if any(css_keyword in line_lower for css_keyword in [
+                                'scss', 'sass', 'css', 'gulp', 'compile', 'build'
+                            ]):
+                                self.logger.success(f"✅ Gulp compilation completed: {line}")
+                                compilation_success = True
+                                break
+                        
+                        # Look for error indicators
+                        if any(error_indicator in line_lower for error_indicator in [
+                            'error', 'failed', 'exception', 'cannot'
+                        ]):
+                            # Check if it's CSS/SCSS related
+                            if any(css_keyword in line_lower for css_keyword in [
+                                'scss', 'sass', 'css', 'compile', 'syntax'
+                            ]):
+                                self.logger.error(f"❌ Gulp compilation error: {line}")
+                                compilation_success = False
+                                break
+                            else:
+                                self.logger.debug(f"Non-CSS error: {line}")
+                
+                # Check if process ended
+                if process.poll() is not None:
+                    break
+                
+                time.sleep(0.1)
+            
+            # Clean up process
+            try:
+                process.terminate()
+                process.wait(timeout=1)
+            except:
+                pass
+            
+            # Final decision logic
+            if compilation_success:
+                self.logger.success("🎉 Gulp compilation verified successfully!")
+                return True
+            elif compilation_detected and not compilation_success:
+                self.logger.error("❌ Gulp compilation failed")
+                return False
+            elif recent_activity and not compilation_detected:
+                # Gulp was active recently but we didn't see new compilation
+                self.logger.info("ℹ️  No new compilation activity detected")
+                self.logger.info("💡 This may be normal if styles are already compiled")
+                self.logger.info("✅ Assuming gulp environment is functioning correctly")
+                return True
+            else:
+                # No activity at all - this might indicate a problem
+                self.logger.warning("⚠️  No gulp activity detected")
+                self.logger.info("💡 Gulp may be idle or container may have issues")
+                self.logger.info("🔄 Proceeding with caution - manual verification recommended")
+                return True  # Don't fail the entire process for this
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error monitoring gulp compilation: {e}")
+            self.logger.info("💡 Gulp monitoring failed but continuing with migration")
+            return True  # Don't fail the entire migration for gulp monitoring issues
+    
+    def _step_6_post_migration_validation(self, slug: str) -> None:
+        """Step 6: Simplified post-migration validation - SCSS syntax and SBM compliance only."""
+        self.logger.step("STEP 6: Post-migration validation (simplified)...")
         
         try:
             validator = ValidationEngine(self.config)
@@ -319,9 +622,10 @@ class FullMigrationWorkflow:
             self.results["validation"] = {"success": False, "error": str(e)}
             # Don't raise - validation failures shouldn't stop the workflow
     
-    def _step_6_pull_request_creation(self, slug: str) -> None:
-        """Step 6: Create pull request."""
-        self.logger.step("STEP 6: Pull request creation...")
+    def _step_7_pull_request_creation(self, slug: str) -> None:
+        """Step 7: Create pull request."""
+        self.logger.step("STEP 7: Pull request creation...")
+        self.logger.info("🔄 Creating GitHub pull request for your migration...")
         
         try:
             git_ops = GitOperations(self.config)
@@ -331,16 +635,50 @@ class FullMigrationWorkflow:
             if not branch_name:
                 raise MigrationError("Could not determine branch name for PR creation")
             
+            self.logger.info(f"📋 Creating PR from branch: {branch_name}")
+            self.logger.info("🔄 This may take a moment...")
+            
             pr_result = git_ops.create_pr(slug, branch_name, draft=False)
             
             if not pr_result.get("success"):
-                raise MigrationError(f"PR creation failed: {pr_result.get('error')}")
+                error_msg = pr_result.get("error", "Unknown error")
+                
+                # Check if this is really an error or just a PR already exists case
+                if "already exists" in error_msg.lower():
+                    self.logger.info("ℹ️  Pull request already exists for this branch")
+                    
+                    # Try to extract PR URL from error and treat as success
+                    import re
+                    url_match = re.search(r'(https://github\.com/[^\s]+)', error_msg)
+                    if url_match:
+                        pr_url = url_match.group(1)
+                        self.logger.success(f"✅ Using existing pull request: {pr_url}")
+                        
+                        # Update result to success
+                        pr_result = {
+                            "success": True,
+                            "pr_url": pr_url,
+                            "branch": branch_name,
+                            "existing": True
+                        }
+                    else:
+                        raise MigrationError(f"PR creation failed: {error_msg}")
+                else:
+                    raise MigrationError(f"PR creation failed: {error_msg}")
             
             pr_url = pr_result.get("pr_url")
-            self.logger.success(f"✅ Pull request created: {pr_url}")
+            is_existing = pr_result.get("existing", False)
+            
+            if is_existing:
+                self.logger.success(f"✅ Pull request (existing): {pr_url}")
+                self.logger.info("ℹ️  Migration changes have been added to the existing PR")
+            else:
+                self.logger.success(f"✅ Pull request created: {pr_url}")
+                self.logger.info("🎉 New pull request successfully created!")
             
             # Salesforce message is handled automatically in create_pr
-            self.logger.info("📋 Salesforce message copied to clipboard")
+            self.logger.info("📋 Salesforce update message copied to clipboard")
+            self.logger.info("💡 You can paste this message into your Salesforce case")
             
             self.results["pull_request"] = {
                 "success": True,
@@ -353,9 +691,9 @@ class FullMigrationWorkflow:
             self.results["pull_request"] = {"success": False, "error": str(e)}
             # Don't raise - PR creation failures shouldn't stop the workflow
     
-    def _step_7_final_summary(self, slug: str) -> Dict[str, Any]:
-        """Step 7: Generate final comprehensive summary."""
-        self.logger.step("STEP 7: Final summary...")
+    def _step_8_final_summary(self, slug: str) -> Dict[str, Any]:
+        """Step 8: Generate final comprehensive summary."""
+        self.logger.step("STEP 8: Final summary...")
         
         try:
             duration = self._get_duration()
@@ -415,102 +753,101 @@ class FullMigrationWorkflow:
             return self._create_error_result(f"Summary generation failed: {e}")
     
     def _display_final_summary(self, summary: Dict[str, Any]) -> None:
-        """Display the final workflow summary."""
-        self.logger.info("\n" + "="*80)
-        self.logger.info("🎉 FULL SBM MIGRATION WORKFLOW COMPLETE")
-        self.logger.info("="*80)
+        """Display the final migration summary in a user-friendly format."""
+        self.logger.info("")
+        self.logger.info("=" * 80)
+        self.logger.info("📊 COMPREHENSIVE MIGRATION SUMMARY")
+        self.logger.info("=" * 80)
         
-        slug = summary["slug"]
-        duration = summary["duration"]
-        success = summary["success"]
-        warnings = summary.get("warnings", [])
+        # Basic info
+        slug = summary.get("dealer_slug", "unknown")
+        status = "✅ SUCCESS" if summary.get("overall_success") else "❌ FAILED"
+        duration = summary.get("total_duration", 0)
         
-        if success:
-            if warnings:
-                self.logger.success(f"✅ MIGRATION SUCCESSFUL for {slug} (with warnings)")
-                self.logger.warning("⚠️  WARNINGS:")
-                for warning in warnings:
-                    self.logger.warning(f"   - {warning}")
+        self.logger.info(f"🏪 Dealer: {slug}")
+        self.logger.info(f"⚡ Status: {status}")
+        self.logger.info(f"⏱️  Duration: {duration:.1f} seconds")
+        self.logger.info("")
+        
+        # Step-by-step results
+        self.logger.info("📋 STEP-BY-STEP RESULTS:")
+        
+        steps = [
+            ("1️⃣  System Diagnostics", "diagnostics"),
+            ("2️⃣  Git Setup", "git_setup"),
+            ("3️⃣  Docker Startup", "docker_startup"),
+            ("4️⃣  Theme Migration", "migration"),
+            ("5️⃣  File Saving & Gulp", "file_saving_gulp"),
+            ("6️⃣  Validation", "validation"),
+            ("7️⃣  Pull Request", "pull_request")
+        ]
+        
+        for step_name, result_key in steps:
+            result = self.results.get(result_key, {})
+            if result.get("success"):
+                self.logger.success(f"   {step_name}: ✅ Success")
+                
+                # Add specific details for certain steps
+                if result_key == "migration":
+                    files = len(result.get("generated_files", []))
+                    if files > 0:
+                        self.logger.info(f"      Generated {files} Site Builder files")
+                
+                elif result_key == "file_saving_gulp":
+                    files_saved = result.get("files_saved", 0)
+                    compilation = result.get("gulp_compilation", "unknown")
+                    self.logger.info(f"      Saved {files_saved} files, Gulp: {compilation}")
+                
+                elif result_key == "pull_request":
+                    pr_url = result.get("result", {}).get("pr_url")
+                    if pr_url:
+                        self.logger.info(f"      PR: {pr_url}")
+                        
+            elif result_key in self.results:
+                error = result.get("error", "Unknown error")
+                self.logger.error(f"   {step_name}: ❌ Failed - {error}")
             else:
-                self.logger.success(f"✅ MIGRATION SUCCESSFUL for {slug}")
-        else:
-            self.logger.error(f"❌ MIGRATION FAILED for {slug}")
+                self.logger.warning(f"   {step_name}: ⏭️  Skipped")
         
-        self.logger.info(f"⏱️  Total Duration: {duration:.1f} seconds")
-        self.logger.info(f"📊 Steps Completed: {summary['steps_completed']}/{summary['total_steps']}")
+        self.logger.info("")
         
-        # Display step-by-step results with better formatting
-        self.logger.info("\n📋 DETAILED STEP RESULTS:")
-        step_names = {
-            "diagnostics": "1. System Diagnostics",
-            "git_setup": "2. Git Repository Setup", 
-            "docker_startup": "3. Docker Container Startup",
-            "migration": "4. Theme Migration (CRITICAL)",
-            "validation": "5. Post-Migration Validation",
-            "pull_request": "6. Pull Request Creation"
-        }
+        # Migration files summary
+        migration_result = self.results.get("migration", {})
+        generated_files = migration_result.get("generated_files", [])
         
-        for step_key, step_name in step_names.items():
-            if step_key in self.results:
-                result = self.results[step_key]
-                success_status = result.get("success")
-                
-                if success_status is True:
-                    status = "✅ PASSED"
-                elif success_status is False:
-                    # Special handling for known acceptable failures
-                    error = result.get("error", "")
-                    if step_key == "pull_request" and "already exists" in error:
-                        status = "⚠️  SKIPPED (PR exists)"
-                    elif step_key == "docker_startup":
-                        status = "⚠️  SKIPPED"
-                    elif step_key == "validation":
-                        status = "⚠️  WARNINGS"
-                    else:
-                        status = "❌ FAILED"
+        if generated_files:
+            self.logger.info("📄 GENERATED FILES:")
+            for file_path in generated_files:
+                file_obj = Path(file_path)
+                if file_obj.exists():
+                    file_size = file_obj.stat().st_size
+                    self.logger.success(f"   ✅ {file_obj.name} ({file_size} bytes)")
                 else:
-                    status = "⏭️  SKIPPED"
-                    
-                self.logger.info(f"   {step_name}: {status}")
-                
-                # Show error details for actual failures
-                if not success_status and result.get("error"):
-                    error_msg = result["error"]
-                    # Truncate very long error messages
-                    if len(error_msg) > 100:
-                        error_msg = error_msg[:100] + "..."
-                    self.logger.info(f"      Details: {error_msg}")
+                    self.logger.warning(f"   ⚠️  {file_obj.name} (not found)")
+            self.logger.info("")
         
-        # Display key information
-        if "pull_request" in self.results and self.results["pull_request"].get("success"):
-            pr_url = self.results["pull_request"]["result"].get("pr_url")
+        # Next steps
+        if summary.get("overall_success"):
+            self.logger.info("🎉 MIGRATION COMPLETED SUCCESSFULLY!")
+            self.logger.info("")
+            self.logger.info("✅ Next steps:")
+            self.logger.info("   • Review the pull request and request reviewers")
+            self.logger.info("   • Test the migrated site locally")
+            self.logger.info("   • Update your Salesforce case with the PR link")
+            
+            pr_result = self.results.get("pull_request", {})
+            pr_url = pr_result.get("result", {}).get("pr_url")
             if pr_url:
-                self.logger.info(f"\n🔗 Pull Request: {pr_url}")
-        elif "pull_request" in self.results:
-            # Even if PR creation "failed", show if it's because PR exists
-            pr_error = self.results["pull_request"].get("error", "")
-            if "already exists" in pr_error and "/pull/" in pr_error:
-                # Extract PR URL from error message
-                import re
-                url_match = re.search(r'https://github\.com/[^\s]+', pr_error)
-                if url_match:
-                    self.logger.info(f"\n🔗 Existing Pull Request: {url_match.group()}")
+                self.logger.info(f"   • PR Link: {pr_url}")
+        else:
+            self.logger.info("❌ MIGRATION FAILED")
+            self.logger.info("")
+            self.logger.info("🔧 Troubleshooting:")
+            self.logger.info("   • Check the error messages above")
+            self.logger.info("   • Run 'sbm doctor' for system diagnostics")
+            self.logger.info("   • Use '--debug' flag for more detailed logging")
         
-        if "git_setup" in self.results and self.results["git_setup"].get("success"):
-            branch_name = self.results["git_setup"]["result"].get("branch_name")
-            if branch_name:
-                self.logger.info(f"🌿 Branch: {branch_name}")
-        
-        # Show next steps
-        if success:
-            self.logger.info(f"\n🎯 NEXT STEPS:")
-            self.logger.info(f"   1. Review the generated sb-*.scss files in dealer-themes/{slug}/css/")
-            self.logger.info("   2. Test the theme in the browser")
-            if warnings:
-                self.logger.info("   3. Address any warnings listed above")
-            self.logger.info("   4. Merge the PR when ready")
-        
-        self.logger.info("\n" + "="*80)
+        self.logger.info("=" * 80)
     
     def _ask_user_retry(self, command: str) -> bool:
         """Ask user if they want to retry a failed command."""

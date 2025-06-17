@@ -27,70 +27,74 @@ class GitOperations:
         import time
         import psutil
         
-        just_start_cmd = f"just start {slug} prod" if use_prod_db else f"just start {slug}"
-        self.logger.step(f"Monitoring '{just_start_cmd}' process...")
-        self.logger.warning("⚠️  Looking for existing 'just start' process...")
-        self.logger.warning(f"⚠️  Make sure you've already run '{just_start_cmd}' in another terminal")
-        
         try:
+            start_time = time.time()
+            just_start_cmd = f"just start {slug} prod" if use_prod_db else f"just start {slug}"
+            
+            self.logger.warning("⚠️  Looking for existing 'just start' process...")
+            self.logger.warning(f"⚠️  Make sure you've already run '{just_start_cmd}' in another terminal")
+            
             # Look for existing just start process
-            just_start_process = None
+            process = None
             for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                 try:
-                    cmdline = proc.info['cmdline']
-                    if cmdline and 'just' in cmdline and 'start' in cmdline and slug in cmdline:
-                        just_start_process = proc
-                        self.logger.info(f"Found existing 'just start {slug}' process (PID: {proc.pid})")
-                        break
+                    if proc.info['cmdline'] and 'just' in proc.info['cmdline'][0] and 'start' in ' '.join(proc.info['cmdline']):
+                        if slug in ' '.join(proc.info['cmdline']):
+                            process = proc
+                            break
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
             
-            if not just_start_process:
-                self.logger.warning("No existing 'just start' process found. Starting new one...")
-                # Fall back to starting the process ourselves
-                cmd = ['just', 'start', slug]
-                if use_prod_db:
-                    cmd.append('prod')
-                process = subprocess.Popen(
-                    cmd,
-                    cwd=self.config.di_platform_dir,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,  # Merge stderr into stdout
-                    text=True,
-                    bufsize=1,  # Line buffered
-                    universal_newlines=True
-                )
+            if process:
+                self.logger.info(f"Found existing 'just start {slug}' process (PID: {process.pid})")
+                # We found an existing process, so we'll monitor Docker logs instead
+                process = None  # Clear this to go to Docker monitoring path below
             else:
-                # Monitor the existing process by tailing Docker logs
-                self.logger.info("Monitoring existing process via Docker logs...")
-                # First check if the container exists, if not wait for it
+                self.logger.warning("No existing 'just start' process found. Starting new one...")
+            
+            # Start new process or monitor via Docker logs
+            if not process:
+                # Try to monitor via Docker logs first (faster than waiting)
                 container_name = f'di-websites-platform-{slug}-1'
                 
-                # Wait for container to be created (up to 60 seconds)
+                # Reduced wait time from 60 to 10 seconds for container detection
+                self.logger.info(f"🔍 Checking for Docker container: {container_name}")
                 container_exists = False
-                for i in range(60):
+                for i in range(10):  # Only wait 10 seconds instead of 60
                     try:
                         result = subprocess.run(['docker', 'inspect', container_name], 
                                               capture_output=True, check=True)
                         container_exists = True
+                        self.logger.info("✅ Found existing Docker container, monitoring logs...")
                         break
                     except subprocess.CalledProcessError:
+                        if i == 0:
+                            self.logger.info("🔄 Container not found yet, checking for startup...")
                         time.sleep(1)
                 
                 if not container_exists:
-                    self.logger.warning(f"Container {container_name} not found after 60 seconds, falling back to starting new process...")
+                    self.logger.info(f"Container {container_name} not found after 10 seconds, starting new 'just start' process...")
                     cmd = ['just', 'start', slug]
                     if use_prod_db:
                         cmd.append('prod')
-                    process = subprocess.Popen(
-                        cmd,
-                        cwd=self.config.di_platform_dir,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT,
-                        text=True,
-                        bufsize=1,
-                        universal_newlines=True
-                    )
+                    
+                    try:
+                        process = subprocess.Popen(
+                            cmd,
+                            cwd=self.config.di_platform_dir,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            bufsize=1,  # Line buffered
+                            universal_newlines=True
+                        )
+                        self.logger.info(f"✅ Started new 'just start {slug}' process (PID: {process.pid})")
+                    except Exception as e:
+                        return {
+                            "success": False,
+                            "error": f"Failed to start 'just start' process: {e}",
+                            "retry_suggestion": f"Try running '{just_start_cmd}' manually in {self.config.di_platform_dir}"
+                        }
                 else:
                     process = subprocess.Popen(
                         ['docker', 'logs', '-f', container_name],
@@ -107,7 +111,6 @@ class GitOperations:
             print("=" * 60)
             
             # Monitor the process with real-time output
-            start_time = time.time()
             timeout = 300  # 5 minutes timeout
             output_lines = []
             happy_coding_detected = False
@@ -425,6 +428,10 @@ class GitOperations:
                 self.logger.error(error_msg)
                 return {"committed": False, "error": error_msg}
             
+            # Wait a moment to ensure all file operations are complete
+            import time
+            time.sleep(1)
+            
             # Add files to staging area
             if files:
                 for file_path in files:
@@ -457,12 +464,19 @@ class GitOperations:
                     self.logger.error(error_msg)
                     return {"committed": False, "error": error_msg}
             
+            # Wait another moment after adding files to ensure they're properly staged
+            time.sleep(0.5)
+            
             # Check if there are any changes to commit
             status_result = subprocess.run(['git', 'status', '--porcelain'], 
                                          capture_output=True, text=True, check=True)
             if not status_result.stdout.strip():
                 self.logger.info("No changes to commit")
                 return {"committed": False, "message": "No changes to commit"}
+            
+            # Show what's being committed for transparency
+            staged_files = [line.strip() for line in status_result.stdout.strip().split('\n') if line.strip()]
+            self.logger.debug(f"Committing {len(staged_files)} changed files")
             
             # Commit the changes
             try:
@@ -792,7 +806,40 @@ just start {slug}
             pr_url = result.stdout.strip()
             return pr_url
         except subprocess.CalledProcessError as e:
-            raise Exception(f"GitHub CLI error: {e.stderr}")
+            # Check if this is a "PR already exists" error rather than a real failure
+            error_output = e.stderr if e.stderr else str(e)
+            
+            # Look for indicators that PR already exists
+            if any(indicator in error_output.lower() for indicator in [
+                'already exists', 'pull request for branch', 'into branch'
+            ]):
+                # Try to extract the existing PR URL from the error message
+                import re
+                url_pattern = r'(https://github\.com/[^\s\n]+)'
+                url_match = re.search(url_pattern, error_output)
+                
+                if url_match:
+                    existing_pr_url = url_match.group(1)
+                    self.logger.info(f"✅ PR already exists at: {existing_pr_url}")
+                    return existing_pr_url
+                else:
+                    # If we can't extract URL, try to get it via gh pr list
+                    try:
+                        list_result = subprocess.run([
+                            'gh', 'pr', 'list', '--head', head, '--json', 'url'
+                        ], capture_output=True, text=True, check=True)
+                        
+                        import json
+                        pr_data = json.loads(list_result.stdout)
+                        if pr_data and len(pr_data) > 0:
+                            existing_pr_url = pr_data[0]['url']
+                            self.logger.info(f"✅ Found existing PR at: {existing_pr_url}")
+                            return existing_pr_url
+                    except:
+                        pass  # Fall through to raise original error
+            
+            # If it's not a "PR already exists" case, raise the original error
+            raise Exception(f"GitHub CLI error: {error_output}")
     
     def _open_pr_in_browser(self, pr_url: str) -> None:
         """Open the PR in the default browser."""
