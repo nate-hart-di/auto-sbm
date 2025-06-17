@@ -432,6 +432,35 @@ class GitOperations:
             import time
             time.sleep(1)
             
+            # EXTENDED PRE-COMMIT CHECK: Look for files still being modified
+            self.logger.info("🔍 Pre-commit check for file modifications...")
+            
+            # Check git status multiple times to detect files still being written
+            for attempt in range(3):
+                try:
+                    status_result = subprocess.run(['git', 'status', '--porcelain'], 
+                                                 capture_output=True, text=True, check=True)
+                    current_changes = status_result.stdout.strip().split('\n') if status_result.stdout.strip() else []
+                    
+                    if current_changes:
+                        self.logger.info(f"   📋 Attempt {attempt + 1}: Found {len(current_changes)} file changes")
+                        
+                        # Check if sb-vdp.scss is among the changes
+                        vdp_changes = [line for line in current_changes if 'sb-vdp.scss' in line]
+                        if vdp_changes:
+                            self.logger.warning(f"   ⚠️  sb-vdp.scss still showing changes: {vdp_changes[0]}")
+                            if attempt < 2:  # Only wait if we have more attempts
+                                self.logger.info("   ⏳ Waiting additional time for sb-vdp.scss to stabilize...")
+                                time.sleep(3)
+                                continue
+                    
+                    break  # Exit the loop if we didn't find concerning changes
+                    
+                except subprocess.CalledProcessError:
+                    break
+            
+            time.sleep(0.5)  # Final brief wait
+            
             # Add files to staging area
             if files:
                 for file_path in files:

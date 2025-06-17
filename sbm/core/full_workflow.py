@@ -381,6 +381,55 @@ class FullMigrationWorkflow:
             if not gulp_success:
                 raise MigrationError("Gulp compilation failed - cannot proceed with git operations")
             
+            # CRITICAL: Additional wait after gulp completion to ensure all file writes finish
+            self.logger.info("⏳ Post-gulp wait to ensure all file writes complete...")
+            self.logger.info("   • Allowing gulp background processes to finish...")
+            time.sleep(5)  # Extra 5 seconds after gulp completion
+            
+            # Force another sync after gulp completion
+            self.logger.info("🔄 Final file system sync after gulp completion...")
+            try:
+                subprocess.run(['sync'], check=False, capture_output=True)
+                self.logger.info("   ✅ Post-gulp file system sync completed")
+            except:
+                self.logger.info("   ℹ️  Post-gulp sync not available (not critical)")
+            
+            time.sleep(2)  # Final safety wait
+            
+            # ADDITIONAL CHECK: Monitor CSS output files for recent changes
+            self.logger.info("🔍 Checking CSS output files for recent changes...")
+            current_dir = Path.cwd()
+            theme_dir = current_dir / "dealer-themes" / slug
+            css_dir = theme_dir / "css"
+            
+            css_files_to_check = [
+                css_dir / "style.css",
+                css_dir / "style.min.css",
+            ]
+            
+            recent_changes = False
+            import os
+            import time as time_module
+            current_time = time_module.time()
+            
+            for css_file in css_files_to_check:
+                if css_file.exists():
+                    # Check if file was modified in the last 60 seconds
+                    file_mtime = os.path.getmtime(css_file)
+                    if current_time - file_mtime < 60:  # Modified within last minute
+                        self.logger.info(f"   📄 {css_file.name} recently updated ({current_time - file_mtime:.1f}s ago)")
+                        recent_changes = True
+                    else:
+                        self.logger.info(f"   📄 {css_file.name} last updated {current_time - file_mtime:.0f}s ago")
+            
+            if recent_changes:
+                self.logger.info("✅ CSS output files show recent changes - gulp actively processing")
+                # Extra wait if we detected recent CSS changes
+                self.logger.info("⏳ Extra wait for CSS processing to complete...")
+                time.sleep(3)
+            else:
+                self.logger.info("ℹ️  No recent CSS changes detected - may be normal")
+            
             self.logger.success("✅ All files saved and gulp compilation successful!")
             
             self.results["file_saving_gulp"] = {
@@ -525,6 +574,8 @@ class FullMigrationWorkflow:
                             ]):
                                 self.logger.success(f"✅ Gulp compilation completed: {line}")
                                 compilation_success = True
+                                # Don't break immediately - wait for any additional output writes
+                                time.sleep(2)  # Wait for any background file writes to complete
                                 break
                         
                         # Look for error indicators
@@ -566,12 +617,6 @@ class FullMigrationWorkflow:
                 self.logger.info("ℹ️  No new compilation activity detected")
                 self.logger.info("💡 This may be normal if styles are already compiled")
                 self.logger.info("✅ Assuming gulp environment is functioning correctly")
-                return True
-            else:
-                # No activity at all - this might indicate a problem
-                self.logger.warning("⚠️  No gulp activity detected")
-                self.logger.info("💡 Gulp may be idle or container may have issues")
-                self.logger.info("🔄 Proceeding with caution - manual verification recommended")
                 return True  # Don't fail the entire process for this
                 
         except Exception as e:
