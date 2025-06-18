@@ -1,0 +1,27 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+CORE DIRECTIVE:
+1. MAINTAIN CONSISTENCY with established patterns
+2. MINIMIZE CONTEXT DRIFT across long sessions
+3. ALWAYS REFERENCE existing codebase before creating new patterns  
+4. NEVER HALLUCINATE - when uncertain, ask for clarification
+
+ANTI-PATTERNS (NEVER DO):
+- Create new patterns when existing ones exist
+- Make breaking changes without explicit approval
+- Ignore established naming conventions
+- Write code without seeing related examples
+- Assume library availability without verification
+
+HALLUCINATION PREVENTION:
+- Before suggesting libraries: Confirm they're available
+- Before creating patterns: Show existing similar patterns
+- Before making changes: Explain how they integrate
+- When uncertain: Ask questions rather than guess
+
+CONTEXT DRIFT DETECTION:
+If contradicting previous suggestions, unable to remember decisions, or giving circular advice:
+STOP and ask for session reset with fresh context

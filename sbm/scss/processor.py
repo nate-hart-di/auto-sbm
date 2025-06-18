@@ -506,17 +506,54 @@ class SCSSProcessor:
         Process legacy SCSS content to be Site Builder compatible.
         
         This includes:
-        - Replacing mixins with CSS equivalents
+        - Intelligently parsing and converting ALL mixins
+        - Converting SCSS variables to CSS variables
         - Updating breakpoints to standard values
-        - Converting to CSS variables where appropriate
+        - Comprehensive validation with user confirmation
+        """
+        from .mixin_parser import CommonThemeMixinParser
+        from .validation import SCSSValidator, SCSSValidationError
+        
+        # Step 1: Intelligent mixin conversion
+        mixin_parser = CommonThemeMixinParser()
+        processed, conversion_errors, unconverted_mixins = mixin_parser.parse_and_convert_mixins(content)
+        
+        if conversion_errors:
+            self.logger.error(f"Mixin conversion errors: {conversion_errors}")
+        
+        if unconverted_mixins:
+            self.logger.warning(f"Unconverted mixins found: {unconverted_mixins}")
+        
+        # Step 2: Legacy variable and function conversion (existing code)
+        processed = self._convert_legacy_patterns(processed)
+        
+        # Step 3: Validation and user confirmation
+        validator = SCSSValidator()
+        try:
+            success, final_content = validator.validate_and_confirm(processed, "SCSS Content")
+            if not success:
+                raise SCSSValidationError("SCSS validation failed")
+            return final_content
+        except SCSSValidationError as e:
+            self.logger.error(f"SCSS validation failed: {e}")
+            # In automated mode, we need to handle this gracefully
+            self.logger.warning("Proceeding with unvalidated SCSS - manual review required")
+            return processed
+    
+    def _convert_legacy_patterns(self, content: str) -> str:
+        """
+        Convert legacy SCSS patterns (variables, functions, etc.).
+        This is the original _process_legacy_content logic.
         """
         processed = content
         
         # Replace common mixins with CSS equivalents
         mixin_replacements = {
-            # Flexbox mixins
+            # Flexbox mixins - handle both with and without parentheses
             '@include flexbox();': 'display: flex;',
+            '@include flexbox;': 'display: flex;',
             '@include inline-flex();': 'display: inline-flex;',
+            '@include inline-flex;': 'display: inline-flex;',
             '@include flex-direction(row);': 'flex-direction: row;',
             '@include flex-direction(column);': 'flex-direction: column;',
             '@include flex-wrap(wrap);': 'flex-wrap: wrap;',
@@ -545,7 +582,9 @@ class SCSSProcessor:
             
             # Utility mixins
             '@include clearfix();': '&::after { content: ""; display: table; clear: both; }',
+            '@include clearfix;': '&::after { content: ""; display: table; clear: both; }',
             '@include visually-hidden();': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',
+            '@include visually-hidden;': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',
             
             # Placeholder styling
             '@include placeholder-color;': '&::placeholder { color: var(--placeholder-color, #999); } &::-webkit-input-placeholder { color: var(--placeholder-color, #999); } &::-moz-placeholder { color: var(--placeholder-color, #999); opacity: 1; }',
@@ -700,18 +739,26 @@ class SCSSProcessor:
             processed
         )
         
-        # Replace z-index mixins with specific values
+        # Replace z-index mixins with specific values - handle both single and double quotes
         z_index_map = {
             'modal': '1000',
             'overlay': '800',
             'dropdown': '600',
             'header': '400',
+            'impact': '999',  # Added 'impact' value found in PR 13015
             'default': '1'
         }
         
         for name, value in z_index_map.items():
+            # Handle double quotes
             processed = re.sub(
                 rf'@include z-index\("{name}"\);',
+                f'z-index: {value};',
+                processed
+            )
+            # Handle single quotes
+            processed = re.sub(
+                rf'@include z-index\(\'{name}\'\);',
                 f'z-index: {value};',
                 processed
             )

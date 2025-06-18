@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+LARGE PROJECT LAYERED CONTEXT ARCHITECTURE:
+
+LAYER STRUCTURE:
+1. Foundation Rules (.cursorrules) - Core principles, never changes
+2. Project Context (PROJECT_CONTEXT.md) - Architecture, constraints, tech stack
+3. Session Context (SESSION_GOALS.md) - Current objectives and blockers
+4. Working Memory - Only files currently being modified
+
+SESSION WORKFLOW:
+Pre-Session (2 min): Update SESSION_GOALS.md → Review PROJECT_CONTEXT.md → Stage relevant files
+During Session: Demand plans before code → Checkpoint every 5-7 exchanges → Use "Explain → Code → Recap"
+Post-Session (1 min): Git commit → Update PROJECT_CONTEXT.md → Clear/update SESSION_GOALS.md
+
+CONTEXT OPTIMIZATION:
+- Progressive disclosure: Start minimal, add context as needed
+- Smart file selection: Core files + feature files + reference files only
+- Dynamic context loading with .cursor/context-presets/
+- Monitor context degradation, restart after 10+ exchanges without progress

@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+DEVELOPMENT IMPLEMENTATION WORKFLOW:
+1. ANALYZE: Review existing patterns in codebase
+2. PLAN: Describe approach and integration points  
+3. VALIDATE: Confirm plan aligns with project goals
+4. IMPLEMENT: Write code following established patterns
+5. TEST: Create/update relevant tests
+6. DOCUMENT: Update relevant docs if needed
+7. INTEGRATE: Explain how changes fit into larger system
+
+QUALITY GATES (before every code block):
+- Integration Check: How does this fit with existing code?
+- Pattern Consistency: Does this follow established conventions?
+- Test Strategy: How will this be validated?
+- Documentation Impact: What docs need updating?
+
+SESSION INITIALIZATION PROTOCOL:
+- Project Context Check: Ask for PROJECT_CONTEXT.md if not provided
+- Session Goals Review: Ask for SESSION_GOALS.md or current objectives  
+- Codebase Pattern Analysis: Review 2-3 similar existing components
+- Plan Before Code: Outline approach and get approval before implementation

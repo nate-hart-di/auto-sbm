@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+DOCUMENTATION & CONTEXT STRATEGY:
+- Document ALL project context in /docs/ folder: rules, methodology, logic, intended behavior, bugs, issues, improvements
+- Use Context7 for all frameworks/libraries instead of training data knowledge
+- Ensure every change is intentional with documentation to support/revert it
+- Design for seamless chat handoffs with ready-to-use context prompts
+- Avoid duplicate work by establishing context proactively
+
+DOCUMENTATION HIERARCHY (in project /docs/ folder):
+- AI_MEMORY_REFERENCE.md - Master orientation document for AI assistants
+- quickstart/ - New user and AI assistant onboarding guides  
+- development/ - Technical implementation details and changelogs
+- analysis/ - Standards, compliance, and architectural decisions
+- templates/ - Reusable templates and boilerplates
+
+PROJECT INDEX REQUIREMENTS:
+- Maintain detailed indices for medium/large projects
+- Keep PROJECT_CONTEXT.md updated with current state
+- Create SESSION_GOALS.md for current work focus
+- Organize documentation hierarchically with clear reference paths

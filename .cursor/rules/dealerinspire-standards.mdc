@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+FOR DEALERINSPIRE PROJECTS:
+- ALWAYS inherit from DealerInspireCommonTheme
+- USE existing SCSS mixins from Common Theme
+- FOLLOW variable naming: $component-property-attribute
+- NEVER edit parent theme files
+- REFERENCE: /Users/nathanhart/external-sync-repo/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme/
+
+FOR PYTHON PROJECTS:
+- USE type hints for all functions
+- FOLLOW FastAPI + SQLAlchemy patterns
+- CREATE comprehensive tests with Pytest
+- MAINTAIN PEP8 compliance
+- DOCUMENT with Google-style docstrings
+
+UNIVERSAL STANDARDS:
+- READ existing code before writing new code
+- USE consistent naming conventions
+- VALIDATE input at boundaries
+- HANDLE errors gracefully
+- KEEP functions under 50 lines when possible

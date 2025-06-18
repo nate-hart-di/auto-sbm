@@ -1,0 +1,29 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+PREFERRED RESPONSE FORMAT:
+**Understanding**: Brief summary of what you're being asked to do
+**Integration**: How this fits with existing codebase
+**Approach**: Specific implementation strategy
+**Code**: Implementation with inline comments
+**Testing**: Test strategy or test code
+**Next Steps**: What should happen next
+
+SESSION PERSONAS:
+Planning: Focus on architecture, ask clarifying questions, propose multiple approaches
+Implementation: Follow patterns exactly, reference existing code, write tests
+Debugging: Add logging first, test hypotheses systematically, provide minimal fixes
+
+ASK FOR CLARIFICATION WHEN:
+- Requirements conflict with existing patterns
+- Multiple valid approaches exist
+- Architectural decisions needed
+- Context seems incomplete
+
+SESSION RESET TRIGGERS:
+- Spending >3 exchanges on same issue
+- Contradicting earlier decisions
+- Suggesting breaking changes repeatedly
+- Unable to maintain context consistency
