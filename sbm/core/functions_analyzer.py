@@ -147,7 +147,11 @@ class FunctionsAnalyzer:
         for pattern in patterns:
             match = re.search(pattern, shortcode_def, re.IGNORECASE)
             if match:
-                return match.group(1)
+                path = match.group(1)
+                # Remove .php extension for get_template_part calls since they don't use it
+                if "get_template_part" in pattern and path.endswith('.php'):
+                    path = path[:-4]
+                return path
         
         return None
     
@@ -185,15 +189,20 @@ class FunctionsAnalyzer:
                     analysis["styles_to_migrate"].append(scss_path)
             else:
                 # Local partial - check if it exists
-                local_partial = theme_path / "partials" / f"{shortcode['template_path']}.php"
+                template_path = shortcode['template_path']
+                if template_path.endswith('.php'):
+                    local_partial = theme_path / template_path
+                else:
+                    local_partial = theme_path / f"{template_path}.php"
+                
                 if not local_partial.exists():
                     analysis["warnings"].append(
                         f"Shortcode '{shortcode['name']}' references missing partial: {shortcode['template_path']}"
                     )
         
-        # Check CommonTheme dependencies
+        # Check CommonTheme dependencies - BUT ONLY for map-related partials
         for dep in analysis["commontheme_dependencies"]:
-            if "partials" in dep["path"]:
+            if "partials" in dep["path"] and self._is_map_related_partial(dep["path"]):
                 migration_needed = True
                 analysis["partials_to_migrate"].append({
                     "type": "dependency",
@@ -211,10 +220,24 @@ class FunctionsAnalyzer:
             analysis["recommendations"].append(
                 "Run SBM with map migration option to copy required partials and styles"
             )
+        elif analysis["map_shortcodes"]:
+            analysis["recommendations"].append(
+                "Map shortcodes found but use local partials - no migration required"
+            )
         else:
             analysis["recommendations"].append(
-                "No CommonTheme map dependencies found - migration can proceed normally"
+                "No map shortcodes found - migration can proceed normally"
             )
+    
+    def _is_map_related_partial(self, path: str) -> bool:
+        """Check if a CommonTheme partial is map-related."""
+        map_keywords = [
+            'map', 'direction', 'location', 'address', 'navigation',
+            'latitude', 'longitude', 'coordinates', 'gps'
+        ]
+        
+        path_lower = path.lower()
+        return any(keyword in path_lower for keyword in map_keywords)
     
     def _calculate_destination_path(self, source_path: str) -> str:
         """Calculate destination path in DealerTheme for a CommonTheme partial."""
