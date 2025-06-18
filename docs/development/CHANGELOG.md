@@ -1,5 +1,121 @@
 # SBM Tool V2 Changelog
 
+## Version 2.8.0 - Map Shortcode Analysis & CommonTheme Migration (2025-01-20)
+
+### 🗺️ AUTOMATED MAP SHORTCODE DETECTION
+
+**Comprehensive Functions.php Analysis:**
+
+- ✅ **Shortcode Detection**: Automatically finds [full-map], [directions], and location-related shortcodes
+- ✅ **CommonTheme Detection**: Identifies shortcodes that reference CommonTheme partials
+- ✅ **Local Partial Validation**: Verifies local partials exist for dealer-specific shortcodes
+- ✅ **Migration Requirements**: Assesses what needs to be migrated for each shortcode
+
+**Smart Dependency Resolution:**
+
+- ✅ **Pattern Matching**: Detects get_template_part, get_scoped_template_part references
+- ✅ **Path Analysis**: Identifies CommonTheme vs local partial paths
+- ✅ **SCSS Association**: Finds associated SCSS files for each partial
+- ✅ **Directory Structure**: Calculates proper destination paths in DealerTheme
+
+### 🔄 AUTOMATED COMMONTHEME MIGRATION
+
+**Partial File Migration:**
+
+- ✅ **Directory Creation**: Automatically creates required folder structure (e.g., partials/dealer-groups/bmw-oem/)
+- ✅ **File Copying**: Copies CommonTheme partials to DealerTheme with identical paths
+- ✅ **Path Correction**: Updates shortcode references to point to migrated partials
+- ✅ **Validation**: Ensures source files exist before attempting migration
+
+**SCSS Style Migration:**
+
+- ✅ **Style Detection**: Finds associated SCSS files in CommonTheme (e.g., \_map-row-1.scss)
+- ✅ **Automatic Addition**: Appends styles to sb-inside.scss with proper section headers
+- ✅ **Variable Conversion**: Processes migrated styles through CSS variable conversion
+- ✅ **Clean Integration**: Maintains proper SCSS organization in Site Builder files
+
+### 🏗️ ENHANCED MIGRATION WORKFLOW
+
+**New Step 4a - Map Analysis:**
+
+- ✅ **Pre-SCSS Processing**: Analyzes functions.php before theme migration
+- ✅ **Real-time Feedback**: Shows detected shortcodes and their dependency status
+- ✅ **Migration Execution**: Automatically migrates required dependencies
+- ✅ **Error Prevention**: Prevents broken map functionality after migration
+
+**BMW/OEM Support Examples:**
+
+```php
+// Before Migration - References CommonTheme
+add_shortcode('full-map', function ($content) {
+  get_template_part('partials/dealer-groups/bmw-oem/map-row-1');
+  return ob_get_clean();
+});
+
+// After Migration - References migrated partial
+// Partial copied to: dealer-themes/bmwoffremont/partials/dealer-groups/bmw-oem/map-row-1.php
+// SCSS copied to: sb-inside.scss with proper CSS variables
+```
+
+**Detection Output:**
+
+```
+🗺️  Found 1 map shortcode(s):
+   • [full-map] -> partials/dealer-groups/bmw-oem/map-row-1 (🔗 CommonTheme)
+⚠️  Map shortcodes reference CommonTheme partials - migration needed
+✅ Migrated 1 partial(s) and 1 style(s)
+```
+
+### 🧪 TECHNICAL IMPLEMENTATION
+
+**New FunctionsAnalyzer Class:**
+
+- ✅ **Regex-Based Parsing**: Sophisticated pattern matching for shortcode detection
+- ✅ **Template Path Extraction**: Extracts file paths from PHP function definitions
+- ✅ **Dependency Analysis**: Identifies CommonTheme vs local references
+- ✅ **Migration Orchestration**: Handles file copying and style integration
+
+**Integration Points:**
+
+- ✅ **Full Workflow**: Integrated into Step 4 before SCSS processing
+- ✅ **Error Handling**: Graceful handling of missing files or failed migrations
+- ✅ **Result Tracking**: Detailed reporting of migration success/failure
+- ✅ **User Feedback**: Clear messaging about what was detected and migrated
+
+### 📊 COMPATIBILITY ENHANCEMENTS
+
+**OEM-Specific Support:**
+
+- ✅ **BMW Map Rows**: Handles bmw-oem/map-row-1 and similar structures
+- ✅ **Stellantis Features**: Compatible with existing FCA/Stellantis enhancements
+- ✅ **Generic Support**: Works with any OEM's CommonTheme partial structure
+- ✅ **Nested Directories**: Creates complex directory structures as needed
+
+**Edge Case Handling:**
+
+- ✅ **Missing Partials**: Warns about referenced but non-existent partials
+- ✅ **SCSS Detection**: Handles both \_partial.scss and partial.scss naming
+- ✅ **Path Variations**: Supports multiple CommonTheme reference formats
+- ✅ **Local Overrides**: Respects existing local partials over CommonTheme
+
+### Quality Assurance
+
+**Testing Results:**
+
+- ✅ **bonhamchryslerdodgejeepram**: [full-map] shortcode uses local partial (no migration needed)
+- ✅ **Pattern Detection**: Successfully identifies map, direction, and location shortcodes
+- ✅ **Path Analysis**: Correctly distinguishes CommonTheme vs local references
+- ✅ **Migration Flow**: Seamlessly integrates with existing SCSS processing
+
+**Future Migration Benefits:**
+
+- ✅ **Zero Broken Maps**: Prevents map functionality loss during migration
+- ✅ **Complete Migration**: Handles both partials and styles in one step
+- ✅ **Professional Standards**: Maintains proper directory structure and organization
+- ✅ **Documentation**: Clear tracking of what was migrated and why
+
+---
+
 ## Version 2.7.1 - 100% SBM Compliance Automation (2025-01-17)
 
 ### 🎯 100% AUTOMATED COMPLIANCE ACHIEVED

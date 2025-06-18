@@ -291,6 +291,7 @@ class GitOperations:
             branch_name = f"{slug}-sbm{date_suffix}"  # lowercase 'sbm'
             
             # Check if branch already exists
+            branch_created = False
             try:
                 # Check if branch exists locally
                 result = subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch_name}'], 
@@ -299,10 +300,12 @@ class GitOperations:
                     # Branch exists, switch to it
                     self.logger.info(f"Branch {branch_name} already exists, switching to it...")
                     subprocess.run(['git', 'checkout', branch_name], check=True, capture_output=True)
+                    branch_created = False
                 else:
                     # Branch doesn't exist, create it
                     self.logger.info(f"Creating new branch: {branch_name}")
                     subprocess.run(['git', 'checkout', '-b', branch_name], check=True, capture_output=True)
+                    branch_created = True
             except subprocess.CalledProcessError:
                 # If there's any issue, try creating with a unique suffix
                 import time
@@ -310,6 +313,7 @@ class GitOperations:
                 branch_name = f"{slug}-sbm{date_suffix}-{unique_suffix}"
                 self.logger.info(f"Creating unique branch: {branch_name}")
                 subprocess.run(['git', 'checkout', '-b', branch_name], check=True, capture_output=True)
+                branch_created = True
             
             # Step 4: Add dealer to sparse checkout
             self.logger.info(f"Adding {slug} to sparse checkout...")

@@ -235,6 +235,30 @@ class FullMigrationWorkflow:
             if theme_dir.exists():
                 self.logger.success(f"✅ Found theme directory: {theme_dir}")
                 
+                # Analyze functions.php for map shortcodes
+                from sbm.core.functions_analyzer import FunctionsAnalyzer
+                functions_analyzer = FunctionsAnalyzer(self.config)
+                map_analysis = functions_analyzer.analyze_functions_file(theme_dir)
+                
+                if map_analysis["map_shortcodes"]:
+                    self.logger.info(f"🗺️  Found {len(map_analysis['map_shortcodes'])} map shortcode(s):")
+                    for shortcode in map_analysis["map_shortcodes"]:
+                        status = "🔗 CommonTheme" if shortcode["is_commontheme_reference"] else "✅ Local"
+                        self.logger.info(f"   • [{shortcode['name']}] -> {shortcode['template_path']} ({status})")
+                
+                if map_analysis["migration_required"]:
+                    self.logger.warning("⚠️  Map shortcodes reference CommonTheme partials - migration needed")
+                    # Migrate map dependencies
+                    migration_results = functions_analyzer.migrate_map_dependencies(theme_dir, map_analysis)
+                    if migration_results["success"]:
+                        self.logger.success(f"✅ Migrated {len(migration_results['files_copied'])} partial(s) and {len(migration_results['styles_migrated'])} style(s)")
+                    else:
+                        self.logger.error("❌ Map dependency migration failed")
+                        for error in migration_results["errors"]:
+                            self.logger.error(f"   • {error}")
+                else:
+                    self.logger.info("✅ No CommonTheme map dependencies found")
+                
                 # Show what source files we're working with
                 self.logger.info("🔍 Analyzing source files...")
                 source_files = []
@@ -718,7 +742,7 @@ class FullMigrationWorkflow:
                 self.logger.success(f"✅ Pull request (existing): {pr_url}")
                 self.logger.info("ℹ️  Migration changes have been added to the existing PR")
             else:
-            self.logger.success(f"✅ Pull request created: {pr_url}")
+                self.logger.success(f"✅ Pull request created: {pr_url}")
                 self.logger.info("🎉 New pull request successfully created!")
             
             # Salesforce message is handled automatically in create_pr
