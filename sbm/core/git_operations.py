@@ -454,6 +454,11 @@ class GitOperations:
                     if current_changes:
                         self.logger.info(f"   📋 Attempt {attempt + 1}: Found {len(current_changes)} file changes")
                         
+                        # DEBUG: Show all files that have changes
+                        for change in current_changes:
+                            if change.strip():
+                                self.logger.debug(f"      Git status: {change}")
+                        
                         # Check if sb-vdp.scss is among the changes
                         vdp_changes = [line for line in current_changes if 'sb-vdp.scss' in line]
                         if vdp_changes:
@@ -462,6 +467,8 @@ class GitOperations:
                                 self.logger.info("   ⏳ Waiting additional time for sb-vdp.scss to stabilize...")
                                 time.sleep(3)
                                 continue
+                    else:
+                        self.logger.info(f"   📋 Attempt {attempt + 1}: No changes detected")
                     
                     break  # Exit the loop if we didn't find concerning changes
                     
@@ -517,6 +524,17 @@ class GitOperations:
                     self.logger.error(error_msg)
                     os.chdir(original_cwd)  # Restore directory
                     return {"committed": False, "error": error_msg}
+                
+            # ADDITIONAL: Force add all sb-*.scss files to ensure they're staged
+            self.logger.info("🔍 Ensuring all Site Builder SCSS files are staged...")
+            try:
+                # Use git add with glob pattern to catch all sb-*.scss files
+                subprocess.run(['git', 'add', 'dealer-themes/*/sb-*.scss'], 
+                             check=False, capture_output=True, text=True,
+                             cwd=self.config.di_platform_dir)
+                self.logger.debug("Force-added all sb-*.scss files")
+            except Exception as e:
+                self.logger.debug(f"Force add sb-*.scss failed (not critical): {e}")
             
             # Wait another moment after adding files to ensure they're properly staged
             time.sleep(0.5)

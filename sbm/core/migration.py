@@ -110,7 +110,6 @@ def migrate_dealer_theme(
         logger.info("Step 1: Validating theme and detecting OEM")
         try:
             from sbm.core.validation import ValidationEngine
-            from sbm.oem.factory import OEMFactory
             
             validator = ValidationEngine(config)
             validation_results = validator.validate_theme(slug)
@@ -118,7 +117,8 @@ def migrate_dealer_theme(
             result["steps_completed"].append("validation")
             
             # Detect OEM
-            oem_handler = OEMFactory.create_handler(slug, config)
+            from sbm.oem.factory import OEMHandlerFactory
+            oem_handler = OEMHandlerFactory(config).get_handler(slug)
             oem_info = oem_handler.detect_oem(slug)
             result["oem"] = oem_info.get("oem", "Unknown")
             result["brand"] = oem_info.get("brand", "Unknown")

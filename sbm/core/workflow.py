@@ -46,7 +46,8 @@ class MigrationWorkflow:
         slug: str, 
         environment: str, 
         dry_run: bool, 
-        force: bool
+        force: bool,
+        skip_pr: bool = False
     ) -> Dict[str, Any]:
         """
         Execute the complete migration workflow.
@@ -56,6 +57,7 @@ class MigrationWorkflow:
             environment: Target environment
             dry_run: If True, validate only without making changes
             force: If True, continue despite validation warnings
+            skip_pr: If True, skip PR creation (used by FullMigrationWorkflow)
             
         Returns:
             Migration results dictionary
@@ -97,9 +99,9 @@ class MigrationWorkflow:
             if not dry_run and not self.config.demo.skip_git and git_result.get("repository_ready"):
                 commit_result = self._run_git_commit_step(slug, scss_result)
             
-            # Step 7: PR Creation (if Git operations enabled and not dry run)
+            # Step 7: PR Creation (if Git operations enabled and not dry run and not skipped)
             pr_result = {}
-            if not dry_run and not self.config.demo.skip_git and git_result.get("repository_ready") and commit_result.get("committed"):
+            if not dry_run and not self.config.demo.skip_git and not skip_pr and git_result.get("repository_ready") and commit_result.get("committed"):
                 pr_result = self._run_pr_creation_step(slug, git_result["branch_name"])
             
             # Compile final result

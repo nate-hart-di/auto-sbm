@@ -285,7 +285,8 @@ class FullMigrationWorkflow:
                 slug=slug,
                 environment="prod",
                 dry_run=False,
-                force=False
+                force=False,
+                skip_pr=True  # Skip PR creation - will be handled by FullMigrationWorkflow
             )
             
             if not migration_result.get("success"):

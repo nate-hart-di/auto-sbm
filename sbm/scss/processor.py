@@ -46,10 +46,19 @@ class SCSSProcessor:
             "legacy_styles_preserved": []
         }
         
-        # Process each Site Builder file
-        results.update(self._create_sb_inside(theme_path, slug))
-        results.update(self._process_sb_vdp(theme_path, slug))
-        results.update(self._process_sb_vrp(theme_path, slug))
+        # Process each Site Builder file and merge results properly
+        inside_result = self._create_sb_inside(theme_path, slug)
+        vdp_result = self._process_sb_vdp(theme_path, slug)
+        vrp_result = self._process_sb_vrp(theme_path, slug)
+        
+        # Merge files_created and files_modified lists properly
+        for result in [inside_result, vdp_result, vrp_result]:
+            if "files_created" in result:
+                results["files_created"].extend(result["files_created"])
+            if "files_modified" in result:
+                results["files_modified"].extend(result["files_modified"])
+            if "map_components_added" in result:
+                results["map_components_added"] = result["map_components_added"]
         
         self.logger.info(f"SCSS processing completed for {slug}")
         return results
@@ -173,14 +182,23 @@ class SCSSProcessor:
 
 {oem_styles_content}"""
         
+        # Check if file exists before writing
+        file_existed = sb_inside_path.exists()
+        
         # Write the file
         with open(sb_inside_path, 'w') as f:
             f.write(content.strip())
         
-        return {
-            "files_created": ["sb-inside.scss"],
-            "map_components_added": True
-        }
+        if file_existed:
+            return {
+                "files_modified": ["sb-inside.scss"],
+                "map_components_added": True
+            }
+        else:
+            return {
+                "files_created": ["sb-inside.scss"],
+                "map_components_added": True
+            }
     
     def _process_sb_vdp(self, theme_path: Path, slug: str) -> Dict[str, Any]:
         """Process sb-vdp.scss with VDP-specific styles."""
@@ -207,11 +225,14 @@ class SCSSProcessor:
 
 {vdp_styles}"""
         
+        # Check if file exists before writing
+        file_existed = sb_vdp_path.exists()
+        
         # Always write the complete content (overwrite existing file)
         with open(sb_vdp_path, 'w') as f:
             f.write(content.strip())
         
-        if sb_vdp_path.exists():
+        if file_existed:
             return {"files_modified": ["sb-vdp.scss"]}
         else:
             return {"files_created": ["sb-vdp.scss"]}
@@ -241,11 +262,14 @@ class SCSSProcessor:
 
 {vrp_styles}"""
         
+        # Check if file exists before writing
+        file_existed = sb_vrp_path.exists()
+        
         # Always write the complete content (overwrite existing file)
         with open(sb_vrp_path, 'w') as f:
             f.write(content.strip())
         
-        if sb_vrp_path.exists():
+        if file_existed:
             return {"files_modified": ["sb-vrp.scss"]}
         else:
             return {"files_created": ["sb-vrp.scss"]}
