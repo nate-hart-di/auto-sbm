@@ -28,9 +28,10 @@ class SCSSValidator:
     This validator ensures NO unconverted SCSS makes it through the pipeline.
     """
     
-    def __init__(self):
+    def __init__(self, automated_mode: bool = False):
         self.console = Console()
         self.logger = logging.getLogger(__name__)
+        self.automated_mode = automated_mode
         
     def validate_and_confirm(self, content: str, file_name: str) -> Tuple[bool, str]:
         """
@@ -125,6 +126,10 @@ class SCSSValidator:
         """
         Handle validation issues with user confirmation workflow.
         """
+        # In automated mode, try to auto-fix common issues
+        if self.automated_mode:
+            return self._automated_fix_workflow(content, file_name, validation_results)
+        
         self.console.print()
         self.console.print(Panel(
             f"[red]🚨 SCSS VALIDATION ISSUES FOUND[/red]\n\n"
@@ -164,6 +169,77 @@ class SCSSValidator:
             return self._manual_fix_workflow(content, file_name, validation_results)
         
         return False, content
+    
+    def _automated_fix_workflow(self, content: str, file_name: str, validation_results: Dict[str, List[str]]) -> Tuple[bool, str]:
+        """
+        Automated fix workflow for common SCSS issues.
+        """
+        fixed_content = content
+        
+        # Auto-fix SCSS variables
+        if validation_results['remaining_variables']:
+            fixed_content = self._auto_fix_scss_variables(fixed_content)
+        
+        # Auto-fix missing CSS variables for common hex colors
+        if validation_results['missing_css_variables']:
+            fixed_content = self._auto_fix_hex_colors(fixed_content)
+        
+        # Log what was fixed
+        self.logger.info(f"Auto-fixed SCSS issues in {file_name}")
+        self.console.print(f"✅ [green]{file_name}[/green] - Auto-fixed SCSS conversion issues!")
+        
+        return True, fixed_content
+    
+    def _auto_fix_scss_variables(self, content: str) -> str:
+        """Auto-fix common SCSS variables to CSS variables."""
+        scss_variable_map = {
+            '$primary': 'var(--primary)',
+            '$secondary': 'var(--secondary)', 
+            '$cta': 'var(--cta)',
+            '$primaryhover': 'var(--primaryhover)',
+            '$secondaryhover': 'var(--secondaryhover)',
+            '$ctahover': 'var(--ctahover)',
+            '$white': 'var(--white)',
+            '$black': 'var(--black)',
+            '$gray': 'var(--gray)',
+            '$light-gray': 'var(--light-gray)',
+            '$dark-gray': 'var(--dark-gray)',
+        }
+        
+        for scss_var, css_var in scss_variable_map.items():
+            # Use proper pattern for SCSS variables ($ is not a word character)
+            # Look for the variable followed by semicolon, space, or end of line
+            content = re.sub(
+                rf'{re.escape(scss_var)}(?=\s*[;\s]|$)',
+                css_var,
+                content
+            )
+        
+        return content
+    
+    def _auto_fix_hex_colors(self, content: str) -> str:
+        """Auto-fix common hex colors to CSS variables."""
+        hex_color_map = {
+            '#fff': 'var(--white, #fff)',
+            '#ffffff': 'var(--white, #ffffff)',
+            '#000': 'var(--black, #000)',
+            '#000000': 'var(--black, #000000)',
+            '#333': 'var(--hex-333, #333)',
+            '#666': 'var(--hex-666, #666)',
+            '#999': 'var(--hex-999, #999)',
+            '#ccc': 'var(--hex-ccc, #ccc)',
+            '#eee': 'var(--hex-eee, #eee)',
+        }
+        
+        for hex_color, css_var in hex_color_map.items():
+            # Only replace if not already wrapped in var()
+            content = re.sub(
+                rf'{re.escape(hex_color)}(?![^)]*\))',
+                css_var,
+                content
+            )
+        
+        return content
     
     def _display_detailed_report(self, validation_results: Dict[str, List[str]]):
         """Display detailed validation report."""

@@ -73,7 +73,8 @@ class SCSSProcessor:
         if additional_styles:
             processed_oem_styles = []
             for style in additional_styles:
-                processed_style = self._process_legacy_content(style)
+                # Process each style block through full legacy conversion
+                processed_style = self._convert_legacy_patterns(style)
                 processed_oem_styles.append(processed_style)
             oem_styles_content = "\n\n".join(processed_oem_styles)
         else:
@@ -527,8 +528,8 @@ class SCSSProcessor:
         # Step 2: Legacy variable and function conversion (existing code)
         processed = self._convert_legacy_patterns(processed)
         
-        # Step 3: Validation and user confirmation
-        validator = SCSSValidator()
+        # Step 3: Validation and auto-fixing in automated mode
+        validator = SCSSValidator(automated_mode=True)
         try:
             success, final_content = validator.validate_and_confirm(processed, "SCSS Content")
             if not success:

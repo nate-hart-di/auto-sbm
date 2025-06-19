@@ -1062,6 +1062,15 @@ Pull Request Link: https://github.com/carsdotcom/di-websites-platform/pull/12845
 
 ## [Unreleased]
 
+### CRITICAL FIXES - 2025-06-19
+
+#### 🚨 Fixed SCSS Variable Conversion Bug
+
+- **FIXED: SCSS variables not converting to CSS variables** - The validation system was interrupting the conversion process in automated mode
+- **ADDED: Automated variable fixing** - Now automatically converts $white, $primary, $black, etc. to var(--white), var(--primary), var(--black)
+- **ENHANCED: Validation system** - Added automated mode that fixes common issues without user interaction
+- **IMPROVED: Migration reliability** - No more SCSS variables left unconverted in Site Builder files
+
 ### CRITICAL FIXES - 2025-06-16
 
 #### 🚨 Fixed Major Workflow Issues
