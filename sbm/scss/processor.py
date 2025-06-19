@@ -190,6 +190,10 @@ class SCSSProcessor:
         vdp_styles_raw = self._extract_vdp_styles(theme_path)
         vdp_styles = self._process_legacy_content(vdp_styles_raw) if vdp_styles_raw else ""
         
+        # Ensure minimum content if no styles found
+        if not vdp_styles.strip():
+            vdp_styles = "// No VDP-specific styles migrated from legacy files"
+        
         # Create the complete file content with proper header
         content = f"""/*
 \tLoads on Site Builder VDP (Classic OR HotWheels if DT Override is toggled on)
@@ -219,6 +223,10 @@ class SCSSProcessor:
         # Extract VRP styles from legacy files
         vrp_styles_raw = self._extract_vrp_styles(theme_path)
         vrp_styles = self._process_legacy_content(vrp_styles_raw) if vrp_styles_raw else ""
+        
+        # Ensure minimum content if no styles found
+        if not vrp_styles.strip():
+            vrp_styles = "// No VRP-specific styles migrated from legacy files"
         
         # Create the complete file content with proper header
         content = f"""/*
