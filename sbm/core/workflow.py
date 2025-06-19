@@ -231,11 +231,13 @@ class MigrationWorkflow:
         files_created = scss_result.get("files_created", [])
         files_modified = scss_result.get("files_modified", [])
         
-        # Create list of SCSS files to commit
+        # Create list of SCSS files to commit - USE ABSOLUTE PATHS
+        theme_path = self.config.get_theme_path(slug)
         scss_files = []
         for file_list in [files_created, files_modified]:
             if isinstance(file_list, list):
-                scss_files.extend([f"dealer-themes/{slug}/{f}" for f in file_list if f.endswith('.scss')])
+                # Use absolute paths instead of relative paths
+                scss_files.extend([str(theme_path / f) for f in file_list if f.endswith('.scss')])
         
         # Generate commit message
         commit_message = f"{slug.replace('-', ' ').title()} SBM FE Audit"

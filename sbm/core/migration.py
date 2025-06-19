@@ -145,8 +145,6 @@ def migrate_dealer_theme(
                 result["branch_name"] = branch_info.get("branch_name")
                 result["steps_completed"].append("git_setup")
                 
-                logger.info(f"Git branch created: {result['branch_name']}")
-                
             except Exception as e:
                 error_msg = f"Git operations failed: {str(e)}"
                 result["errors"].append(error_msg)

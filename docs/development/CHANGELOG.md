@@ -1062,67 +1062,18 @@ Pull Request Link: https://github.com/carsdotcom/di-websites-platform/pull/12845
 
 ## [Unreleased]
 
-### CRITICAL FIXES - 2025-06-19
+### Fixed
 
-#### 🚨 Fixed SCSS Variable Conversion Bug
+- **Directory Independence**: SBM commands now work from any directory, not just from specific working directories
+- **Git Operations**: Fixed all git operations (commit, push, branch creation, etc.) to use absolute paths and correct working directory
+- **Logging Cleanup**: Removed redundant branch creation log messages that appeared after migration completion
+- **Path Resolution**: Fixed file existence checks to use proper absolute paths instead of relative paths
 
-- **FIXED: SCSS variables not converting to CSS variables** - The validation system was interrupting the conversion process in automated mode
-- **ADDED: Automated variable fixing** - Now automatically converts $white, $primary, $black, etc. to var(--white), var(--primary), var(--black)
-- **ENHANCED: Validation system** - Added automated mode that fixes common issues without user interaction
-- **IMPROVED: Migration reliability** - No more SCSS variables left unconverted in Site Builder files
+### Technical Changes
 
-### CRITICAL FIXES - 2025-06-16
+- Updated `GitOperations.commit_changes()` to handle absolute/relative path conversion properly
+- Fixed all git subprocess calls to use `cwd=self.config.di_platform_dir` parameter
+- Removed duplicate logging from CLI and migration workflow components
+- Enhanced path resolution in workflow to use `config.get_theme_path()` for absolute paths
 
-#### 🚨 Fixed Major Workflow Issues
-
-- **FIXED: Docker monitoring auto-continuation** - Workflow now properly detects "Happy coding!" and automatically proceeds to migration
-- **FIXED: Branch naming duplication** - Now correctly uses `{slug}-sbmMMYY` format (lowercase 'sbm', month+year) instead of `{slug}-SBM{MMDD}`
-- **FIXED: Incorrect workflow failure detection** - Migration success now based on critical steps only (diagnostics, git_setup, migration)
-- **FIXED: PR creation handling** - Now gracefully handles existing PRs instead of marking as failure
-- **FIXED: Git commit error handling** - Better error messages for file existence and git status issues
-
-#### 📝 Simplified Validation System
-
-- **REMOVED: Overengineered validation** - Now focuses only on SCSS syntax errors and SBM compliance
-- **ADDED: Detailed validation logging** - Shows exactly which files are found/missing and why
-- **IMPROVED: Validation error reporting** - Clearer messages about what needs to be fixed
-
-#### 🎯 Enhanced Logging & User Experience
-
-- **ADDED: Comprehensive step-by-step logging** - User can see exactly what's happening at each stage
-- **ADDED: File detection logging** - Shows which sb-\*.scss files were created during migration
-- **ADDED: Better error messages** - More descriptive errors with actionable next steps
-- **ADDED: Workflow warnings system** - Distinguishes between critical failures and warnings
-
-#### 🔧 Improved Success Detection
-
-- **NEW: Critical vs Non-Critical Step Classification**
-  - Critical: diagnostics, git_setup, migration (must pass for SUCCESS)
-  - Non-Critical: docker_startup (can be skipped), validation (warnings only), pull_request (can fail if exists)
-- **NEW: Workflow Success Logic** - Reports SUCCESS with warnings instead of FAILURE when core migration succeeds
-- **NEW: Next Steps Guidance** - Shows user what to do after successful migration
-
-#### 🌿 Branch Management
-
-- **FIXED: Date format** - Now uses MMYY (month+year) instead of MMDD (month+day)
-- **FIXED: Case sensitivity** - Uses lowercase 'sbm' instead of uppercase 'SBM'
-- **VERIFIED: Branch naming consistency** - Both `pre_migration_setup` and `create_branch` use same format
-
-#### 📋 Pull Request Handling
-
-- **ENHANCED: Existing PR detection** - Extracts PR URL from error message and treats as success
-- **IMPROVED: Salesforce message** - Still copies to clipboard even when PR already exists
-- **ADDED: PR status in summary** - Shows existing PR URL in final summary
-
-### Impact
-
-These fixes address the core issues preventing smooth automated workflows:
-
-1. ✅ Docker monitoring now auto-continues
-2. ✅ Branch naming is consistent and correct
-3. ✅ Workflow correctly reports SUCCESS when migration completes
-4. ✅ Existing PRs are handled gracefully
-5. ✅ User gets detailed feedback about what's happening
-6. ✅ Validation focuses on what actually matters
-
-## [1.0.0] - 2025-06-15
+## [Previous entries...]

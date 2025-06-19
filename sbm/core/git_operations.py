@@ -426,10 +426,14 @@ class GitOperations:
     def commit_changes(self, message: str, files: Optional[List[str]] = None) -> Dict[str, Any]:
         """Commit changes to git repository with better error handling."""
         try:
-            # Check if we're in a git repository
+            # Check if we're in a git repository - ensure we're in the right directory
+            original_cwd = os.getcwd()
+            os.chdir(self.config.di_platform_dir)
+            
             if not self._is_git_repo():
                 error_msg = "Not in a git repository"
                 self.logger.error(error_msg)
+                os.chdir(original_cwd)  # Restore directory
                 return {"committed": False, "error": error_msg}
             
             # Wait a moment to ensure all file operations are complete
@@ -443,7 +447,8 @@ class GitOperations:
             for attempt in range(3):
                 try:
                     status_result = subprocess.run(['git', 'status', '--porcelain'], 
-                                                 capture_output=True, text=True, check=True)
+                                                 capture_output=True, text=True, check=True,
+                                                 cwd=self.config.di_platform_dir)
                     current_changes = status_result.stdout.strip().split('\n') if status_result.stdout.strip() else []
                     
                     if current_changes:
@@ -468,33 +473,49 @@ class GitOperations:
             # Add files to staging area
             if files:
                 for file_path in files:
+                    # Convert absolute paths to relative paths from di_platform_dir
+                    if os.path.isabs(file_path):
+                        # Convert absolute path to relative path from di_platform_dir
+                        try:
+                            relative_path = os.path.relpath(file_path, self.config.di_platform_dir)
+                            file_path = relative_path
+                        except ValueError:
+                            # Path is not under di_platform_dir, use absolute path
+                            pass
+                    
                     # Check if file exists before trying to add it
-                    if not os.path.exists(file_path):
-                        error_msg = f"File does not exist: {file_path}"
+                    full_path = os.path.join(self.config.di_platform_dir, file_path) if not os.path.isabs(file_path) else file_path
+                    if not os.path.exists(full_path):
+                        error_msg = f"File does not exist: {full_path}"
                         self.logger.error(error_msg)
+                        os.chdir(original_cwd)  # Restore directory
                         return {"committed": False, "error": error_msg}
                     
                     try:
                         result = subprocess.run(['git', 'add', file_path], 
-                                              check=True, capture_output=True, text=True, cwd=self.config.di_platform_dir)
+                                              check=True, capture_output=True, text=True, 
+                                              cwd=self.config.di_platform_dir)
                         self.logger.debug(f"Added {file_path} to staging area")
                     except subprocess.CalledProcessError as e:
                         error_msg = f"Failed to add {file_path} to git: {e}"
                         if e.stderr:
                             error_msg += f" - {e.stderr.strip()}"
                         self.logger.error(error_msg)
+                        os.chdir(original_cwd)  # Restore directory
                         return {"committed": False, "error": error_msg}
             else:
                 # Add all changes if no specific files provided
                 try:
                     subprocess.run(['git', 'add', '.'], 
-                                 check=True, capture_output=True, text=True)
+                                 check=True, capture_output=True, text=True,
+                                 cwd=self.config.di_platform_dir)
                     self.logger.debug("Added all changes to staging area")
                 except subprocess.CalledProcessError as e:
                     error_msg = f"Failed to add changes to git: {e}"
                     if e.stderr:
                         error_msg += f" - {e.stderr.strip()}"
                     self.logger.error(error_msg)
+                    os.chdir(original_cwd)  # Restore directory
                     return {"committed": False, "error": error_msg}
             
             # Wait another moment after adding files to ensure they're properly staged
@@ -502,9 +523,11 @@ class GitOperations:
             
             # Check if there are any changes to commit
             status_result = subprocess.run(['git', 'status', '--porcelain'], 
-                                         capture_output=True, text=True, check=True)
+                                         capture_output=True, text=True, check=True,
+                                         cwd=self.config.di_platform_dir)
             if not status_result.stdout.strip():
                 self.logger.info("No changes to commit")
+                os.chdir(original_cwd)  # Restore directory
                 return {"committed": False, "message": "No changes to commit"}
             
             # Show what's being committed for transparency
@@ -514,8 +537,10 @@ class GitOperations:
             # Commit the changes
             try:
                 commit_result = subprocess.run(['git', 'commit', '-m', message], 
-                                             check=True, capture_output=True, text=True)
+                                             check=True, capture_output=True, text=True,
+                                             cwd=self.config.di_platform_dir)
                 self.logger.success(f"✅ Committed changes: {message}")
+                os.chdir(original_cwd)  # Restore directory
                 return {"committed": True, "message": message}
             except subprocess.CalledProcessError as e:
                 # Clean up error message - don't include random stdout/stderr
@@ -533,6 +558,7 @@ class GitOperations:
                         error_msg += f" Git error: {git_error_lines[0]}"
                 
                 self.logger.error(f"Failed to commit changes: {error_msg}")
+                os.chdir(original_cwd)  # Restore directory
                 return {"committed": False, "error": error_msg}
             
         except subprocess.CalledProcessError as e:
@@ -540,10 +566,14 @@ class GitOperations:
             if hasattr(e, 'stderr') and e.stderr:
                 error_msg += f" - {e.stderr.strip()}"
             self.logger.error(error_msg)
+            if 'original_cwd' in locals():
+                os.chdir(original_cwd)  # Restore directory
             return {"committed": False, "error": error_msg}
         except Exception as e:
             error_msg = f"Unexpected error during commit: {e}"
             self.logger.error(error_msg)
+            if 'original_cwd' in locals():
+                os.chdir(original_cwd)  # Restore directory
             return {"committed": False, "error": error_msg}
 
     def create_pr(self, slug: str, branch_name: str, draft: bool = False) -> Dict[str, Any]:
@@ -622,7 +652,7 @@ class GitOperations:
         """Check if current directory is a Git repository."""
         try:
             subprocess.run(['git', 'rev-parse', '--is-inside-work-tree'], 
-                         check=True, capture_output=True)
+                         check=True, capture_output=True, cwd=self.config.di_platform_dir)
             return True
         except subprocess.CalledProcessError:
             return False
@@ -643,12 +673,12 @@ class GitOperations:
         try:
             # Get current branch
             current_branch = subprocess.check_output(
-                ['git', 'branch', '--show-current'], text=True
+                ['git', 'branch', '--show-current'], text=True, cwd=self.config.di_platform_dir
             ).strip()
             
             # Get repository name
             repo_root = subprocess.check_output(
-                ['git', 'rev-parse', '--show-toplevel'], text=True
+                ['git', 'rev-parse', '--show-toplevel'], text=True, cwd=self.config.di_platform_dir
             ).strip()
             repo_name = os.path.basename(repo_root)
             
@@ -903,22 +933,28 @@ Pull Request Link: {pr_url}"""
             self.logger.warning(f"Could not copy Salesforce message to clipboard: {e}")
     
     def push_branch(self, branch_name: str) -> bool:
-        """Push branch to remote repository."""
+        """Push branch to origin."""
         try:
-            subprocess.run(['git', 'push', '-u', 'origin', branch_name], 
-                         check=True, capture_output=True)
-            self.logger.info(f"Pushed branch {branch_name} to origin")
+            subprocess.run(['git', 'push', 'origin', branch_name], 
+                         check=True, capture_output=True, cwd=self.config.di_platform_dir)
+            self.logger.success(f"✅ Pushed branch: {branch_name}")
             return True
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to push branch: {e}")
+            self.logger.error(f"Failed to push branch {branch_name}: {e}")
             return False
     
     def check_repository_status(self) -> bool:
-        """Check if repository is in a clean state."""
+        """Check if repository is ready for operations."""
         try:
-            # Check if there are uncommitted changes
+            # Check if we're in a git repo
+            if not self._is_git_repo():
+                return False
+            
+            # Check for uncommitted changes
             result = subprocess.run(['git', 'status', '--porcelain'], 
-                                  capture_output=True, text=True)
-            return len(result.stdout.strip()) == 0
-        except subprocess.CalledProcessError:
+                                  capture_output=True, text=True, cwd=self.config.di_platform_dir)
+            has_changes = bool(result.stdout.strip())
+            
+            return not has_changes
+        except:
             return False 

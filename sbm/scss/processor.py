@@ -550,11 +550,13 @@ class SCSSProcessor:
         
         # Replace common mixins with CSS equivalents
         mixin_replacements = {
-            # Flexbox mixins - handle both with and without parentheses
+            # Flexbox mixins - handle both with and without parentheses and semicolons
             '@include flexbox();': 'display: flex;',
             '@include flexbox;': 'display: flex;',
+            '@include flexbox': 'display: flex;',  # No semicolon
             '@include inline-flex();': 'display: inline-flex;',
             '@include inline-flex;': 'display: inline-flex;',
+            '@include inline-flex': 'display: inline-flex;',  # No semicolon
             '@include flex-direction(row);': 'flex-direction: row;',
             '@include flex-direction(column);': 'flex-direction: column;',
             '@include flex-wrap(wrap);': 'flex-wrap: wrap;',
@@ -584,8 +586,10 @@ class SCSSProcessor:
             # Utility mixins
             '@include clearfix();': '&::after { content: ""; display: table; clear: both; }',
             '@include clearfix;': '&::after { content: ""; display: table; clear: both; }',
+            '@include clearfix': '&::after { content: ""; display: table; clear: both; }',  # No semicolon
             '@include visually-hidden();': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',
             '@include visually-hidden;': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',
+            '@include visually-hidden': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',  # No semicolon
             
             # Placeholder styling
             '@include placeholder-color;': '&::placeholder { color: var(--placeholder-color, #999); } &::-webkit-input-placeholder { color: var(--placeholder-color, #999); } &::-moz-placeholder { color: var(--placeholder-color, #999); opacity: 1; }',
@@ -612,6 +616,13 @@ class SCSSProcessor:
         
         # Handle more complex mixin patterns with regex
         import re
+        
+        # Handle mixins without semicolons at end of lines
+        # This catches patterns like "@include flexbox" at end of line
+        processed = re.sub(r'@include\s+flexbox\s*$', 'display: flex;', processed, flags=re.MULTILINE)
+        processed = re.sub(r'@include\s+clearfix\s*$', '&::after { content: ""; display: table; clear: both; }', processed, flags=re.MULTILINE)
+        processed = re.sub(r'@include\s+visually-hidden\s*$', 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;', processed, flags=re.MULTILINE)
+        processed = re.sub(r'@include\s+inline-flex\s*$', 'display: inline-flex;', processed, flags=re.MULTILINE)
         
         # Replace positioning mixins
         processed = re.sub(
@@ -740,7 +751,7 @@ class SCSSProcessor:
             processed
         )
         
-        # Replace z-index mixins with specific values - handle both single and double quotes
+        # Replace z-index mixins with specific values - handle quotes and no quotes
         z_index_map = {
             'modal': '1000',
             'overlay': '800',
@@ -760,6 +771,12 @@ class SCSSProcessor:
             # Handle single quotes
             processed = re.sub(
                 rf'@include z-index\(\'{name}\'\);',
+                f'z-index: {value};',
+                processed
+            )
+            # Handle no quotes
+            processed = re.sub(
+                rf'@include z-index\({name}\);',
                 f'z-index: {value};',
                 processed
             )
@@ -869,6 +886,25 @@ class SCSSProcessor:
             r'get-mobile-size\(([^)]+)\)',
             r'\1',
             processed
+        )
+        
+        # Handle remaining unknown mixins by commenting them out
+        # This prevents build errors while preserving the original for manual review
+        processed = re.sub(
+            r'@include\s+([a-zA-Z0-9_-]+)\s*\([^)]*\)\s*;',
+            r'/* TODO: Convert @include \1(...); manually */',
+            processed
+        )
+        processed = re.sub(
+            r'@include\s+([a-zA-Z0-9_-]+)\s*;',
+            r'/* TODO: Convert @include \1; manually */',
+            processed
+        )
+        processed = re.sub(
+            r'@include\s+([a-zA-Z0-9_-]+)\s*$',
+            r'/* TODO: Convert @include \1 manually */',
+            processed,
+            flags=re.MULTILINE
         )
         
         # Convert common hex colors to CSS variables with fallbacks

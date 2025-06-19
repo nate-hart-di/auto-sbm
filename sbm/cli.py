@@ -323,7 +323,6 @@ def setup(ctx, slug, auto_start):
         
         if result['success']:
             logger.success(f"Pre-migration setup completed for {slug}")
-            logger.info(f"Branch created: {result['branch_name']}")
             
             if auto_start and result.get('docker_ready'):
                 logger.success("Docker container is ready!")
@@ -391,8 +390,6 @@ def migrate(ctx, slug, force, skip_git, skip_validation, dry_run):
         
         if result['success']:
             logger.success(f"Migration completed successfully for {slug}")
-            if result.get('branch_name'):
-                logger.info(f"Created branch: {result['branch_name']}")
             if result.get('pr_url'):
                 logger.info(f"Pull request: {result['pr_url']}")
         else:
