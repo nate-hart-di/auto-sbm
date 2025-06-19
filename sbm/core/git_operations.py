@@ -594,6 +594,246 @@ class GitOperations:
                 os.chdir(original_cwd)  # Restore directory
             return {"committed": False, "error": error_msg}
 
+    def create_enhanced_pr(self, slug: str, branch_name: str, user_review_result: Dict[str, Any] = None, draft: bool = False) -> Dict[str, Any]:
+        """Create a PR with enhanced tracking of automated vs manual changes."""
+        try:
+            # Check if we're in a Git repository
+            if not self._is_git_repo():
+                raise Exception("Not in a Git repository")
+            
+            # Check GitHub CLI availability and auth
+            if not self._check_gh_cli():
+                raise Exception("GitHub CLI not available or not authenticated")
+            
+            # Get repository info
+            repo_info = self._get_repo_info()
+            current_branch = repo_info.get('current_branch', branch_name)
+            
+            # Build enhanced PR content
+            pr_content = self._build_enhanced_pr_content(slug, current_branch, repo_info, user_review_result)
+            
+            # Create the PR
+            pr_url = self._execute_gh_pr_create(
+                title=pr_content['title'],
+                body=pr_content['body'],
+                base=self.config.git.default_branch,
+                head=current_branch,
+                draft=draft,
+                reviewers=self.config.git.default_reviewers,
+                labels=self.config.git.default_labels
+            )
+            
+            # Open the PR in browser after creation
+            self._open_pr_in_browser(pr_url)
+            
+            # Copy enhanced Salesforce message to clipboard
+            self._copy_salesforce_message_to_clipboard(pr_content['what_section'], pr_url)
+            
+            return {
+                "success": True,
+                "pr_url": pr_url,
+                "branch": current_branch,
+                "title": pr_content['title'],
+                "pr_body": pr_content['body']
+            }
+            
+        except Exception as e:
+            error_str = str(e)
+            self.logger.error(f"Enhanced PR creation failed: {error_str}")
+            
+            # Check if it's an "already exists" error and handle gracefully
+            if "already exists" in error_str:
+                # Try to extract PR URL from error message
+                import re
+                url_match = re.search(r'(https://github\.com/[^\s]+)', error_str)
+                if url_match:
+                    existing_pr_url = url_match.group(1)
+                    self.logger.info(f"PR already exists: {existing_pr_url}")
+                    
+                    # Still copy enhanced Salesforce message since migration completed
+                    pr_content = self._build_enhanced_pr_content(slug, branch_name, {}, user_review_result)
+                    self._copy_salesforce_message_to_clipboard(pr_content['what_section'], existing_pr_url)
+                    
+                    return {
+                        "success": True,  # Mark as success since PR exists
+                        "pr_url": existing_pr_url,
+                        "branch": branch_name,
+                        "title": pr_content['title'],
+                        "existing": True
+                    }
+            
+            return {
+                "success": False,
+                "error": error_str
+            }
+    
+    def _generate_enhanced_pr_description(self, slug: str, user_review_result: Dict[str, Any] = None) -> str:
+        """Generate enhanced PR description with automated vs manual tracking."""
+        from sbm.core.user_review import UserReviewManager
+        
+        # Base PR template
+        description = f"""## Site Builder Migration - {slug.replace('_', ' ').title()}
+
+### Summary
+This PR contains the Site Builder migration for {slug}, including both automated migration and manual refinements.
+
+"""
+        
+        # Add automated section
+        description += "### 🤖 Automated Migration\n"
+        description += "The SBM tool automatically migrated the following files:\n"
+        description += "- `sb-inside.scss`\n"
+        description += "- `sb-vdp.scss`\n" 
+        description += "- `sb-vrp.scss`\n\n"
+        
+        # Add manual section if user review data exists
+        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
+            changes_analysis = user_review_result["changes_analysis"]
+            modified_files = changes_analysis["files_modified"]
+            
+            description += "### 👤 Manual Refinements\n"
+            description += "Developer made additional manual improvements to:\n"
+            for filename in modified_files:
+                size_change = changes_analysis["size_changes"].get(filename, {})
+                size_diff = size_change.get("difference", 0)
+                description += f"- `{filename}` ({size_diff:+d} bytes)\n"
+            
+            description += "\n**Manual changes help improve the automation** - these will be reviewed to enhance future migrations.\n\n"
+        else:
+            description += "### 👤 Manual Refinements\n"
+            description += "No manual changes were needed - automation was sufficient!\n\n"
+        
+        # Add WHAT section for Salesforce
+        description += "## WHAT\n"
+        description += f"Site Builder migration for {slug} completed:\n\n"
+        
+        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
+            description += "**🤖 Automated Migration:**\n"
+            description += "- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)\n"
+            description += "- Migrated legacy styles to Site Builder format\n"
+            description += "- Applied standard SBM transformations\n\n"
+            
+            description += "**👤 Manual Refinements:**\n"
+            changes_analysis = user_review_result["changes_analysis"]
+            for filename in changes_analysis["files_modified"]:
+                description += f"- Enhanced {filename} with custom improvements\n"
+            description += "- Added dealer-specific styling optimizations\n\n"
+            
+            description += "**🎯 Result:** Combined automated + manual migration provides optimal Site Builder implementation.\n"
+        else:
+            description += "**🤖 Automated Migration:**\n"
+            description += "- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)\n"
+            description += "- Migrated legacy styles to Site Builder format\n"
+            description += "- Applied standard SBM transformations\n\n"
+            
+            description += "**🎯 Result:** Automation was sufficient - no manual changes needed.\n"
+        
+        return description
+    
+    def _build_enhanced_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str], user_review_result: Dict[str, Any] = None) -> Dict[str, str]:
+        """Build enhanced PR content with automated vs manual tracking."""
+        title = f"{slug} - SBM FE Audit"
+        
+        # Build WHAT section with enhanced tracking
+        what_items = []
+        
+        # Automated migration items
+        what_items.extend([
+            "**🤖 Automated Migration:**",
+            "- Migrated interior page styles from inside.scss and style.scss to sb-inside.scss",
+            "- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)",
+            "- Applied standard SBM transformations and pattern matching"
+        ])
+        
+        # Manual refinements if any
+        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
+            changes_analysis = user_review_result["changes_analysis"]
+            modified_files = changes_analysis["files_modified"]
+            
+            what_items.extend([
+                "",
+                "**👤 Manual Refinements:**"
+            ])
+            
+            for filename in modified_files:
+                size_change = changes_analysis["size_changes"].get(filename, {})
+                size_diff = size_change.get("difference", 0)
+                what_items.append(f"- Enhanced {filename} with custom improvements ({size_diff:+d} bytes)")
+            
+            what_items.extend([
+                "- Added dealer-specific styling optimizations",
+                "- Fine-tuned responsive behavior and brand alignment"
+            ])
+        else:
+            what_items.extend([
+                "",
+                "**✅ Automation Status:** No manual changes needed - automation was sufficient!"
+            ])
+        
+        # Add FCA-specific items for Stellantis brands if applicable
+        if any(brand in slug.lower() for brand in ['chrysler', 'dodge', 'jeep', 'ram', 'fiat', 'cdjr', 'fca']):
+            what_items.extend([
+                "",
+                "**🏁 Stellantis Specific:**",
+                "- Added FCA Direction Row Styles",
+                "- Added FCA Cookie Banner styles"
+            ])
+        
+        what_section = "\n".join(what_items)
+        
+        # Build full PR body with enhanced sections
+        body = f"""## What
+
+{what_section}
+
+## Why
+
+Site Builder Migration with enhanced tracking of automated vs manual work.
+
+"""
+        
+        # Add detailed breakdown section
+        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
+            body += """## Development Notes
+
+This migration includes both automated and manual work:
+
+### 🤖 Automated Migration
+The SBM tool successfully migrated legacy styles to Site Builder format with pattern matching and transformation rules.
+
+### 👤 Manual Refinements  
+Developer made additional improvements to optimize the migration for this specific dealer's needs. These manual changes will be analyzed to improve future automation.
+
+"""
+        else:
+            body += """## Development Notes
+
+This migration was completed entirely through automation - no manual changes were required! This indicates the SBM tool is working optimally for this type of theme.
+
+"""
+        
+        body += f"""## Instructions for Reviewers
+
+Within the di-websites-platform directory:
+
+```bash
+git checkout main
+git pull
+git checkout {branch}
+just start {slug}
+```
+
+- Review all code found in "Files Changed"
+- Open up a browser, go to localhost
+- Verify that homepage and interior pages load properly
+- Request changes as needed"""
+        
+        return {
+            'title': title,
+            'body': body,  
+            'what_section': what_section
+        }
+    
     def create_pr(self, slug: str, branch_name: str, draft: bool = False) -> Dict[str, Any]:
         """Create a GitHub pull request using enhanced PR creation logic."""
         try:

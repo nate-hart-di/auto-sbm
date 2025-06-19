@@ -20,6 +20,7 @@ from sbm.core.diagnostics import SystemDiagnostics
 from sbm.core.git_operations import GitOperations
 from sbm.core.workflow import MigrationWorkflow
 from sbm.core.validation import ValidationEngine
+from sbm.core.user_review import UserReviewManager
 
 
 class FullMigrationWorkflow:
@@ -75,6 +76,9 @@ class FullMigrationWorkflow:
             
             # Step 4: Theme Migration
             self._step_4_theme_migration(slug)
+            
+            # Step 4.5: USER REVIEW SESSION (NEW)
+            self._step_4_5_user_review(slug)
             
             # Step 5: File Saving and Gulp Compilation
             self._step_5_file_saving_and_gulp_compilation(slug)
@@ -343,12 +347,64 @@ class FullMigrationWorkflow:
             }
             
             self.logger.success(f"✅ Theme migration fully completed for {slug}")
-            self.logger.info("🔄 Proceeding to file saving and gulp compilation...")
+            self.logger.info("🔄 Proceeding to user review session...")
             
         except Exception as e:
             self.logger.error(f"❌ Migration failed: {e}")
             self.results["migration"] = {"success": False, "error": str(e)}
             raise
+    
+    def _step_4_5_user_review(self, slug: str) -> None:
+        """Step 4.5: User review session for manual changes."""
+        self.logger.step("STEP 4.5: User Review Session...")
+        self.logger.info("👥 Starting manual review session...")
+        
+        try:
+            # Get the automated files from migration step
+            migration_result = self.results.get("migration", {}).get("result", {})
+            generated_files = migration_result.get("generated_files", [])
+            
+            if not generated_files:
+                self.logger.warning("⚠️  No generated files found for review")
+                self.results["user_review"] = {
+                    "success": True,
+                    "skipped": True,
+                    "reason": "No files to review"
+                }
+                return
+            
+            # Extract just the filenames from full paths
+            automated_files = []
+            for file_path in generated_files:
+                file_obj = Path(file_path)
+                automated_files.append(file_obj.name)
+            
+            # Start user review session
+            review_manager = UserReviewManager(self.config)
+            review_result = review_manager.start_review_session(slug, automated_files)
+            
+            # Store review results for later use in commits and PR
+            self.results["user_review"] = {
+                "success": True,
+                "result": review_result,
+                "timestamp": time.time()
+            }
+            
+            self.logger.success("✅ User review session completed!")
+            
+            # Display summary of changes
+            changes_analysis = review_result["changes_analysis"]
+            if changes_analysis["has_manual_changes"]:
+                modified_files = changes_analysis["files_modified"]
+                self.logger.info(f"📝 Manual changes made to: {', '.join(modified_files)}")
+            else:
+                self.logger.info("ℹ️  No manual changes made - automation was sufficient!")
+            
+        except Exception as e:
+            self.logger.error(f"❌ User review failed: {e}")
+            self.results["user_review"] = {"success": False, "error": str(e)}
+            # Don't raise - user review failures shouldn't stop the workflow
+            self.logger.info("🔄 Continuing with automated results only...")
     
     def _step_5_file_saving_and_gulp_compilation(self, slug: str) -> None:
         """Step 5: Save all generated files and verify gulp compilation."""
@@ -693,9 +749,25 @@ class FullMigrationWorkflow:
             # Don't raise - validation failures shouldn't stop the workflow
     
     def _step_7_pull_request_creation(self, slug: str) -> None:
-        """Step 7: Create pull request."""
+        """Step 7: Create pull request with user confirmation."""
         self.logger.step("STEP 7: Pull request creation...")
-        self.logger.info("🔄 Creating GitHub pull request for your migration...")
+        
+        # ALWAYS PROMPT BEFORE GITHUB ACTIONS
+        self.logger.info("⚠️  GITHUB ACTION REQUIRED")
+        self.logger.info("🔄 Ready to create pull request...")
+        
+        # Show what will be included in the PR
+        self._display_pr_preview(slug)
+        
+        # Ask for confirmation
+        if not self._confirm_github_action("create pull request"):
+            self.logger.info("❌ PR creation cancelled by user")
+            self.results["pull_request"] = {
+                "success": False, 
+                "cancelled": True,
+                "reason": "User cancelled PR creation"
+            }
+            return
         
         try:
             git_ops = GitOperations(self.config)
@@ -705,10 +777,14 @@ class FullMigrationWorkflow:
             if not branch_name:
                 raise MigrationError("Could not determine branch name for PR creation")
             
-            self.logger.info(f"📋 Creating PR from branch: {branch_name}")
+            self.logger.info(f"📋 Creating enhanced PR from branch: {branch_name}")
             self.logger.info("🔄 This may take a moment...")
             
-            pr_result = git_ops.create_pr(slug, branch_name, draft=False)
+            # Get user review results for enhanced PR description
+            user_review_result = self.results.get("user_review", {}).get("result", {})
+            
+            # Create enhanced PR with user review tracking
+            pr_result = git_ops.create_enhanced_pr(slug, branch_name, user_review_result, draft=False)
             
             if not pr_result.get("success"):
                 error_msg = pr_result.get("error", "Unknown error")
@@ -847,6 +923,7 @@ class FullMigrationWorkflow:
             ("2️⃣  Git Setup", "git_setup"),
             ("3️⃣  Docker Startup", "docker_startup"),
             ("4️⃣  Theme Migration", "migration"),
+            ("4️⃣.5 User Review", "user_review"),
             ("5️⃣  File Saving & Gulp", "file_saving_gulp"),
             ("6️⃣  Validation", "validation"),
             ("7️⃣  Pull Request", "pull_request")
@@ -867,6 +944,14 @@ class FullMigrationWorkflow:
                     files_saved = result.get("files_saved", 0)
                     compilation = result.get("gulp_compilation", "unknown")
                     self.logger.info(f"      Saved {files_saved} files, Gulp: {compilation}")
+                
+                elif result_key == "user_review":
+                    review_result = result.get("result", {})
+                    if review_result.get("changes_analysis", {}).get("has_manual_changes"):
+                        modified_files = review_result["changes_analysis"]["files_modified"]
+                        self.logger.info(f"      Manual changes: {', '.join(modified_files)}")
+                    else:
+                        self.logger.info("      No manual changes needed")
                 
                 elif result_key == "pull_request":
                     pr_url = result.get("result", {}).get("pr_url")
@@ -948,6 +1033,61 @@ class FullMigrationWorkflow:
                 os.chdir(self._current_directory)
             except Exception as e:
                 self.logger.warning(f"Could not restore directory: {e}")
+    
+    def _display_pr_preview(self, slug: str) -> None:
+        """Display what will be included in the PR."""
+        self.logger.info("")
+        self.logger.info("📋 PR PREVIEW:")
+        
+        # Show automated files
+        migration_result = self.results.get("migration", {}).get("result", {})
+        generated_files = migration_result.get("generated_files", [])
+        
+        if generated_files:
+            self.logger.info("🤖 Automated migration files:")
+            for file_path in generated_files:
+                file_obj = Path(file_path)
+                if file_obj.exists():
+                    size = file_obj.stat().st_size
+                    self.logger.info(f"   ✅ {file_obj.name} ({size} bytes)")
+        
+        # Show manual changes if any
+        user_review_result = self.results.get("user_review", {}).get("result", {})
+        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
+            modified_files = user_review_result["changes_analysis"]["files_modified"]
+            self.logger.info("👤 Manual refinements:")
+            for filename in modified_files:
+                size_change = user_review_result["changes_analysis"]["size_changes"].get(filename, {})
+                size_diff = size_change.get("difference", 0)
+                self.logger.info(f"   ✅ {filename} ({size_diff:+d} bytes)")
+        else:
+            self.logger.info("👤 Manual refinements: None")
+        
+        self.logger.info("")
+    
+    def _confirm_github_action(self, action: str) -> bool:
+        """Ask user to confirm GitHub action."""
+        self.logger.info(f"💬 Type 'yes' to {action}, or 'no' to skip:")
+        
+        while True:
+            try:
+                user_input = input(f"   👤 {action.title()}? (yes/no): ").strip().lower()
+                
+                if user_input in ['yes', 'y']:
+                    self.logger.success(f"✅ Confirmed: {action}")
+                    return True
+                elif user_input in ['no', 'n']:
+                    self.logger.info(f"❌ Skipped: {action}")
+                    return False
+                else:
+                    self.logger.warning("❓ Please type 'yes' or 'no'")
+                    
+            except KeyboardInterrupt:
+                self.logger.warning(f"\n⚠️  {action} interrupted. Treating as 'no'.")
+                return False
+            except EOFError:
+                self.logger.warning(f"\n⚠️  Input ended. Treating as 'no'.")
+                return False
     
     def _create_error_result(self, error_message: str) -> Dict[str, Any]:
         """Create an error result dictionary."""
