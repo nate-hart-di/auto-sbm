@@ -2,11 +2,40 @@
 
 ## 🚀 Usage
 
-**NEW**: All SBM commands now work from any directory! You can run them from:
+**NEW**: Simplified CLI interface! Shows only essential commands by default.
 
-- Your SBM project directory: `/Users/username/Desktop/projects/automation/sbm-v2/`
-- The dealer theme directory: `/Users/username/di-websites-platform/dealer-themes/dealername/`
-- Any other directory on your system
+Most users only need:
+
+```bash
+sbm auto dealername # Complete automated migration
+```
+
+### Essential Commands (Always Visible)
+
+```bash
+sbm auto dealername     # Complete automated migration (recommended)
+sbm validate dealername # Just validate existing files
+sbm doctor              # Check system setup and troubleshoot
+```
+
+### Advanced Commands (Hidden by Default)
+
+```bash
+# Use --advanced to see all commands:
+sbm --advanced -h
+
+# Or call advanced commands directly:
+sbm setup dealername   # Git setup only
+sbm migrate dealername # Migration only
+sbm status dealername  # Check migration status
+```
+
+### ✨ CLI Improvements
+
+- **-h Support**: Both `-h` and `--help` work on all commands
+- **Simplified Interface**: Default help shows only 3 essential commands
+- **Advanced Mode**: Use `--advanced` flag to see all commands for power users
+- **Directory Independence**: Commands work from any directory
 
 ### Basic Commands
 

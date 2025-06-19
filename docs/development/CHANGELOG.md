@@ -1062,6 +1062,12 @@ Pull Request Link: https://github.com/carsdotcom/di-websites-platform/pull/12845
 
 ## [Unreleased]
 
+### Added
+
+- **Simplified CLI Interface**: Default help now shows only 3 essential commands (auto, doctor, validate)
+- **Advanced Commands Flag**: Use `--advanced` to see all commands for power users
+- **-h Support**: `-h` now works exactly like `--help` for all commands
+
 ### Fixed
 
 - **Directory Independence**: SBM commands now work from any directory, not just from specific working directories
@@ -1069,11 +1075,18 @@ Pull Request Link: https://github.com/carsdotcom/di-websites-platform/pull/12845
 - **Logging Cleanup**: Removed redundant branch creation log messages that appeared after migration completion
 - **Path Resolution**: Fixed file existence checks to use proper absolute paths instead of relative paths
 
+### Changed
+
+- **Hidden Commands**: Advanced commands (setup, migrate, status, config-info, create-pr, monitor) are hidden by default
+- **Help Text**: Cleaner, more focused help output highlighting common use cases
+- **User Experience**: Streamlined interface for typical workflows (most users just run `sbm auto`)
+
 ### Technical Changes
 
 - Updated `GitOperations.commit_changes()` to handle absolute/relative path conversion properly
 - Fixed all git subprocess calls to use `cwd=self.config.di_platform_dir` parameter
 - Removed duplicate logging from CLI and migration workflow components
 - Enhanced path resolution in workflow to use `config.get_theme_path()` for absolute paths
+- Implemented dynamic command visibility with `hidden=True` attribute
 
 ## [Previous entries...]
