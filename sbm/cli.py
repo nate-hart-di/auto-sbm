@@ -29,32 +29,32 @@ from sbm.oem.factory import OEMHandlerFactory
 console = Console()
 
 
-@click.group()
+@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option('--advanced', is_flag=True, help='Show all commands (including advanced ones)')
 @click.option('--log-level', default='INFO', help='Set log level (DEBUG, INFO, WARNING, ERROR)')
 @click.option('--log-file', help='Log to file')
 @click.option('--config', help='Path to configuration file')
 @click.pass_context
-def cli(ctx, verbose, log_level, log_file, config):
+def cli(ctx, verbose, advanced, log_level, log_file, config):
     """
-    SBM Tool V2 - Site Builder Migration Tool
+    🚀 SBM Tool V2 - Site Builder Migration Tool
     
-    FULLY AUTOMATED WORKFLOW: Just run 'sbm auto [dealer-slug]' for complete migration!
+    QUICK START: Run 'sbm auto [dealer-slug]' for complete automated migration!
     
-    Examples:
+    Common Examples:
         sbm auto friendlycdjrofgeneva          # Complete automated migration
         sbm auto chryslerofportland --force    # Force migration past validation
-        sbm auto dodgeofseattle --dry-run      # Preview what would be done
+        sbm validate friendlycdjrofgeneva      # Just validate existing files
+        sbm doctor                             # Check system setup
     
-    Individual commands:
-        sbm setup [slug]     # Git setup only
-        sbm migrate [slug]   # Migration only  
-        sbm validate [slug]  # Validation only
-        sbm doctor          # System diagnostics
-        sbm pr              # Create PR only
+    Use --advanced to see all available commands.
     """
     # Ensure context object exists
     ctx.ensure_object(dict)
+    
+    # Store advanced flag for command filtering
+    ctx.obj['show_advanced'] = advanced
     
     # Setup logging
     if verbose:
@@ -289,7 +289,7 @@ def _display_workflow_summary(results: Dict, start_time: float, logger, dry_run:
     logger.info("=" * 60)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument('slug')
 @click.option('--auto-start', '-a', is_flag=True, help='Automatically start and monitor Docker container')
 @click.pass_context
@@ -340,7 +340,7 @@ def setup(ctx, slug, auto_start):
         sys.exit(1)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument('slug')
 @click.option('--force', '-f', is_flag=True, help='Force reset existing Site Builder files')
 @click.option('--skip-git', is_flag=True, help='Skip Git operations')
@@ -463,7 +463,7 @@ def validate(ctx, slug, scss_only, fix):
         sys.exit(1)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument('slug')
 @click.pass_context
 def status(ctx, slug):
@@ -544,7 +544,7 @@ def status(ctx, slug):
         sys.exit(1)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.pass_context
 def config_info(ctx):
     """Show current configuration information."""
@@ -653,7 +653,7 @@ def doctor(ctx, list_themes, check_git):
         sys.exit(1)
 
 
-@cli.command(name="create-pr", context_settings=dict(help_option_names=["-h", "--help"]))
+@cli.command(name="create-pr", hidden=True, context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option('--slug', '-s', help='Dealer slug (auto-detected if in dealer-themes directory)')
 @click.option('--branch', '-b', help='Branch to create PR for (defaults to current branch)')
 @click.option('--title', '-t', help='Custom PR title')
@@ -740,7 +740,7 @@ def create_pr(ctx, slug, branch, title, draft, publish, reviewers, labels):
 cli.add_command(create_pr, name='pr')
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument('slug')
 @click.option('--prod', '-p', is_flag=True, help='Use production database for Docker container')
 @click.pass_context
@@ -781,25 +781,16 @@ def monitor(ctx, slug, prod):
 
 
 def main():
-    """Main entry point for the CLI."""
+    """Entry point for the SBM CLI."""
+    import sys
+    
+    # Check if --advanced flag is used and make hidden commands visible
+    if '--advanced' in sys.argv:
+        for cmd_name, cmd in cli.commands.items():
+            if hasattr(cmd, 'hidden'):
+                cmd.hidden = False
+    
     try:
-        # Check if first argument looks like a dealer slug (no dashes, not a command)
-        import sys
-        if len(sys.argv) > 1:
-            first_arg = sys.argv[1]
-            # If it's not a known command and doesn't start with -, treat as slug for auto command
-            known_commands = ['auto', 'setup', 'migrate', 'validate', 'status', 'config-info', 'doctor', 'create-pr', 'pr', 'monitor', '--help', '-h', '--version', 'prod']
-            if first_arg not in known_commands and not first_arg.startswith('-'):
-                # Check if second argument is 'prod' - if so, add -p flag
-                if len(sys.argv) > 2 and sys.argv[2] == 'prod':
-                    # Remove 'prod' and add -p flag: slug prod -> auto slug -p
-                    sys.argv.pop(2)  # Remove 'prod'
-                    sys.argv.insert(1, 'auto')  # Insert 'auto' before slug
-                    sys.argv.append('-p')  # Add -p flag at the end
-                else:
-                    # Insert 'auto' command before the slug
-                    sys.argv.insert(1, 'auto')
-        
         cli()
     except KeyboardInterrupt:
         console.print("\n❌ Operation cancelled by user", style="yellow")
@@ -809,5 +800,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main() 
