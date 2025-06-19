@@ -749,7 +749,8 @@ just start {slug}
             # Get the diff between current branch and main
             result = subprocess.run(
                 ['git', 'diff', '--name-status', 'main...HEAD'],
-                capture_output=True, text=True, check=True
+                capture_output=True, text=True, check=True,
+                cwd=self.config.di_platform_dir
             )
             
             changed_files = result.stdout.strip().split('\n') if result.stdout.strip() else []
@@ -864,7 +865,9 @@ just start {slug}
             cmd.extend(['--label', ','.join(labels)])
         
         try:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            # Run the command in the di_platform_dir to ensure correct repository context
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, 
+                                  cwd=self.config.di_platform_dir)
             # gh pr create returns the PR URL
             pr_url = result.stdout.strip()
             return pr_url
@@ -890,7 +893,8 @@ just start {slug}
                     try:
                         list_result = subprocess.run([
                             'gh', 'pr', 'list', '--head', head, '--json', 'url'
-                        ], capture_output=True, text=True, check=True)
+                        ], capture_output=True, text=True, check=True,
+                        cwd=self.config.di_platform_dir)
                         
                         import json
                         pr_data = json.loads(list_result.stdout)
