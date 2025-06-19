@@ -1,4 +1,50 @@
-# SBM Tool V2 - Quick Reference Card
+# SBM Tool V2 - Quick Reference
+
+## 🚀 Usage
+
+**NEW**: All SBM commands now work from any directory! You can run them from:
+
+- Your SBM project directory: `/Users/username/Desktop/projects/automation/sbm-v2/`
+- The dealer theme directory: `/Users/username/di-websites-platform/dealer-themes/dealername/`
+- Any other directory on your system
+
+### Basic Commands
+
+```bash
+# Complete automated migration (recommended)
+sbm auto dealername
+
+# Individual commands (work from anywhere)
+sbm migrate dealername
+sbm validate dealername
+sbm status dealername
+sbm setup dealername
+
+# System diagnostics
+sbm doctor
+```
+
+### Example Workflow
+
+```bash
+# From any directory, run the full automation
+cd ~/di-websites-platform/dealer-themes/mydealer
+sbm auto mydealer
+
+# Or run individual steps from any directory
+sbm setup mydealer
+sbm migrate mydealer
+sbm validate mydealer
+```
+
+## ✅ Recent Improvements
+
+- **Directory Independence**: Commands work from any directory
+- **Enhanced Git Operations**: Proper absolute path handling
+- **Cleaner Logging**: Removed redundant messages
+- **Better Error Handling**: More accurate file existence checks
+
+## 📋 Command Reference
 
 ## 🚀 Installation (One Command)
 
