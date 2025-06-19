@@ -1,5 +1,129 @@
 # SBM Tool V2 Changelog
 
+## Version 2.9.0 - User Review System & Enhanced PR Tracking (2025-01-20)
+
+### 🎉 NEW: COMPREHENSIVE USER REVIEW SYSTEM
+
+**Major Workflow Enhancement:**
+
+- ✅ **Interactive User Review**: New Step 4.5 - Pause after automated migration for manual improvements
+- ✅ **Change Tracking**: Automatically detects and quantifies manual modifications (files, sizes, lines)
+- ✅ **Enhanced PR Creation**: Separates automated vs manual work in PR descriptions and commit messages
+- ✅ **GitHub Action Confirmation**: Always prompts before creating PRs - no more accidental operations
+- ✅ **Development Insights**: Manual changes tracked to improve future automation
+
+**New UserReviewManager Class:**
+
+- 🔍 **File State Capture**: MD5 checksums, sizes, line counts before/after user review
+- 👥 **Interactive Session**: User-friendly prompts with help commands (`done`, `help`, `status`)
+- 📊 **Change Analysis**: Detailed reporting of modifications with size differences
+- 🎯 **Quality Control**: Ensures both automation and manual refinements are documented
+
+### 🚀 ENHANCED AUTOMATION WORKFLOW
+
+**NEW Step-by-Step Process:**
+
+```
+1. System Diagnostics
+2. Git Setup
+3. Docker Startup
+4. Theme Migration (Automated)
+4.5. USER REVIEW SESSION ← NEW!
+     - Pause for manual review
+     - Type "done" when finished
+     - Track all changes made
+5. File Saving & Gulp
+6. Validation
+7. Pull Request (with confirmation) ← ENHANCED!
+8. Final Summary
+```
+
+**Enhanced PR Descriptions:**
+
+```markdown
+## What
+
+**🤖 Automated Migration:**
+
+- Migrated interior page styles from inside.scss and style.scss to sb-inside.scss
+- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)
+- Applied standard SBM transformations and pattern matching
+
+**👤 Manual Refinements:**
+
+- Enhanced sb-inside.scss with custom improvements (+150 bytes)
+- Added dealer-specific styling optimizations
+- Fine-tuned responsive behavior and brand alignment
+
+**✅ Result:** Combined automated + manual migration provides optimal Site Builder implementation.
+```
+
+### 🛠️ TECHNICAL IMPLEMENTATION
+
+**Core Bug Fixes:**
+
+- ✅ **FIXED: OEMFactory Method Call**: Changed `OEMFactory.create_handler()` to `OEMHandlerFactory(config).get_handler()`
+- ✅ **FIXED: SCSS File Creation Logic**: Now properly tracks file existence before writing (prevents always showing "modified")
+- ✅ **FIXED: Results Merging**: Fixed `.update()` overwriting lists - now properly merges `files_created` and `files_modified`
+- ✅ **FIXED: Duplicate PR Creation**: MigrationWorkflow now has `skip_pr` parameter to prevent FullMigrationWorkflow creating duplicate PRs
+
+**New Enhanced Features:**
+
+- ✅ **Rich UI Library**: Confirmed available (v14.0.0) for full UI features
+- ✅ **Enhanced Git Commits**: Improved commit messaging with automated vs manual tracking
+- ✅ **Smart File Staging**: Forces staging of sb-\*.scss files to ensure proper commits
+- ✅ **Robust Error Handling**: User review failures don't stop workflow - graceful degradation
+
+### 📋 DEVELOPER EXPERIENCE IMPROVEMENTS
+
+**Safety & Confirmation:**
+
+- ⚠️ **GitHub Action Prompts**: Always ask before creating PRs - prevents accidental operations
+- 📋 **PR Preview**: Shows what will be included before confirmation
+- 🎯 **Smart Defaults**: Yes/no prompts with clear instructions
+- ⚙️ **Interrupt Handling**: Graceful handling of Ctrl+C during review sessions
+
+**Enhanced Documentation:**
+
+- 📝 **Commit Message Tracking**: Clear separation of automated vs manual work
+- 📊 **Change Statistics**: Byte and line count differences tracked and reported
+- 🎯 **Salesforce Messages**: Now reflect both automated and manual contributions
+- 📈 **Development Insights**: Manual changes help improve automation over time
+
+### 🎯 BUSINESS VALUE
+
+**For Development Teams:**
+
+- ✅ **Quality Assurance**: Manual review step ensures optimal migrations
+- ✅ **Knowledge Transfer**: Clear documentation of what automation handles vs needs refinement
+- ✅ **Risk Reduction**: No accidental GitHub operations, always confirm before PR creation
+- ✅ **Continuous Improvement**: Track manual changes to enhance automation
+
+**For Automation Improvement:**
+
+- 📊 **Feedback Loop**: Manual changes analyzed to improve future automation
+- 🎯 **Pattern Recognition**: Common manual adjustments become automated features
+- 📈 **Success Metrics**: Track when automation is sufficient vs needs human input
+- 🔧 **Iterative Enhancement**: Each migration improves the next one
+
+### 🧪 COMPATIBILITY & TESTING
+
+**Backwards Compatibility:**
+
+- ✅ **Existing Workflows**: All previous functionality preserved
+- ✅ **Configuration**: No breaking changes to existing configs
+- ✅ **CLI Interface**: Same commands work identically with enhanced features
+- ✅ **Error Handling**: Improved error messages and recovery
+
+**Testing Results:**
+
+- ✅ **Import Validation**: All new modules import successfully
+- ✅ **CLI Functionality**: `sbm --help` and all commands work correctly
+- ✅ **Module Integration**: UserReviewManager integrates seamlessly with existing workflow
+- ✅ **Edge Cases**: Graceful handling of cancelled reviews, missing files, and user interrupts
+
+---
+
 ## Version 2.8.1 - Complete SCSS Processing Overhaul (2025-01-18)
 
 ### 🚨 COMPLETE ARCHITECTURAL REDESIGN
