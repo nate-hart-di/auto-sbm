@@ -284,6 +284,12 @@ class FullMigrationWorkflow:
                 self.logger.info("🔄 Migration will proceed - directory might be created during process")
             
             self.logger.info("⚙️  Executing migration engine...")
+            
+            # Temporarily disable git operations for MigrationWorkflow
+            # Git operations will be handled after user review in Step 4.5
+            original_skip_git = self.config.demo.skip_git
+            self.config.demo.skip_git = True
+            
             workflow = MigrationWorkflow(self.config)
             migration_result = workflow.run(
                 slug=slug,
@@ -292,6 +298,9 @@ class FullMigrationWorkflow:
                 force=False,
                 skip_pr=True  # Skip PR creation - will be handled by FullMigrationWorkflow
             )
+            
+            # Restore original skip_git setting
+            self.config.demo.skip_git = original_skip_git
             
             if not migration_result.get("success"):
                 raise MigrationError(f"Migration failed: {migration_result.get('error')}")
@@ -361,8 +370,7 @@ class FullMigrationWorkflow:
         
         try:
             # Get the automated files from migration step
-            migration_result = self.results.get("migration", {}).get("result", {})
-            generated_files = migration_result.get("generated_files", [])
+            generated_files = self.results.get("migration", {}).get("generated_files", [])
             
             if not generated_files:
                 self.logger.warning("⚠️  No generated files found for review")
@@ -400,11 +408,77 @@ class FullMigrationWorkflow:
             else:
                 self.logger.info("ℹ️  No manual changes made - automation was sufficient!")
             
+            # Now perform git operations AFTER user review
+            self.logger.info("🔄 Committing reviewed changes...")
+            self._perform_git_commit_after_review(slug, review_result)
+            
         except Exception as e:
             self.logger.error(f"❌ User review failed: {e}")
             self.results["user_review"] = {"success": False, "error": str(e)}
             # Don't raise - user review failures shouldn't stop the workflow
             self.logger.info("🔄 Continuing with automated results only...")
+    
+    def _perform_git_commit_after_review(self, slug: str, review_result: Dict[str, Any]) -> None:
+        """Perform git commit and push operations after user review."""
+        try:
+            # Check if git operations should be skipped
+            if self.config.demo.skip_git:
+                self.logger.info("⏭️  Skipping git operations (demo mode)")
+                return
+            
+            git_ops = GitOperations(self.config)
+            
+            # Get generated files from migration step
+            generated_files = self.results.get("migration", {}).get("generated_files", [])
+            
+            if not generated_files:
+                self.logger.warning("⚠️  No files to commit")
+                return
+            
+            # Build commit message including user review info
+            changes_analysis = review_result.get("changes_analysis", {})
+            base_message = f"{slug.replace('-', ' ').title()} SBM FE Audit"
+            
+            # Add information about what files were created
+            file_names = [Path(f).name for f in generated_files]
+            base_message += f" - Created {', '.join(file_names)}"
+            
+            # Add manual changes info if any
+            if changes_analysis.get("has_manual_changes"):
+                modified_files = changes_analysis.get("files_modified", [])
+                base_message += f" - Manual changes: {', '.join(modified_files)}"
+            
+            # Commit the changes
+            self.logger.info("📤 Committing changes to git...")
+            commit_result = git_ops.commit_changes(base_message, generated_files)
+            
+            if commit_result.get("committed"):
+                self.logger.success(f"✅ ✅ Committed changes: {base_message}")
+                
+                # Push the branch
+                current_branch = git_ops._get_repo_info().get('current_branch')
+                if current_branch:
+                    self.logger.info("📤 Pushing branch to remote...")
+                    push_success = git_ops.push_branch(current_branch)
+                    if push_success:
+                        self.logger.success(f"✅ ✅ Pushed branch: {current_branch}")
+                    else:
+                        self.logger.error("❌ Failed to push branch")
+                
+                # Store git results for later steps
+                self.results["git_commit"] = {
+                    "success": True,
+                    "committed": True,
+                    "branch": current_branch,
+                    "message": base_message
+                }
+            else:
+                self.logger.error("❌ Failed to commit changes")
+                self.results["git_commit"] = {"success": False, "committed": False}
+                
+        except Exception as e:
+            self.logger.error(f"❌ Git operations failed: {e}")
+            self.results["git_commit"] = {"success": False, "error": str(e)}
     
     def _step_5_file_saving_and_gulp_compilation(self, slug: str) -> None:
         """Step 5: Save all generated files and verify gulp compilation."""
@@ -752,6 +826,17 @@ class FullMigrationWorkflow:
         """Step 7: Create pull request with user confirmation."""
         self.logger.step("STEP 7: Pull request creation...")
         
+        # Check if git commit was successful
+        git_commit_result = self.results.get("git_commit", {})
+        if not git_commit_result.get("success") or not git_commit_result.get("committed"):
+            self.logger.warning("⚠️  Git commit was not successful - skipping PR creation")
+            self.results["pull_request"] = {
+                "success": False,
+                "skipped": True,
+                "reason": "Git commit failed or was skipped"
+            }
+            return
+        
         # ALWAYS PROMPT BEFORE GITHUB ACTIONS
         self.logger.info("⚠️  GITHUB ACTION REQUIRED")
         self.logger.info("🔄 Ready to create pull request...")
@@ -772,8 +857,11 @@ class FullMigrationWorkflow:
         try:
             git_ops = GitOperations(self.config)
             
-            # Get the branch name from git setup results
-            branch_name = self.results.get("git_setup", {}).get("result", {}).get("branch_name")
+            # Get the branch name from git setup results or git commit results
+            branch_name = (
+                self.results.get("git_setup", {}).get("result", {}).get("branch_name") or
+                self.results.get("git_commit", {}).get("branch")
+            )
             if not branch_name:
                 raise MigrationError("Could not determine branch name for PR creation")
             
@@ -845,10 +933,10 @@ class FullMigrationWorkflow:
             duration = self._get_duration()
             
             # Determine success based on CRITICAL vs NON-CRITICAL steps
-            # CRITICAL: diagnostics, git_setup, migration  
+            # CRITICAL: diagnostics, git_setup, migration, user_review, git_commit
             # NON-CRITICAL: docker_startup (can be skipped), validation (warnings only), pull_request (can fail if exists)
             
-            critical_steps = ["diagnostics", "git_setup", "migration"]
+            critical_steps = ["diagnostics", "git_setup", "migration", "user_review", "git_commit"]
             non_critical_steps = ["docker_startup", "validation", "pull_request"]
             
             critical_success = all(
@@ -924,6 +1012,7 @@ class FullMigrationWorkflow:
             ("3️⃣  Docker Startup", "docker_startup"),
             ("4️⃣  Theme Migration", "migration"),
             ("4️⃣.5 User Review", "user_review"),
+            ("4️⃣.6 Git Commit", "git_commit"),
             ("5️⃣  File Saving & Gulp", "file_saving_gulp"),
             ("6️⃣  Validation", "validation"),
             ("7️⃣  Pull Request", "pull_request")
@@ -952,6 +1041,13 @@ class FullMigrationWorkflow:
                         self.logger.info(f"      Manual changes: {', '.join(modified_files)}")
                     else:
                         self.logger.info("      No manual changes needed")
+                
+                elif result_key == "git_commit":
+                    branch = result.get("branch", "unknown")
+                    message = result.get("message", "")
+                    self.logger.info(f"      Branch: {branch}")
+                    if message:
+                        self.logger.info(f"      Message: {message}")
                 
                 elif result_key == "pull_request":
                     pr_url = result.get("result", {}).get("pr_url")
