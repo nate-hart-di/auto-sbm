@@ -114,7 +114,7 @@ def migrate_styles(slug):
         else:
             logger.info("Using legacy style parser")
             
-        style_scss_styles = analyze_style_scss(theme_dir, use_improved_parser)
+        style_scss_styles = analyze_style_scss(theme_dir, use_improved_parser, slug)
         
         # Merge styles from both sources
         for file_name, content in style_scss_styles.items():
@@ -132,8 +132,16 @@ def migrate_styles(slug):
                 logger.warning(f"No content for {file_name}, skipping")
                 continue
             
-            # Transform SCSS content
-            transformed = transform_scss(content, slug)
+            # Check if content is from the improved parser (already transformed)
+            # or from legacy extraction (needs transformation)
+            if use_improved_parser and file_name in style_scss_styles:
+                # Content from improved parser is already transformed
+                transformed = content
+                logger.debug(f"Using pre-transformed content for {file_name}")
+            else:
+                # Content from legacy extraction needs transformation
+                transformed = transform_scss(content, slug)
+                logger.debug(f"Applying SCSS transformations to {file_name}")
             
             # Write the transformed content to the Site Builder file
             file_path = os.path.join(theme_dir, file_name)

@@ -92,6 +92,46 @@ def clean_scss_content(content):
     # Remove consecutive empty lines
     content = re.sub(r'\n{3,}', '\n\n', content)
     
+    # Remove incomplete selectors at the end (selectors that end with comma or have no opening brace)
+    lines = content.split('\n')
+    cleaned_lines = []
+    
+    for i, line in enumerate(lines):
+        line_stripped = line.strip()
+        
+        # Skip empty lines
+        if not line_stripped:
+            cleaned_lines.append(line)
+            continue
+            
+        # Check if this is the last non-empty line
+        is_last_content = True
+        for j in range(i + 1, len(lines)):
+            if lines[j].strip():
+                is_last_content = False
+                break
+        
+        # If this is the last line and it looks like an incomplete selector, skip it
+        if is_last_content and line_stripped:
+            # Check if it's an incomplete selector (ends with comma, no opening brace, looks like CSS selector)
+            if (line_stripped.endswith(',') or 
+                ('{' not in line_stripped and 
+                 not line_stripped.startswith('//') and 
+                 not line_stripped.startswith('/*') and
+                 not line_stripped.endswith(';') and
+                 not line_stripped.endswith('}') and
+                 ('.' in line_stripped or '#' in line_stripped or line_stripped.endswith(':')))):
+                # This looks like an incomplete selector - skip it
+                continue
+        
+        cleaned_lines.append(line)
+    
+    # Rejoin and clean up again
+    content = '\n'.join(cleaned_lines).strip()
+    
+    # Remove consecutive empty lines again
+    content = re.sub(r'\n{3,}', '\n\n', content)
+    
     return content
 
 

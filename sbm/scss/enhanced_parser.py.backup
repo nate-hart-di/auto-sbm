@@ -9,101 +9,6 @@ import os
 import re
 from ..utils.logger import logger
 from .parser import read_scss_file, clean_scss_content
-from .transformer import transform_scss
-
-
-def is_inside_string_or_comment(text, position):
-    """
-    Check if a position in text is inside a string literal, URL function, or comment.
-    
-    Args:
-        text (str): The text to check
-        position (int): The position to check
-        
-    Returns:
-        bool: True if position is inside a string, URL, or comment
-    """
-    # Check if we're inside a single-line comment
-    line_start = text.rfind('\n', 0, position) + 1
-    line_text = text[line_start:position]
-    if '//' in line_text:
-        comment_pos = line_text.find('//')
-        # Check if the // is not inside a string
-        before_comment = line_text[:comment_pos]
-        single_quotes = before_comment.count("'") - before_comment.count("\\'")
-        double_quotes = before_comment.count('"') - before_comment.count('\\"')
-        if single_quotes % 2 == 0 and double_quotes % 2 == 0:
-            return True
-    
-    # Check if we're inside a multi-line comment
-    last_comment_start = text.rfind('/*', 0, position)
-    if last_comment_start != -1:
-        last_comment_end = text.rfind('*/', 0, position)
-        if last_comment_end < last_comment_start:
-            return True
-    
-    # Check if we're inside a string literal or URL function
-    # Count unescaped quotes before this position
-    text_before = text[:position]
-    
-    # Count single quotes (accounting for escaped ones)
-    single_quotes = 0
-    i = 0
-    while i < len(text_before):
-        if text_before[i] == "'" and (i == 0 or text_before[i-1] != '\\'):
-            single_quotes += 1
-        elif text_before[i] == '\\' and i + 1 < len(text_before):
-            i += 1  # Skip the escaped character
-        i += 1
-    
-    # Count double quotes (accounting for escaped ones)
-    double_quotes = 0
-    i = 0
-    while i < len(text_before):
-        if text_before[i] == '"' and (i == 0 or text_before[i-1] != '\\'):
-            double_quotes += 1
-        elif text_before[i] == '\\' and i + 1 < len(text_before):
-            i += 1  # Skip the escaped character
-        i += 1
-    
-    # If we have an odd number of quotes, we're inside a string
-    if single_quotes % 2 == 1 or double_quotes % 2 == 1:
-        return True
-    
-    # Check if we're inside a url() function
-    # Find the last url( before this position
-    url_pattern = r'url\s*\('
-    url_matches = list(re.finditer(url_pattern, text_before, re.IGNORECASE))
-    if url_matches:
-        last_url_start = url_matches[-1].end()
-        # Check if there's a closing paren after the url( but before our position
-        url_content = text[last_url_start:position]
-        if ')' not in url_content:
-            return True
-    
-    return False
-
-
-def count_brackets_safely(text):
-    """
-    Count opening and closing brackets while ignoring those inside strings, URLs, or comments.
-    
-    Args:
-        text (str): The text to analyze
-        
-    Returns:
-        tuple: (opening_brackets, closing_brackets)
-    """
-    opening = 0
-    closing = 0
-    
-    for i, char in enumerate(text):
-        if char == '{' and not is_inside_string_or_comment(text, i):
-            opening += 1
-        elif char == '}' and not is_inside_string_or_comment(text, i):
-            closing += 1
-    
-    return opening, closing
 
 
 def extract_section_from_style(content, section_name):
@@ -230,14 +135,13 @@ def extract_page_specific_styles(content, page_type):
     return result.strip()
 
 
-def analyze_style_scss(theme_dir, use_improved_parser=True, slug=None):
+def analyze_style_scss(theme_dir, use_improved_parser=True):
     """
     Analyze the style.scss file and extract styles for each Site Builder file.
     
     Args:
         theme_dir (str): Path to the dealer theme directory
         use_improved_parser (bool): Whether to use the improved parser for multi-selector rules
-        slug (str, optional): Dealer theme slug for transformations
         
     Returns:
         dict: Dictionary containing extracted styles for each Site Builder file
@@ -275,8 +179,8 @@ def analyze_style_scss(theme_dir, use_improved_parser=True, slug=None):
         logger.info(f"  - VRP rules: {counts['vrp']}")
         logger.info(f"  - Inside rules: {counts['inside']}")
         
-        # Distribute the rules to the appropriate categories with transformations
-        categorized = distribute_rules(rules, include_comments=True, slug=slug)
+        # Distribute the rules to the appropriate categories
+        categorized = distribute_rules(rules)
         
         # Create the return dictionary in the expected format
         results = {
@@ -327,15 +231,13 @@ def parse_style_rules(style_content):
         r'\.vdp\b', r'\.lvdp\b', r'\.vehicle-detail', r'vdp--', r'\bvehicle-details',
         r'vdp-price-box', r'page-template-vehicle', r'single-vehicle', r'vehicle-page',
         r'\bvdp[\s_-]', r'[\s_-]vdp\b', r'vehicle-detail-page', r'vehicle_detail', 
-        r'details-page', r'detail-view', r'single-inventory-vehicle',
-        r'\.page-vehicle-display-page\b'
+        r'details-page', r'detail-view', r'single-inventory-vehicle'
     ]
     vrp_patterns = [
         r'\.vrp\b', r'\.lvrp\b', r'\.srp\b', r'\.vehicle-list', r'\.vehicle-results',
         r'inventory-page', r'page-template-inventory', r'search-results-page',
         r'\bvrp[\s_-]', r'[\s_-]vrp\b', r'\bsrp[\s_-]', r'[\s_-]srp\b',
-        r'vehicle-results-page', r'inventory-results', r'inventory-listing',
-        r'\.page-vehicle-results-page\b'
+        r'vehicle-results-page', r'inventory-results', r'inventory-listing'
     ]
     
     # Remove imports to focus on the actual styles
@@ -416,23 +318,11 @@ def parse_style_rules(style_content):
             # Collect comment block
             comment_block = [line]
             i += 1
-            
-            # For multi-line comments (/* ... */), collect until we find the closing */
-            if line.strip().startswith('/*') and not line.strip().endswith('*/'):
-                while i < len(lines) and not lines[i].strip().endswith('*/'):
-                    comment_block.append(lines[i])
-                    i += 1
-                # Add the closing line
-                if i < len(lines):
-                    comment_block.append(lines[i])
-                    i += 1
-            else:
-                # For single-line comments or other patterns
-                while i < len(lines) and ((lines[i].strip().startswith('//') or 
-                                           lines[i].strip().startswith('/*')) and
-                                           not '{' in lines[i]):
-                    comment_block.append(lines[i])
-                    i += 1
+            while i < len(lines) and ((lines[i].strip().startswith('//') or 
+                                       lines[i].strip().startswith('/*')) and
+                                       not '{' in lines[i]):
+                comment_block.append(lines[i])
+                i += 1
             
             if i < len(lines) and ('{' in lines[i] or (i+1 < len(lines) and '{' in lines[i+1])):
                 # This comment belongs to the next rule
@@ -446,20 +336,15 @@ def parse_style_rules(style_content):
                     })
             continue
         
-        # Count brackets to track rule boundaries (safely, ignoring strings/comments)
-        line_opening, line_closing = count_brackets_safely(line)
-        bracket_count += line_opening
-        bracket_count -= line_closing
+        # Count brackets to track rule boundaries
+        bracket_count += line.count('{')
+        bracket_count -= line.count('}')
         
         current_rule.append(line)
         
-        # If brackets are balanced and we have content with actual CSS rules, we've reached the end of a rule
-        if bracket_count == 0 and current_rule and any('{' in line for line in current_rule):
+        # If brackets are balanced and we have content, we've reached the end of a rule
+        if bracket_count == 0 and current_rule:
             rule_text = '\n'.join(current_rule)
-            
-            # Check if this rule has a ticket number (do this early so it's available everywhere)
-            ticket_match = re.search(r'//.*?(\d{5,}).*?(start|end)', rule_text, re.IGNORECASE)
-            ticket_num = ticket_match.group(1) if ticket_match else None
             
             # Determine the category
             category = 'inside'  # Default
@@ -473,128 +358,83 @@ def parse_style_rules(style_content):
             elif ',' in rule_text.split('{')[0]:
                 # Extract all selectors before the first opening brace
                 selectors_part = rule_text.split('{')[0]
-                rule_body = rule_text[rule_text.find('{'):]
                 
-                # Handle any nested selectors by temporarily replacing commas within parentheses
-                modified_selectors = re.sub(r'\([^)]*,[^)]*\)', lambda m: m.group(0).replace(',', '###COMMA###'), selectors_part)
+                # Check if the entire rule contains VDP or VRP patterns first - faster check
+                rule_has_vdp = any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vdp_patterns)
+                rule_has_vrp = any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vrp_patterns)
                 
-                # Now split by comma
-                selectors = [s.strip().replace('###COMMA###', ',') for s in modified_selectors.split(',')]
-                
-                # Categorize each selector
-                vdp_selectors = []
-                vrp_selectors = []
-                inside_selectors = []
-                
-                for selector in selectors:
-                    if any(re.search(pattern, selector, re.IGNORECASE) for pattern in vdp_patterns):
-                        vdp_selectors.append(selector)
-                        logger.debug(f"Found VDP selector: {selector}")
-                    elif any(re.search(pattern, selector, re.IGNORECASE) for pattern in vrp_patterns):
-                        vrp_selectors.append(selector)
-                        logger.debug(f"Found VRP selector: {selector}")
-                    else:
-                        inside_selectors.append(selector)
-                        logger.debug(f"Found inside selector: {selector}")
-                
-                # Create separate rules for each category that has selectors
-                if vdp_selectors:
-                    vdp_rule = ',\\n'.join(vdp_selectors) + ' ' + rule_body
-                    rules.append({
-                        'rule': vdp_rule,
-                        'category': 'vdp',
-                        'ticket': ticket_num
-                    })
-                    logger.debug(f"Created VDP rule with {len(vdp_selectors)} selectors")
-                
-                if vrp_selectors:
-                    vrp_rule = ',\\n'.join(vrp_selectors) + ' ' + rule_body
-                    rules.append({
-                        'rule': vrp_rule,
-                        'category': 'vrp',
-                        'ticket': ticket_num
-                    })
-                    logger.debug(f"Created VRP rule with {len(vrp_selectors)} selectors")
-                
-                if inside_selectors:
-                    inside_rule = ',\\n'.join(inside_selectors) + ' ' + rule_body
-                    rules.append({
-                        'rule': inside_rule,
-                        'category': 'inside',
-                        'ticket': ticket_num
-                    })
-                    logger.debug(f"Created inside rule with {len(inside_selectors)} selectors")
-                
-                # Reset for next rule and continue processing (skip normal rule processing)
-                current_rule = []
-            else:
-                # Normal single-selector rule processing
-                # Check for VDP or VRP patterns in the entire rule text
-                if any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vdp_patterns):
+                # If the rule contains VDP patterns, put the whole rule in VDP
+                if rule_has_vdp:
                     category = 'vdp'
-                elif any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vrp_patterns):
+                    logger.debug(f"Multi-selector rule assigned to VDP due to containing VDP selectors")
+                # If not VDP but contains VRP patterns, put the whole rule in VRP
+                elif rule_has_vrp:
                     category = 'vrp'
-                
-                rules.append({
-                    'rule': rule_text,
-                    'category': category,
-                    'ticket': ticket_num
-                })
-                
-                current_rule = []
-        
-        i += 1
-    
-    # Handle any remaining content that didn't form a complete rule
-    if current_rule:
-        rule_text = '\n'.join(current_rule)
-        
-        # Check if this is an incomplete rule (no opening brace or just a trailing selector)
-        if '{' not in rule_text or rule_text.strip().endswith(','):
-            # This is likely an incomplete selector or comment - discard it
-            logger.debug(f"Discarding incomplete rule: {rule_text[:50]}...")
-        else:
-            # This might be a rule with unbalanced brackets - try to salvage it
-            logger.warning(f"Found rule with unbalanced brackets, attempting to fix: {rule_text[:50]}...")
-            
-            # Count the brackets to see how many we're missing
-            opening, closing = count_brackets_safely(rule_text)
-            missing_brackets = opening - closing
-            
-            if missing_brackets > 0:
-                # Add missing closing brackets
-                rule_text += '\n' + '}' * missing_brackets
-                logger.debug(f"Added {missing_brackets} missing closing brackets")
-            
-            # Determine the category
-            category = 'inside'  # Default
-            
-            # Check for VDP or VRP patterns
-            if any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vdp_patterns):
+                    logger.debug(f"Multi-selector rule assigned to VRP due to containing VRP selectors")
+                else:
+                    # More detailed analysis - split the selectors and check each one
+                    # First, handle any nested selectors by temporarily replacing commas within parentheses
+                    modified_selectors = re.sub(r'\([^)]*,[^)]*\)', lambda m: m.group(0).replace(',', '###COMMA###'), selectors_part)
+                    
+                    # Now split by comma
+                    selectors = [s.strip().replace('###COMMA###', ',') for s in modified_selectors.split(',')]
+                    
+                    # Check each selector
+                    has_vdp = False
+                    has_vrp = False
+                    
+                    for selector in selectors:
+                        if any(re.search(pattern, selector, re.IGNORECASE) for pattern in vdp_patterns):
+                            has_vdp = True
+                            logger.debug(f"Found VDP selector: {selector}")
+                        elif any(re.search(pattern, selector, re.IGNORECASE) for pattern in vrp_patterns):
+                            has_vrp = True
+                            logger.debug(f"Found VRP selector: {selector}")
+                    
+                    # If any selector matches VDP, the whole rule goes to VDP
+                    if has_vdp:
+                        category = 'vdp'
+                        logger.debug(f"Multi-selector rule assigned to VDP category")
+                    # Otherwise, if any selector matches VRP, the whole rule goes to VRP
+                    elif has_vrp:
+                        category = 'vrp'
+                        logger.debug(f"Multi-selector rule assigned to VRP category")
+                    # Default to inside if no patterns match
+                    else:
+                        logger.debug(f"Multi-selector rule assigned to inside category (no VDP/VRP matches)")
+            # Check for VDP or VRP patterns in the entire rule text
+            elif any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vdp_patterns):
                 category = 'vdp'
             elif any(re.search(pattern, rule_text, re.IGNORECASE) for pattern in vrp_patterns):
                 category = 'vrp'
             
+            # Check if this rule has a ticket number
+            ticket_match = re.search(r'//.*?(\d{5,}).*?(start|end)', rule_text, re.IGNORECASE)
+            ticket_num = ticket_match.group(1) if ticket_match else None
+            
             rules.append({
                 'rule': rule_text,
                 'category': category,
-                'ticket': None
+                'ticket': ticket_num
             })
+            
+            current_rule = []
+        
+        i += 1
     
     return rules
 
 
-def distribute_rules(rules, include_comments=True, slug=None):
+def distribute_rules(rules, include_comments=True):
     """
-    Distribute rules to the appropriate style files with proper SCSS transformations.
+    Distribute rules to the appropriate style files.
     
     Args:
         rules (list): List of rule dictionaries
         include_comments (bool): Whether to include ticket comments in the output
-        slug (str, optional): Dealer theme slug for transformations
         
     Returns:
-        dict: Categorized and transformed style content
+        dict: Categorized style content
     """
     categorized = {
         'vdp': [],
@@ -613,15 +453,10 @@ def distribute_rules(rules, include_comments=True, slug=None):
         
         categorized[category].append(rule_text)
     
-    # Join rules for each category and apply transformations
+    # Join rules for each category
     for category in categorized:
         categorized[category] = '\n\n'.join(categorized[category])
         # Clean up the output
         categorized[category] = clean_scss_content(categorized[category])
-        
-        # Apply SCSS transformations (URL paths, variables, etc.)
-        if slug and categorized[category].strip():
-            logger.debug(f"Applying SCSS transformations to {category} content")
-            categorized[category] = transform_scss(categorized[category], slug)
     
     return categorized
