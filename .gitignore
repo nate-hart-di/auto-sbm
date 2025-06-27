@@ -13,7 +13,7 @@ _.env.test
 _.env.production
 
 # Python virtual environment and cache
-
+.venv/
 venv/
 **pycache**/
 \*.pyc
@@ -39,4 +39,4 @@ tmp/
 
 # Archived files
 /archive/
-/documentation/archive/
+documentation/archive/

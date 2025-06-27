@@ -1,8 +1,73 @@
 """
-Intelligent SCSS Mixin Parser for CommonTheme Mixins
+Comprehensive SCSS Mixin Parser for CommonTheme Mixins
 
-This module provides comprehensive parsing and conversion of ALL CommonTheme mixins
-to their CSS equivalents. It uses intelligent parsing instead of rigid pattern matching.
+This module provides complete parsing and conversion of ALL CommonTheme mixins
+to their CSS equivalents. It uses intelligent parsing with specific handlers for
+each mixin type instead of rigid pattern matching.
+
+SUPPORTED MIXINS:
+================
+
+Flexbox Mixins:
+- flexbox, inline-flex
+- flex-direction, flex-wrap, flex-flow
+- justify-content, align-items, align-self, align-content
+- flex, order, flex-grow, flex-shrink, flex-basis
+
+Positioning Mixins:
+- absolute, relative, fixed
+- centering, vertical-align
+
+Transform Mixins:
+- transform, rotate
+- translatez, translateZ (for GPU acceleration)
+
+Transition & Animation Mixins:
+- transition, transition-2
+- animation, keyframes
+
+Layout & Box Model Mixins:
+- box-sizing, box-shadow, box-shadow-2
+- border-radius
+- clearfix
+
+Background & Visual Mixins:
+- appearance
+- trans (transparent background)
+- opacity, user-select
+- filter
+
+Gradient Mixins:
+- gradient (vertical), gradient-left-right (horizontal)
+- horgradient, horgradientright, horgradientleft, horgradienttop
+- diagonal-top-bottom, metalgradient
+- backgroundGradientWithImage
+
+Typography & Text Mixins:
+- font_size, fluid-font, responsive-font
+- placeholder-color
+- stroke (text outline)
+
+Breakpoint Mixins:
+- breakpoint (responsive media queries)
+
+Z-Index Mixins:
+- z-index (with named layers)
+
+Personalizer Mixins:
+- pz-font-defaults
+
+Utility Mixins:
+- list-padding
+- calc (cross-browser calc support)
+
+The parser handles mixins with:
+- Parameters: @include mixin(arg1, arg2)
+- Content blocks: @include mixin { content }
+- Both: @include mixin(args) { content }
+
+All mixins are converted to their cross-browser CSS equivalents with appropriate
+vendor prefixes for maximum compatibility.
 """
 
 import re
@@ -483,6 +548,313 @@ def _handle_align_content(mixin_name, args, content):
 -moz-align-content: {value};
 {ms_value}align-content: {value};"""
 
+# Additional CommonTheme mixins
+
+def _handle_trans(mixin_name, args, content):
+    """Handle @include trans($color, $opacity) - transparent background"""
+    if len(args) < 2:
+        return ""
+    
+    color, opacity = args[:2]
+    return f"""background-color: rgba({color}, {opacity});
+background: none;
+background: rgba({color}, {opacity});"""
+
+def _handle_vertical_align(mixin_name, args, content):
+    """Handle @include vertical-align - vertical centering"""
+    return """position: relative;
+top: 50%;
+-webkit-transform: translateY(-50%);
+-ms-transform: translateY(-50%);
+transform: translateY(-50%);"""
+
+def _handle_translatez(mixin_name, args, content):
+    """Handle @include translatez() or @include translateZ() - GPU acceleration"""
+    return """-webkit-transform: translatez(0);
+-moz-transform: translatez(0);
+-ms-transform: translatez(0);
+transform: translatez(0);"""
+
+def _handle_box_shadow(mixin_name, args, content):
+    """Handle @include box-shadow($value)"""
+    if not args:
+        return ""
+    
+    shadow_value = args[0]
+    return f"""box-shadow: {shadow_value};
+-webkit-box-shadow: {shadow_value};
+-moz-box-shadow: {shadow_value};"""
+
+def _handle_box_shadow_2(mixin_name, args, content):
+    """Handle @include box-shadow-2($args1, $args2)"""
+    if len(args) < 2:
+        return ""
+    
+    shadow1, shadow2 = args[:2]
+    return f"""box-shadow: {shadow1}, {shadow2};
+-webkit-box-shadow: {shadow1}, {shadow2};
+-moz-box-shadow: {shadow1}, {shadow2};"""
+
+def _handle_box_sizing(mixin_name, args, content):
+    """Handle @include box-sizing($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    return f"""-webkit-box-sizing: {value};
+-moz-box-sizing: {value};
+box-sizing: {value};"""
+
+def _handle_clearfix(mixin_name, args, content):
+    """Handle @include clearfix"""
+    return """&:after {
+  content: "";
+  display: table;
+  clear: both;
+}"""
+
+def _handle_list_padding(mixin_name, args, content):
+    """Handle @include list-padding($position, $value)"""
+    if len(args) < 2:
+        return ""
+    
+    position, value = args[:2]
+    return f"""-moz-padding-{position}: {value};
+-webkit-padding-{position}: {value};
+-khtml-padding-{position}: {value};
+-o-padding-{position}: {value};"""
+
+def _handle_filter(mixin_name, args, content):
+    """Handle @include filter($filter-type, $filter-amount)"""
+    if len(args) < 2:
+        return ""
+    
+    filter_type, filter_amount = args[:2]
+    return f"""-webkit-filter: {filter_type}({filter_amount});
+-moz-filter: {filter_type}({filter_amount});
+-ms-filter: {filter_type}({filter_amount});
+-o-filter: {filter_type}({filter_amount});
+filter: {filter_type}({filter_amount});"""
+
+def _handle_rotate(mixin_name, args, content):
+    """Handle @include rotate($degrees)"""
+    if not args:
+        return ""
+    
+    degrees = args[0]
+    return f"""-moz-transform: rotate({degrees});
+-webkit-transform: rotate({degrees});
+transform: rotate({degrees});
+filter: progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}}, M21=#{{{degrees}}}, M22=#{{{degrees}}});
+-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}}, M21=#{{{degrees}}}, M22=#{{{degrees}}})";
+zoom: 1;"""
+
+def _handle_gradient(mixin_name, args, content):
+    """Handle @include gradient($top, $bottom) - vertical gradient"""
+    if len(args) < 2:
+        return ""
+    
+    top, bottom = args[:2]
+    return f"""background-color: {top};
+background-repeat: repeat-x;
+background: -moz-linear-gradient(top, {top} 0%, {bottom} 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,{top}), color-stop(100%,{bottom}));
+background: -webkit-linear-gradient(top, {top} 0%, {bottom} 100%);
+background: -o-linear-gradient(top, {top}, {bottom});
+background: -ms-linear-gradient(top, {top} 0%, {bottom} 100%);
+background: linear-gradient(to bottom, {top}, {bottom});"""
+
+def _handle_gradient_left_right(mixin_name, args, content):
+    """Handle @include gradient-left-right($left, $right) - horizontal gradient"""
+    if len(args) < 2:
+        return ""
+    
+    left, right = args[:2]
+    return f"""background-color: {left};
+background-repeat: repeat-x;
+background: -moz-linear-gradient(left, {left} 0%, {right} 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,{left}), color-stop(100%,{right}));
+background: -webkit-linear-gradient(left, {left} 0%, {right} 100%);
+background: -o-linear-gradient(left, {left}, {right});
+background: -ms-linear-gradient(left, {left} 0%, {right} 100%);
+background: linear-gradient(to right, {left}, {right});"""
+
+def _handle_horgradient(mixin_name, args, content):
+    """Handle @include horgradient($color, $opacity) - horizontal gradient with transparent sides"""
+    if len(args) < 2:
+        return ""
+    
+    color, opacity = args[:2]
+    return f"""background-color: rgba({color}, {opacity});
+background: -moz-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba({color}, 0)), color-stop(30%,rgba({color}, {opacity})), color-stop(70%,rgba({color}, {opacity})), color-stop(100%,rgba({color}, 0)));
+background: -webkit-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: -o-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: -ms-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: linear-gradient(to right, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);"""
+
+def _handle_horgradientright(mixin_name, args, content):
+    """Handle @include horgradientright($color, $opacity) - horizontal gradient transparent on right"""
+    if len(args) < 2:
+        return ""
+    
+    color, opacity = args[:2]
+    return f"""background-color: rgba({color}, {opacity});
+background: -moz-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba({color}, {opacity})), color-stop(0%,rgba({color}, {opacity})), color-stop(100%,rgba({color}, 0)));
+background: -webkit-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: -o-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: -ms-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: linear-gradient(to right, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);"""
+
+def _handle_horgradientleft(mixin_name, args, content):
+    """Handle @include horgradientleft($color, $opacity) - horizontal gradient transparent on left"""
+    if len(args) < 2:
+        return ""
+    
+    color, opacity = args[:2]
+    return f"""background-color: rgba({color}, {opacity});
+background: -moz-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba({color}, 0)), color-stop(0%,rgba({color}, 0)), color-stop(100%,rgba({color}, {opacity})));
+background: -webkit-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -o-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -ms-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: linear-gradient(to right, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);"""
+
+def _handle_horgradienttop(mixin_name, args, content):
+    """Handle @include horgradienttop($color, $opacity) - vertical gradient transparent on top"""
+    if len(args) < 2:
+        return ""
+    
+    color, opacity = args[:2]
+    return f"""background-color: rgba({color}, {opacity});
+background: -moz-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba({color}, 0)), color-stop(0%,rgba({color}, 0)), color-stop(100%,rgba({color}, {opacity})));
+background: -webkit-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -o-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -ms-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: linear-gradient(to bottom, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);"""
+
+def _handle_diagonal_top_bottom(mixin_name, args, content):
+    """Handle @include diagonal-top-bottom($top, $bottom, $top-percent, $bottom-percent)"""
+    if len(args) < 2:
+        return ""
+    
+    top = args[0]
+    bottom = args[1]
+    top_percent = args[2] if len(args) > 2 else "0%"
+    bottom_percent = args[3] if len(args) > 3 else "100%"
+    
+    return f"""background-color: {top};
+background-repeat: repeat-x;
+background: -moz-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
+background: -webkit-gradient(-45deg, left top, left bottom, color-stop({top_percent},{top}), color-stop({bottom_percent},{bottom}));
+background: -webkit-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
+background: -o-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
+background: -ms-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
+background: linear-gradient(135deg, {top} {top_percent}, {bottom} {bottom_percent});"""
+
+def _handle_metalgradient(mixin_name, args, content):
+    """Handle @include metalgradient() - metal look gradient"""
+    return """background: rgb(187,187,187);
+background: -moz-linear-gradient(top, rgba(187,187,187,1) 0%, rgba(187,187,187,1) 47%, rgba(103,103,103,1) 53%, rgba(103,103,103,1) 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(187,187,187,1)), color-stop(47%,rgba(187,187,187,1)), color-stop(53%,rgba(103,103,103,1)), color-stop(100%,rgba(103,103,103,1)));
+background: -webkit-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+background: -o-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+background: -ms-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+background: linear-gradient(to bottom, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);"""
+
+def _handle_backgroundGradientWithImage(mixin_name, args, content):
+    """Handle @include backgroundGradientWithImage($top, $bottom, $imagePath)"""
+    if len(args) < 3:
+        return ""
+    
+    top, bottom, image_path = args[:3]
+    return f"""background-color: {top};
+background-image: url({image_path});
+background-repeat: repeat-x;
+background: url({image_path}), -moz-linear-gradient(top, {top} 0%, {bottom} 100%);
+background: url({image_path}), -webkit-gradient(linear, left top, left bottom, color-stop(0%,{top}), color-stop(100%,{bottom}));
+background: url({image_path}), -webkit-linear-gradient(top, {top} 0%, {bottom} 100%);
+background: url({image_path}), -o-linear-gradient(top, {top}, {bottom});
+background: url({image_path}), -ms-linear-gradient(top, {top} 0%, {bottom} 100%);
+background: url({image_path}), linear-gradient(to bottom, {top}, {bottom});"""
+
+def _handle_stroke(mixin_name, args, content):
+    """Handle @include stroke($stroke, $color) - text stroke/outline"""
+    if len(args) < 2:
+        return ""
+    
+    stroke, color = args[:2]
+    # This is a simplified version - the actual mixin uses a complex loop
+    return f"""text-shadow: 
+  -{stroke}px -{stroke}px 0 {color},  
+  {stroke}px -{stroke}px 0 {color},
+  -{stroke}px {stroke}px 0 {color},
+  {stroke}px {stroke}px 0 {color};"""
+
+# Additional utility handlers for common CSS properties
+
+def _handle_opacity(mixin_name, args, content):
+    """Handle @include opacity($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    return f"""opacity: {value};
+filter: alpha(opacity={int(float(value) * 100)});"""
+
+def _handle_user_select(mixin_name, args, content):
+    """Handle @include user-select($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    return f"""-webkit-user-select: {value};
+-moz-user-select: {value};
+-ms-user-select: {value};
+user-select: {value};"""
+
+def _handle_animation(mixin_name, args, content):
+    """Handle @include animation($value)"""
+    if not args:
+        return ""
+    
+    value = " ".join(args)
+    return f"""-webkit-animation: {value};
+-moz-animation: {value};
+-o-animation: {value};
+animation: {value};"""
+
+def _handle_keyframes(mixin_name, args, content):
+    """Handle @include keyframes($name) with content block"""
+    if not args or not content:
+        return ""
+    
+    name = args[0]
+    return f"""@-webkit-keyframes {name} {{
+{content.strip()}
+}}
+@-moz-keyframes {name} {{
+{content.strip()}
+}}
+@-o-keyframes {name} {{
+{content.strip()}
+}}
+@keyframes {name} {{
+{content.strip()}
+}}"""
+
+def _handle_calc(mixin_name, args, content):
+    """Handle @include calc($property, $value)"""
+    if len(args) < 2:
+        return ""
+    
+    property_name, value = args[:2]
+    return f"""{property_name}: -webkit-calc({value});
+{property_name}: -moz-calc({value});
+{property_name}: calc({value});"""
+
 # Master dictionary mapping mixin names to their handler functions
 MIXIN_TRANSFORMATIONS = {
     # Appearance mixins
@@ -531,6 +903,9 @@ MIXIN_TRANSFORMATIONS = {
     
     # Transform mixins
     "transform": _handle_transform,
+    "rotate": _handle_rotate,
+    "translatez": _handle_translatez,
+    "translateZ": _handle_translatez,  # Alternative capitalization
     
     # Transition mixins
     "transition": _handle_transition,
@@ -538,6 +913,45 @@ MIXIN_TRANSFORMATIONS = {
     
     # Z-index mixins
     "z-index": _handle_z_index,
+    
+    # Background and transparency mixins
+    "trans": _handle_trans,
+    
+    # Layout mixins
+    "vertical-align": _handle_vertical_align,
+    "clearfix": _handle_clearfix,
+    
+    # Box model mixins
+    "box-shadow": _handle_box_shadow,
+    "box-shadow-2": _handle_box_shadow_2,
+    "box-sizing": _handle_box_sizing,
+    
+    # List mixins
+    "list-padding": _handle_list_padding,
+    
+    # Filter mixins
+    "filter": _handle_filter,
+    
+    # Gradient mixins
+    "gradient": _handle_gradient,
+    "gradient-left-right": _handle_gradient_left_right,
+    "horgradient": _handle_horgradient,
+    "horgradientright": _handle_horgradientright,
+    "horgradientleft": _handle_horgradientleft,
+    "horgradienttop": _handle_horgradienttop,
+    "diagonal-top-bottom": _handle_diagonal_top_bottom,
+    "metalgradient": _handle_metalgradient,
+    "backgroundGradientWithImage": _handle_backgroundGradientWithImage,
+    
+    # Text effects mixins
+    "stroke": _handle_stroke,
+    
+    # Additional utility mixins
+    "opacity": _handle_opacity,
+    "user-select": _handle_user_select,
+    "animation": _handle_animation,
+    "keyframes": _handle_keyframes,
+    "calc": _handle_calc,
     
     # Generic content block handler for other mixins
     "button-variant": _handle_content_block_mixin,
