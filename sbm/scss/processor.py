@@ -21,35 +21,67 @@ class SCSSProcessor:
         self.slug = slug
         self.theme_dir = get_dealer_theme_dir(slug)
         self.common_theme_path = get_common_theme_path()
+        logger.info(f"SCSS Processor initialized for dealer: {self.slug}")
         self.mixin_parser = CommonThemeMixinParser()
 
-    def _convert_variables_to_css_vars(self, content: str) -> str:
+    def _process_scss_variables(self, content: str) -> str:
         """
-        Converts all SCSS variables to CSS custom properties (variables)
-        for Site Builder compatibility using a generic pattern.
+        Processes SCSS variables by moving them to a :root block as CSS custom properties.
         """
-        logger.info("Converting all SCSS variables to CSS custom properties...")
-        
-        # Convert all SCSS variables ($foo) to CSS variables (var(--foo))
-        content = re.sub(r'\$([\w-]+)', r'var(--\1)', content)
-        
-        # Remove the now-unused SCSS variable declaration lines.
+        logger.info("Processing SCSS variables into CSS custom properties...")
+
+        # Find all root-level SCSS variable declarations (e.g., "$primary: #000;")
+        declarations = re.findall(r'^\s*(\$[\w-]+)\s*:\s*(.*?);', content, flags=re.MULTILINE)
+
+        # Remove the original SCSS variable declaration lines from the main content
         content = re.sub(r'^\s*\$[\w-]+\s*:.*?;', '', content, flags=re.MULTILINE)
 
+        root_properties = []
+        if declarations:
+            for var_name, var_value in declarations:
+                # Convert to CSS custom property format (e.g., --primary: #000;)
+                prop_name = var_name.replace('$', '--')
+                # Important: Convert any variables used in the value of another variable
+                var_value = re.sub(r'\$([\w-]+)', r'var(--\1)', var_value)
+                root_properties.append(f"  {prop_name}: {var_value};")
+
+            # Assemble the final :root block
+            root_block = ":root {\n" + "\n".join(root_properties) + "\n}\n\n"
+            # Prepend the new :root block to the content
+            content = root_block + content.lstrip()
+
+        # Finally, convert all remaining SCSS variable usages throughout the file
+        content = re.sub(r'\$([\w-]+)', r'var(--\1)', content)
         return content
+
+    def _trim_whitespace(self, content: str) -> str:
+        """
+        Removes excess whitespace and blank lines from the final output.
+        """
+        logger.info("Trimming whitespace from final output...")
+        # Replace multiple blank lines with a single one
+        content = re.sub(r'\n\s*\n', '\n\n', content)
+        # Remove leading/trailing whitespace
+        return content.strip()
 
     def _convert_image_paths(self, content: str) -> str:
         """
-        Converts relative image paths to absolute Site Builder paths.
-        e.g., ../images/foo.jpg -> /wp-content/themes/DealerInspireDealerTheme/images/foo.jpg
+        Converts relative image paths to absolute Site Builder paths and ensures
+        all URLs are consistently double-quoted.
         """
-        logger.info("Converting relative image paths...")
-        
-        path_pattern = re.compile(r"url\((['\"]?)\.\.\/images\/(.*?)(['\"]?)\)")
-        replacement = r"url(\1/wp-content/themes/DealerInspireDealerTheme/images/\2\3)"
-        
-        content = path_pattern.sub(replacement, content)
-        
+        logger.info("Converting relative image paths and enforcing quotes...")
+
+        # Convert relative `../images/` paths to absolute, quoted paths
+        content = re.sub(
+            r"url\((['\"]?)\.\.\/images\/(.*?)(['\"]?)\)",
+            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\2")',
+            content
+        )
+
+        # A second pass to catch any unquoted, already-absolute paths that were missed
+        unquoted_pattern = re.compile(r'url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)')
+        content = unquoted_pattern.sub(r'url("\1")', content)
+
         return content
 
     def _remove_imports(self, content: str) -> str:
@@ -67,8 +99,8 @@ class SCSSProcessor:
         logger.info(f"Performing SCSS transformation for {self.slug}...")
 
         try:
-            # Step 1: Convert SCSS variables to CSS variables (var(--...))
-            content = self._convert_variables_to_css_vars(content)
+            # Step 1: Process SCSS variables into a :root block and convert usage
+            content = self._process_scss_variables(content)
 
             # Step 2: Convert relative image paths to absolute paths
             content = self._convert_image_paths(content)
@@ -87,6 +119,9 @@ class SCSSProcessor:
             
             # Step 4: Remove imports
             processed_content = self._remove_imports(content)
+
+            # Step 5: Trim whitespace for a clean final output
+            processed_content = self._trim_whitespace(processed_content)
             
             return processed_content
             

@@ -1,0 +1,24 @@
+// Create a text color class by name and hex
+// includes hover states for classes appended to anchors
+
+@mixin color-classes($name, $hex) {
+	.#{$name},
+	.#{$name}-color {
+		color: $hex;
+	}
+	a.#{$name}:hover,
+	a.#{$name}-color:hover {
+		//work around for root variables
+		@if type_of($hex) == color {
+			color: lighten($hex, 10%);	
+		}
+		@else {
+			color: var(--#{$name}-lighten);	
+		}
+	}
+	
+	.#{$name}-background {
+		background: $hex
+	}
+
+}

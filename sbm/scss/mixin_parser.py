@@ -11,6 +11,60 @@ from pathlib import Path
 import logging
 
 
+def _handle_border_radius(mixin_name, args, content):
+    radius = args[0] if args else "5px"
+    return f"border-radius: {radius};"
+
+def _handle_font_size(mixin_name, args, content):
+    size_px = args[0] if args else "16"
+    size_rem = int(size_px) / 16
+    return f"font-size: {size_px}px; /* {size_rem}rem */"
+
+def _handle_placeholder(mixin_name, args, content):
+    if not content:
+        return ""
+    
+    # In SBM, we can often just output the raw content for placeholders
+    return f"&::placeholder {{\n  {content.strip()}\n}}"
+
+def _handle_button_variant(mixin_name, args, content):
+    if len(args) < 3:
+        return "" # Not enough args
+    color = args[0]
+    bg = args[1]
+    border = args[2]
+    return f"color: {color}; background-color: {bg}; border-color: {border};"
+
+def _handle_button_size(mixin_name, args, content):
+    if len(args) < 4:
+        return ""
+    padding_y = args[0]
+    padding_x = args[1]
+    font_size = args[2]
+    border_radius = args[3]
+    return f"padding: {padding_y} {padding_x}; font-size: {font_size}; border-radius: {border_radius};"
+
+def _handle_content_block_mixin(mixin_name, args, content):
+    """
+    Generic handler for mixins that simply wrap a content block.
+    This effectively "unwraps" the content by removing the @include.
+    """
+    if content:
+        return content.strip()
+    return ""
+
+# Master dictionary mapping mixin names to their handler functions
+MIXIN_TRANSFORMATIONS = {
+    "border-radius": _handle_border_radius,
+    "font-size": _handle_font_size,
+    "placeholder": _handle_placeholder,
+    # Handlers for Stellantis OEM Theme
+    "button-variant": _handle_button_variant,
+    "button-size": _handle_button_size,
+    # Generic content block handler
+    "pz-font-defaults": _handle_content_block_mixin,
+}
+
 class CommonThemeMixinParser:
     """
     Intelligent parser for CommonTheme SCSS mixins.
@@ -24,6 +78,10 @@ class CommonThemeMixinParser:
         self.mixin_definitions = self._load_commontheme_mixins()
         self.conversion_errors = []
         self.unconverted_mixins = []
+        # More complex regex to handle nested parentheses and content blocks
+        self.mixin_pattern = re.compile(
+            r'@include\s+([\w-]+)\s*(?:\((.*?)\))?\s*({)?', re.DOTALL)
+        self.brace_counter = 0
     
     def _load_commontheme_mixins(self) -> Dict[str, str]:
         """
@@ -199,95 +257,127 @@ class CommonThemeMixinParser:
     
     def parse_and_convert_mixins(self, content: str) -> Tuple[str, List[str], List[str]]:
         """
-        Parse and convert ALL mixins in the content.
-        
-        Returns:
-            - Converted content
-            - List of conversion errors
-            - List of unconverted mixins
+        Parses the SCSS content to find all @include statements and replaces
+        them with their CSS equivalents based on CommonTheme definitions.
         """
         self.conversion_errors = []
         self.unconverted_mixins = []
         
-        # Find all @include statements - more robust pattern
-        mixin_pattern = r'@include\s+([a-zA-Z0-9_-]+)(?:\s*\(([^;]*?)\))?\s*;'
-        
-        def convert_mixin(match):
-            mixin_name = match.group(1)
-            params = match.group(2) if match.group(2) else ''
-            
-            return self._convert_single_mixin(mixin_name, params, match.group(0))
-        
-        # Convert all mixins
-        converted_content = re.sub(mixin_pattern, convert_mixin, content)
-        
-        return converted_content, self.conversion_errors, self.unconverted_mixins
+        processed_content = self._find_and_replace_mixins(content)
+
+        return processed_content, self.conversion_errors, self.unconverted_mixins
     
-    def _convert_single_mixin(self, mixin_name: str, params: str, original: str) -> str:
-        """Convert a single mixin to CSS."""
-        try:
-            # Special handling for z-index
-            if mixin_name == 'z-index':
-                # Extract the z-index name from quotes
-                z_name_match = re.search(r'[\'"]([^\'"]+)[\'"]', params)
-                if z_name_match:
-                    z_name = z_name_match.group(1)
-                    z_value = self._get_z_index_value(z_name)
-                    return f'z-index: {z_value};'
-                else:
-                    # Direct numeric value
-                    return f'z-index: {params.strip()};'
+    def _find_and_replace_mixins(self, content: str) -> str:
+        """Recursively finds and replaces mixins in the content."""
+        
+        # Use a replacer function with re.sub
+        def replacer(match):
+            mixin_name = match.group(1)
+            raw_args = match.group(2)
+            has_content_block = match.group(3) == '{'
+
+            args = [arg.strip() for arg in raw_args.split(',')] if raw_args else []
             
-            # Special handling for list-padding
-            if mixin_name == 'list-padding':
-                parts = [p.strip() for p in params.split(',')]
-                if len(parts) >= 2:
-                    direction = parts[0]
-                    value = parts[1]
-                    return f'padding-{direction}: {value};'
-            
-            # Special handling for positioning mixins with complex params
-            if mixin_name in ['absolute', 'relative', 'fixed', 'sticky']:
-                css_props = []
-                if params:
-                    # Parse position parameters like "top: 50%, left: 50%"
-                    param_parts = [p.strip() for p in params.split(',')]
-                    for part in param_parts:
-                        if ':' in part:
-                            prop, value = part.split(':', 1)
-                            css_props.append(f'{prop.strip()}: {value.strip()};')
+            mixin_content = None
+            if has_content_block:
+                # If there's a content block, we need to find its end
+                start_index = match.end()
+                end_index, block_content = self._find_closing_brace(content, start_index)
                 
-                position_css = f'position: {mixin_name};'
-                if css_props:
-                    position_css += ' ' + ' '.join(css_props)
-                return position_css
-            
-            # Standard mixin conversion
+                # The full text of the mixin call including its block
+                full_mixin_text = content[match.start():end_index]
+                mixin_content = block_content
+            else:
+                full_mixin_text = match.group(0)
+
+            # Check for a function handler first
+            if mixin_name in MIXIN_TRANSFORMATIONS:
+                handler = MIXIN_TRANSFORMATIONS[mixin_name]
+                # The handler is responsible for the entire replacement
+                return handler(mixin_name, args, mixin_content)
+
+            # Fallback to simple dictionary replacement if no handler
             if mixin_name in self.mixin_definitions:
                 template = self.mixin_definitions[mixin_name]
-                
-                # Handle parameterized mixins
                 if '{param}' in template:
-                    if params:
-                        return template.replace('{param}', params.strip())
-                    else:
-                        # Some mixins don't need parameters
-                        return template.replace('{param}', '')
-                else:
-                    # Static mixins (no parameters)
-                    return template
+                    param = ", ".join(args)
+                    return template.format(param=param)
+                return template
+
+            # If no conversion rule found, log it and return the original text
+            self.logger.warning(f"Unknown mixin: {full_mixin_text[:80]}")
+            self.unconverted_mixins.append(full_mixin_text)
+            return full_mixin_text
+
+        # We need a loop to handle nested mixins, recursively processing from the inside out.
+        # A simple re.sub won't work for nesting. For now, we'll do one pass.
+        # A more robust solution might require a proper parser.
+        
+        # For now, let's just use re.sub and see how far we get.
+        # This will be revisited if nesting proves to be a major issue.
+        processed_content = re.sub(self.mixin_pattern, replacer, content)
+
+        # This logic is flawed for nesting. A better approach is needed.
+        # Let's try to manually iterate through matches.
+        
+        output = ""
+        last_index = 0
+        for match in self.mixin_pattern.finditer(content):
+            output += content[last_index:match.start()]
             
-            # Unknown mixin - add to unconverted list
-            self.unconverted_mixins.append(f'{mixin_name}({params})')
-            self.logger.warning(f"Unknown mixin: @include {mixin_name}({params})")
-            return original  # Return unchanged
+            mixin_name = match.group(1)
+            raw_args = match.group(2)
+            has_content_block = match.group(3) == '{'
+            args = [arg.strip() for arg in raw_args.split(',')] if raw_args else []
             
-        except Exception as e:
-            error_msg = f"Error converting mixin @include {mixin_name}({params}): {str(e)}"
-            self.conversion_errors.append(error_msg)
-            self.logger.error(error_msg)
-            return original  # Return unchanged on error
-    
+            mixin_content = None
+            full_mixin_original_text = match.group(0)
+            
+            end_of_match = match.end()
+
+            if has_content_block:
+                end_index, block_content = self._find_closing_brace(content, match.end())
+                if end_index != -1:
+                    mixin_content = block_content
+                    # The full text including the block
+                    full_mixin_original_text = content[match.start():end_index]
+                    end_of_match = end_index # Move cursor past the block
+
+            replacement = ""
+            # Check for a function handler first
+            if mixin_name in MIXIN_TRANSFORMATIONS:
+                handler = MIXIN_TRANSFORMATIONS[mixin_name]
+                replacement = handler(mixin_name, args, mixin_content)
+            # Fallback to simple dictionary replacement
+            elif mixin_name in self.mixin_definitions:
+                template = self.mixin_definitions[mixin_name]
+                param_str = ", ".join(args)
+                replacement = template.format(param=param_str) # Basic replacement
+            else:
+                self.logger.warning(f"Unknown mixin: {full_mixin_original_text.splitlines()[0]}")
+                self.unconverted_mixins.append(full_mixin_original_text)
+                replacement = full_mixin_original_text
+            
+            output += replacement
+            last_index = end_of_match
+
+        output += content[last_index:]
+        return output
+
+
+    def _find_closing_brace(self, text: str, start_index: int) -> Tuple[int, str]:
+        """Finds the matching closing brace for a block starting at start_index."""
+        brace_level = 1
+        for i in range(start_index, len(text)):
+            if text[i] == '{':
+                brace_level += 1
+            elif text[i] == '}':
+                brace_level -= 1
+                if brace_level == 0:
+                    # Return end index (after brace) and content (inside braces)
+                    return i + 1, text[start_index:i]
+        return -1, "" # Not found
+
     def validate_conversion(self, content: str) -> Dict[str, List[str]]:
         """
         Validate that all SCSS has been properly converted.

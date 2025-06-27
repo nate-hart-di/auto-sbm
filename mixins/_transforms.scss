@@ -1,0 +1,6 @@
+// Transform
+@mixin transform($transform){
+  -ms-transform: $transform; // IE 9
+  -webkit-transform: $transform; // Safari
+  transform: $transform;
+}

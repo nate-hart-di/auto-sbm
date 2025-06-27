@@ -1,0 +1,64 @@
+// Positioning
+@mixin position($directions){
+	@each $direction, $value in $directions{
+		#{$direction}: $value;
+	}
+}
+
+@mixin absolute($directions){
+	@include position($directions);
+	position: absolute;
+}
+
+@mixin relative($directions){
+	@include position($directions);
+	position: relative;
+}
+
+@mixin fixed($directions){
+	@include position($directions);
+	position: fixed;
+}
+
+@mixin centering($from:top, $amount:50%, $sides:undefined){
+    $translation:null;
+
+    @if $from == top{
+        $translation:translateY($amount * -1);
+    }
+    @else if $from == bottom{
+        $translation:translateY($amount);
+    }
+    @else if $from == left{
+        $translation:translateX($amount * -1);
+    }
+    @else if $from == right{
+        $translation:translateX($amount);
+    }
+    @else if $from == both{
+        $translation:translate(($amount * -1),($amount * -1));
+    }
+
+    transform: $translation;
+    -webkit-transform: $translation;
+    -moz-transform: $translation;
+    -o-transform: $translation;
+    -ms-transform: $translation;
+    position: absolute;
+
+    @if $from == both{
+        top: $amount;
+        left: $amount;
+    }
+    @else{
+        #{$from}: $amount;
+    }
+
+    @if( $sides != undefined ){
+        $thesides:$sides;
+
+        @each $side, $value in $thesides{
+            #{$side}: $value;
+        }
+    }
+}

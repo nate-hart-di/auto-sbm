@@ -1,0 +1,54 @@
+$site-builder-enabled: false !default;
+
+@mixin site-builder($brand) {
+
+    @if $brand == chevy {
+        
+        $primary: #B6862D !global;
+        $primaryhover: #8d6823 !global;
+        $secondary: #262626 !global;
+        $secondaryhover: #0d0d0d !global;
+        $cta: #808080 !global;
+        $ctahover: #676767 !global;
+
+        $maintextfont: 'Roboto', sans-serif !global;
+        $heading-font: 'Louis', sans-serif !global;
+        
+    }
+
+    .content {
+        .sidebar.vertical {
+            border: none;
+            background: none;
+            padding: 0;
+            margin: 0;
+            li.widget {
+                padding: 20px 15px;
+                background: #eee;
+                border: none;
+                .dealer-info {
+                    h3 {
+                        display: none;
+                    }
+                    .widget-subtitle {
+                        background: #fff;
+                    }
+                    ul {
+                        line-height: 1.875rem;
+                    }
+                    a {
+                        color: $primary;
+                    }
+                }
+            }
+        }
+    }
+    @media (min-width:1025px) {
+        .contentcontainer {
+            padding-top: 30px;
+        }
+        #di-page-composer.contentcontainer {
+            padding-top: 0;
+        }
+    }
+}

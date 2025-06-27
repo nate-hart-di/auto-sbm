@@ -1,0 +1,11 @@
+// PX to EM conversion
+// Converts PX values to EM
+// Use EMs. Why? Read:
+// http://blog.cloudfour.com/the-ems-have-it-proportional-media-queries-ftw/
+// https://css-tricks.com/why-ems/
+// Someday...REMs
+
+$browser-context: 14; // Default
+@function em($pixels, $context: $browser-context) {
+  @return #{$pixels/$context}em;
+}

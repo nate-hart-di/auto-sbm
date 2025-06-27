@@ -1,0 +1,11 @@
+// transition
+@mixin transition($transition) {
+  -webkit-transition: $transition;
+  transition: $transition;
+}
+
+// if you want to transition two attributes differently 
+@mixin transition-2($transition, $transition-2) {
+  -webkit-transition: $transition, $transition-2;
+  transition: $transition, $transition-2;
+}

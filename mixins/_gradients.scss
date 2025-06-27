@@ -1,0 +1,110 @@
+// Vertical Gradient
+@mixin gradient($top, $bottom) {
+  background-color: $top;
+  background-repeat: repeat-x;
+  background: -moz-linear-gradient(top,  $top 0%, $bottom 100%);
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,$top), color-stop(100%,$bottom));
+  background: -webkit-linear-gradient(top,  $top 0%,$bottom 100%);
+  background: -o-linear-gradient(top,  $top,$bottom);
+  background: -ms-linear-gradient(top,  $top 0%,$bottom 100%);
+  background: linear-gradient(to bottom,  $top,$bottom);
+}
+
+// Gradient - Left to Right
+@mixin gradient-left-right($left, $right) {
+  background-color: $left;
+  background-repeat: repeat-x;
+  background: -moz-linear-gradient(left,  $left 0%, $right 100%);
+  background: -webkit-gradient(linear, left top, right top, color-stop(0%,$left), color-stop(100%,$right));
+  background: -webkit-linear-gradient(left,  $left 0%,$right 100%);
+  background: -o-linear-gradient(left,  $left,$right);
+  background: -ms-linear-gradient(left,  $left 0%,$right 100%);
+  background: linear-gradient(to right,  $left,$right);
+}
+
+// Horizontal Gradient - both sides transparent
+@mixin horgradient($color, $opacity) {
+  $rgba: rgba($color, $opacity);
+  $rgbtrans: rgba($color, 0);
+  background-color: $rgba;
+  background: -moz-linear-gradient(left,  $rgbtrans 0%, $rgba 30%, $rgba 70%, $rgbtrans 100%);
+  background: -webkit-gradient(linear, left top, right top, color-stop(0%,$rgbtrans), color-stop(30%,$rgba), color-stop(70%,$rgba), color-stop(100%,$rgbtrans));
+  background: -webkit-linear-gradient(left,  $rgbtrans 0%,$rgba 30%,$rgba 70%,$rgbtrans 100%);
+  background: -o-linear-gradient(left,  $rgbtrans 0%,$rgba 30%,$rgba 70%,$rgbtrans 100%);
+  background: -ms-linear-gradient(left,  $rgbtrans 0%,$rgba 30%,$rgba 70%,$rgbtrans 100%);
+  background: linear-gradient(to right,  $rgbtrans 0%,$rgba 30%,$rgba 70%,$rgbtrans 100%);
+}
+
+// Horizontal Gradient - Right side transparent
+@mixin horgradientright($color,$opacity) {
+  $rgba: rgba($color, $opacity);
+  $rgbtrans: rgba($color, 0);
+  background-color: $rgba;
+  background: -moz-linear-gradient(left,  $rgba 0%, $rgba 0%, $rgbtrans 100%);
+  background: -webkit-gradient(linear, left top, right top, color-stop(0%,$rgba), color-stop(0%,$rgba), color-stop(100%,$rgbtrans));
+  background: -webkit-linear-gradient(left,  $rgba 0%,$rgba 0%,$rgbtrans 100%);
+  background: -o-linear-gradient(left,  $rgba 0%,$rgba 0%,$rgbtrans 100%);
+  background: -ms-linear-gradient(left,  $rgba 0%,$rgba 0%,$rgbtrans 100%);
+  background: linear-gradient(to right,  $rgba 0%,$rgba 0%,$rgbtrans 100%);
+}
+
+// Horizontal Gradient - left side transparent
+@mixin horgradientleft($color,$opacity) {
+  $rgba: rgba($color, $opacity);
+  $rgbtrans: rgba($color, 0);
+  background-color: $rgba;
+  background: -moz-linear-gradient(left,  $rgbtrans 0%, $rgbtrans 0%, $rgba 0%);
+  background: -webkit-gradient(linear, left top, right top, color-stop(0%,$rgbtrans), color-stop(0%,$rgbtrans), color-stop(100%,$rgba));
+  background: -webkit-linear-gradient(left,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+  background: -o-linear-gradient(left,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+  background: -ms-linear-gradient(left,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+  background: linear-gradient(to right,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+}
+
+// Horizontal Gradient - Top side transparent
+@mixin horgradienttop($color,$opacity) {
+	$rgba: rgba($color, $opacity);
+	$rgbtrans: rgba($color, 0);
+	background-color: $rgba;
+	background: -moz-linear-gradient(top,  $rgbtrans 0%, $rgbtrans 0%, $rgba 0%);
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,$rgbtrans), color-stop(0%,$rgbtrans), color-stop(100%,$rgba));
+	background: -webkit-linear-gradient(top,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+	background: -o-linear-gradient(top,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+	background: -ms-linear-gradient(top,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+	background: linear-gradient(to bottom,  $rgbtrans 0%,$rgbtrans 0%,$rgba 100%);
+}
+
+// Diagonal Gradient - top to bottom
+@mixin diagonal-top-bottom($top, $bottom, $top-percent: 0%, $bottom-percent: 100%) {
+  background-color: $top;
+  background-repeat: repeat-x;
+  background: -moz-linear-gradient(-45deg,  $top $top-percent, $bottom $bottom-percent);
+  background: -webkit-gradient(-45deg, left top, left bottom, color-stop($top-percent,$top), color-stop($bottom-percent,$bottom));
+  background: -webkit-linear-gradient(-45deg,  $top $top-percent,$bottom $bottom-percent);
+  background: -o-linear-gradient(-45deg,  $top $top-percent,$bottom $bottom-percent);
+  background: -ms-linear-gradient(-45deg,  $top $top-percent,$bottom $bottom-percent);
+  background: linear-gradient(135deg,  $top $top-percent,$bottom $bottom-percent);
+}
+
+// Vertical Gradient - metal look
+@mixin metalgradient() {
+  background: rgb(187,187,187);
+  background: -moz-linear-gradient(top,  rgba(187,187,187,1) 0%, rgba(187,187,187,1) 47%, rgba(103,103,103,1) 53%, rgba(103,103,103,1) 100%);
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(187,187,187,1)), color-stop(47%,rgba(187,187,187,1)), color-stop(53%,rgba(103,103,103,1)), color-stop(100%,rgba(103,103,103,1)));
+  background: -webkit-linear-gradient(top,  rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+  background: -o-linear-gradient(top,  rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+  background: -ms-linear-gradient(top,  rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+  background: linear-gradient(to bottom,  rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+}
+
+@mixin backgroundGradientWithImage($top, $bottom , $imagePath ) {
+  background-color: $top;
+  background-image: url( $imagePath ); // fallback
+  background-repeat: repeat-x;
+  background: url($imagePath), -moz-linear-gradient(top,  $top 0%, $bottom 100%);
+  background:  url($imagePath),-webkit-gradient(linear, left top, left bottom, color-stop(0%,$top), color-stop(100%,$bottom));
+  background:  url($imagePath),-webkit-linear-gradient(top,  $top 0%,$bottom 100%);
+  background:  url($imagePath),-o-linear-gradient(top,  $top,$bottom);
+  background:  url($imagePath),-ms-linear-gradient(top,  $top 0%,$bottom 100%);
+  background:  url($imagePath),linear-gradient(to bottom,  $top,$bottom);
+}
