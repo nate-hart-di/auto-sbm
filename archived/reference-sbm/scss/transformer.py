@@ -9,27 +9,6 @@ import os
 from ..utils.logger import logger
 
 
-def replace_scss_color_functions(content):
-    """
-    Replace SCSS color functions with CSS equivalents.
-    
-    Args:
-        content (str): SCSS content to transform
-        
-    Returns:
-        str: Transformed content
-    """
-    # Replace SCSS color functions with SCSS variables first
-    content = re.sub(r'darken\(\$primary,\s*\d+%\)', 'var(--primaryhover)', content)
-    content = re.sub(r'lighten\(\$primary,\s*\d+%\)', 'var(--primary)', content)
-    
-    # Handle color functions with any variables (replace with fallback)
-    content = re.sub(r'darken\([^,)]+,\s*\d+%\)', 'var(--color-dark)', content)
-    content = re.sub(r'lighten\([^,)]+,\s*\d+%\)', 'var(--color-light)', content)
-    
-    return content
-
-
 def replace_scss_variables(content):
     """
     Replace SCSS variables with CSS variables.
@@ -40,9 +19,23 @@ def replace_scss_variables(content):
     Returns:
         str: Transformed content
     """
-    # Generic rule: Replace ALL $variable with var(--variable)
-    # This matches any SCSS variable and converts it to CSS custom property
-    content = re.sub(r'\$([a-zA-Z][a-zA-Z0-9_-]*)\b', r'var(--\1)', content)
+    # Replace $primary with var(--primary)
+    content = re.sub(r'\$primary\b', 'var(--primary)', content)
+    
+    # Replace $secondary with var(--secondary)
+    content = re.sub(r'\$secondary\b', 'var(--secondary)', content)
+    
+    # Replace $tertiary with var(--tertiary)
+    content = re.sub(r'\$tertiary\b', 'var(--tertiary)', content)
+    
+    # Replace other common variables
+    content = re.sub(r'\$background\b', 'var(--background)', content)
+    content = re.sub(r'\$text-color\b', 'var(--text-color)', content)
+    content = re.sub(r'\$link-color\b', 'var(--link-color)', content)
+    
+    # Replace SCSS color functions
+    content = re.sub(r'darken\(\$primary,\s*\d+%\)', 'var(--primaryhover)', content)
+    content = re.sub(r'lighten\(\$primary,\s*\d+%\)', 'var(--primary)', content)
     
     return content
 
@@ -120,14 +113,14 @@ def replace_relative_paths(content, slug):
     # Replace relative paths in url() statements
     # ../../DealerInspireCommonTheme/file.png → /wp-content/themes/DealerInspireCommonTheme/file.png
     content = re.sub(
-        r'url\([\'"]?\.\.\/\.\.\/DealerInspireCommonTheme\/([^\'"()]+)[\'"]?\)',
+        r'url\([\'"]?(\.\.\/\.\.\/DealerInspireCommonTheme\/[^\'"()]+)[\'"]?\)',
         r'url("/wp-content/themes/DealerInspireCommonTheme/\1")',
         content
     )
     
     # ../images/background.jpg → /wp-content/themes/DealerInspireDealerTheme/images/background.jpg
     content = re.sub(
-        r'url\([\'"]?\.\.\/images\/([^\'"()]+)[\'"]?\)',
+        r'url\([\'"]?(\.\.\/images\/[^\'"()]+)[\'"]?\)',
         r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
         content
     )
@@ -137,20 +130,6 @@ def replace_relative_paths(content, slug):
     content = re.sub(
         r'@import\s+[\'"]\.\.\/([^\'"]+)[\'"]',
         r'@import "/wp-content/themes/DealerInspireDealerTheme/\1"',
-        content
-    )
-    
-    # Fix double paths: ../../DealerInspireCommonTheme/ → /wp-content/themes/DealerInspireCommonTheme/
-    content = re.sub(
-        r'@import\s+[\'"]\.\.\/\.\.\/DealerInspireCommonTheme\/([^\'"]+)[\'"]',
-        r'@import "/wp-content/themes/DealerInspireCommonTheme/\1"',
-        content
-    )
-    
-    # Fix double paths in commented imports too: // @import "../../DealerInspireCommonTheme/file"
-    content = re.sub(
-        r'//\s*@import\s+[\'"]\.\.\/\.\.\/DealerInspireCommonTheme\/([^\'"]+)[\'"]',
-        r'// @import "/wp-content/themes/DealerInspireCommonTheme/\1"',
         content
     )
     
@@ -194,8 +173,6 @@ def transform_scss(content, slug):
     
     # Apply all transformations
     transformed = content
-    # Handle color functions BEFORE variable replacement to avoid conflicts
-    transformed = replace_scss_color_functions(transformed)
     transformed = replace_scss_variables(transformed)
     transformed = replace_scss_mixins(transformed)
     transformed = replace_font_variables(transformed)

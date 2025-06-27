@@ -48,12 +48,6 @@ def parse_args():
     )
     
     parser.add_argument(
-        "--scss-only",
-        action="store_true",
-        help="Only run SCSS migration without other steps (Git, maps, etc.)"
-    )
-    
-    parser.add_argument(
         "--skip-git",
         action="store_true",
         help="Skip Git operations (checkout, branch creation)"
@@ -184,41 +178,6 @@ def main():
             
             except Exception as e:
                 logger.error(f"Error validating {slug}: {e}")
-                success = False
-        
-        return 0 if success else 1
-    
-    # If scss-only mode, just run SCSS migration
-    if args.scss_only:
-        from .scss.processor import analyze_style_scss
-        from .utils.path import get_dealer_theme_dir
-        
-        success = True
-        for slug in args.slugs:
-            logger.info(f"Running SCSS-only migration for {slug}")
-            
-            try:
-                theme_dir = get_dealer_theme_dir(slug)
-                
-                # Run the SCSS analysis and migration using production-grade processor
-                from .scss.processor import SCSSProcessor
-                
-                processor = SCSSProcessor(slug)
-                results = processor.process_style_scss(theme_dir)
-                
-                if results:
-                    # Write files atomically with validation
-                    if processor.write_files_atomically(theme_dir, results):
-                        logger.info(f"SCSS migration completed successfully for {slug}")
-                    else:
-                        logger.error(f"SCSS migration failed validation for {slug}")
-                        success = False
-                else:
-                    logger.warning(f"No SCSS content generated for {slug}")
-                    success = False
-            
-            except Exception as e:
-                logger.error(f"Error in SCSS migration for {slug}: {e}")
                 success = False
         
         return 0 if success else 1
