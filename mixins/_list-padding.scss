@@ -1,6 +1,0 @@
-@mixin list-padding($position, $value) {
-    -moz-padding-#{$position}: $value;
-    -webkit-padding-#{$position}: $value;
-    -khtml-padding-#{$position}: $value;
-    -o-padding-#{$position}: $value;
-}

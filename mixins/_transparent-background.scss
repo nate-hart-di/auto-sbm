@@ -1,6 +1,0 @@
-@mixin trans($color, $opacity) {
-  $rgba: rgba($color, $opacity);
-  background-color: $rgba;
-  background: none;
-  background: $rgba;
-}
