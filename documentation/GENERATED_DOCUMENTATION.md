@@ -45,7 +45,7 @@ The SBM tool is organized into a modular Python package (`sbm`) that promotes se
     - `maps.py`: Handles the migration of map-related components and styles.
     - `validation.py`: Provides validation for PHP and SCSS files.
   - `scss/`: Houses the SCSS processing engine.
-    - `processor.py`: The `SCSSProcessor` class, which parses, categorizes, transforms, and validates all SCSS content.
+    - `processor.py`: The `SCSSProcessor` class, which intelligently inlines mixins and removes imports to create self-contained SCSS files.
   - `oem/`: Contains handlers for OEM-specific logic.
     - `factory.py`: Detects the correct OEM and creates the appropriate handler.
     - `base.py`: The abstract base class for all OEM handlers.
@@ -68,13 +68,13 @@ The main migration process is managed by the `migrate_dealer_theme` function in 
     - Check out the `main` branch and pull the latest changes.
     - Create a new feature branch for the migration (e.g., `{slug}-sbm{MMYY}`).
 3.  **Local Environment Setup**: Optionally runs `just start {slug} prod` to set up the local development environment.
-4.  **File Creation**: Creates the necessary `sb-inside.scss`, `sb-vdp.scss`, and `sb-vrp.scss` files in the theme directory.
-5.  **Style Migration**: The `SCSSProcessor` is invoked to:
-    - Read the source `style.scss`.
-    - Extract and categorize all SCSS rules into 'inside', 'vdp', or 'vrp'.
-    - Apply transformations (e.g., convert variables, replace mixins).
-    - Validate the resulting SCSS.
-    - Write the processed styles to the corresponding `sb-` files.
+4.  **File Creation**: Creates the necessary `sb-inside.scss`, `sb-vdp.scss`, and `sb-vrp.scss` files in the theme directory if they don't exist.
+5.  **Style Migration**: The `SCSSProcessor` is invoked to process the core style files:
+    - It reads the source `style.scss` and any existing `sb-vdp.scss` or `sb-vrp.scss` files.
+    - For each source file, it intelligently processes the content:
+      - **Mixin Inlining**: Discovers all mixin definitions from the parent `DealerInspireCommonTheme`, parses their structure, and replaces `@include` statements with the full mixin body.
+      - **Import Removal**: Aggressively removes all `@import` statements to create a standalone file.
+    - The final, self-contained SCSS is written to the corresponding `sb-` files.
 6.  **Component Migration**:
     - Adds predetermined styles for common components like cookie banners.
     - Migrates map components and styles based on the detected OEM handler.
@@ -83,18 +83,13 @@ The main migration process is managed by the `migrate_dealer_theme` function in 
 
 ## 4. SCSS Processing
 
-All SCSS logic is centralized in the `SCSSProcessor` class (`sbm/scss/processor.py`). This class provides a comprehensive solution for handling styles, replacing a collection of legacy parsers.
+All SCSS logic is centralized in the `SCSSProcessor` class (`sbm/scss/processor.py`). This class was completely redesigned to replace a fragile, regex-based system with a robust, compiler-like approach.
 
 ### Key Features
 
-- **Syntax Validation**: Uses `libsass` to compile SCSS and catch syntax errors before writing files.
-- **Block Extraction**: A state machine parses the SCSS content to extract balanced blocks, correctly handling nested rules and comments.
-- **Rule Categorization**: Uses regex patterns to categorize each block as belonging to `vdp` (Vehicle Detail Page), `vrp` (Vehicle Results Page), or `inside` (all other pages).
-- **Transformation**: A built-in transformation engine handles:
-  - Replacing SCSS variables (`$variable`) with CSS variables (`var(--variable)`).
-  - Replacing common mixins (`@include flexbox`) with standard CSS.
-  - Converting relative image paths to absolute WordPress theme paths.
-- **Atomic File Writes**: Ensures that files are only written if all processing and validation steps succeed.
+- **Mixin Inlining**: This is the core feature of the new processor. It performs a deep scan of the `DealerInspireCommonTheme`'s `css/mixins/` directory to build a library of all available mixins and their arguments. It then parses the source SCSS and replaces every `@include` statement with the corresponding full mixin body, correctly substituting any provided arguments. This eliminates the dependency on the parent theme at compile time.
+- **Import Removal**: After inlining mixins, the processor removes all `@import` statements. This ensures the final `sb-*.scss` files are completely self-contained and have no external dependencies, preventing common `libsass` errors related to pathing and unresolved imports.
+- **Syntax Validation**: As a final step, it uses `libsass` to perform a syntax check on the generated SCSS content, ensuring that the output is always valid and ready to be compiled by downstream tools.
 
 ---
 
