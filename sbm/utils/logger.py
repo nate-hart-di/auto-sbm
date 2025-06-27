@@ -55,3 +55,7 @@ def setup_logger(name=None, log_file=None, level=logging.INFO):
         logger.addHandler(file_handler)
     
     return logger
+
+
+# Create a default logger for the entire package
+logger = setup_logger() 
