@@ -1,2 +1,2 @@
 [console_scripts]
-sbm = sbm.cli:cli
+sbm = sbm.cli:main

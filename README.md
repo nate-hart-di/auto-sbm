@@ -18,7 +18,7 @@ The SBM tool is a command-line utility designed to automate and streamline the m
 
 ## Key Features
 
-- **Centralized SCSS Processing**: A powerful `SCSSProcessor` handles all parsing, categorization, transformation, and validation of styles using `libsass` for reliability.
+- **Centralized SCSS Processing**: A powerful `SCSSProcessor` intelligently processes theme SCSS files. It automatically inlines mixin definitions from the parent theme and removes all `@import` statements, creating a single, self-contained SCSS file for each entry point (`sb-inside.scss`, `sb-vdp.scss`, `sb-vrp.scss`). This eliminates reliance on fragile regex and ensures styles are processed reliably.
 - **Modular OEM Support**: A factory pattern allows for easy extension and handling of OEM-specific requirements. Includes a `StellantisHandler` and a `DefaultHandler` out of the box.
 - **Robust Git Integration**: All Git operations (branching, committing, pushing) are handled safely and reliably using the `GitPython` library, not shell commands.
 - **Dynamic Path Handling**: Relies on environment variables for pathing, making the tool portable and not tied to a specific machine's setup.

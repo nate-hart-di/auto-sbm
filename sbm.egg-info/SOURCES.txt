@@ -18,10 +18,7 @@ sbm/oem/default.py
 sbm/oem/factory.py
 sbm/oem/stellantis.py
 sbm/scss/__init__.py
-sbm/scss/parser.py
 sbm/scss/processor.py
-sbm/scss/transformer.py
-sbm/scss/validator.py
 sbm/utils/__init__.py
 sbm/utils/command.py
 sbm/utils/helpers.py

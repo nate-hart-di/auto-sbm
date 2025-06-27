@@ -6,6 +6,10 @@ This module provides path handling functions for the SBM tool.
 
 import os
 import re
+import logging
+from os.path import expanduser
+
+logger = logging.getLogger(__name__)
 
 
 def get_platform_dir():
@@ -83,3 +87,32 @@ def convert_to_absolute_theme_path(path, slug):
         path = f"/wp-content/themes/DealerInspireDealerTheme/{path[3:]}"
     
     return path 
+
+
+def get_common_theme_path() -> str:
+    """
+    Returns the absolute path to the DealerInspireCommonTheme directory.
+    
+    This function assumes the script is running within the auto-sbm project
+    and can traverse up to the parent directory containing di-websites-platform.
+    """
+    # Construct the path starting from the user's home directory
+    home_dir = expanduser("~")
+    platform_root = os.path.join(home_dir, 'di-websites-platform')
+    
+    common_theme_path = os.path.join(
+        platform_root,
+        'app',
+        'dealer-inspire',
+        'wp-content',
+        'themes',
+        'DealerInspireCommonTheme'
+    )
+    
+    if not os.path.isdir(common_theme_path):
+        # Fallback for different structures, can be adjusted
+        logger.warning(f"DealerInspireCommonTheme not found at expected path: {common_theme_path}")
+        # A more robust solution might search or use a config setting
+        return ""
+        
+    return common_theme_path 

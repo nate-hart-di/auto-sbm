@@ -22,82 +22,31 @@ def setup_logging(verbose=False):
 
 @click.group()
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-def cli(verbose):
+def main(verbose):
     """Auto-SBM: Automated Site Builder Migration Tool"""
     setup_logging(verbose)
 
-@cli.command()
+@main.command()
 @click.argument('theme_name')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
 @click.option('--scss-only', is_flag=True, help='Only process SCSS files')
 def migrate(theme_name, dry_run, scss_only):
     """Migrate a theme from Site Builder to custom theme structure."""
-    
-    try:
-        theme_dir = Path(get_dealer_theme_dir(theme_name))
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
+    if dry_run:
+        click.echo("DRY RUN: SCSS migration would be performed for theme: " + theme_name)
         return
 
     if scss_only:
-        # SCSS-only migration using the existing processor
-        processor = SCSSProcessor(theme_name)
-        
-        style_scss = theme_dir / "css" / "style.scss"
-        if not style_scss.exists():
-            # Also check root
-            style_scss = theme_dir / "style.scss"
-            if not style_scss.exists():
-                click.echo(f"Error: style.scss not found in {theme_dir} or {theme_dir / 'css'}", err=True)
-                return
-        
-        try:
-            if dry_run:
-                click.echo("DRY RUN: Would process the following:")
-                click.echo(f"  Input: {style_scss}")
-                click.echo("  Output files:")
-                click.echo(f"    - {theme_dir}/sb-inside.scss")
-                click.echo(f"    - {theme_dir}/sb-vrp.scss")
-                click.echo(f"    - {theme_dir}/sb-vdp.scss")
-            else:
-                click.echo(f"Processing SCSS migration for {theme_name}...")
-                
-                # Process the SCSS file
-                results = processor.process_style_scss(str(theme_dir))
-                
-                if not results:
-                    click.echo("No SCSS content was generated", err=True)
-                    return
-                
-                # Prepare files for writing (results already have proper filenames)
-                files_to_write = results
-                
-                if not files_to_write:
-                    click.echo("No valid SCSS content to write", err=True)
-                    return
-                
-                # Write files atomically
-                success = processor.write_files_atomically(str(theme_dir), files_to_write)
-                
-                if success:
-                    # Report results
-                    for filename, content in files_to_write.items():
-                        lines = len(content.splitlines())
-                        click.echo(f"Generated {filename}: {lines} lines")
-                    
-                    click.echo("SCSS migration completed successfully!")
-                else:
-                    click.echo("SCSS migration failed during file writing", err=True)
-                    return
-                
-        except Exception as e:
-            click.echo(f"Error during SCSS migration: {str(e)}", err=True)
-            return
+        click.echo(f"Processing SCSS migration for {theme_name}...")
+        from sbm.core.migration import migrate_styles
+        if not migrate_styles(theme_name):
+            click.echo("SCSS migration failed.", err=True)
+            sys.exit(1)
     else:
-        # Full migration would go here
+        # This can be expanded for full migration
         click.echo("Full migration not implemented yet. Use --scss-only for SCSS migration.")
 
-@cli.command()
+@main.command()
 @click.argument('theme_name')
 def validate(theme_name):
     """Validate theme structure and SCSS syntax."""
@@ -143,4 +92,4 @@ def validate(theme_name):
         click.echo("\n✗ Some SCSS files have validation errors")
 
 if __name__ == '__main__':
-    cli()
+    main()

@@ -23,7 +23,7 @@ setup(
     python_requires=">=3.6",
     entry_points={
         "console_scripts": [
-            "sbm=sbm.cli:cli",
+            "sbm=sbm.cli:main",
         ],
     },
 ) 
