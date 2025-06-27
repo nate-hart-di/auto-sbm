@@ -36,3 +36,7 @@ test-output/
 # Other temporary files
 tmp/
 .DS_Store
+
+# Archived files
+/archive/
+/documentation/archive/

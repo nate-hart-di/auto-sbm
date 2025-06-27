@@ -134,10 +134,8 @@ def copy_map_partials(slug, partials, oem_handler=None):
         
         # Ensure CommonTheme directory exists
         if not os.path.exists(common_theme_dir):
-            common_theme_dir = os.path.join("/Users/nathanhart/code/dealerinspire/dealerinspire-core/dealer-inspire/wp-content/themes/DealerInspireCommonTheme")
-            if not os.path.exists(common_theme_dir):
-                logger.error(f"CommonTheme directory not found at: {common_theme_dir}")
-                return False
+            logger.error(f"CommonTheme directory not found at: {common_theme_dir}")
+            return False
         
         # Process each partial
         for partial in partials:

@@ -1,15 +1,20 @@
 """
 Git operations for the SBM tool.
 
-This module handles Git operations such as branch creation, commits, and pull requests.
+This module handles Git operations such as branch creation, commits, and pull requests
+using the GitPython library for safer and more robust interactions.
 """
 
 import os
-from ..utils.command import execute_command
-from ..utils.path import get_platform_dir
+from git import Repo, GitCommandError
+from ..utils.path import get_platform_dir, get_dealer_theme_dir
 from ..utils.helpers import get_branch_name
 from ..utils.logger import logger
 
+def _get_repo() -> Repo:
+    """Initializes and returns a GitPython Repo object."""
+    platform_dir = get_platform_dir()
+    return Repo(platform_dir)
 
 def checkout_main_and_pull():
     """
@@ -18,14 +23,22 @@ def checkout_main_and_pull():
     Returns:
         bool: True if successful, False otherwise
     """
-    logger.info("Checking out main branch and pulling latest changes")
-    
-    platform_dir = get_platform_dir()
-    os.chdir(platform_dir)
-    
-    return execute_command("git checkout main && git pull", 
-                          "Failed to checkout or pull main branch")
+    try:
+        logger.info("Checking out main branch and pulling latest changes")
+        repo = _get_repo()
+        
+        # Stash any local changes before switching branches
+        if repo.is_dirty(untracked_files=True):
+            logger.info("Stashing dirty working directory before checkout.")
+            repo.git.stash()
 
+        repo.heads.main.checkout()
+        logger.info("Pulling latest changes from origin/main")
+        repo.remotes.origin.pull()
+        return True
+    except GitCommandError as e:
+        logger.error(f"Failed to checkout or pull main branch: {e}")
+        return False
 
 def create_branch(slug):
     """
@@ -38,16 +51,27 @@ def create_branch(slug):
         tuple: (success, branch_name) - a tuple containing success status and branch name
     """
     branch_name = get_branch_name(slug)
-    logger.info(f"Creating new branch: {branch_name}")
-    
-    platform_dir = get_platform_dir()
-    os.chdir(platform_dir)
-    
-    success = execute_command(f"git checkout -b {branch_name}", 
-                             f"Failed to create branch {branch_name}")
-    
-    return success, branch_name
-
+    try:
+        logger.info(f"Creating new branch: {branch_name}")
+        repo = _get_repo()
+        
+        # Create and checkout the new branch
+        new_branch = repo.create_head(branch_name)
+        new_branch.checkout()
+        
+        return True, branch_name
+    except GitCommandError as e:
+        # If branch already exists, check it out
+        if f"a branch named '{branch_name}' already exists" in str(e).lower():
+            logger.warning(f"Branch '{branch_name}' already exists. Checking it out.")
+            try:
+                repo.heads[branch_name].checkout()
+                return True, branch_name
+            except GitCommandError as checkout_e:
+                logger.error(f"Failed to checkout existing branch '{branch_name}': {checkout_e}")
+                return False, None
+        logger.error(f"Failed to create branch '{branch_name}': {e}")
+        return False, None
 
 def commit_changes(slug, message=None):
     """
@@ -63,23 +87,29 @@ def commit_changes(slug, message=None):
     if message is None:
         message = f"SBM: Migrate {slug} to Site Builder format"
     
-    logger.info(f"Committing changes for {slug}")
-    
-    # Get the dealer theme directory
-    platform_dir = get_platform_dir()
-    dealer_dir = os.path.join(platform_dir, 'dealer-themes', slug)
-    os.chdir(dealer_dir)
-    
-    # Add all changes
-    if not execute_command("git add .", "Failed to add changes"):
+    try:
+        logger.info(f"Committing changes for {slug}")
+        repo = _get_repo()
+        
+        # Path to the dealer theme relative to the repo root
+        theme_path = os.path.relpath(get_dealer_theme_dir(slug), get_platform_dir())
+        
+        # Add all changes in the specific theme directory
+        logger.info(f"Adding changes in {theme_path}")
+        repo.index.add([theme_path])
+        
+        # Commit if there are changes to commit
+        if repo.is_dirty(index=True):
+            logger.info(f'Committing with message: "{message}"')
+            repo.index.commit(message)
+            return True
+        else:
+            logger.info("No changes to commit.")
+            return True # Nothing to do is a success
+            
+    except GitCommandError as e:
+        logger.error(f"Failed to commit changes for {slug}: {e}")
         return False
-    
-    # Commit with the specified message
-    if not execute_command(f'git commit -m "{message}"', "Failed to commit changes"):
-        return False
-    
-    return True
-
 
 def push_changes(branch_name):
     """
@@ -91,11 +121,14 @@ def push_changes(branch_name):
     Returns:
         bool: True if successful, False otherwise
     """
-    logger.info(f"Pushing changes to origin/{branch_name}")
-    
-    return execute_command(f"git push -u origin {branch_name}", 
-                          f"Failed to push changes to origin/{branch_name}")
-
+    try:
+        logger.info(f"Pushing changes to origin/{branch_name}")
+        repo = _get_repo()
+        repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
+        return True
+    except GitCommandError as e:
+        logger.error(f"Failed to push changes to origin/{branch_name}: {e}")
+        return False
 
 def git_operations(slug):
     """
@@ -109,11 +142,9 @@ def git_operations(slug):
     """
     logger.info(f"Performing Git operations for {slug}")
     
-    # Checkout main and pull
     if not checkout_main_and_pull():
         return False, None
     
-    # Create branch
     success, branch_name = create_branch(slug)
     
     return success, branch_name 

@@ -13,7 +13,6 @@ import tempfile
 import sass
 from typing import Dict, List, Tuple, Optional
 from ..utils.logger import logger
-from .transformer import transform_scss
 
 
 class SCSSProcessor:
@@ -184,6 +183,61 @@ class SCSSProcessor:
         
         # Default to inside
         return 'inside'
+    
+    def _transform_scss(self, content: str) -> str:
+        """
+        Apply all SCSS transformations.
+        
+        Args:
+            content (str): SCSS content to transform
+            
+        Returns:
+            str: Transformed content
+        """
+        logger.info(f"Transforming SCSS content for {self.slug}")
+        
+        # NOTE: This logic is migrated from the legacy transformer.py module
+        # to centralize all processing logic in this class.
+
+        # Replace SCSS color functions
+        transformed = re.sub(r'darken\(\$primary,\s*\d+%\)', 'var(--primaryhover)', content)
+        transformed = re.sub(r'lighten\(\$primary,\s*\d+%\)', 'var(--primary)', transformed)
+        transformed = re.sub(r'darken\([^,)]+,\s*\d+%\)', 'var(--color-dark)', transformed)
+        transformed = re.sub(r'lighten\([^,)]+,\s*\d+%\)', 'var(--color-light)', transformed)
+
+        # Replace SCSS variables
+        transformed = re.sub(r'\$([a-zA-Z][a-zA-Z0-9_-]*)\b', r'var(--\1)', transformed)
+
+        # Replace SCSS mixins
+        transformed = re.sub(r'@include\s+flexbox\(\s*\)', 'display: flex', transformed)
+        transformed = re.sub(r'@include\s+flex-direction\(\s*([^)]+)\s*\)', r'flex-direction: \1', transformed)
+        transformed = re.sub(r'@include\s+flex-wrap\(\s*([^)]+)\s*\)', r'flex-wrap: \1', transformed)
+        transformed = re.sub(r'@include\s+justify-content\(\s*([^)]+)\s*\)', r'justify-content: \1', transformed)
+        transformed = re.sub(r'@include\s+align-items\(\s*([^)]+)\s*\)', r'align-items: \1', transformed)
+        transformed = re.sub(r'@include\s+transition\(\s*([^)]+)\s*\)', r'transition: \1', transformed)
+        transformed = re.sub(r'@extend\s+[^;]+;', '', transformed)
+
+        # Replace font variables
+        font_variables = {
+            "$heading-font": "'Lato', sans-serif",
+            "$maintextfont": "'Open Sans', sans-serif"
+        }
+        for var, value in font_variables.items():
+            transformed = re.sub(re.escape(var), value, transformed)
+
+        # Replace relative paths
+        transformed = re.sub(r'url\([\'"]?\.\.\/\.\.\/DealerInspireCommonTheme\/([^\'"()]+)[\'"]?\)', r'url("/wp-content/themes/DealerInspireCommonTheme/\1")', transformed)
+        transformed = re.sub(r'url\([\'"]?\.\.\/images\/([^\'"()]+)[\'"]?\)', r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")', transformed)
+        transformed = re.sub(r'@import\s+[\'"]\.\.\/([^\'"]+)[\'"]', r'@import "/wp-content/themes/DealerInspireDealerTheme/\1"', transformed)
+        transformed = re.sub(r'@import\s+[\'"]\.\.\/\.\.\/DealerInspireCommonTheme\/([^\'"]+)[\'"]', r'@import "/wp-content/themes/DealerInspireCommonTheme/\1"', transformed)
+        transformed = re.sub(r'//\s*@import\s+[\'"]\.\.\/\.\.\/DealerInspireCommonTheme\/([^\'"]+)[\'"]', r'// @import "/wp-content/themes/DealerInspireCommonTheme/\1"', transformed)
+        
+        # Remove undefined SCSS
+        transformed = re.sub(r'\$[\w-]+\s*[\+\-\*\/]\s*\d+(?:px|em|rem|%)', 'auto', transformed)
+        transformed = re.sub(r'[^{}]+\{\s*\}', '', transformed)
+        transformed = re.sub(r'@include\s+[^;]+;', '', transformed)
+
+        return transformed
     
     def sanitize_property_values(self, content: str) -> str:
         """
@@ -373,7 +427,7 @@ class SCSSProcessor:
                 combined_content = self.sanitize_property_values(combined_content)
                 
                 # Apply SCSS transformations
-                combined_content = transform_scss(combined_content, self.slug)
+                combined_content = self._transform_scss(combined_content)
                 
                 # Clean up malformed content
                 combined_content = self._clean_malformed_content(combined_content)

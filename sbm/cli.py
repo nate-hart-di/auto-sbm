@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from .scss.processor import SCSSProcessor
 from .utils.logger import setup_logger
+from .utils.path import get_dealer_theme_dir
 
 def setup_logging(verbose=False):
     """Setup logging configuration."""
@@ -32,21 +33,23 @@ def cli(verbose):
 def migrate(theme_name, dry_run, scss_only):
     """Migrate a theme from Site Builder to custom theme structure."""
     
+    try:
+        theme_dir = Path(get_dealer_theme_dir(theme_name))
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        return
+
     if scss_only:
         # SCSS-only migration using the existing processor
         processor = SCSSProcessor(theme_name)
-        # Look for theme in dealer-themes directory
-        dealer_themes_dir = Path("/Users/nathanhart/di-websites-platform/dealer-themes")
-        theme_dir = dealer_themes_dir / theme_name
-        
-        if not theme_dir.exists():
-            click.echo(f"Error: Theme directory '{theme_name}' not found at {theme_dir}", err=True)
-            return
         
         style_scss = theme_dir / "css" / "style.scss"
         if not style_scss.exists():
-            click.echo(f"Error: style.scss not found in {theme_dir}/css/", err=True)
-            return
+            # Also check root
+            style_scss = theme_dir / "style.scss"
+            if not style_scss.exists():
+                click.echo(f"Error: style.scss not found in {theme_dir} or {theme_dir / 'css'}", err=True)
+                return
         
         try:
             if dry_run:
@@ -98,13 +101,13 @@ def migrate(theme_name, dry_run, scss_only):
 @click.argument('theme_name')
 def validate(theme_name):
     """Validate theme structure and SCSS syntax."""
-    processor = SCSSProcessor(theme_name)
-    dealer_themes_dir = Path("/Users/nathanhart/di-websites-platform/dealer-themes")
-    theme_dir = dealer_themes_dir / theme_name
-    
-    if not theme_dir.exists():
-        click.echo(f"Error: Theme directory '{theme_name}' not found at {theme_dir}", err=True)
+    try:
+        theme_dir = Path(get_dealer_theme_dir(theme_name))
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
         return
+
+    processor = SCSSProcessor(theme_name)
     
     # Check for generated SCSS files
     scss_files = [
