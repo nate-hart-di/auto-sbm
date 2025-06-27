@@ -14,17 +14,20 @@ logger = logging.getLogger(__name__)
 
 def get_platform_dir():
     """
-    Get the DI Websites Platform directory from environment variable.
+    Get the DI Websites Platform directory.
     
     Returns:
         str: Path to the DI Websites Platform directory
     
     Raises:
-        ValueError: If the environment variable is not set
+        ValueError: If the directory is not found.
     """
-    platform_dir = os.environ.get('DI_WEBSITES_PLATFORM_DIR')
-    if not platform_dir:
-        raise ValueError("DI_WEBSITES_PLATFORM_DIR environment variable is not set.")
+    home_dir = expanduser("~")
+    # This path is based on the user's explicit request.
+    platform_dir = os.path.join(home_dir, 'di-websites-platform')
+    
+    if not os.path.isdir(platform_dir):
+        raise ValueError(f"DI Websites Platform directory not found at: {platform_dir}")
     
     return platform_dir
 

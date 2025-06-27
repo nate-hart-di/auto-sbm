@@ -22,11 +22,11 @@ def setup_logging(verbose=False):
 
 @click.group()
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-def main(verbose):
+def cli(verbose):
     """Auto-SBM: Automated Site Builder Migration Tool"""
     setup_logging(verbose)
 
-@main.command()
+@cli.command()
 @click.argument('theme_name')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
 @click.option('--scss-only', is_flag=True, help='Only process SCSS files')
@@ -46,7 +46,7 @@ def migrate(theme_name, dry_run, scss_only):
         # This can be expanded for full migration
         click.echo("Full migration not implemented yet. Use --scss-only for SCSS migration.")
 
-@main.command()
+@cli.command()
 @click.argument('theme_name')
 def validate(theme_name):
     """Validate theme structure and SCSS syntax."""
@@ -92,4 +92,4 @@ def validate(theme_name):
         click.echo("\n✗ Some SCSS files have validation errors")
 
 if __name__ == '__main__':
-    main()
+    cli()
