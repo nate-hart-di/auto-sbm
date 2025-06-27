@@ -1089,14 +1089,24 @@ class CommonThemeMixinParser:
     """
     
     def __init__(self):
+        """Initialize the mixin transformer with CommonTheme mixin definitions."""
+        
+        # Setup logging
+        import logging
         self.logger = logging.getLogger(__name__)
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(levelname)s: %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel(logging.INFO)
+        
+        # Load CommonTheme mixin definitions
         self.mixin_definitions = self._load_commontheme_mixins()
-        self.conversion_errors = []
+        
+        # Initialize tracking lists
+        self.converted_mixins = []
         self.unconverted_mixins = []
-        # Fixed regex to handle nested parentheses properly
-        self.mixin_pattern = re.compile(
-            r'@include\s+([\w-]+)\s*(?:\(([^{}]*)\))?\s*({)?', re.DOTALL)
-        self.brace_counter = 0
     
     def _load_commontheme_mixins(self) -> Dict[str, str]:
         """
@@ -1114,16 +1124,31 @@ class CommonThemeMixinParser:
     
 
     def parse_and_convert_mixins(self, content: str) -> Tuple[str, List[str], List[str]]:
-        """
-        Parses the SCSS content to find all @include statements and replaces
-        them with their CSS equivalents based on CommonTheme definitions.
-        """
-        self.conversion_errors = []
+        """Main method to parse and convert all mixins in SCSS content with multiple passes for complete conversion."""
+        
+        self.converted_mixins = []
         self.unconverted_mixins = []
         
-        processed_content = self._find_and_replace_mixins(content)
-
-        return processed_content, self.conversion_errors, self.unconverted_mixins
+        # Perform multiple passes until no more mixins are found
+        current_content = content
+        max_passes = 10  # Prevent infinite loops
+        pass_count = 0
+        
+        while pass_count < max_passes:
+            pass_count += 1
+            previous_content = current_content
+            
+            # Process mixins in current content
+            current_content = self._find_and_replace_mixins(current_content)
+            
+            # If no changes were made, we're done
+            if current_content == previous_content:
+                break
+        
+        if pass_count >= max_passes:
+            self.logger.warning(f"Maximum passes ({max_passes}) reached. Some deeply nested mixins may remain.")
+        
+        return current_content, self.converted_mixins, self.unconverted_mixins
     
     def _find_mixin_with_args(self, content: str, start: int = 0) -> Tuple[int, str, str, str]:
         """
@@ -1206,18 +1231,29 @@ class CommonThemeMixinParser:
             # Parse arguments
             args = _parse_mixin_arguments(args_string)
             
+            # RECURSIVE PROCESSING: If there's a content block, recursively process it first
+            processed_content_block = ""
+            if content_block.strip():
+                processed_content_block = self._find_and_replace_mixins(content_block)
+            
             # Generate replacement
             replacement = ""
             if mixin_name in MIXIN_TRANSFORMATIONS:
                 handler = MIXIN_TRANSFORMATIONS[mixin_name]
-                replacement = handler(mixin_name, args, content_block)
+                replacement = handler(mixin_name, args, processed_content_block)
+                # Track successful conversion
+                original_call = self._reconstruct_mixin_call(mixin_name, args_string, content_block)
+                self.converted_mixins.append(original_call)
             elif mixin_name in self.mixin_definitions:
                 template = self.mixin_definitions[mixin_name]
                 param_str = ", ".join(args)
                 replacement = template.format(param=param_str)
+                # Track successful conversion
+                original_call = self._reconstruct_mixin_call(mixin_name, args_string, content_block)
+                self.converted_mixins.append(original_call)
             else:
                 # Unknown mixin, keep original
-                original_text = self._reconstruct_mixin_call(mixin_name, args_string, content_block)
+                original_text = self._reconstruct_mixin_call(mixin_name, args_string, processed_content_block)
                 self.logger.warning(f"Unknown mixin: {original_text}")
                 self.unconverted_mixins.append(original_text)
                 replacement = original_text
