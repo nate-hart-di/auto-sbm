@@ -29,16 +29,18 @@ def setup_logger(name=None, log_file=None, level=logging.INFO):
     # Create logger
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    
-    # Add handlers only if not already added
-    if not logger.handlers:
+
+    # Handlers should only be attached to the main 'sbm' logger.
+    # Child loggers will propagate messages to the main logger.
+    main_logger = logging.getLogger('sbm')
+    if name == 'sbm' and not main_logger.handlers:
         # Create formatter
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         
         # Create console handler
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        main_logger.addHandler(console_handler)
         
         # Create file handler if a log file is specified or use default
         if log_file is None:
@@ -52,7 +54,7 @@ def setup_logger(name=None, log_file=None, level=logging.INFO):
         
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        main_logger.addHandler(file_handler)
     
     return logger
 

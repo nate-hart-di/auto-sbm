@@ -11,38 +11,347 @@ from pathlib import Path
 import logging
 
 
+def _handle_appearance(mixin_name, args, content):
+    """Handle @include appearance($appearance)"""
+    appearance = args[0] if args else "none"
+    return f"-webkit-appearance: {appearance};\n-moz-appearance: {appearance};\nappearance: {appearance};"
+
 def _handle_border_radius(mixin_name, args, content):
+    """Handle @include border-radius($radii)"""
     radius = args[0] if args else "5px"
-    return f"border-radius: {radius};"
+    return f"border-radius: {radius};\nbackground-clip: padding-box;"
 
-def _handle_font_size(mixin_name, args, content):
-    size_px = args[0] if args else "16"
-    size_rem = int(size_px) / 16
-    return f"font-size: {size_px}px; /* {size_rem}rem */"
-
-def _handle_placeholder(mixin_name, args, content):
-    if not content:
+def _handle_breakpoint(mixin_name, args, content):
+    """Handle @include breakpoint($point) { content }"""
+    if not args or not content:
         return ""
     
-    # In SBM, we can often just output the raw content for placeholders
-    return f"&::placeholder {{\n  {content.strip()}\n}}"
+    point = args[0]
+    breakpoint_map = {
+        'xxs': 'max-width:320px',
+        'xs': 'max-width:767px', 
+        'mobile-tablet': 'max-width:1024px',
+        'tablet-only': 'min-width:768px) and (max-width:1024px',
+        'sm': 'min-width:768px',
+        'md': 'min-width:1025px',
+        'lg': 'min-width:1200px',
+        'xl': 'min-width:1400px',
+        'sm-desktop': 'max-width:1199px'
+    }
+    
+    media_query = breakpoint_map.get(point, point)
+    return f"@media ({media_query}) {{\n{content.strip()}\n}}"
 
-def _handle_button_variant(mixin_name, args, content):
-    if len(args) < 3:
-        return "" # Not enough args
-    color = args[0]
-    bg = args[1]
-    border = args[2]
-    return f"color: {color}; background-color: {bg}; border-color: {border};"
+def _handle_flexbox(mixin_name, args, content):
+    """Handle @include flexbox"""
+    return "display: -webkit-box;\ndisplay: -webkit-flex;\ndisplay: -moz-flex;\ndisplay: -ms-flexbox;\ndisplay: flex;"
 
-def _handle_button_size(mixin_name, args, content):
+def _handle_inline_flex(mixin_name, args, content):
+    """Handle @include inline-flex"""
+    return "display: -webkit-inline-box;\ndisplay: -webkit-inline-flex;\ndisplay: -moz-inline-flex;\ndisplay: -ms-inline-flexbox;\ndisplay: inline-flex;"
+
+def _handle_flex_direction(mixin_name, args, content):
+    """Handle @include flex-direction($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    webkit_box_props = ""
+    
+    if value == "row-reverse":
+        webkit_box_props = "-webkit-box-direction: reverse;\n-webkit-box-orient: horizontal;\n"
+    elif value == "column":
+        webkit_box_props = "-webkit-box-direction: normal;\n-webkit-box-orient: vertical;\n"
+    elif value == "column-reverse":
+        webkit_box_props = "-webkit-box-direction: reverse;\n-webkit-box-orient: vertical;\n"
+    else:  # row
+        webkit_box_props = "-webkit-box-direction: normal;\n-webkit-box-orient: horizontal;\n"
+    
+    return f"{webkit_box_props}-webkit-flex-direction: {value};\n-moz-flex-direction: {value};\n-ms-flex-direction: {value};\nflex-direction: {value};"
+
+def _handle_flex_wrap(mixin_name, args, content):
+    """Handle @include flex-wrap($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    ms_value = "none" if value == "nowrap" else value
+    
+    return f"-webkit-flex-wrap: {value};\n-moz-flex-wrap: {value};\n-ms-flex-wrap: {ms_value};\nflex-wrap: {value};"
+
+def _handle_justify_content(mixin_name, args, content):
+    """Handle @include justify-content($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    webkit_box = ""
+    ms_flex = ""
+    
+    if value == "flex-start":
+        webkit_box = "-webkit-box-pack: start;\n"
+        ms_flex = "-ms-flex-pack: start;\n"
+    elif value == "flex-end":
+        webkit_box = "-webkit-box-pack: end;\n"
+        ms_flex = "-ms-flex-pack: end;\n"
+    elif value == "space-between":
+        webkit_box = "-webkit-box-pack: justify;\n"
+        ms_flex = "-ms-flex-pack: justify;\n"
+    elif value == "space-around":
+        ms_flex = "-ms-flex-pack: distribute;\n"
+    else:
+        webkit_box = f"-webkit-box-pack: {value};\n"
+        ms_flex = f"-ms-flex-pack: {value};\n"
+    
+    return f"{webkit_box}{ms_flex}-webkit-justify-content: {value};\n-moz-justify-content: {value};\njustify-content: {value};"
+
+def _handle_align_items(mixin_name, args, content):
+    """Handle @include align-items($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    webkit_box = ""
+    ms_flex = ""
+    
+    if value == "flex-start":
+        webkit_box = "-webkit-box-align: start;\n"
+        ms_flex = "-ms-flex-align: start;\n"
+    elif value == "flex-end":
+        webkit_box = "-webkit-box-align: end;\n"
+        ms_flex = "-ms-flex-align: end;\n"
+    else:
+        webkit_box = f"-webkit-box-align: {value};\n"
+        ms_flex = f"-ms-flex-align: {value};\n"
+    
+    return f"{webkit_box}{ms_flex}-webkit-align-items: {value};\n-moz-align-items: {value};\nalign-items: {value};"
+
+def _handle_font_size_mixin(mixin_name, args, content):
+    """Handle @include font_size() - the mixin that builds font-size classes"""
+    # This mixin generates CSS classes, so we'll just comment it out for SBM
+    return "/* font_size mixin converted - generates utility classes */"
+
+def _handle_fluid_font(mixin_name, args, content):
+    """Handle @include fluid-font($min-vw, $max-vw, $min-font-size, $max-font-size)"""
     if len(args) < 4:
         return ""
-    padding_y = args[0]
-    padding_x = args[1]
-    font_size = args[2]
-    border_radius = args[3]
-    return f"padding: {padding_y} {padding_x}; font-size: {font_size}; border-radius: {border_radius};"
+    
+    min_vw, max_vw, min_font_size, max_font_size = args[:4]
+    
+    return f"""font-size: {min_font_size};
+@media screen and (min-width: {min_vw}) {{
+  font-size: calc({min_font_size} + {max_font_size.replace('px', '').replace('rem', '')} * ((100vw - {min_vw}) / {max_vw.replace('px', '').replace('vw', '')}));
+}}
+@media screen and (min-width: {max_vw}) {{
+  font-size: {max_font_size};
+}}"""
+
+def _handle_responsive_font(mixin_name, args, content):
+    """Handle @include responsive-font($responsive, $min, $max, $fallback)"""
+    if len(args) < 2:
+        return ""
+    
+    responsive, min_size = args[:2]
+    max_size = args[2] if len(args) > 2 else None
+    fallback = args[3] if len(args) > 3 else None
+    
+    css = ""
+    if fallback:
+        css += f"font-size: {fallback};\n"
+    
+    css += f"font-size: {responsive};"
+    
+    # Add media queries for min/max if provided
+    # This is a simplified version - the actual mixin is more complex
+    
+    return css
+
+def _handle_placeholder_color(mixin_name, args, content):
+    """Handle @include placeholder-color($color, $opacity)"""
+    if not args:
+        return ""
+    
+    color = args[0]
+    opacity = args[1] if len(args) > 1 else "1"
+    
+    return f"""&::-webkit-input-placeholder {{
+  color: {color};
+  opacity: {opacity};
+}}
+&:-moz-placeholder {{
+  color: {color};
+  opacity: {opacity};
+}}
+&::-moz-placeholder {{
+  color: {color};
+  opacity: {opacity};
+}}
+&:-ms-input-placeholder {{
+  color: {color};
+  opacity: {opacity};
+}}"""
+
+def _handle_absolute(mixin_name, args, content):
+    """Handle @include absolute($directions)"""
+    base = "position: absolute;"
+    if content:
+        return f"{base}\n{content.strip()}"
+    return base
+
+def _handle_relative(mixin_name, args, content):
+    """Handle @include relative($directions)"""
+    base = "position: relative;"
+    if content:
+        return f"{base}\n{content.strip()}"
+    return base
+
+def _handle_fixed(mixin_name, args, content):
+    """Handle @include fixed($directions)"""
+    base = "position: fixed;"
+    if content:
+        return f"{base}\n{content.strip()}"
+    return base
+
+def _handle_centering(mixin_name, args, content):
+    """Handle @include centering($from, $amount, $sides)"""
+    from_dir = args[0] if args else "top"
+    amount = args[1] if len(args) > 1 else "50%"
+    
+    if from_dir == "both":
+        return f"""position: absolute;
+top: {amount};
+left: {amount};
+transform: translate(-{amount}, -{amount});
+-webkit-transform: translate(-{amount}, -{amount});
+-moz-transform: translate(-{amount}, -{amount});
+-o-transform: translate(-{amount}, -{amount});
+-ms-transform: translate(-{amount}, -{amount});"""
+    else:
+        transform_map = {
+            "top": f"translateY(-{amount})",
+            "bottom": f"translateY({amount})",
+            "left": f"translateX(-{amount})",
+            "right": f"translateX({amount})"
+        }
+        transform_val = transform_map.get(from_dir, f"translateY(-{amount})")
+        
+        return f"""position: absolute;
+{from_dir}: {amount};
+transform: {transform_val};
+-webkit-transform: {transform_val};
+-moz-transform: {transform_val};
+-o-transform: {transform_val};
+-ms-transform: {transform_val};"""
+
+def _handle_pz_font_defaults(mixin_name, args, content):
+    """Handle @include pz-font-defaults() - personalizer font defaults"""
+    font_family = args[0] if args else "$heading-font"
+    color = args[1] if len(args) > 1 else "#fff"
+    weight = args[2] if len(args) > 2 else "bold"
+    line_height = args[3] if len(args) > 3 else "normal"
+    align = args[4] if len(args) > 4 else "center"
+    
+    base_styles = f""".personalizer-wrap {{
+  color: {color};
+  font-family: {font_family};
+  text-align: {align};
+  
+  h1, h1 a, a h1,
+  h2, h2 a, a h2,
+  h3, h3 a, a h3,
+  h4, h4 a, a h4,
+  h5, h5 a, a h5,
+  h6, h6 a, a h6 {{
+    color: {color};
+    font-weight: {weight};
+    line-height: {line_height};
+  }}
+  
+  h1 {{ font-size: 4.172rem; }}
+  h2 {{ font-size: 3.338rem; }}
+  h3 {{ font-size: 2.67rem; }}
+  h4 {{ font-size: 2.136rem; }}
+  h5 {{ font-size: 1.709em; }}
+  h6 {{ font-size: 1.367em; }}
+  
+  h1, h2, h3, h4, h5, h6 {{
+    @media (max-width: 768px) {{
+      font-size: 1.709em;
+    }}
+  }}"""
+    
+    if content:
+        base_styles += f"\n{content.strip()}"
+    
+    base_styles += "\n}"
+    
+    return base_styles
+
+def _handle_transform(mixin_name, args, content):
+    """Handle @include transform($transform)"""
+    if not args:
+        return ""
+    
+    transform_val = args[0]
+    return f"""-ms-transform: {transform_val};
+-webkit-transform: {transform_val};
+transform: {transform_val};"""
+
+def _handle_transition(mixin_name, args, content):
+    """Handle @include transition($transition)"""
+    if not args:
+        return ""
+    
+    transition_val = args[0]
+    return f"""-webkit-transition: {transition_val};
+transition: {transition_val};"""
+
+def _handle_transition_2(mixin_name, args, content):
+    """Handle @include transition-2($transition, $transition-2)"""
+    if len(args) < 2:
+        return ""
+    
+    transition1, transition2 = args[:2]
+    return f"""-webkit-transition: {transition1}, {transition2};
+transition: {transition1}, {transition2};"""
+
+def _handle_z_index(mixin_name, args, content):
+    """Handle @include z-index($layer, $plus)"""
+    if not args:
+        return ""
+    
+    layer = args[0].strip('"\'')
+    plus = int(args[1]) if len(args) > 1 and args[1].isdigit() else 0
+    
+    # Z-index layer values from the mixin
+    z_layers = {
+        "header": 1000,
+        "header-fixed": 1080,
+        "modal": 1050,
+        "tooltip": 1070,
+        "popover": 1060,
+        "mobile-overlay": 1030,
+        "overlay": 1000,
+        "top": 500,
+        "extra-high": 400,
+        "high": 300,
+        "mid": 200,
+        "low": 100,
+        "half": 50,
+        "impact": 1,
+        "buried": -1,
+        "third-party": -100000000000000000
+    }
+    
+    if layer in z_layers:
+        z_value = z_layers[layer] + plus
+        return f"z-index: {z_value};"
+    elif layer.isdigit() or (layer.startswith('-') and layer[1:].isdigit()):
+        # It's already a number
+        return f"z-index: {layer};"
+    else:
+        # Unknown layer, return as-is
+        return f"z-index: {layer};"
 
 def _handle_content_block_mixin(mixin_name, args, content):
     """
@@ -53,16 +362,186 @@ def _handle_content_block_mixin(mixin_name, args, content):
         return content.strip()
     return ""
 
+# Additional flexbox mixins
+def _handle_flex(mixin_name, args, content):
+    """Handle @include flex($fg, $fs, $fb)"""
+    if not args:
+        return ""
+    
+    fg = args[0] if len(args) > 0 else "1"
+    fs = args[1] if len(args) > 1 else "null"
+    fb = args[2] if len(args) > 2 else "null"
+    
+    # Clean up null values
+    flex_value = fg
+    if fs != "null":
+        flex_value += f" {fs}"
+    if fb != "null":
+        flex_value += f" {fb}"
+    
+    return f"""-webkit-box-flex: {fg};
+-webkit-flex: {flex_value};
+-moz-box-flex: {fg};
+-moz-flex: {flex_value};
+-ms-flex: {flex_value};
+flex: {flex_value};"""
+
+def _handle_order(mixin_name, args, content):
+    """Handle @include order($int)"""
+    if not args:
+        return ""
+    
+    order_val = args[0]
+    order_group = int(order_val) + 1 if order_val.isdigit() else f"{order_val} + 1"
+    
+    return f"""-webkit-box-ordinal-group: {order_group};
+-webkit-order: {order_val};
+-moz-order: {order_val};
+-ms-flex-order: {order_val};
+order: {order_val};"""
+
+def _handle_flex_grow(mixin_name, args, content):
+    """Handle @include flex-grow($int)"""
+    if not args:
+        return ""
+    
+    grow_val = args[0]
+    return f"""-webkit-box-flex: {grow_val};
+-webkit-flex-grow: {grow_val};
+-moz-flex-grow: {grow_val};
+-ms-flex-positive: {grow_val};
+flex-grow: {grow_val};"""
+
+def _handle_flex_shrink(mixin_name, args, content):
+    """Handle @include flex-shrink($int)"""
+    if not args:
+        return ""
+    
+    shrink_val = args[0]
+    return f"""-webkit-flex-shrink: {shrink_val};
+-moz-flex-shrink: {shrink_val};
+-ms-flex-negative: {shrink_val};
+flex-shrink: {shrink_val};"""
+
+def _handle_flex_basis(mixin_name, args, content):
+    """Handle @include flex-basis($value)"""
+    if not args:
+        return ""
+    
+    basis_val = args[0]
+    return f"""-webkit-flex-basis: {basis_val};
+-moz-flex-basis: {basis_val};
+-ms-flex-preferred-size: {basis_val};
+flex-basis: {basis_val};"""
+
+def _handle_flex_flow(mixin_name, args, content):
+    """Handle @include flex-flow($values)"""
+    if not args:
+        return ""
+    
+    flow_val = " ".join(args)
+    return f"""-webkit-flex-flow: {flow_val};
+-moz-flex-flow: {flow_val};
+-ms-flex-flow: {flow_val};
+flex-flow: {flow_val};"""
+
+def _handle_align_self(mixin_name, args, content):
+    """Handle @include align-self($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    ms_value = ""
+    
+    if value == "flex-start":
+        ms_value = "-ms-flex-item-align: start;\n"
+    elif value == "flex-end":
+        ms_value = "-ms-flex-item-align: end;\n"
+    else:
+        ms_value = f"-ms-flex-item-align: {value};\n"
+    
+    return f"""-webkit-align-self: {value};
+-moz-align-self: {value};
+{ms_value}align-self: {value};"""
+
+def _handle_align_content(mixin_name, args, content):
+    """Handle @include align-content($value)"""
+    if not args:
+        return ""
+    
+    value = args[0]
+    ms_value = ""
+    
+    if value == "flex-start":
+        ms_value = "-ms-flex-line-pack: start;\n"
+    elif value == "flex-end":
+        ms_value = "-ms-flex-line-pack: end;\n"
+    else:
+        ms_value = f"-ms-flex-line-pack: {value};\n"
+    
+    return f"""-webkit-align-content: {value};
+-moz-align-content: {value};
+{ms_value}align-content: {value};"""
+
 # Master dictionary mapping mixin names to their handler functions
 MIXIN_TRANSFORMATIONS = {
+    # Appearance mixins
+    "appearance": _handle_appearance,
+    
+    # Border radius mixins
     "border-radius": _handle_border_radius,
-    "font-size": _handle_font_size,
-    "placeholder": _handle_placeholder,
-    # Handlers for Stellantis OEM Theme
-    "button-variant": _handle_button_variant,
-    "button-size": _handle_button_size,
-    # Generic content block handler
-    "pz-font-defaults": _handle_content_block_mixin,
+    
+    # Breakpoint mixins
+    "breakpoint": _handle_breakpoint,
+    
+    # Flexbox mixins
+    "flexbox": _handle_flexbox,
+    "inline-flex": _handle_inline_flex,
+    "flex-direction": _handle_flex_direction,
+    "flex-dir": _handle_flex_direction,  # Shorter version
+    "flex-wrap": _handle_flex_wrap,
+    "flex-flow": _handle_flex_flow,
+    "justify-content": _handle_justify_content,
+    "flex-just": _handle_justify_content,  # Shorter version
+    "align-items": _handle_align_items,
+    "align-self": _handle_align_self,
+    "align-content": _handle_align_content,
+    "flex": _handle_flex,
+    "order": _handle_order,
+    "flex-grow": _handle_flex_grow,
+    "flex-shrink": _handle_flex_shrink,
+    "flex-basis": _handle_flex_basis,
+    
+    # Font size mixins
+    "font_size": _handle_font_size_mixin,
+    "fluid-font": _handle_fluid_font,
+    "responsive-font": _handle_responsive_font,
+    
+    # Placeholder mixins
+    "placeholder-color": _handle_placeholder_color,
+    
+    # Positioning mixins
+    "absolute": _handle_absolute,
+    "relative": _handle_relative,
+    "fixed": _handle_fixed,
+    "centering": _handle_centering,
+    
+    # Personalizer defaults
+    "pz-font-defaults": _handle_pz_font_defaults,
+    
+    # Transform mixins
+    "transform": _handle_transform,
+    
+    # Transition mixins
+    "transition": _handle_transition,
+    "transition-2": _handle_transition_2,
+    
+    # Z-index mixins
+    "z-index": _handle_z_index,
+    
+    # Generic content block handler for other mixins
+    "button-variant": _handle_content_block_mixin,
+    "button-size": _handle_content_block_mixin,
 }
 
 class CommonThemeMixinParser:
@@ -85,176 +564,19 @@ class CommonThemeMixinParser:
     
     def _load_commontheme_mixins(self) -> Dict[str, str]:
         """
-        Load all CommonTheme mixin definitions.
+        Load basic CommonTheme mixin definitions for fallback.
         
-        Based on: /Users/nathanhart/di-websites-platform/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme/css/mixins/
+        Most mixins are now handled by specific handler functions,
+        but these provide fallback templates for simple cases.
         """
         return {
-            # Flexbox mixins (mixins/_flexbox.scss)
-            'flexbox': 'display: flex;',
-            'inline-flex': 'display: inline-flex;',
-            'flex-direction': 'flex-direction: {param};',
-            'flex-wrap': 'flex-wrap: {param};',
-            'flex-flow': 'flex-flow: {param};',
-            'order': 'order: {param};',
-            'flex-grow': 'flex-grow: {param};',
-            'flex-shrink': 'flex-shrink: {param};',
-            'flex-basis': 'flex-basis: {param};',
-            'flex': 'flex: {param};',
-            'justify-content': 'justify-content: {param};',
-            'align-items': 'align-items: {param};',
-            'align-self': 'align-self: {param};',
-            'align-content': 'align-content: {param};',
-            
-            # Position mixins (mixins/_positioning.scss)
-            'absolute': 'position: absolute; {params}',
-            'relative': 'position: relative; {params}',
-            'fixed': 'position: fixed; {params}',
-            'sticky': 'position: sticky; {params}',
-            'centering': 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);',
-            
-            # Transform mixins (mixins/_transforms.scss)
-            'transform': 'transform: {param};',
-            'transform-origin': 'transform-origin: {param};',
-            'transform-style': 'transform-style: {param};',
-            'perspective': 'perspective: {param};',
-            'perspective-origin': 'perspective-origin: {param};',
-            'backface-visibility': 'backface-visibility: {param};',
-            'rotate': 'transform: rotate({param});',
-            'rotateX': 'transform: rotateX({param});',
-            'rotateY': 'transform: rotateY({param});',
-            'rotateZ': 'transform: rotateZ({param});',
-            'scale': 'transform: scale({param});',
-            'scaleX': 'transform: scaleX({param});',
-            'scaleY': 'transform: scaleY({param});',
-            'scaleZ': 'transform: scaleZ({param});',
-            'skew': 'transform: skew({param});',
-            'skewX': 'transform: skewX({param});',
-            'skewY': 'transform: skewY({param});',
-            'translate': 'transform: translate({param});',
-            'translateX': 'transform: translateX({param});',
-            'translateY': 'transform: translateY({param});',
-            'translateZ': 'transform: translateZ({param});',
-            'translate3d': 'transform: translate3d({param});',
-            
-            # Transition mixins (mixins/_transitions.scss)
-            'transition': 'transition: {param};',
-            'transition-property': 'transition-property: {param};',
-            'transition-duration': 'transition-duration: {param};',
-            'transition-timing-function': 'transition-timing-function: {param};',
-            'transition-delay': 'transition-delay: {param};',
-            
-            # Animation mixins (mixins/_animations.scss)
-            'animation': 'animation: {param};',
-            'animation-name': 'animation-name: {param};',
-            'animation-duration': 'animation-duration: {param};',
-            'animation-timing-function': 'animation-timing-function: {param};',
-            'animation-delay': 'animation-delay: {param};',
-            'animation-iteration-count': 'animation-iteration-count: {param};',
-            'animation-direction': 'animation-direction: {param};',
-            'animation-fill-mode': 'animation-fill-mode: {param};',
-            'animation-play-state': 'animation-play-state: {param};',
-            
-            # Box model mixins (mixins/_box-model.scss)
-            'box-sizing': 'box-sizing: {param};',
-            'box-shadow': 'box-shadow: {param};',
-            'border-radius': 'border-radius: {param};',
-            'border-top-left-radius': 'border-top-left-radius: {param};',
-            'border-top-right-radius': 'border-top-right-radius: {param};',
-            'border-bottom-left-radius': 'border-bottom-left-radius: {param};',
-            'border-bottom-right-radius': 'border-bottom-right-radius: {param};',
-            
-            # Typography mixins (mixins/_typography.scss)
-            'font-size': 'font-size: {param};',
-            'font_size': 'font-size: {param}px;',  # Special case for pixel values
-            'line-height': 'line-height: {param};',
-            'font-weight': 'font-weight: {param};',
-            'font-style': 'font-style: {param};',
-            'font-variant': 'font-variant: {param};',
-            'font-family': 'font-family: {param};',
-            'text-align': 'text-align: {param};',
-            'text-decoration': 'text-decoration: {param};',
-            'text-transform': 'text-transform: {param};',
-            'text-indent': 'text-indent: {param};',
-            'text-shadow': 'text-shadow: {param};',
-            'letter-spacing': 'letter-spacing: {param};',
-            'word-spacing': 'word-spacing: {param};',
-            'white-space': 'white-space: {param};',
-            'word-wrap': 'word-wrap: {param};',
-            'word-break': 'word-break: {param};',
-            
-            # Layout mixins (mixins/_layout.scss)
+            # Simple fallback templates for mixins not handled by functions
             'clearfix': '&::after { content: ""; display: table; clear: both; }',
             'visually-hidden': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',
             'sr-only': 'position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;',
-            
-            # Appearance mixins (mixins/_appearance.scss)
-            'appearance': 'appearance: {param}; -webkit-appearance: {param}; -moz-appearance: {param};',
-            'user-select': 'user-select: {param}; -webkit-user-select: {param}; -moz-user-select: {param}; -ms-user-select: {param};',
-            'cursor': 'cursor: {param};',
-            'pointer-events': 'pointer-events: {param};',
-            'resize': 'resize: {param};',
-            'outline': 'outline: {param};',
-            'opacity': 'opacity: {param};',
-            'visibility': 'visibility: {param};',
-            'overflow': 'overflow: {param};',
-            'overflow-x': 'overflow-x: {param};',
-            'overflow-y': 'overflow-y: {param};',
-            'z-index': 'z-index: {param};',
-            
-            # Filter mixins (mixins/_filters.scss)
-            'filter': 'filter: {param};',
-            'backdrop-filter': 'backdrop-filter: {param}; -webkit-backdrop-filter: {param};',
-            'blur': 'filter: blur({param});',
-            'brightness': 'filter: brightness({param});',
-            'contrast': 'filter: contrast({param});',
-            'grayscale': 'filter: grayscale({param});',
-            'hue-rotate': 'filter: hue-rotate({param});',
-            'invert': 'filter: invert({param});',
-            'saturate': 'filter: saturate({param});',
-            'sepia': 'filter: sepia({param});',
-            
-            # Background mixins (mixins/_backgrounds.scss)
-            'background-size': 'background-size: {param};',
-            'background-position': 'background-position: {param};',
-            'background-repeat': 'background-repeat: {param};',
-            'background-attachment': 'background-attachment: {param};',
-            'background-origin': 'background-origin: {param};',
-            'background-clip': 'background-clip: {param};',
-            'gradient': 'background: linear-gradient(to bottom, {param});',
-            'gradient-left-right': 'background: linear-gradient(to right, {param});',
-            'gradient-radial': 'background: radial-gradient({param});',
-            
-            # Responsive mixins (mixins/_responsive.scss)
-            'responsive-font': 'font-size: clamp({param});',
-            'fluid-type': 'font-size: clamp({param});',
-            
-            # Utility mixins (mixins/_utilities.scss)
-            'list-padding': 'padding-{direction}: {value};',  # Special handling needed
-            'placeholder-color': '&::placeholder { color: {param}; } &::-webkit-input-placeholder { color: {param}; } &::-moz-placeholder { color: {param}; opacity: 1; }',
-            
-            # Z-index mixins (mixins/_z-index.scss)
-            # These map to specific z-index values
         }
     
-    def _get_z_index_value(self, name: str) -> str:
-        """Get numeric z-index value for named z-index."""
-        z_index_map = {
-            'modal': '1000',
-            'overlay': '800', 
-            'dropdown': '600',
-            'header': '400',
-            'impact': '999',
-            'tooltip': '500',
-            'fixed': '300',
-            'default': '1',
-            'auto': 'auto',
-            'inherit': 'inherit',
-            'initial': 'initial',
-            'unset': 'unset'
-        }
-        return z_index_map.get(name, name)  # Return the name if not found (could be a number)
-    
+
     def parse_and_convert_mixins(self, content: str) -> Tuple[str, List[str], List[str]]:
         """
         Parses the SCSS content to find all @include statements and replaces
