@@ -5,6 +5,7 @@ This module handles the main migration logic for dealer themes.
 """
 
 import os
+import time
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
 from ..utils.command import execute_command, format_scss_with_prettier
@@ -27,19 +28,57 @@ def run_just_start(slug):
     logger.info(f"Starting site build for {slug}")
     
     # Verify the 'just' command is available
-    if not execute_command("which just", "'just' command not found"):
+    success, _, _, _ = execute_command("which just", "'just' command not found")
+    if not success:
         logger.error("Please install 'just' or ensure it's in your PATH.")
         return False
     
-    # Run the 'just start' command with 'prod' parameter to pull production database
-    if not execute_command(f"just start {slug} prod", 
-                          f"Failed to run 'just start {slug} prod'"):
-        return False
+    # Run the 'just start' command in the background
+    logger.info(f"Running 'just start {slug} prod' in background. Waiting for platform to be ready...")
+    success, stdout_lines, stderr_lines, process = execute_command(
+        f"just start {slug} prod", 
+        f"Failed to run 'just start {slug} prod'",
+        wait_for_completion=False
+    )
     
-    return True
+    if not success or process is None:
+        logger.error("Failed to start 'just start' process.")
+        return False
+
+    # Wait for the "Welcome to the DI Website Platform!" message with a timeout
+    timeout = 180  # 3 minutes timeout
+    start_time = time.time()
+    platform_ready = False
+
+    while time.time() - start_time < timeout:
+        output = "\n".join(stdout_lines)
+        if "Welcome to the DI Website Platform!" in output:
+            platform_ready = True
+            break
+        time.sleep(5)  # Check every 5 seconds
+
+    if platform_ready:
+        logger.info("'just start' command completed and platform is ready.")
+        return True
+    else:
+        logger.error("'just start' command did not indicate successful platform startup within timeout.")
+        logger.error("Last 20 lines of stdout:")
+        for line in stdout_lines[-20:]:
+            logger.error(f"  {line.strip()}")
+        logger.error("Last 20 lines of stderr:")
+        for line in stderr_lines[-20:]:
+            logger.error(f"  {line.strip()}")
+        
+        # Terminate the background process if it's still running
+        if process.poll() is None:
+            logger.info("Terminating 'just start' background process.")
+            process.terminate()
+            process.wait()
+        return False
 
 
 def create_sb_files(slug, force_reset=False):
+
     """
     Create necessary Site Builder SCSS files if they don't exist.
     
@@ -134,7 +173,7 @@ def migrate_styles(slug: str) -> bool:
         return False
 
 
-def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None):
+def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=False):
     """
     Migrate a dealer theme to the Site Builder platform.
     
@@ -145,6 +184,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         skip_git (bool): Whether to skip Git operations
         skip_maps (bool): Whether to skip map components migration
         oem_handler (BaseOEMHandler, optional): Manually specified OEM handler
+        create_pr (bool): Whether to create a GitHub Pull Request after successful migration.
         
     Returns:
         bool: True if successful, False otherwise
@@ -157,8 +197,11 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     
     logger.info(f"Using {oem_handler} for {slug}")
     
+    branch_name = None # Initialize branch_name
+
     # Perform Git operations if not skipped
     if not skip_git:
+        logger.info(f"Step 1/6: Performing Git operations for {slug}...")
         success, branch_name = git_operations(slug)
         if not success:
             logger.error(f"Git operations failed for {slug}")
@@ -168,28 +211,35 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     
     # Run 'just start' if not skipped
     if not skip_just:
-        if not run_just_start(slug):
+        logger.info(f"Step 2/6: Running 'just start' for {slug}...")
+        just_start_success = run_just_start(slug)
+        logger.info(f"'just start' returned: {just_start_success}")
+        if not just_start_success:
             logger.error(f"Failed to start site for {slug}")
             return False
         
         logger.info(f"Site started successfully for {slug}")
     
     # Create Site Builder files
+    logger.info(f"Step 3/6: Creating Site Builder files for {slug}...")
     if not create_sb_files(slug, force_reset):
         logger.error(f"Failed to create Site Builder files for {slug}")
         return False
     
     # Migrate styles
+    logger.info(f"Step 4/6: Migrating styles for {slug}...")
     if not migrate_styles(slug):
         logger.error(f"Failed to migrate styles for {slug}")
         return False
     
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
+    logger.info(f"Step 5/6: Adding predetermined styles for {slug}...")
     if not add_predetermined_styles(slug, oem_handler):
         logger.warning(f"Could not add all predetermined styles for {slug}")
     
     # Migrate map components if not skipped
+    logger.info(f"Step 6/6: Migrating map components for {slug}...")
     if not skip_maps:
         if not migrate_map_components(slug, oem_handler):
             logger.error(f"Failed to migrate map components for {slug}")
@@ -198,6 +248,24 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         logger.info(f"Map components migrated successfully for {slug}")
     
     logger.info(f"Migration completed successfully for {slug}")
+
+    # Create PR if requested and Git operations were performed
+    if create_pr and branch_name:
+        logger.info(f"Creating Pull Request for {slug} on branch {branch_name}...")
+        from .git import create_pull_request # Import here to avoid circular dependency
+        pr_title = f"SBM: Migrate {slug} to Site Builder format"
+        pr_body = f"This PR migrates the {slug} theme to the Site Builder format.\n\n" \
+                  f"**What:**\n- Converted SCSS to Site Builder compatible format.\n- Added predetermined styles for cookie banner and directions row.\n\n" \
+                  f"**Why:**\n- To enable the theme to be used with the new Site Builder platform.\n\n" \
+                  f"**Review Instructions:**\n- Review the changes in the Files Changed tab.\n- Verify the site loads correctly on the new platform."
+        
+        # Assuming 'main' is the base branch, adjust if needed
+        pr_url = create_pull_request(pr_title, pr_body, "main", branch_name, reviewers="carsdotcom/fe-dev", labels="fe-dev")
+        if pr_url:
+            logger.info(f"Pull Request created successfully: {pr_url}")
+        else:
+            logger.error(f"Failed to create Pull Request for {slug}.")
+
     return True
 
 

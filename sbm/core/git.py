@@ -130,6 +130,61 @@ def push_changes(branch_name):
         logger.error(f"Failed to push changes to origin/{branch_name}: {e}")
         return False
 
+def create_pull_request(
+    title: str,
+    body: str,
+    base_branch: str,
+    head_branch: str,
+    reviewers: str = "",
+    labels: str = "",
+) -> str | None:
+    """
+    Creates a GitHub Pull Request using the GitHub CLI (gh).
+
+    Args:
+        title (str): The title of the pull request.
+        body (str): The body/description of the pull request.
+        base_branch (str): The base branch for the PR (e.g., 'main').
+        head_branch (str): The head branch for the PR (e.g., 'feature/my-feature').
+        reviewers (str, optional): Comma-separated list of reviewers. Defaults to "".
+        labels (str, optional): Comma-separated list of labels. Defaults to "".
+
+    Returns:
+        str | None: The URL of the created PR if successful, None otherwise.
+    """
+    logger.info(f"Attempting to create a Pull Request from {head_branch} to {base_branch}")
+
+    # Build the gh pr create command
+    gh_cmd = [
+        "gh", "pr", "create",
+        "--title", title,
+        "--body", body,
+        "--base", base_branch,
+        "--head", head_branch,
+        "--draft" # Always create as draft initially
+    ]
+
+    if reviewers:
+        gh_cmd.extend(["--reviewer", reviewers])
+    if labels:
+        gh_cmd.extend(["--label", labels])
+
+    # Execute the command
+    # We need to capture stdout to get the PR URL
+    success, stdout_lines, stderr_lines, _ = execute_command(
+        " ".join(gh_cmd),
+        error_message="Failed to create GitHub PR",
+        wait_for_completion=True # This command should complete and return output
+    )
+
+    if success:
+        pr_url = "".join(stdout_lines).strip()
+        logger.info(f"Successfully created PR: {pr_url}")
+        return pr_url
+    else:
+        logger.error(f"Error creating PR. Stderr: {'\n'.join(stderr_lines)}")
+        return None
+
 def git_operations(slug):
     """
     Perform all Git operations for a migration.
