@@ -10,10 +10,12 @@ import sys
 import os
 from pathlib import Path
 from .scss.processor import SCSSProcessor
+from .scss.validator import validate_scss_files # Import the new validation function
 from .utils.logger import logger # Import the pre-configured logger
 from .utils.path import get_dealer_theme_dir
-from .core.migration import migrate_dealer_theme
+from .core.migration import migrate_dealer_theme, run_post_migration_workflow # Import both migration functions
 from .config import get_config, ConfigurationError, Config
+from git import Repo # Import Repo for post_migrate command
 
 class SBMCommandGroup(click.Group):
     """A custom command group that allows running a default command."""
@@ -90,13 +92,27 @@ def migrate(theme_name, config_path, dry_run, scss_only):
 @click.option('--skip-just', is_flag=True, help="Skip running the 'just start' command.")
 @click.option('--force-reset', is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful migration.")
-def auto(theme_name, skip_just, force_reset, create_pr):
+@click.option('--skip-post-migration', is_flag=True, help="Skip interactive manual review, re-validation, Git operations, and PR creation.")
+def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
     """
     Run the full, automated migration for a given theme.
     This is the recommended command for most migrations.
     """
     click.echo(f"Starting automated migration for {theme_name}...")
-    success = migrate_dealer_theme(theme_name, skip_just=skip_just, force_reset=force_reset, create_pr=create_pr)
+    
+    interactive_review = not skip_post_migration
+    interactive_git = not skip_post_migration
+    interactive_pr = not skip_post_migration
+
+    success = migrate_dealer_theme(
+        theme_name,
+        skip_just=skip_just,
+        force_reset=force_reset,
+        create_pr=create_pr,
+        interactive_review=interactive_review,
+        interactive_git=interactive_git,
+        interactive_pr=interactive_pr
+    )
     if success:
         click.echo(f"Automated migration completed successfully for {theme_name}!")
     else:
@@ -107,46 +123,54 @@ def auto(theme_name, skip_just, force_reset, create_pr):
 @click.argument('theme_name')
 def validate(theme_name):
     """Validate theme structure and SCSS syntax."""
-    try:
-        theme_dir = Path(get_dealer_theme_dir(theme_name))
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-        return
+    validate_scss_files(theme_name)
 
-    processor = SCSSProcessor(theme_name)
-    
-    # Check for generated SCSS files
-    scss_files = [
-        theme_dir / "sb-inside.scss",
-        theme_dir / "sb-vrp.scss", 
-        theme_dir / "sb-vdp.scss"
-    ]
-    
-    all_valid = True
-    
-    for scss_file in scss_files:
-        if scss_file.exists():
-            try:
-                with open(scss_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                is_valid, error = processor.validate_scss_syntax(content)
-                if is_valid:
-                    lines = len(content.splitlines())
-                    click.echo(f"✓ {scss_file.name}: Valid SCSS syntax ({lines} lines)")
-                else:
-                    click.echo(f"✗ {scss_file.name}: Invalid SCSS syntax - {error}")
-                    all_valid = False
-            except Exception as e:
-                click.echo(f"✗ {scss_file.name}: Error reading file - {str(e)}")
-                all_valid = False
-        else:
-            click.echo(f"- {scss_file.name}: File not found")
-    
-    if all_valid:
-        click.echo("\n✓ All SCSS files are valid!")
+@cli.command()
+@click.argument('theme_name')
+@click.option('--skip-git', is_flag=True, help="Skip Git operations (add, commit, push).")
+@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful post-migration steps.")
+@click.option('--skip-review', is_flag=True, help="Skip interactive manual review and re-validation.")
+@click.option('--skip-git-prompt', is_flag=True, help="Skip prompt for Git operations.")
+@click.option('--skip-pr-prompt', is_flag=True, help="Skip prompt for PR creation.")
+def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, skip_pr_prompt):
+    """
+    Run post-migration steps for a given theme, including manual review, re-validation, Git operations, and PR creation.
+    This command assumes the initial migration (up to map components) has already been completed.
+    """
+    from .core.migration import run_post_migration_workflow # Import the new function
+    from git import Repo # Import Repo for post_migrate command
+    from sbm.utils.path import get_platform_dir # Import get_platform_dir
+
+    click.echo(f"Starting post-migration workflow for {theme_name}...")
+
+    # Attempt to get the current branch name for post-migration context
+    try:
+        repo = Repo(get_platform_dir()) # Use the platform root for the repo
+        branch_name = repo.active_branch.name
+    except Exception as e:
+        click.echo(f"Error: Could not determine current Git branch for post-migration: {e}", err=True)
+        click.echo("Please ensure you are in a Git repository and on the correct branch.", err=True)
+        sys.exit(1)
+
+    interactive_review = not skip_review
+    interactive_git = not skip_git_prompt
+    interactive_pr = not skip_pr_prompt
+
+    success = run_post_migration_workflow(
+        theme_name,
+        branch_name,
+        skip_git=skip_git,
+        create_pr=create_pr,
+        interactive_review=interactive_review,
+        interactive_git=interactive_git,
+        interactive_pr=interactive_pr
+    )
+
+    if success:
+        click.echo(f"Post-migration workflow completed successfully for {theme_name}!")
     else:
-        click.echo("\n✗ Some SCSS files have validation errors")
+        click.echo(f"Post-migration workflow failed for {theme_name}.", err=True)
+        sys.exit(1)
 
 @cli.command()
 @click.argument('theme_name')
@@ -175,7 +199,8 @@ def pr(theme_name, title, body, base, head, reviewers, labels):
                f"**Review Instructions:**\n- Review the changes in the Files Changed tab.\n- Verify the site loads correctly on the new platform."
 
     try:
-        repo = Repo(os.getcwd()) # Use current working directory to get repo
+        from sbm.utils.path import get_platform_dir
+        repo = Repo(get_platform_dir())
         current_branch = repo.active_branch.name
         head_branch = head if head else current_branch
     except GitCommandError as e:
@@ -196,4 +221,3 @@ def pr(theme_name, title, body, base, head, reviewers, labels):
 
 if __name__ == '__main__':
     cli()
-

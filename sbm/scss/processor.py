@@ -64,6 +64,18 @@ class SCSSProcessor:
         # Remove leading/trailing whitespace
         return content.strip()
 
+    def validate_scss_syntax(self, content: str) -> (bool, Optional[str]):
+        """
+        Validates basic SCSS syntax by checking for balanced braces.
+        """
+        opening_braces = content.count('{')
+        closing_braces = content.count('}')
+
+        if opening_braces == closing_braces:
+            return True, None
+        else:
+            return False, f"Mismatched braces: {opening_braces} opening, {closing_braces} closing"
+
     def _convert_image_paths(self, content: str) -> str:
         """
         Converts relative image paths to absolute Site Builder paths and ensures

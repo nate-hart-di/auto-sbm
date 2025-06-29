@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def execute_command(command, error_message="Command failed", wait_for_completion=True):
+def execute_command(command, error_message="Command failed", wait_for_completion=True, cwd=None):
     """
     Execute a shell command and handle errors.
     Show real-time output to the user.
@@ -22,6 +22,7 @@ def execute_command(command, error_message="Command failed", wait_for_completion
         command (str): Command to execute
         error_message (str): Message to display on error
         wait_for_completion (bool): If True, waits for the command to complete. If False, runs in background.
+        cwd (str, optional): The working directory for the command. Defaults to None.
         
     Returns:
         tuple: (bool, list[str], list[str], subprocess.Popen or None) - 
@@ -40,7 +41,8 @@ def execute_command(command, error_message="Command failed", wait_for_completion
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=1
+            bufsize=1,
+            cwd=cwd
         )
         
         # Threads to read stdout and stderr
