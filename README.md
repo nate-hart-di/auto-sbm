@@ -21,6 +21,7 @@ The SBM tool is a command-line utility designed to automate and streamline the m
 - **Centralized SCSS Processing**: A powerful `SCSSProcessor` intelligently processes theme SCSS files. It automatically inlines mixin definitions from the parent theme and removes all `@import` statements, creating a single, self-contained SCSS file for each entry point (`sb-inside.scss`, `sb-vdp.scss`, `sb-vrp.scss`). This eliminates reliance on fragile regex and ensures styles are processed reliably.
 - **Modular OEM Support**: A factory pattern allows for easy extension and handling of OEM-specific requirements. Includes a `StellantisHandler` and a `DefaultHandler` out of the box.
 - **Robust Git Integration**: All Git operations (branching, committing, pushing) are handled safely and reliably using the `GitPython` library, not shell commands.
+- **Automated PR Creation**: Built-in GitHub Pull Request creation with intelligent content generation based on actual Git changes. Automatically assigns default reviewers (`carsdotcom/fe-dev`) and labels (`fe-dev`) with Stellantis template formatting.
 - **Dynamic Path Handling**: Relies on environment variables for pathing, making the tool portable and not tied to a specific machine's setup.
 - **Modern CLI**: A clean, user-friendly command-line interface powered by `click`.
 
@@ -102,6 +103,53 @@ To validate the structure and SCSS syntax of an already migrated theme, use the 
 ```bash
 sbm validate <theme_name>
 ```
+
+### Creating GitHub Pull Requests
+
+To create a GitHub Pull Request for a migrated theme, use the `pr` command:
+
+```bash
+sbm pr <theme_name>
+```
+
+**Default Behavior:**
+
+- Creates a **published** (non-draft) PR
+- Auto-assigns reviewer: `carsdotcom/fe-dev`
+- Auto-applies label: `fe-dev`
+- Auto-generates title and content based on Git changes using the Stellantis template
+
+**Options:**
+
+- `--draft`, `-d`: Create as draft PR instead of published
+- `--reviewers <list>`, `-r`: Override default reviewers (comma-separated)
+- `--labels <list>`, `-l`: Override default labels (comma-separated)
+- `--title <text>`, `-t`: Custom PR title (otherwise auto-generated)
+- `--body <text>`, `-b`: Custom PR body (otherwise auto-generated)
+- `--base <branch>`: Base branch for PR (default: main)
+- `--head <branch>`: Head branch for PR (default: current branch)
+
+**Examples:**
+
+```bash
+# Basic PR with all defaults
+sbm pr normandinchryslerjeepdodgeramfiat
+
+# Draft PR with defaults
+sbm pr normandinchryslerjeepdodgeramfiat --draft
+
+# Custom reviewers and labels
+sbm pr normandinchryslerjeepdodgeramfiat --reviewers "user1,user2" --labels "urgent,review"
+
+# Custom title and body
+sbm pr normandinchryslerjeepdodgeramfiat --title "Custom Title" --body "Custom description"
+```
+
+**Requirements:**
+
+- Must be run from within the `di-websites-platform` repository
+- Requires GitHub CLI (`gh`) to be installed and authenticated
+- Theme must be on a Git branch with committed changes
 
 ## Project Structure
 

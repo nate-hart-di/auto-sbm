@@ -35,13 +35,16 @@ class SBMCommandGroup(click.Group):
             args.insert(0, self.default_command)
             return super().resolve_command(ctx, args)
 
-@click.group(cls=SBMCommandGroup, default_command='auto')
+@click.group(cls=SBMCommandGroup, default_command='auto', context_settings={'help_option_names': ['-h', '--help']})
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.option('--config', 'config_path', default='config.json', help='Path to config file.')
-@click.option('--help', '-h', is_flag=True, expose_value=False, is_eager=True, help='Show this message and exit.')
 @click.pass_context
 def cli(ctx, verbose, config_path):
-    """Auto-SBM: Automated Site Builder Migration Tool"""
+    """Auto-SBM: Automated Site Builder Migration Tool
+    
+    The main command for SBM migration with GitHub PR creation support.
+    Use 'sbm pr <theme-name>' to create PRs with default reviewers (carsdotcom/fe-dev) and labels (fe-dev).
+    """
     # Set logger level based on verbose flag
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -112,12 +115,15 @@ def migrate(theme_name, config_path, dry_run, scss_only):
 @click.argument('theme_name')
 @click.option('--skip-just', is_flag=True, help="Skip running the 'just start' command.")
 @click.option('--force-reset', is_flag=True, help="Force reset of existing Site Builder files.")
-@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful migration.")
+@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful migration (with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-post-migration', is_flag=True, help="Skip interactive manual review, re-validation, Git operations, and PR creation.")
 def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
     """
     Run the full, automated migration for a given theme.
     This is the recommended command for most migrations.
+    
+    When --create-pr is used, creates a published PR with default reviewers (carsdotcom/fe-dev) 
+    and labels (fe-dev). For more control over PR creation, use 'sbm pr <theme-name>' separately.
     """
     click.echo(f"Starting automated migration for {theme_name}...")
     
@@ -149,7 +155,7 @@ def validate(theme_name):
 @cli.command()
 @click.argument('theme_name')
 @click.option('--skip-git', is_flag=True, help="Skip Git operations (add, commit, push).")
-@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful post-migration steps.")
+@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful post-migration steps (with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-review', is_flag=True, help="Skip interactive manual review and re-validation.")
 @click.option('--skip-git-prompt', is_flag=True, help="Skip prompt for Git operations.")
 @click.option('--skip-pr-prompt', is_flag=True, help="Skip prompt for PR creation.")
@@ -157,6 +163,9 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
     """
     Run post-migration steps for a given theme, including manual review, re-validation, Git operations, and PR creation.
     This command assumes the initial migration (up to map components) has already been completed.
+    
+    When --create-pr is used, creates a published PR with default reviewers (carsdotcom/fe-dev) 
+    and labels (fe-dev). For more control over PR creation, use 'sbm pr <theme-name>' separately.
     """
     from .core.migration import run_post_migration_workflow # Import the new function
     from git import Repo # Import Repo for post_migrate command
@@ -199,14 +208,19 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
 @click.option('--body', '-b', help='Body/description for the Pull Request. (Optional: auto-generated if not provided)')
 @click.option('--base', default='main', help='Base branch for the Pull Request (default: main).')
 @click.option('--head', help='Head branch for the Pull Request (default: current branch).')
-@click.option('--reviewers', '-r', help='Comma-separated list of reviewers (overrides default).')
-@click.option('--labels', '-l', help='Comma-separated list of labels (overrides default).')
+@click.option('--reviewers', '-r', help='Comma-separated list of reviewers (default: carsdotcom/fe-dev).')
+@click.option('--labels', '-l', help='Comma-separated list of labels (default: fe-dev).')
 @click.option('--draft', '-d', is_flag=True, default=False, help='Create as draft PR.')
 @click.option('--publish', '-p', is_flag=True, default=True, help='Create as published PR (default: true).')
 @click.pass_context
 def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publish):
     """
     Create a GitHub Pull Request for a given theme.
+    
+    By default, creates a published PR with:
+    - Reviewers: carsdotcom/fe-dev
+    - Labels: fe-dev
+    - Content: Auto-generated based on Git changes (Stellantis template)
     """
     config = ctx.obj['config']
     logger = ctx.obj['logger']
