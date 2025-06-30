@@ -1,4 +1,0 @@
-- auto PR generation and creation
-- auto committing/pushing/verifying syntax
-- code cleanup and formatting
-- auto deploy staging
