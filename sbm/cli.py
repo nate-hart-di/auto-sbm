@@ -24,7 +24,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SETUP_MARKER = os.path.join(REPO_ROOT, '.sbm_setup_complete')
 SETUP_SCRIPT = os.path.join(REPO_ROOT, 'setup.sh')
 
-REQUIRED_CLI_TOOLS = ['git', 'gh', 'pre-commit', 'node', 'just', 'python3', 'pip']
+REQUIRED_CLI_TOOLS = ['git', 'gh', 'just', 'python3', 'pip']
 REQUIRED_PYTHON_PACKAGES = ['click', 'rich', 'gitpython', 'pyyaml', 'jinja2', 'pytest', 'requests', 'colorama']
 
 
@@ -182,6 +182,8 @@ def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
     By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev) 
     and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation, 
     use 'sbm pr <theme-name>' separately.
+    
+    Use --skip-just to skip running the 'just start' command (if the site is already started).
     """
     click.echo(f"Starting automated migration for {theme_name}...")
     
