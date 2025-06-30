@@ -43,7 +43,8 @@ def cli(ctx, verbose, config_path):
     """Auto-SBM: Automated Site Builder Migration Tool
     
     The main command for SBM migration with GitHub PR creation support.
-    Use 'sbm pr <theme-name>' to create PRs with default reviewers (carsdotcom/fe-dev) and labels (fe-dev).
+    By default, prompts to create PRs with default reviewers (carsdotcom/fe-dev) and labels (fe-dev).
+    Use 'sbm pr <theme-name>' for manual PR creation or --no-create-pr to skip.
     """
     # Set logger level based on verbose flag
     if verbose:
@@ -115,15 +116,16 @@ def migrate(theme_name, config_path, dry_run, scss_only):
 @click.argument('theme_name')
 @click.option('--skip-just', is_flag=True, help="Skip running the 'just start' command.")
 @click.option('--force-reset', is_flag=True, help="Force reset of existing Site Builder files.")
-@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful migration (with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
+@click.option('--create-pr/--no-create-pr', default=True, help="Create a GitHub Pull Request after successful migration (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-post-migration', is_flag=True, help="Skip interactive manual review, re-validation, Git operations, and PR creation.")
 def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
     """
     Run the full, automated migration for a given theme.
     This is the recommended command for most migrations.
     
-    When --create-pr is used, creates a published PR with default reviewers (carsdotcom/fe-dev) 
-    and labels (fe-dev). For more control over PR creation, use 'sbm pr <theme-name>' separately.
+    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev) 
+    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation, 
+    use 'sbm pr <theme-name>' separately.
     """
     click.echo(f"Starting automated migration for {theme_name}...")
     
@@ -155,7 +157,7 @@ def validate(theme_name):
 @cli.command()
 @click.argument('theme_name')
 @click.option('--skip-git', is_flag=True, help="Skip Git operations (add, commit, push).")
-@click.option('--create-pr', is_flag=True, help="Create a GitHub Pull Request after successful post-migration steps (with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
+@click.option('--create-pr/--no-create-pr', default=True, help="Create a GitHub Pull Request after successful post-migration steps (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-review', is_flag=True, help="Skip interactive manual review and re-validation.")
 @click.option('--skip-git-prompt', is_flag=True, help="Skip prompt for Git operations.")
 @click.option('--skip-pr-prompt', is_flag=True, help="Skip prompt for PR creation.")
@@ -164,8 +166,9 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
     Run post-migration steps for a given theme, including manual review, re-validation, Git operations, and PR creation.
     This command assumes the initial migration (up to map components) has already been completed.
     
-    When --create-pr is used, creates a published PR with default reviewers (carsdotcom/fe-dev) 
-    and labels (fe-dev). For more control over PR creation, use 'sbm pr <theme-name>' separately.
+    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev) 
+    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation, 
+    use 'sbm pr <theme-name>' separately.
     """
     from .core.migration import run_post_migration_workflow # Import the new function
     from git import Repo # Import Repo for post_migrate command

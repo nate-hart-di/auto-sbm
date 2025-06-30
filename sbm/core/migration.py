@@ -228,7 +228,7 @@ def add_predetermined_styles(slug, oem_handler=None):
         return False
 
 
-def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=False, interactive_review=True, interactive_git=True, interactive_pr=True):
+def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True):
     """
     Runs the interactive post-migration workflow steps.
     
@@ -236,7 +236,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Fal
         slug (str): Dealer theme slug.
         branch_name (str): The Git branch name created for the migration.
         skip_git (bool): Whether to skip Git operations (add, commit, push).
-        create_pr (bool): Whether to create a GitHub Pull Request after successful post-migration steps.
+        create_pr (bool): Whether to create a GitHub Pull Request after successful post-migration steps (default: True).
         interactive_review (bool): Whether to prompt for manual review and re-validation.
         interactive_git (bool): Whether to prompt for Git add, commit, push.
         interactive_pr (bool): Whether to prompt for PR creation.
@@ -299,12 +299,17 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Fal
         logger.info("Git operations skipped due to --skip-git flag.")
 
     # --- Prompt for PR Generation ---
-    if interactive_pr and create_pr and branch_name:
+    if interactive_pr and branch_name:
         click.echo("\n" + "="*80)
-        click.echo(f"Next Step: Create Pull Request")
-        click.echo(f"This will create a draft PR for branch '{branch_name}'.")
+        click.echo(f"Final Step: Create Pull Request")
+        click.echo(f"This will create a published PR for branch '{branch_name}' with:")
+        click.echo(f"  - Reviewers: carsdotcom/fe-dev")
+        click.echo(f"  - Labels: fe-dev")
+        click.echo(f"  - Auto-generated content based on changes")
         click.echo("="*80 + "\n")
-        if click.confirm("Proceed with creating a Pull Request?"):
+        
+        # Always prompt user regardless of create_pr flag
+        if click.confirm(f"Create a Pull Request for {slug}?", default=create_pr):
             pr_title = f"SBM: Migrate {slug} to Site Builder format"
             pr_body = f"This PR migrates the {slug} theme to the Site Builder format.\n\n" \
                       f"**What:**\n- Converted SCSS to Site Builder compatible format.\n- Added predetermined styles for cookie banner and directions row.\n\n" \
@@ -314,22 +319,22 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Fal
             pr_url = create_pull_request(pr_title, pr_body, "main", branch_name, reviewers="carsdotcom/fe-dev", labels="fe-dev")
             if pr_url:
                 logger.info(f"Pull Request created successfully: {pr_url}")
-                click.echo(f"Pull Request created: {pr_url}")
+                click.echo(f"✅ Pull Request created: {pr_url}")
             else:
                 logger.error(f"Failed to create Pull Request for {slug}.")
+                return False
         else:
             logger.info("Pull Request creation skipped by user.")
-    elif interactive_pr and create_pr and not branch_name:
+            click.echo("ℹ️  You can create a PR later using: sbm pr " + slug)
+    elif interactive_pr and not branch_name:
         logger.warning("Skipping PR creation: No branch name available (perhaps git_operations was skipped or failed earlier).")
     elif not interactive_pr:
         logger.info("PR creation skipped due to interactive_pr=False.")
-    else:
-        logger.info("PR creation skipped (no --create-pr flag).")
 
     return True
 
 
-def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=False, interactive_review=True, interactive_git=True, interactive_pr=True):
+def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True):
     """
     Migrate a dealer theme to the Site Builder platform.
     
@@ -340,7 +345,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         skip_git (bool): Whether to skip Git operations
         skip_maps (bool): Whether to skip map components migration
         oem_handler (BaseOEMHandler, optional): Manually specified OEM handler
-        create_pr (bool): Whether to create a GitHub Pull Request after successful migration.
+        create_pr (bool): Whether to create a GitHub Pull Request after successful migration (default: True).
         interactive_review (bool): Whether to prompt for manual review and re-validation.
         interactive_git (bool): Whether to prompt for Git add, commit, push.
         interactive_pr (bool): Whether to prompt for PR creation.

@@ -83,13 +83,28 @@ The SBM tool provides two main commands for migrating and validating themes.
 
 ### Running a Migration
 
-To run the full migration process for a theme, use the `migrate` command:
+To run the full migration process for a theme, use the `auto` command (recommended):
+
+```bash
+sbm auto <theme_name>
+```
+
+- **`<theme_name>`**: The slug of the dealer theme you want to migrate (e.g., `fiatofportland`).
+
+**Options:**
+
+- `--no-create-pr`: Skip the PR creation prompt and don't create a PR
+- `--skip-just`: Skip running the 'just start' command
+- `--force-reset`: Force reset of existing Site Builder files
+- `--skip-post-migration`: Skip interactive manual review, re-validation, Git operations, and PR creation
+
+**Legacy Migration Command:**
+
+For advanced use cases, you can still use the legacy `migrate` command:
 
 ```bash
 sbm migrate <theme_name>
 ```
-
-- **`<theme_name>`**: The slug of the dealer theme you want to migrate (e.g., `fiatofportland`).
 
 **Options:**
 
@@ -114,6 +129,7 @@ sbm pr <theme_name>
 
 **Default Behavior:**
 
+- **Prompts** after migration to create a PR (defaults to Yes)
 - Creates a **published** (non-draft) PR
 - Auto-assigns reviewer: `carsdotcom/fe-dev`
 - Auto-applies label: `fe-dev`
@@ -132,7 +148,13 @@ sbm pr <theme_name>
 **Examples:**
 
 ```bash
-# Basic PR with all defaults
+# Basic migration with PR prompt (default behavior)
+sbm auto normandinchryslerjeepdodgeramfiat
+
+# Skip PR creation entirely
+sbm auto normandinchryslerjeepdodgeramfiat --no-create-pr
+
+# Manual PR creation with all defaults
 sbm pr normandinchryslerjeepdodgeramfiat
 
 # Draft PR with defaults
