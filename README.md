@@ -101,7 +101,6 @@ auto-sbm/
     scss/             # SCSS processing
     oem/              # OEM-specific logic
     utils/            # Utilities (logging, helpers)
-  documentation/      # Docs and guides
   requirements.txt    # Python dependencies
   README.md           # Main project readme
 ```
@@ -114,5 +113,3 @@ auto-sbm/
 - Use the provided PR templates and follow code review feedback.
 
 ---
-
-For more details, see the `documentation/` folder and in-tool help (`sbm --help`).
