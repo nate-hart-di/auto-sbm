@@ -10,7 +10,7 @@ import time
 import click # Import click for interactive prompts
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
-from ..utils.command import execute_command, format_scss_with_prettier
+from ..utils.command import execute_command, execute_interactive_command, format_scss_with_prettier
 from .git import git_operations, commit_changes, push_changes, create_pull_request # Import new git functions
 from ..scss.processor import SCSSProcessor
 from ..scss.validator import validate_scss_files # Import SCSS validator
@@ -21,6 +21,7 @@ from ..oem.factory import OEMFactory
 def run_just_start(slug):
     """
     Run the 'just start' command for the given slug with production database.
+    Uses interactive execution to allow password prompts and user input.
     
     Args:
         slug (str): Dealer theme slug
@@ -36,47 +37,25 @@ def run_just_start(slug):
         logger.error("Please install 'just' or ensure it's in your PATH.")
         return False
     
-    # Run the 'just start' command in the background
-    logger.info(f"Running 'just start {slug} prod' in background. Waiting for platform to be ready...")
-    success, stdout_lines, stderr_lines, process = execute_command(
+    # Get the platform directory for running the command
+    from ..utils.path import get_platform_dir
+    platform_dir = get_platform_dir()
+    
+    # Run the 'just start' command interactively to allow password input
+    logger.info(f"Running 'just start {slug} prod' interactively...")
+    logger.warning("⚠️  You may be prompted for AWS login credentials - please respond as needed")
+    
+    success = execute_interactive_command(
         f"just start {slug} prod", 
         f"Failed to run 'just start {slug} prod'",
-        wait_for_completion=False
+        cwd=platform_dir
     )
     
-    if not success or process is None:
-        logger.error("Failed to start 'just start' process.")
-        return False
-
-    # Wait for the "Welcome to the DI Website Platform!" message with a timeout
-    timeout = 180  # 3 minutes timeout
-    start_time = time.time()
-    platform_ready = False
-
-    while time.time() - start_time < timeout:
-        output = "\n".join(stdout_lines)
-        if "Welcome to the DI Website Platform!" in output:
-            platform_ready = True
-            break
-        time.sleep(5)  # Check every 5 seconds
-
-    if platform_ready:
-        logger.info("'just start' command completed and platform is ready.")
+    if success:
+        logger.info("'just start' command completed successfully.")
         return True
     else:
-        logger.error("'just start' command did not indicate successful platform startup within timeout.")
-        logger.error("Last 20 lines of stdout:")
-        for line in stdout_lines[-20:]:
-            logger.error(f"  {line.strip()}")
-        logger.error("Last 20 lines of stderr:")
-        for line in stderr_lines[-20:]:
-            logger.error(f"  {line.strip()}")
-        
-        # Terminate the background process if it's still running
-        if process.poll() is None:
-            logger.info("Terminating 'just start' background process.")
-            process.terminate()
-            process.wait()
+        logger.error("'just start' command failed.")
         return False
 
 
