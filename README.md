@@ -38,6 +38,84 @@ This will:
 
 ---
 
+## 🧭 Automated Migration Workflow (Actual Steps)
+
+### 1. Start the Migration
+
+Run:
+
+```sh
+sbm {slug}
+```
+
+- `{slug}` is your dealer theme (e.g., `fiatofportland`).
+
+### 2. Site Initialization
+
+- The tool runs `just start` to spin up the local DI Website Platform for the dealer.
+- You'll see a welcome message with local URLs and credentials.
+
+### 3. File Generation
+
+- The tool creates new Site Builder SCSS files in your theme directory:
+  - `sb-inside.scss`
+  - `sb-vdp.scss`
+  - `sb-vrp.scss`
+- Log output confirms file creation and line counts.
+
+### 4. Automated SCSS Migration
+
+- The tool:
+  - Converts legacy SCSS to Site Builder format
+  - Processes variables into CSS custom properties
+  - Converts relative image paths and enforces quotes
+  - Converts all mixins to CSS (with warnings if any fail)
+  - Trims and formats the output
+- You'll see a summary of generated files and any warnings (e.g., mixin conversion errors)
+
+### 5. Adding Predetermined Styles
+
+- Cookie banner and directions row styles are added if needed (with log output for each)
+
+### 6. Map Component Migration
+
+- The tool searches for map shortcodes and migrates map components if found
+- If none are found, it skips this step (with log output)
+
+### 7. Manual Review Required
+
+- The tool prints:
+  - The list of generated SCSS files and their paths
+  - Instructions to review and manually adjust as needed
+- You must review the files in your editor
+- When ready, you are prompted:
+  - `Continue with the migration after manual review? [y/N]`
+
+### 8. SCSS Re-Validation
+
+- The tool re-validates all SCSS files after your manual review
+- Prints validation results for each file (valid/invalid, line counts)
+- If issues remain, you'll see a detailed validation report and can choose to fix or continue
+
+### 9. Git Operations
+
+- The tool prompts:
+  - `Proceed with Git add, commit, and push to remote branch? [y/N]`
+- If confirmed, it adds, commits, and pushes changes to a new branch
+- Log output shows each git step and any errors
+
+### 10. Pull Request Creation
+
+- The tool prompts:
+  - `Create a Pull Request for {slug}? [Y/n]`
+- If confirmed, it creates a PR with reviewers and labels, and prints the PR URL
+
+### 11. Completion
+
+- The tool prints a final success message and PR link
+
+---
+
 ## 🛠️ Migration Workflow
 
 ### 1. Start a Migration
@@ -73,6 +151,33 @@ sbm post-migrate {slug}
 
 Manual review, re-validation, git, and PR steps if you want to run them separately.
 
+### 🔍 Review & Refinement Phase
+
+After the automated SCSS conversion, you'll enter a review session where you can:
+
+- **Review the generated files** in your editor
+- **Make manual improvements** as needed
+
+**The tool will show you:**
+
+- List of modified files with sizes
+- Theme directory location
+- Step-by-step instructions
+
+### ✅ Validation Points
+
+If unconverted SCSS is detected, you'll be prompted to:
+
+- Continue with the migration
+- Stop and fix issues
+- See a detailed validation report
+
+### 🚦 Final Steps
+
+- **Confirm PR creation** after successful migration
+- If Docker/Gulp compilation issues occur, you'll be prompted to retry
+- **Note:** The tool tracks your manual changes separately from automated ones to help improve future migrations
+
 ---
 
 ## 🧩 Project Structure
@@ -102,5 +207,5 @@ auto-sbm/
 
 ## ℹ️ More Help
 
-- Run `sbm --help` for all commands and options.
+- Run `sbm -h` for all commands and options.
 - For issues, ask in the team chat or open an issue in this repo.
