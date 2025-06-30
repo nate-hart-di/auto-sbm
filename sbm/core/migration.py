@@ -1,4 +1,3 @@
-
 """
 Core migration functionality for the SBM tool.
 
@@ -10,7 +9,7 @@ import time
 import click # Import click for interactive prompts
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
-from ..utils.command import execute_command, execute_interactive_command, format_scss_with_prettier
+from ..utils.command import execute_command, execute_interactive_command
 from .git import git_operations, commit_changes, push_changes, create_pull_request # Import new git functions
 from ..scss.processor import SCSSProcessor
 from ..scss.validator import validate_scss_files # Import SCSS validator
