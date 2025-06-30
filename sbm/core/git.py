@@ -226,67 +226,6 @@ class GitOperations:
                 logger.warning(f"Could not list existing PRs: {list_e}")
             raise Exception(f"PR already exists but could not retrieve URL: {error_output}")
 
-    def _build_stellantis_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str]) -> Dict[str, str]:
-        """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
-        title = f"{slug} - SBM FE Audit"
-        
-        # Get actual changes from Git diff
-        what_items = self._analyze_migration_changes()
-        
-        # Add FCA-specific items for Stellantis brands (only if files were actually changed)
-        if what_items and any(brand in slug.lower() for brand in ['chrysler', 'dodge', 'jeep', 'ram', 'fiat', 'cdjr', 'fca']):
-            what_items.extend([
-                "- Added FCA Direction Row Styles",
-                "- Added FCA Cookie Banner styles"
-            ])
-        
-        # Fallback if no changes detected
-        if not what_items:
-            what_items = ["- Migrated interior page styles from inside.scss and style.scss to sb-inside.scss"]
-        
-        what_section = "\n".join(what_items)
-        
-        # Get current branch name dynamically
-        try:
-            current_branch_result = subprocess.run(
-                ['git', 'branch', '--show-current'],
-                capture_output=True, text=True, check=True,
-                cwd=get_platform_dir()
-            )
-            current_branch = current_branch_result.stdout.strip()
-        except subprocess.CalledProcessError:
-            current_branch = branch  # fallback to provided branch
-        
-        # Use the Stellantis template format
-        body = f"""## What
-{what_section}
-
-## Why
-
-Site Builder Migration
-
-## Instructions for Reviewers
-
-Within the di-websites-platform directory:
-
-```bash
-git checkout main
-git pull
-git checkout {current_branch}
-just start {slug}
-```
-
-- Review all code found in "Files Changed"
-- Open up a browser, go to localhost
-- Verify that homepage and interior pages load properly
-- Request changes as needed"""
-        
-        return {
-            'title': title,
-            'body': body,
-            'what_section': what_section
-        }
-
     def _analyze_migration_changes(self) -> List[str]:
         """Analyze Git changes to determine what was actually migrated."""
         what_items = []
@@ -332,10 +271,10 @@ just start {slug}
                 # Check what source files exist to be more specific
                 source_files = []
                 current_dir = Path.cwd()
-                if (current_dir / "css" / "inside.scss").exists():
-                    source_files.append("inside.scss")
                 if (current_dir / "css" / "style.scss").exists():
                     source_files.append("style.scss")
+                if (current_dir / "css" / "inside.scss").exists():
+                    source_files.append("inside.scss")
                 
                 if source_files:
                     source_text = " and ".join(source_files)
@@ -343,15 +282,17 @@ just start {slug}
                 else:
                     what_items.append("- Created sb-inside.scss for interior page styles")
             
-            # Check for LVDP and LVRP migrations (use correct naming)
+            # Check for VDP migration (only from lvdp.scss)
             if 'sb-vdp.scss' in css_files:
                 if (Path.cwd() / "css" / "lvdp.scss").exists():
-                    what_items.append("- Migrated LVRP, LVDP Styles to sb-lvrp.scss and sb-lvdp.scss")
+                    what_items.append("- Migrated VDP styles from lvdp.scss to sb-vdp.scss")
                 else:
                     what_items.append("- Created sb-vdp.scss for VDP styles")
-            elif 'sb-vrp.scss' in css_files:
+            
+            # Check for VRP migration (only from lvrp.scss)
+            if 'sb-vrp.scss' in css_files:
                 if (Path.cwd() / "css" / "lvrp.scss").exists():
-                    what_items.append("- Migrated LVRP, LVDP Styles to sb-lvrp.scss and sb-lvdp.scss")
+                    what_items.append("- Migrated VRP styles from lvrp.scss to sb-vrp.scss")
                 else:
                     what_items.append("- Created sb-vrp.scss for VRP styles")
             
@@ -371,92 +312,297 @@ just start {slug}
         
         return what_items
 
-    def _build_enhanced_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str], user_review_result: Dict[str, Any] = None) -> Dict[str, str]:
-        """Build enhanced PR content with automated vs manual tracking."""
+    def _detect_manual_changes(self) -> Dict[str, Any]:
+        """
+        Detect manual changes made during the review process by analyzing git commit history
+        and diff content patterns that indicate manual refinements vs automated changes.
+        """
+        manual_changes = {
+            'has_manual_changes': False,
+            'change_types': [],
+            'files_modified': [],
+            'estimated_manual_lines': 0,
+            'change_descriptions': []
+        }
+        
+        try:
+            # Get detailed diff content to analyze
+            result = subprocess.run(
+                ['git', 'diff', '--unified=3', 'main...HEAD'],
+                capture_output=True, text=True, check=True,
+                cwd=get_platform_dir()
+            )
+            
+            diff_content = result.stdout
+            if not diff_content.strip():
+                return manual_changes
+            
+            # Patterns that suggest manual changes beyond automation
+            manual_indicators = {
+                'custom_comments': r'\+\s*\/\*.*(?:custom|manual|added|fix|tweak|adjust).*\*\/',
+                'media_queries': r'\+.*@media.*\(',
+                'pseudo_selectors': r'\+.*:(?:hover|focus|active|before|after)',
+                'custom_classes': r'\+.*\.(?:custom|manual|fix|temp|override)-',
+                'brand_specific': r'\+.*(?:brand-specific|dealer-custom)',
+                'important_overrides': r'\+.*!important',
+                'z_index_adjustments': r'\+.*z-index:\s*\d+',
+                'position_fixes': r'\+.*position:\s*(?:absolute|relative|fixed)',
+                'color_customizations': r'\+.*(?:color|background).*#[0-9a-fA-F]{3,6}',
+                'spacing_tweaks': r'\+.*(?:margin|padding).*(?:\d+px|\d+rem|\d+em)'
+            }
+            
+            lines = diff_content.split('\n')
+            added_lines = [line for line in lines if line.startswith('+') and not line.startswith('+++')]
+            
+            # Analyze each added line for manual change indicators
+            for line in added_lines:
+                for change_type, pattern in manual_indicators.items():
+                    if re.search(pattern, line, re.IGNORECASE):
+                        if change_type not in manual_changes['change_types']:
+                            manual_changes['change_types'].append(change_type)
+                        manual_changes['has_manual_changes'] = True
+            
+            # Count estimated manual lines (heuristic)
+            manual_changes['estimated_manual_lines'] = len([
+                line for line in added_lines 
+                if any(re.search(pattern, line, re.IGNORECASE) for pattern in manual_indicators.values())
+            ])
+            
+            # Generate human-readable descriptions
+            type_descriptions = {
+                'custom_comments': 'Added explanatory comments for custom modifications',
+                'media_queries': 'Enhanced responsive design with custom media queries',
+                'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)',
+                'custom_classes': 'Created custom CSS classes for specific styling needs',
+                'brand_specific': 'Implemented brand-specific customizations',
+                'important_overrides': 'Added CSS !important overrides for specificity',
+                'z_index_adjustments': 'Fixed layering issues with z-index adjustments',
+                'position_fixes': 'Corrected element positioning',
+                'color_customizations': 'Applied custom color schemes',
+                'spacing_tweaks': 'Fine-tuned spacing and layout'
+            }
+            
+            manual_changes['change_descriptions'] = [
+                type_descriptions[change_type] for change_type in manual_changes['change_types']
+                if change_type in type_descriptions
+            ]
+            
+            # Get list of files that were manually modified
+            file_result = subprocess.run(
+                ['git', 'diff', '--name-only', 'main...HEAD'],
+                capture_output=True, text=True, check=True,
+                cwd=get_platform_dir()
+            )
+            
+            manual_changes['files_modified'] = [
+                os.path.basename(f) for f in file_result.stdout.strip().split('\n')
+                if f.strip().endswith('.scss')
+            ]
+            
+        except subprocess.CalledProcessError as e:
+            logger.debug(f"Could not analyze manual changes: {e}")
+        except Exception as e:
+            logger.debug(f"Error detecting manual changes: {e}")
+        
+        return manual_changes
+
+    def create_automation_snapshot(self, slug: str) -> bool:
+        """
+        Create a snapshot of the current state after automated migration but before manual review.
+        This allows us to later detect what changes were made manually.
+        """
+        try:
+            theme_dir = get_dealer_theme_dir(slug)
+            snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
+            os.makedirs(snapshot_dir, exist_ok=True)
+            
+            # Files to snapshot
+            files_to_snapshot = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+            
+            for filename in files_to_snapshot:
+                source_path = os.path.join(theme_dir, filename)
+                if os.path.exists(source_path):
+                    snapshot_path = os.path.join(snapshot_dir, f"{filename}.automated")
+                    with open(source_path, 'r') as src, open(snapshot_path, 'w') as dst:
+                        dst.write(src.read())
+                    logger.debug(f"Created snapshot: {snapshot_path}")
+            
+            logger.info(f"Created automation snapshot for {slug}")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Failed to create automation snapshot: {e}")
+            return False
+
+    def _detect_manual_changes_from_snapshots(self, slug: str) -> Dict[str, Any]:
+        """
+        Detect manual changes by comparing current state with automation snapshots.
+        This is more accurate than analyzing git diff patterns.
+        """
+        manual_changes = {
+            'has_manual_changes': False,
+            'change_types': [],
+            'files_modified': [],
+            'estimated_manual_lines': 0,
+            'change_descriptions': [],
+            'detailed_changes': {}
+        }
+        
+        try:
+            theme_dir = get_dealer_theme_dir(slug)
+            snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
+            
+            if not os.path.exists(snapshot_dir):
+                logger.debug("No snapshots found, falling back to git diff analysis")
+                return self._detect_manual_changes()
+            
+            files_to_check = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+            
+            for filename in files_to_check:
+                current_path = os.path.join(theme_dir, filename)
+                snapshot_path = os.path.join(snapshot_dir, f"{filename}.automated")
+                
+                if not os.path.exists(current_path) or not os.path.exists(snapshot_path):
+                    continue
+                
+                # Compare files
+                with open(current_path, 'r') as current_file, open(snapshot_path, 'r') as snapshot_file:
+                    current_content = current_file.read()
+                    snapshot_content = snapshot_file.read()
+                
+                if current_content != snapshot_content:
+                    manual_changes['has_manual_changes'] = True
+                    manual_changes['files_modified'].append(filename)
+                    
+                    # Analyze the differences
+                    current_lines = current_content.splitlines()
+                    snapshot_lines = snapshot_content.splitlines()
+                    
+                    # Simple diff analysis
+                    added_lines = []
+                    for i, line in enumerate(current_lines):
+                        if i >= len(snapshot_lines) or line != snapshot_lines[i]:
+                            added_lines.append(line)
+                    
+                    manual_changes['detailed_changes'][filename] = {
+                        'lines_added': len(added_lines),
+                        'content_added': added_lines
+                    }
+                    
+                    manual_changes['estimated_manual_lines'] += len(added_lines)
+                    
+                    # Analyze types of changes
+                    self._analyze_change_types(added_lines, manual_changes)
+            
+            # Generate descriptions
+            if manual_changes['has_manual_changes']:
+                manual_changes['change_descriptions'] = self._generate_change_descriptions(manual_changes)
+            
+        except Exception as e:
+            logger.debug(f"Error detecting manual changes from snapshots: {e}")
+            # Fallback to git diff analysis
+            return self._detect_manual_changes()
+        
+        return manual_changes
+
+    def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]):
+        """Analyze the types of changes made in the added lines."""
+        change_patterns = {
+            'custom_comments': r'\/\*.*(?:custom|manual|added|fix|tweak|adjust).*\*\/',
+            'media_queries': r'@media.*\(',
+            'pseudo_selectors': r':(?:hover|focus|active|before|after)',
+            'custom_classes': r'\.(?:custom|manual|fix|temp|override)-',
+            'brand_specific': r'(?:brand-specific|dealer-custom)',
+            'important_overrides': r'!important',
+            'z_index_adjustments': r'z-index:\s*\d+',
+            'position_fixes': r'position:\s*(?:absolute|relative|fixed)',
+            'color_customizations': r'(?:color|background).*#[0-9a-fA-F]{3,6}',
+            'spacing_tweaks': r'(?:margin|padding).*(?:\d+px|\d+rem|\d+em)'
+        }
+        
+        for line in added_lines:
+            for change_type, pattern in change_patterns.items():
+                if re.search(pattern, line, re.IGNORECASE):
+                    if change_type not in manual_changes['change_types']:
+                        manual_changes['change_types'].append(change_type)
+
+    def _generate_change_descriptions(self, manual_changes: Dict[str, Any]) -> List[str]:
+        """Generate human-readable descriptions of the changes."""
+        type_descriptions = {
+            'custom_comments': 'Added explanatory comments for custom modifications',
+            'media_queries': 'Enhanced responsive design with custom media queries',
+            'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)',
+            'custom_classes': 'Created custom CSS classes for specific styling needs',
+            'brand_specific': 'Implemented brand-specific customizations',
+            'important_overrides': 'Added CSS !important overrides for specificity',
+            'z_index_adjustments': 'Fixed layering issues with z-index adjustments',
+            'position_fixes': 'Corrected element positioning',
+            'color_customizations': 'Applied custom color schemes',
+            'spacing_tweaks': 'Fine-tuned spacing and layout'
+        }
+        
+        descriptions = []
+        for change_type in manual_changes['change_types']:
+            if change_type in type_descriptions:
+                descriptions.append(type_descriptions[change_type])
+        
+        return descriptions
+
+    def cleanup_snapshots(self, slug: str):
+        """Clean up snapshot files after PR creation."""
+        try:
+            theme_dir = get_dealer_theme_dir(slug)
+            snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
+            
+            if os.path.exists(snapshot_dir):
+                import shutil
+                shutil.rmtree(snapshot_dir)
+                logger.debug(f"Cleaned up snapshots for {slug}")
+        except Exception as e:
+            logger.debug(f"Failed to cleanup snapshots: {e}")
+
+    def _build_stellantis_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str]) -> Dict[str, str]:
+        """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
         title = f"{slug} - SBM FE Audit"
-
-        # Build WHAT section with enhanced tracking
-        what_items = []
-
-        # Automated migration items - get actual migration analysis
+        
+        # Get automated migration changes
         automated_items = self._analyze_migration_changes()
+        
+        # Detect manual changes using snapshots (more accurate)
+        manual_analysis = self._detect_manual_changes_from_snapshots(slug)
+        
+        # Build the what section
+        what_items = []
+        
+        # Add automated changes
         if automated_items:
-            what_items.extend([
-                "**🤖 Automated Migration:**"
-            ])
             what_items.extend(automated_items)
-            what_items.extend([
-                "- Applied standard SBM transformations and pattern matching"
-            ])
         else:
-            # Fallback if analysis fails
-            what_items.extend([
-                "**🤖 Automated Migration:**",
-                "- Migrated interior page styles from style.scss and inside.scss to sb-inside.scss",
-                "- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)",
-                "- Applied standard SBM transformations and pattern matching"
-            ])
-
-        # Manual refinements if any
-        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
-            changes_analysis = user_review_result["changes_analysis"]
-            modified_files = changes_analysis.get("files_modified", [])
-
-            what_items.extend([
-                "",
-                "**👤 Manual Refinements:**"
-            ])
-
-            for filename in modified_files:
-                size_change = changes_analysis.get("size_changes", {}).get(filename, {})
-                size_diff = size_change.get("difference", 0)
-                what_items.append(f"- Enhanced {filename} with custom improvements ({size_diff:+d} bytes)")
-
-            what_items.extend([
-                "- Added dealer-specific styling optimizations",
-                "- Fine-tuned responsive behavior and brand alignment"
-            ])
-        else:
-            what_items.extend([
-                "",
-                "**✅ Automation Status:** No manual changes needed - automation was sufficient!"
-            ])
-
-        # Add FCA-specific items for Stellantis brands if applicable
-        if any(brand in slug.lower() for brand in ['chrysler', 'dodge', 'jeep', 'ram', 'fiat', 'cdjr', 'fca']):
-            what_items.extend([
-                "",
-                "**🏁 Stellantis Specific:**",
-                "- Added FCA Direction Row Styles",
-                "- Added FCA Cookie Banner styles"
-            ])
-
+            # Fallback if no changes detected
+            what_items.append("- Migrated interior page styles from style.scss and inside.scss to sb-inside.scss")
+        
+        # Add manual changes ONLY if they exist (simple format)
+        if manual_analysis['has_manual_changes'] and manual_analysis['change_descriptions']:
+            for description in manual_analysis['change_descriptions']:
+                what_items.append(f"- {description}")
+        
+        # Add FCA-specific items for Stellantis brands (only if files were actually changed)
+        if automated_items and any(brand in slug.lower() for brand in ['chrysler', 'dodge', 'jeep', 'ram', 'fiat', 'cdjr', 'fca']):
+            what_items.append("- Added FCA Direction Row Styles")
+            what_items.append("- Added FCA Cookie Banner styles")
+        
         what_section = "\n".join(what_items)
-
-        # Build full PR body with enhanced sections
+        
+        # Build the body using the original clean format
         body = f"""## What
 
 {what_section}
 
 ## Why
 
-Site Builder Migration with enhanced tracking of automated vs manual work.
+Site Builder Migration
 
-"""
-
-        # Add detailed breakdown section
-        if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
-            body += """## Development Notes
-
-This migration includes both automated and manual work:
-- **Automated**: Core SCSS transformation, file structure creation, standard pattern matching
-- **Manual**: Dealer-specific refinements, custom styling adjustments, responsive behavior tuning
-
-The migration process ensures backward compatibility while optimizing for Site Builder architecture.
-
-"""
-
-        body += f"""## Instructions for Reviewers
+## Instructions for Reviewers
 
 Within the di-websites-platform directory:
 
@@ -471,11 +617,12 @@ just start {slug}
 - Open up a browser, go to localhost
 - Verify that homepage and interior pages load properly
 - Request changes as needed"""
-
+        
         return {
             'title': title,
             'body': body,
-            'what_section': what_section
+            'what_section': what_section,
+            'manual_analysis': manual_analysis
         }
 
     def _open_pr_in_browser(self, pr_url: str):
@@ -501,110 +648,23 @@ PR: {pr_url}"""
         except subprocess.CalledProcessError:
             logger.warning("Could not copy message to clipboard")
 
-    def create_enhanced_pr(self, slug: str, branch_name: str, user_review_result: Dict[str, Any] = None, draft: bool = False) -> Dict[str, Any]:
-        """Create a PR with enhanced tracking of automated vs manual changes."""
-        try:
-            # Check if we're in a Git repository
-            if not self._is_git_repo():
-                raise Exception("Not in a Git repository")
-            
-            # Check GitHub CLI availability and auth
-            if not self._check_gh_cli():
-                raise Exception("GitHub CLI not available or not authenticated")
-            
-            # Get repository info
-            repo_info = self._get_repo_info()
-            current_branch = repo_info.get('current_branch', branch_name)
-            
-            # Build PR content - use enhanced only if there are manual changes, otherwise use stellantis template
-            if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
-                pr_content = self._build_enhanced_pr_content(slug, current_branch, repo_info, user_review_result)
-            else:
-                pr_content = self._build_stellantis_pr_content(slug, current_branch, repo_info)
-            
-            # Get configuration values with fallbacks
-            default_branch = getattr(self.config, 'default_branch', 'main')
-            if hasattr(self.config, 'git'):
-                default_reviewers = getattr(self.config.git, 'default_reviewers', ['carsdotcom/fe-dev'])
-                default_labels = getattr(self.config.git, 'default_labels', ['fe-dev'])
-            else:
-                default_reviewers = ['carsdotcom/fe-dev']
-                default_labels = ['fe-dev']
-            
-            # Create the PR
-            pr_url = self._execute_gh_pr_create(
-                title=pr_content['title'],
-                body=pr_content['body'],
-                base=default_branch,
-                head=current_branch,
-                draft=draft,
-                reviewers=default_reviewers,
-                labels=default_labels
-            )
-            
-            # Open the PR in browser after creation
-            self._open_pr_in_browser(pr_url)
-            
-            # Copy enhanced Salesforce message to clipboard
-            self._copy_salesforce_message_to_clipboard(pr_content['what_section'], pr_url)
-            
-            return {
-                "success": True,
-                "pr_url": pr_url,
-                "branch": current_branch,
-                "title": pr_content['title'],
-                "pr_body": pr_content['body']
-            }
-            
-        except Exception as e:
-            error_str = str(e)
-            logger.error(f"Enhanced PR creation failed: {error_str}")
-            
-            # Check if it's an "already exists" error and handle gracefully
-            if "already exists" in error_str:
-                # Try to extract PR URL from error message
-                url_match = re.search(r'(https://github\.com/[^\s\n]+)', error_str)
-                if url_match:
-                    existing_pr_url = url_match.group(1)
-                    logger.info(f"PR already exists: {existing_pr_url}")
-                    
-                    # Still copy Salesforce message since migration completed
-                    if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
-                        pr_content = self._build_enhanced_pr_content(slug, branch_name, {}, user_review_result)
-                    else:
-                        pr_content = self._build_stellantis_pr_content(slug, branch_name, {})
-                    self._copy_salesforce_message_to_clipboard(pr_content['what_section'], existing_pr_url)
-                    
-                    return {
-                        "success": True,  # Mark as success since PR exists
-                        "pr_url": existing_pr_url,
-                        "branch": branch_name,
-                        "title": pr_content['title'],
-                        "existing": True
-                    }
-            
-            return {
-                "success": False,
-                "error": error_str
-            }
-
-    def create_pr(self, slug: str, branch_name: str = None, title: str = None, body: str = None, 
-                  base: str = None, head: str = None, reviewers: List[str] = None, 
+    def create_pr(self, slug: str, branch_name: str = None, title: str = None, body: str = None,
+                  base: str = None, head: str = None, reviewers: List[str] = None,
                   labels: List[str] = None, draft: bool = False) -> Dict[str, Any]:
         """
-        Create a GitHub Pull Request for a given theme.
-        
+        Create a GitHub Pull Request for a given theme. This is the primary method for PR creation.
+
         Args:
             slug (str): Theme slug for the PR
             branch_name (str, optional): Branch name (fallback if head not provided)
             title (str, optional): PR title (auto-generated if not provided)
-            body (str, optional): PR body (auto-generated if not provided) 
+            body (str, optional): PR body (auto-generated if not provided)
             base (str, optional): Base branch (defaults to config default)
             head (str, optional): Head branch (defaults to current branch)
             reviewers (List[str], optional): List of reviewers (defaults to config)
             labels (List[str], optional): List of labels (defaults to config)
             draft (bool): Whether to create as draft PR
-            
+
         Returns:
             Dict[str, Any]: Result dictionary with success status and PR details
         """
@@ -612,27 +672,24 @@ PR: {pr_url}"""
             # Check if we're in a Git repository
             if not self._is_git_repo():
                 raise Exception("Not in a Git repository")
-            
+
             # Check GitHub CLI availability and auth
             if not self._check_gh_cli():
                 raise Exception("GitHub CLI not available or not authenticated")
-            
+
             # Get repository info and determine current branch
             repo_info = self._get_repo_info()
             current_branch = head or repo_info.get('current_branch') or branch_name
-            
+
             if not current_branch:
                 raise Exception("Could not determine branch for PR")
-            
+
             # Use provided values or generate defaults using stellantis template
-            if not title or not body:
-                pr_content = self._build_stellantis_pr_content(slug, current_branch, repo_info)
-                pr_title = title or pr_content['title']
-                pr_body = body or pr_content['body']
-            else:
-                pr_title = title
-                pr_body = body
-            
+            pr_content = self._build_stellantis_pr_content(slug, current_branch, repo_info)
+            pr_title = title or pr_content['title']
+            pr_body = body or pr_content['body']
+            what_section = pr_content['what_section']
+
             # Get configuration values with fallbacks
             pr_base = base or getattr(self.config, 'default_branch', 'main')
             if hasattr(self.config, 'git'):
@@ -641,7 +698,7 @@ PR: {pr_url}"""
             else:
                 pr_reviewers = reviewers or ['carsdotcom/fe-dev']
                 pr_labels = labels or ['fe-dev']
-            
+
             # Create the PR
             pr_url = self._execute_gh_pr_create(
                 title=pr_title,
@@ -652,19 +709,47 @@ PR: {pr_url}"""
                 reviewers=pr_reviewers,
                 labels=pr_labels
             )
-            
+
             logger.info(f"Successfully created PR: {pr_url}")
-            
+
+            # Open the PR in browser after creation
+            self._open_pr_in_browser(pr_url)
+
+            # Copy Salesforce message to clipboard
+            self._copy_salesforce_message_to_clipboard(what_section, pr_url)
+
             return {
                 "success": True,
                 "pr_url": pr_url,
                 "branch": current_branch,
-                "title": pr_title
+                "title": pr_title,
+                "body": pr_body
             }
-            
+
         except Exception as e:
             error_str = str(e)
             logger.error(f"PR creation failed: {error_str}")
+
+            # Handle existing PR gracefully
+            if self._is_pr_exists_error(error_str):
+                try:
+                    existing_pr_url = self._handle_existing_pr(error_str, head or branch_name)
+                    logger.info(f"PR already exists: {existing_pr_url}")
+                    # Still copy Salesforce message since migration likely completed
+                    pr_content = self._build_stellantis_pr_content(slug, head or branch_name, {})
+                    self._copy_salesforce_message_to_clipboard(pr_content['what_section'], existing_pr_url)
+
+                    return {
+                        "success": True,
+                        "pr_url": existing_pr_url,
+                        "branch": head or branch_name,
+                        "title": pr_content['title'],
+                        "existing": True
+                    }
+                except Exception as handle_e:
+                     logger.error(f"Failed to handle existing PR: {handle_e}")
+
+
             return {
                 "success": False,
                 "error": error_str
@@ -721,32 +806,17 @@ def git_operations(slug):
     git_ops = GitOperations(Config({}))
     return git_ops.git_operations(slug)
 
-def create_pull_request(title, body, base, head, reviewers=None, labels=None):
-    """Legacy wrapper for create_pull_request."""
+def create_pr(slug, branch_name=None, **kwargs):
+    """Legacy wrapper for create_pr."""
     git_ops = GitOperations(Config({}))
-    
-    # Parse reviewers and labels if they're strings
-    if isinstance(reviewers, str):
-        reviewers = [r.strip() for r in reviewers.split(',')]
-    if isinstance(labels, str):
-        labels = [l.strip() for l in labels.split(',')]
-    
-    # Extract slug from branch name (assuming format: slug-sbm1234)
-    import re
-    slug_match = re.match(r'^(.+)-sbm\d+$', head)
-    slug = slug_match.group(1) if slug_match else head
-    
-    result = git_ops.create_pr(
-        slug=slug,
-        title=title,
-        body=body,
-        base=base,
-        head=head,
-        reviewers=reviewers,
-        labels=labels
-    )
-    
-    if result['success']:
-        return result['pr_url']
-    else:
-        raise Exception(result['error'])
+    return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)
+
+def create_automation_snapshot(slug):
+    """Legacy wrapper for create_automation_snapshot."""
+    git_ops = GitOperations(Config({}))
+    return git_ops.create_automation_snapshot(slug)
+
+def cleanup_snapshots(slug):
+    """Legacy wrapper for cleanup_snapshots."""
+    git_ops = GitOperations(Config({}))
+    return git_ops.cleanup_snapshots(slug)

@@ -10,7 +10,7 @@ import click # Import click for interactive prompts
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
 from ..utils.command import execute_command, execute_interactive_command
-from .git import git_operations, commit_changes, push_changes, create_pull_request # Import new git functions
+from .git import git_operations, commit_changes, push_changes, create_pr, create_automation_snapshot, cleanup_snapshots # Import new git functions
 from ..scss.processor import SCSSProcessor
 from ..scss.validator import validate_scss_files # Import SCSS validator
 from .maps import migrate_map_components
@@ -199,30 +199,34 @@ def add_predetermined_styles(slug, oem_handler=None):
             if '.cookie-banner' not in content:
                 # Append the cookie styles
                 with open(sb_inside_path, 'a') as f:
-                    f.write("\n\n" + cookie_styles)
-                
-                logger.info(f"Added cookie banner styles to sb-inside.scss for {slug}")
+                    f.write('\n\n/* Cookie Banner Styles */\n')
+                    f.write(cookie_styles)
+                logger.info("Added cookie banner styles")
             else:
-                logger.info(f"Cookie banner styles already exist in sb-inside.scss for {slug}")
+                logger.info("Cookie banner styles already exist")
         else:
-            logger.warning(f"Cookie banner styles source file not found at {cookie_banner_source}")
+            logger.warning(f"Cookie banner source file not found: {cookie_banner_source}")
         
-        # 2. Add directions row styles using OEM handler
-        # Check if directions row styles already exist
-        with open(sb_inside_path, 'r') as f:
-            content = f.read()
-        
-        if '#mapRow' not in content and '#directionsBox' not in content:
-            # Get directions styles from OEM handler
-            directions_styles = oem_handler.get_directions_styles()
-            
-            # Append the directions styles
-            with open(sb_inside_path, 'a') as f:
-                f.write("\n\n" + directions_styles)
-            
-            logger.info(f"Added directions row styles to sb-inside.scss for {slug}")
+        # 2. Add directions row styles (directly from source file)
+        directions_row_source = os.path.join(os.getcwd(), 'stellantis', 'add-to-sb-inside', 'stellantis-directions-row-styles.scss')
+        if os.path.exists(directions_row_source):
+            with open(directions_row_source, 'r') as f:
+                directions_styles = f.read()
+                
+            # Check if directions row styles already exist
+            with open(sb_inside_path, 'r') as f:
+                content = f.read()
+                
+            if '.directions-row' not in content:
+                # Append the directions styles
+                with open(sb_inside_path, 'a') as f:
+                    f.write('\n\n/* Directions Row Styles */\n')
+                    f.write(directions_styles)
+                logger.info("Added directions row styles")
+            else:
+                logger.info("Directions row styles already exist")
         else:
-            logger.info("Directions row styles already exist in sb-inside.scss")
+            logger.warning(f"Directions row source file not found: {directions_row_source}")
         
         return True
         
@@ -233,22 +237,27 @@ def add_predetermined_styles(slug, oem_handler=None):
 
 def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True):
     """
-    Runs the interactive post-migration workflow steps.
+    Run the post-migration workflow including manual review, git operations, and PR creation.
     
     Args:
-        slug (str): Dealer theme slug.
-        branch_name (str): The Git branch name created for the migration.
-        skip_git (bool): Whether to skip Git operations (add, commit, push).
-        create_pr (bool): Whether to create a GitHub Pull Request after successful post-migration steps (default: True).
-        interactive_review (bool): Whether to prompt for manual review and re-validation.
-        interactive_git (bool): Whether to prompt for Git add, commit, push.
-        interactive_pr (bool): Whether to prompt for PR creation.
+        slug (str): Dealer theme slug
+        branch_name (str): Git branch name
+        skip_git (bool): Whether to skip git operations
+        create_pr (bool): Whether to create a pull request
+        interactive_review (bool): Whether to prompt for manual review
+        interactive_git (bool): Whether to prompt for git operations
+        interactive_pr (bool): Whether to prompt for PR creation
         
     Returns:
-        bool: True if successful, False otherwise.
+        bool: True if all steps are successful, False otherwise.
     """
-    
-    # --- Interactive Break for Manual Review ---
+    logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
+
+    # Create snapshot before manual review
+    create_automation_snapshot(slug)
+    logger.info("Created automation snapshot before manual review")
+
+    # Manual review phase
     if interactive_review:
         click.echo("\n" + "="*80)
         click.echo(f"Manual Review Required for {slug}")
@@ -264,75 +273,56 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
 
-        # --- Re-validation after Manual Review ---
-        logger.info(f"Re-validating SCSS files for {slug} after manual review...")
-        if not validate_scss_files(slug):
-            click.echo("\n" + "="*80)
-            click.echo(f"SCSS re-validation failed for {slug}.")
-            click.echo("Please address the validation errors manually.")
-            click.echo("="*80 + "\n")
-            if not click.confirm("Continue despite SCSS validation errors? (Not recommended)"):
-                logger.info("Post-migration workflow stopped by user due to SCSS validation errors.")
-                return False
-        else:
-            logger.info(f"SCSS re-validation passed for {slug}.")
-
-    # --- Prompt for Git Add, Commit, Push ---
-    if interactive_git and not skip_git and branch_name:
-        click.echo("\n" + "="*80)
-        click.echo(f"Next Step: Git Operations (Add, Commit, Push)")
-        click.echo(f"This will add changes, commit to branch '{branch_name}', and push to origin.")
-        click.echo("="*80 + "\n")
-        if click.confirm("Proceed with Git add, commit, and push to remote branch?"):
-            if not commit_changes(slug):
-                logger.error(f"Failed to commit changes for {slug}.")
-                return False
-            if not push_changes(branch_name):
-                logger.error(f"Failed to push changes for {slug}.")
-                return False
-            logger.info(f"Changes successfully added, committed, and pushed for {slug}.")
-        else:
-            logger.info("Git operations skipped by user.")
+    if not interactive_git or click.confirm(f"Commit all changes for {slug}?", default=True):
+        if not commit_changes(slug):
+            logger.error("Failed to commit changes.")
             return False
-    elif interactive_git and not skip_git and not branch_name:
-        logger.warning("Skipping Git operations: No branch name available (perhaps git_operations was skipped or failed earlier).")
-    elif not interactive_git:
-        logger.info("Git operations skipped due to interactive_git=False.")
     else:
-        logger.info("Git operations skipped due to --skip-git flag.")
+        logger.info("Skipping commit.")
+        return True # End workflow if user skips commit
 
-    # --- Prompt for PR Generation ---
-    if interactive_pr and branch_name:
-        click.echo("\n" + "="*80)
-        click.echo(f"Final Step: Create Pull Request")
-        click.echo(f"This will create a published PR for branch '{branch_name}' with:")
-        click.echo(f"  - Reviewers: carsdotcom/fe-dev")
-        click.echo(f"  - Labels: fe-dev")
-        click.echo(f"  - Auto-generated content based on changes")
-        click.echo("="*80 + "\n")
-        
-        # Always prompt user regardless of create_pr flag
-        if click.confirm(f"Create a Pull Request for {slug}?", default=create_pr):
-            pr_title = f"SBM: Migrate {slug} to Site Builder format"
-            pr_body = f"This PR migrates the {slug} theme to the Site Builder format.\n\n" \
-                      f"**What:**\n- Converted SCSS to Site Builder compatible format.\n- Added predetermined styles for cookie banner and directions row.\n\n" \
-                      f"**Why:**\n- To enable the theme to be used with the new Site Builder platform.\n\n" \
-                      f"**Review Instructions:**\n- Review the changes in the Files Changed tab.\n- Verify the site loads correctly on the new platform."
-            
-            pr_url = create_pull_request(pr_title, pr_body, "main", branch_name, reviewers="carsdotcom/fe-dev", labels="fe-dev")
-            if pr_url:
-                logger.info(f"Pull Request created successfully: {pr_url}")
-                click.echo(f"✅ Pull Request created: {pr_url}")
-            else:
-                logger.error(f"Failed to create Pull Request for {slug}.")
+    if not interactive_git or click.confirm(f"Push changes to origin/{branch_name}?", default=True):
+        if not push_changes(branch_name):
+            logger.error("Failed to push changes.")
+            return False
+    else:
+        logger.info("Skipping push.")
+        return True # End workflow if user skips push
+
+    if create_pr:
+        if not interactive_pr or click.confirm("Create a pull request?", default=True):
+            logger.info("Creating pull request...")
+            try:
+                pr_result = create_pr(slug=slug, branch_name=branch_name)
+                
+                if pr_result and pr_result.get("success"):
+                    pr_url = pr_result.get("pr_url")
+                    logger.info(f"Successfully created PR: {pr_url}")
+                    
+                    # Clean up snapshots after successful PR creation
+                    cleanup_snapshots(slug)
+                    logger.info("Cleaned up automation snapshots")
+                else:
+                    error_message = pr_result.get("error", "Unknown error")
+                    logger.error(f"Failed to create PR: {error_message}")
+                    return False
+                    
+            except Exception as e:
+                logger.error(f"An exception occurred while creating PR: {e}")
                 return False
         else:
-            logger.info("Pull Request creation skipped by user.")
-            click.echo("ℹ️  You can create a PR later using: sbm pr " + slug)
-    elif interactive_pr and not branch_name:
-        logger.warning("Skipping PR creation: No branch name available (perhaps git_operations was skipped or failed earlier).")
-    elif not interactive_pr:
-        logger.info("PR creation skipped due to interactive_pr=False.")
+            logger.info("Skipping pull request creation.")
+    
+    # Final step: Ask user if they want to run 'just start' for final validation
+    if interactive_review and click.confirm("\nDo you want to run 'just start' to visually inspect the site?", default=False):
+        logger.info(f"Running 'just start' for {slug}...")
+        just_start_success = run_just_start(slug)
+        logger.info(f"'just start' returned: {just_start_success}")
+        if not just_start_success:
+            logger.error(f"Failed to start site for {slug}")
+            return False
+        
+        logger.info(f"Site started successfully for {slug}")
 
     return True
 
@@ -354,7 +344,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         interactive_pr (bool): Whether to prompt for PR creation.
         
     Returns:
-        bool: True if successful, False otherwise
+        bool: True if all steps are successful, False otherwise.
     """
     logger.info(f"Starting migration for {slug}")
     
