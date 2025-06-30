@@ -102,7 +102,7 @@ class GitOperations:
             
             # If branch already exists, delete it
             if branch_name in repo.heads:
-                logger.warning(f"Branch '{branch_name}' already exists. Deleting it.")
+                logger.warning(f"Branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state.")
                 repo.delete_head(branch_name, force=True)
 
             # Create and checkout the new branch
