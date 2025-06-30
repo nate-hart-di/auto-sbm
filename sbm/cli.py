@@ -37,13 +37,34 @@ class SBMCommandGroup(click.Group):
 
 @click.group(cls=SBMCommandGroup, default_command='auto')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-def cli(verbose):
+@click.option('--config', 'config_path', default='config.json', help='Path to config file.')
+@click.option('--help', '-h', is_flag=True, expose_value=False, is_eager=True, help='Show this message and exit.')
+@click.pass_context
+def cli(ctx, verbose, config_path):
     """Auto-SBM: Automated Site Builder Migration Tool"""
     # Set logger level based on verbose flag
     if verbose:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
+    
+    # Initialize context object
+    ctx.ensure_object(dict)
+    
+    # Try to load config if it exists
+    config = None
+    if os.path.exists(config_path):
+        try:
+            config = get_config(config_path)
+        except ConfigurationError as e:
+            logger.warning(f"Configuration warning: {e}")
+            config = Config({})  # Use empty config as fallback
+    else:
+        config = Config({})  # Use empty config as fallback
+    
+    # Store config and logger in context
+    ctx.obj['config'] = config
+    ctx.obj['logger'] = logger
 
 @cli.command(hidden=True)
 @click.argument('theme_name', required=False)
@@ -174,49 +195,66 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
 
 @cli.command()
 @click.argument('theme_name')
-@click.option('--title', '-t', help='Title for the Pull Request.')
-@click.option('--body', '-b', help='Body/description for the Pull Request.')
+@click.option('--title', '-t', help='Title for the Pull Request. (Optional: auto-generated if not provided)')
+@click.option('--body', '-b', help='Body/description for the Pull Request. (Optional: auto-generated if not provided)')
 @click.option('--base', default='main', help='Base branch for the Pull Request (default: main).')
 @click.option('--head', help='Head branch for the Pull Request (default: current branch).')
-@click.option('--reviewers', '-r', default='carsdotcom/fe-dev', help='Comma-separated list of reviewers (default: carsdotcom/fe-dev).')
-@click.option('--labels', '-l', default='fe-dev', help='Comma-separated list of labels (default: fe-dev).')
-def pr(theme_name, title, body, base, head, reviewers, labels):
+@click.option('--reviewers', '-r', help='Comma-separated list of reviewers (overrides default).')
+@click.option('--labels', '-l', help='Comma-separated list of labels (overrides default).')
+@click.option('--draft', '-d', is_flag=True, default=False, help='Create as draft PR.')
+@click.option('--publish', '-p', is_flag=True, default=True, help='Create as published PR (default: true).')
+@click.pass_context
+def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publish):
     """
     Create a GitHub Pull Request for a given theme.
     """
-    from sbm.core.git import create_pull_request
-    from git import Repo, GitCommandError
-    from sbm.utils.helpers import get_branch_name
+    config = ctx.obj['config']
+    logger = ctx.obj['logger']
 
-    # Generate default title and body if not provided
-    if not title:
-        title = f"SBM: Migrate {theme_name} to Site Builder format"
-    
-    if not body:
-        body = f"This PR migrates the {theme_name} theme to the Site Builder format.\n\n" \
-               f"**What:**\n- Converted SCSS to Site Builder compatible format.\n- Added predetermined styles for cookie banner and directions row.\n\n" \
-               f"**Why:**\n- To enable the theme to be used with the new Site Builder platform.\n\n" \
-               f"**Review Instructions:**\n- Review the changes in the Files Changed tab.\n- Verify the site loads correctly on the new platform."
+    from sbm.core.git import GitOperations
+    git_ops = GitOperations(config)
+
+    # Determine draft status
+    is_draft = draft if draft else not publish
+
+    # Parse reviewers and labels if provided
+    parsed_reviewers = None
+    parsed_labels = None
+    if reviewers:
+        parsed_reviewers = [r.strip() for r in reviewers.split(',')]
+    if labels:
+        parsed_labels = [l.strip() for l in labels.split(',')]
 
     try:
-        from sbm.utils.path import get_platform_dir
-        repo = Repo(get_platform_dir())
-        current_branch = repo.active_branch.name
-        head_branch = head if head else current_branch
-    except GitCommandError as e:
-        click.echo(f"Error getting Git branch information: {e}", err=True)
-        sys.exit(1)
+        # The create_pr method in GitOperations will handle branch detection
+        # and PR content generation.
+        logger.info(f"Creating GitHub PR for {theme_name}...")
+        pr_result = git_ops.create_pr(
+            slug=theme_name,
+            branch_name=head,  # Pass head directly, GitOperations will handle current branch if head is None
+            title=title,
+            body=body,
+            base=base,
+            head=head,
+            reviewers=parsed_reviewers,
+            labels=parsed_labels,
+            draft=is_draft
+        )
+
+        if pr_result['success']:
+            click.echo(f"✅ Pull request created: {pr_result['pr_url']}")
+            click.echo(f"Title: {pr_result['title']}")
+            click.echo(f"Branch: {pr_result['branch']}")
+            if is_draft:
+                click.echo("📝 Created as draft - remember to publish when ready")
+            if pr_result.get('existing'):
+                click.echo("ℹ️  PR already existed - retrieved existing PR URL")
+        else:
+            click.echo(f"❌ PR creation failed: {pr_result['error']}", err=True)
+            sys.exit(1)
+
     except Exception as e:
-        click.echo(f"Error: Could not determine current Git branch. Ensure you are in a Git repository: {e}", err=True)
-        sys.exit(1)
-
-    click.echo(f"Creating Pull Request for {theme_name}...")
-    pr_url = create_pull_request(title, body, base, head_branch, reviewers, labels)
-
-    if pr_url:
-        click.echo(f"Pull Request created successfully: {pr_url}")
-    else:
-        click.echo(f"Failed to create Pull Request for {theme_name}.", err=True)
+        logger.error(f"Unexpected error: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':
