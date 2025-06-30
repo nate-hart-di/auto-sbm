@@ -8,6 +8,8 @@ import click
 import logging # Re-add the logging import
 import sys
 import os
+import subprocess
+import shutil
 from pathlib import Path
 from .scss.processor import SCSSProcessor
 from .scss.validator import validate_scss_files # Import the new validation function
@@ -16,6 +18,60 @@ from .utils.path import get_dealer_theme_dir
 from .core.migration import migrate_dealer_theme, run_post_migration_workflow # Import both migration functions
 from .config import get_config, ConfigurationError, Config
 from git import Repo # Import Repo for post_migrate command
+
+# --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SETUP_MARKER = os.path.join(REPO_ROOT, '.sbm_setup_complete')
+SETUP_SCRIPT = os.path.join(REPO_ROOT, 'setup.sh')
+
+REQUIRED_CLI_TOOLS = ['git', 'gh', 'pre-commit', 'node', 'just', 'python3', 'pip']
+REQUIRED_PYTHON_PACKAGES = ['click', 'rich', 'gitpython', 'pyyaml', 'jinja2', 'pytest', 'requests', 'colorama']
+
+
+def is_env_healthy():
+    # Check CLI tools
+    for cmd in REQUIRED_CLI_TOOLS:
+        if not shutil.which(cmd):
+            print(f"[SBM] Required CLI tool missing: {cmd}")
+            return False
+    # Check Python venv and packages
+    venv_path = os.path.join(REPO_ROOT, '.venv')
+    pip_path = os.path.join(venv_path, 'bin', 'pip')
+    if not os.path.isdir(venv_path) or not os.path.isfile(pip_path):
+        print("[SBM] Python virtual environment or pip not found.")
+        return False
+    try:
+        result = subprocess.run([pip_path, 'freeze'], capture_output=True, text=True, timeout=10)
+        installed = [line.split('==')[0].lower() for line in result.stdout.splitlines() if '==' in line]
+        for pkg in REQUIRED_PYTHON_PACKAGES:
+            if pkg.lower() not in installed:
+                print(f"[SBM] Required Python package missing: {pkg}")
+                return False
+    except Exception as e:
+        print(f"[SBM] Error checking Python packages: {e}")
+        return False
+    return True
+
+# --- Setup logic ---
+need_setup = False
+if not os.path.exists(SETUP_MARKER):
+    need_setup = True
+elif not is_env_healthy():
+    print("[SBM] Environment health check failed. Setup will be re-run to fix issues.")
+    need_setup = True
+
+if need_setup:
+    print("[SBM] Running setup.sh...")
+    try:
+        result = subprocess.run(['bash', SETUP_SCRIPT], cwd=REPO_ROOT)
+        if result.returncode != 0:
+            print("[SBM] setup.sh failed. Please review the output above and fix any issues before retrying.")
+            sys.exit(1)
+        else:
+            print("[SBM] Setup complete. Continuing with SBM command...")
+    except Exception as e:
+        print(f"[SBM] Failed to run setup.sh: {e}")
+        sys.exit(1)
 
 class SBMCommandGroup(click.Group):
     """A custom command group that allows running a default command."""

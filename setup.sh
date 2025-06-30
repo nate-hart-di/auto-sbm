@@ -135,4 +135,7 @@ echo "     sbm migrate <dealer-slug>"
 echo ""
 echo "See documentation/ for more details."
 
+touch .sbm_setup_complete
+log ".sbm_setup_complete marker file created."
+
 exit 0
