@@ -25,16 +25,15 @@ bash setup.sh
 
 This will:
 
-- Create a Python virtual environment
-- Install all dependencies
-- Ensure your PATH is set up
-- Authenticate GitHub CLI if needed
+- Create a Python virtual environment (`.venv`)
+- Install all required dependencies
+- Create a global `sbm` command so you can run it from any directory
 
-> **Note on Virtual Environments:**
+> **How the Global Command Works:**
 >
-> - If you also work in `di-websites-platform`, its virtualenv will auto-activate when you `cd` into that directory. This will not interfere with Auto-SBM.
-> - The `sbm` alias always uses the correct Python environment for Auto-SBM, so you can run `sbm` commands from **anywhere** in your terminal.
-> - **Tip:** Always use the `sbm` alias (not `python -m sbm.cli`) to avoid any environment issues.
+> The setup script places a small "wrapper" script at `~/.local/bin/sbm`. This standard directory is added to your shell's `PATH`.
+>
+> This wrapper automatically uses the correct Python interpreter and all the dependencies from within this project's `.venv` folder. This gives you the ability to call `sbm` from anywhere, without needing to activate the virtual environment manually.
 
 ---
 
@@ -42,7 +41,7 @@ This will:
 
 ### 1. Start the Migration
 
-Run:
+No environment activation is needed. Just run the command:
 
 ```sh
 sbm {slug}
@@ -199,9 +198,9 @@ auto-sbm/
 
 ## 🆘 Troubleshooting
 
-- **"command not found: sbm"**: Add `~/.local/bin` to your PATH or re-run setup.
+- **"command not found: sbm"**: You may need to restart your terminal for the `PATH` change to take effect after the initial setup. If it still doesn't work, ensure that `~/.local/bin` is in your `PATH` by checking your `~/.zshrc` or `~/.bash_profile`.
 - **GitHub CLI errors**: Run `gh auth login` and ensure you have access.
-- **Python errors**: Make sure you are using Python 3.8 or higher and your virtualenv is activated.
+- **Python errors**: The wrapper script should handle the Python environment automatically. If you see Python errors, try re-running the `bash setup.sh` script to ensure the virtual environment is correctly built.
 
 ---
 
