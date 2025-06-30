@@ -1,210 +1,118 @@
-# Site Builder Migration (SBM) Tool
+# Auto-SBM New Developer Setup Guide
 
-A comprehensive, Python-based toolset for automating dealer website migrations to the DealerInspire Site Builder platform.
+Welcome to the Auto-SBM project! This guide will walk you through setting up your development environment from scratch, using only the master branch and the current project structure.
 
-## Strategic Direction: Simplicity First
+---
 
-**The SBM project is committed to a "Simplicity First" philosophy.**
+## 1. Prerequisites
 
-- The CLI is intentionally minimal, exposing only the most essential commands and options to users.
-- Advanced or complex features from the original vision (such as interactive review sessions, automated PR creation, or a full diagnostics suite) are officially deprecated unless there is clear, demonstrated user demand.
-- Only the most valuable, low-complexity enhancements—such as a basic `sbm doctor` command for system checks—will be considered for future development.
-- The focus is on reliability, maintainability, and a frictionless user experience. Unnecessary CLI arguments, automation, or configuration will be avoided.
-- This approach ensures the tool remains robust, easy to use, and maintainable for the long term.
+- **Python 3.8+** (latest 3.x recommended)
+- **Git** (with SSH access to GitHub)
+- **Docker Desktop** (for local DealerInspire platform development)
+- **GitHub CLI (`gh`)** (for PR automation)
 
-## Overview
+---
 
-The SBM tool is a command-line utility designed to automate and streamline the migration of legacy dealer themes. It provides a robust, modular, and extensible framework for handling theme migrations, ensuring consistency and reducing manual effort.
+## 2. Clone the Repository
 
-## Key Features
-
-- **Centralized SCSS Processing**: A powerful `SCSSProcessor` intelligently processes theme SCSS files. It automatically inlines mixin definitions from the parent theme and removes all `@import` statements, creating a single, self-contained SCSS file for each entry point (`sb-inside.scss`, `sb-vdp.scss`, `sb-vrp.scss`). This eliminates reliance on fragile regex and ensures styles are processed reliably.
-- **Modular OEM Support**: A factory pattern allows for easy extension and handling of OEM-specific requirements. Includes a `StellantisHandler` and a `DefaultHandler` out of the box.
-- **Robust Git Integration**: All Git operations (branching, committing, pushing) are handled safely and reliably using the `GitPython` library, not shell commands.
-- **Automated PR Creation**: Built-in GitHub Pull Request creation with intelligent content generation based on actual Git changes. Automatically assigns default reviewers (`carsdotcom/fe-dev`) and labels (`fe-dev`) with Stellantis template formatting.
-- **Dynamic Path Handling**: Relies on environment variables for pathing, making the tool portable and not tied to a specific machine's setup.
-- **Modern CLI**: A clean, user-friendly command-line interface powered by `click`.
-
-## Getting Started
-
-Follow these steps to set up and install the SBM tool.
-
-### 1. Clone the Repository
-
-If you haven't already, clone the project to your local machine:
-
-```bash
-git clone <repository-url>
+```sh
+git clone git@github.com:nate-hart-di/auto-sbm.git
 cd auto-sbm
 ```
 
-### 2. Set Up a Virtual Environment
+---
 
-It is highly recommended to use a Python virtual environment to manage dependencies.
+## 3. Set Up Python Environment
 
-```bash
+```sh
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-### 3. Install Dependencies
-
-Install all required Python packages from the `requirements.txt` file.
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Install the SBM Tool
+---
 
-To make the `sbm` command available in your terminal, install the package in "editable" mode. This links the command to your source code, so any changes are reflected immediately.
+## 4. Configuration
 
-```bash
-pip install -e .
+- If your DealerInspire platform is not at `~/di-websites-platform`, set:
+  ```sh
+  export DI_PLATFORM_PATH="/path/to/your/di-websites-platform"
+  ```
+
+---
+
+## 5. Verify Installation
+
+```sh
+sbm doctor
 ```
 
-### 5. Configure Your Environment
+- This checks your environment and reports any issues.
 
-The tool requires an environment variable to locate your DealerInspire platform directory. Create a `.env` file in the project root:
+---
 
-```bash
-touch .env
+## 6. First Migration Workflow
+
+### a. Navigate to a Dealer Theme
+
+```sh
+cd ~/di-websites-platform/dealer-themes/<dealer-slug>
 ```
 
-Then, add the following line to the `.env` file, replacing the path with the correct location on your machine:
+### b. Pre-Migration Git Setup
 
-```
-DI_WEBSITES_PLATFORM_DIR="/Users/your-user/path/to/di-websites-platform"
-```
-
-## Usage
-
-The SBM tool provides two main commands for migrating and validating themes.
-
-### Running a Migration
-
-To run the full migration process for a theme, use the `auto` command (recommended):
-
-```bash
-sbm auto <theme_name>
+```sh
+sbm setup < dealer-slug > --auto-start
 ```
 
-- **`<theme_name>`**: The slug of the dealer theme you want to migrate (e.g., `fiatofportland`).
+- Switches to `main` branch, pulls latest, prunes, creates a migration branch, adds the theme to sparse checkout, and starts Docker.
 
-**Options:**
+### c. Run Migration
 
-- `--no-create-pr`: Skip the PR creation prompt and don't create a PR
-- `--skip-just`: Skip running the 'just start' command
-- `--force-reset`: Force reset of existing Site Builder files
-- `--skip-post-migration`: Skip interactive manual review, re-validation, Git operations, and PR creation
-
-**Legacy Migration Command:**
-
-For advanced use cases, you can still use the legacy `migrate` command:
-
-```bash
-sbm migrate <theme_name>
+```sh
+sbm migrate <dealer-slug>
 ```
 
-**Options:**
+- Converts legacy SCSS to Site Builder format, replaces mixins, converts colors, creates new file structure.
 
-- `--scss-only`: Use this flag to only process the SCSS files without running the full migration workflow (Git operations, etc.).
-- `--dry-run`: Use this flag to see a preview of the changes without actually modifying any files.
+### d. Review and PR
 
-### Validating a Theme
+- You'll be prompted to review changes, commit, push, and create a PR with the correct template, reviewers, and labels.
 
-To validate the structure and SCSS syntax of an already migrated theme, use the `validate` command:
+---
 
-```bash
-sbm validate <theme_name>
+## 7. Troubleshooting
+
+- **"command not found: sbm"**: Add `~/.local/bin` to your PATH or re-run setup.
+- **GitHub CLI errors**: Run `gh auth login` and ensure you have access.
+- **Docker not starting**: Ensure Docker Desktop is running and you have access to the DealerInspire platform repo.
+- **Python version errors**: Ensure you are using Python 3.8 or higher.
+
+---
+
+## 8. Project Structure
+
+```
+auto-sbm/
+  sbm/                # Main package
+    cli.py            # CLI entry point
+    config.py         # Config management
+    core/             # Core logic (migration, git, validation)
+    scss/             # SCSS processing
+    oem/              # OEM-specific logic
+    utils/            # Utilities (logging, helpers)
+  documentation/      # Docs and guides
+  requirements.txt    # Python dependencies
+  README.md           # Main project readme
 ```
 
-### Creating GitHub Pull Requests
+---
 
-To create a GitHub Pull Request for a migrated theme, use the `pr` command:
+## 9. Contributing
 
-```bash
-sbm pr <theme_name>
-```
+- Create a feature branch for each change.
+- Use the provided PR templates and follow code review feedback.
 
-**Default Behavior:**
+---
 
-- **Prompts** after migration to create a PR (defaults to Yes)
-- Creates a **published** (non-draft) PR
-- Auto-assigns reviewer: `carsdotcom/fe-dev`
-- Auto-applies label: `fe-dev`
-- Auto-generates title and content based on Git changes using the Stellantis template
-
-**Options:**
-
-- `--draft`, `-d`: Create as draft PR instead of published
-- `--reviewers <list>`, `-r`: Override default reviewers (comma-separated)
-- `--labels <list>`, `-l`: Override default labels (comma-separated)
-- `--title <text>`, `-t`: Custom PR title (otherwise auto-generated)
-- `--body <text>`, `-b`: Custom PR body (otherwise auto-generated)
-- `--base <branch>`: Base branch for PR (default: main)
-- `--head <branch>`: Head branch for PR (default: current branch)
-
-**Examples:**
-
-```bash
-# Basic migration with PR prompt (default behavior)
-sbm auto normandinchryslerjeepdodgeramfiat
-
-# Skip PR creation entirely
-sbm auto normandinchryslerjeepdodgeramfiat --no-create-pr
-
-# Manual PR creation with all defaults
-sbm pr normandinchryslerjeepdodgeramfiat
-
-# Draft PR with defaults
-sbm pr normandinchryslerjeepdodgeramfiat --draft
-
-# Custom reviewers and labels
-sbm pr normandinchryslerjeepdodgeramfiat --reviewers "user1,user2" --labels "urgent,review"
-
-# Custom title and body
-sbm pr normandinchryslerjeepdodgeramfiat --title "Custom Title" --body "Custom description"
-```
-
-**Requirements:**
-
-- Must be run from within the `di-websites-platform` repository
-- Requires GitHub CLI (`gh`) to be installed and authenticated
-- Theme must be on a Git branch with committed changes
-
-## Project Structure
-
-The codebase is organized into a clean, modular structure:
-
-- `sbm/`: The core Python package.
-  - `cli.py`: Defines the CLI commands.
-  - `core/`: Contains the main application logic (migration workflow, Git operations, etc.).
-  - `scss/`: Contains the powerful `SCSSProcessor`.
-  - `oem/`: Contains handlers for OEM-specific logic.
-  - `utils/`: Shared helper functions for logging, pathing, etc.
-- `documentation/`: Contains all project documentation.
-- `archived/`: Contains legacy scripts and modules for historical reference.
-- `tests/`: Contains the test suite for the project.
-
-## Extending the Tool
-
-### Adding a New OEM Handler
-
-The tool is designed for easy extension. To add support for a new OEM:
-
-1.  Create a new handler file in `sbm/oem/` (e.g., `honda.py`).
-2.  Create a class that inherits from `BaseOEMHandler` (e.g., `HondaHandler`).
-3.  Implement the required methods (`get_map_styles`, `get_brand_match_patterns`, etc.).
-4.  Register your new handler in the `_handlers` list within `sbm/oem/factory.py`.
-
-## Troubleshooting
-
-- **`zsh: command not found: sbm`**: This usually means the tool wasn't installed correctly or your shell can't find it.
-  - Ensure you are in your activated virtual environment (`source .venv/bin/activate`).
-  - Try reinstalling the tool with `pip install --force-reinstall -e .`.
-- **`Error: DI_WEBSITES_PLATFORM_DIR environment variable is not set`**:
-  - Make sure you have created a `.env` file in the project root and that it contains the correct path.
-- **Git operations fail**:
-  - Ensure `GitPython` is installed correctly (`pip show gitpython`).
-  - Confirm that your machine has the necessary permissions to access the repository.
+For more details, see the `documentation/` folder and in-tool help (`sbm --help`).
