@@ -246,9 +246,19 @@ class GitOperations:
         
         what_section = "\n".join(what_items)
         
+        # Get current branch name dynamically
+        try:
+            current_branch_result = subprocess.run(
+                ['git', 'branch', '--show-current'],
+                capture_output=True, text=True, check=True,
+                cwd=get_platform_dir()
+            )
+            current_branch = current_branch_result.stdout.strip()
+        except subprocess.CalledProcessError:
+            current_branch = branch  # fallback to provided branch
+        
         # Use the Stellantis template format
         body = f"""## What
-
 {what_section}
 
 ## Why
@@ -262,7 +272,7 @@ Within the di-websites-platform directory:
 ```bash
 git checkout main
 git pull
-git checkout {branch}
+git checkout {current_branch}
 just start {slug}
 ```
 
@@ -333,36 +343,17 @@ just start {slug}
                 else:
                     what_items.append("- Created sb-inside.scss for interior page styles")
             
-            # Check for VRP migration
-            if 'sb-vrp.scss' in css_files:
-                if (Path.cwd() / "css" / "vrp.scss").exists():
-                    what_items.append("- Migrated VRP styles from vrp.scss to sb-vrp.scss")
-                else:
-                    what_items.append("- Created sb-vrp.scss for VRP styles")
-            
-            # Check for VDP migration
+            # Check for LVDP and LVRP migrations (use correct naming)
             if 'sb-vdp.scss' in css_files:
-                if (Path.cwd() / "css" / "vdp.scss").exists():
-                    what_items.append("- Migrated VDP styles from vdp.scss to sb-vdp.scss")
+                if (Path.cwd() / "css" / "lvdp.scss").exists():
+                    what_items.append("- Migrated LVRP, LVDP Styles to sb-lvrp.scss and sb-lvdp.scss")
                 else:
                     what_items.append("- Created sb-vdp.scss for VDP styles")
-            
-            # Check for LVRP/LVDP migration
-            lvrp_changed = 'sb-lvrp.scss' in css_files
-            lvdp_changed = 'sb-lvdp.scss' in css_files
-            
-            if lvrp_changed or lvdp_changed:
-                source_files = []
+            elif 'sb-vrp.scss' in css_files:
                 if (Path.cwd() / "css" / "lvrp.scss").exists():
-                    source_files.append("lvrp.scss")
-                if (Path.cwd() / "css" / "lvdp.scss").exists():
-                    source_files.append("lvdp.scss")
-                
-                if source_files:
-                    source_text = " and ".join(source_files)
-                    what_items.append(f"- Migrated LVRP/LVDP styles from {source_text} to sb-lvrp.scss and sb-lvdp.scss")
+                    what_items.append("- Migrated LVRP, LVDP Styles to sb-lvrp.scss and sb-lvdp.scss")
                 else:
-                    what_items.append("- Created sb-lvrp.scss and sb-lvdp.scss for LVRP/LVDP styles")
+                    what_items.append("- Created sb-vrp.scss for VRP styles")
             
             # Check for home page migration
             if 'sb-home.scss' in css_files:
@@ -387,13 +378,24 @@ just start {slug}
         # Build WHAT section with enhanced tracking
         what_items = []
 
-        # Automated migration items
-        what_items.extend([
-            "**🤖 Automated Migration:**",
-            "- Migrated interior page styles from inside.scss and style.scss to sb-inside.scss",
-            "- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)",
-            "- Applied standard SBM transformations and pattern matching"
-        ])
+        # Automated migration items - get actual migration analysis
+        automated_items = self._analyze_migration_changes()
+        if automated_items:
+            what_items.extend([
+                "**🤖 Automated Migration:**"
+            ])
+            what_items.extend(automated_items)
+            what_items.extend([
+                "- Applied standard SBM transformations and pattern matching"
+            ])
+        else:
+            # Fallback if analysis fails
+            what_items.extend([
+                "**🤖 Automated Migration:**",
+                "- Migrated interior page styles from style.scss and inside.scss to sb-inside.scss",
+                "- Created Site Builder SCSS files (sb-inside.scss, sb-vdp.scss, sb-vrp.scss)",
+                "- Applied standard SBM transformations and pattern matching"
+            ])
 
         # Manual refinements if any
         if user_review_result and user_review_result.get("changes_analysis", {}).get("has_manual_changes"):
@@ -447,18 +449,10 @@ Site Builder Migration with enhanced tracking of automated vs manual work.
             body += """## Development Notes
 
 This migration includes both automated and manual work:
+- **Automated**: Core SCSS transformation, file structure creation, standard pattern matching
+- **Manual**: Dealer-specific refinements, custom styling adjustments, responsive behavior tuning
 
-### 🤖 Automated Migration
-The SBM tool successfully migrated legacy styles to Site Builder format with pattern matching and transformation rules.
-
-### 👤 Manual Refinements  
-Developer made additional improvements to optimize the migration for this specific dealer's needs. These manual changes will be analyzed to improve future automation.
-
-"""
-        else:
-            body += """## Development Notes
-
-This migration was completed entirely through automation - no manual changes were required! This indicates the SBM tool is working optimally for this type of theme.
+The migration process ensures backward compatibility while optimizing for Site Builder architecture.
 
 """
 
