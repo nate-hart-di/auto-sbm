@@ -1,12 +1,10 @@
 # Ignore environment variable files
-
 .env
-.env.\*
+.env.*
 _.env
-_.env.\*
+_.env.*
 
 # Common environment/config files
-
 _.env.local
 _.env.development
 _.env.test
@@ -20,8 +18,12 @@ __pycache__/
 **pycache**/
 *.pyc
 
-# Other secrets/configs
+# Python build artifacts
+build/
+dist/
+*.egg-info/
 
+# Other secrets/configs
 _.secret
 _.secrets
 _.config.local
@@ -35,10 +37,27 @@ logs/
 tests/output/
 test-output/
 
+# Coverage reports
+.coverage
+htmlcov/
+
 # Other temporary files
 tmp/
 .DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
 
 # Archived files
 /archive/
 documentation/archive/
+
+# Node.js
+package-lock.json
+package.json
+node_modules/
+
+# Jupyter Notebooks
+*.ipynb
