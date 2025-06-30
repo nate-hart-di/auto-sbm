@@ -15,8 +15,10 @@ _.env.production
 # Python virtual environment and cache
 .venv/
 venv/
+__pycache__/
+.pytest_cache/
 **pycache**/
-\*.pyc
+*.pyc
 
 # Other secrets/configs
 
