@@ -13,6 +13,47 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def execute_interactive_command(command, error_message="Command failed", cwd=None):
+    """
+    Execute an interactive shell command that may require user input.
+    This allows commands like 'just start' to prompt for passwords and receive input.
+    
+    Args:
+        command (str): Command to execute
+        error_message (str): Message to display on error
+        cwd (str, optional): The working directory for the command. Defaults to None.
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        print(f"Executing interactive command: {command}")
+        
+        # Use subprocess.run with no redirection to allow interactive input
+        result = subprocess.run(
+            command,
+            shell=True,
+            cwd=cwd,
+            # Don't redirect stdin/stdout/stderr - let the command interact directly with terminal
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"{error_message} (exit code: {result.returncode})")
+            return False
+            
+        return True
+        
+    except KeyboardInterrupt:
+        print("\nCommand interrupted by user.")
+        return False
+    except FileNotFoundError:
+        logger.error(f"Command not found: {command.split()[0]}")
+        return False
+    except Exception as e:
+        logger.error(f"Command execution failed: {e}")
+        return False
+
+
 def execute_command(command, error_message="Command failed", wait_for_completion=True, cwd=None):
     """
     Execute a shell command and handle errors.
