@@ -43,13 +43,10 @@ def get_dealer_theme_dir(slug):
         str: Path to the dealer theme directory
         
     Raises:
-        ValueError: If the platform directory is not set or the dealer theme directory doesn't exist
+        ValueError: If the platform directory is not set
     """
     platform_dir = get_platform_dir()
     theme_dir = os.path.join(platform_dir, 'dealer-themes', slug)
-    
-    if not os.path.isdir(theme_dir):
-        raise ValueError(f"Dealer theme directory not found: {theme_dir}")
     
     return theme_dir
 
