@@ -18,6 +18,28 @@ from .maps import migrate_map_components
 from ..oem.factory import OEMFactory
 
 
+def _cleanup_snapshot_files(slug):
+    """
+    Remove any .sbm-snapshots directories and files before committing.
+    
+    Args:
+        slug (str): Dealer theme slug
+    """
+    try:
+        theme_dir = get_dealer_theme_dir(slug)
+        snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
+        
+        if os.path.exists(snapshot_dir):
+            import shutil
+            shutil.rmtree(snapshot_dir)
+            logger.info(f"Cleaned up snapshot directory: {snapshot_dir}")
+        else:
+            logger.debug(f"No snapshot directory found at: {snapshot_dir}")
+            
+    except Exception as e:
+        logger.warning(f"Could not clean up snapshot files: {e}")
+
+
 def run_just_start(slug):
     """
     Run the 'just start' command for the given slug with production database.
@@ -281,6 +303,9 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
             return False
 
     if not interactive_git or click.confirm(f"Commit all changes for {slug}?", default=True):
+        # Clean up any snapshot files before committing
+        _cleanup_snapshot_files(slug)
+        
         if not commit_changes(slug):
             logger.error("Failed to commit changes.")
             return False
