@@ -73,6 +73,34 @@ if need_setup:
         print(f"[SBM] Failed to run setup.sh: {e}")
         sys.exit(1)
 
+# --- Auto-update: Silent git pull ---
+def auto_update_repo():
+    """Silently pull the latest changes from the auto-sbm repository."""
+    try:
+        # Check if we're in a git repository
+        if not os.path.exists(os.path.join(REPO_ROOT, '.git')):
+            return  # Not a git repo, skip update
+        
+        # Perform silent git pull
+        result = subprocess.run(
+            ['git', 'pull', '--quiet'],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        # Only log if there were actual updates (not just "Already up to date")
+        if result.returncode == 0 and result.stdout.strip() and "Already up to date" not in result.stdout:
+            print("[SBM] Auto-updated to latest version.")
+        
+    except Exception:
+        # Silently fail - don't interrupt the user's workflow
+        pass
+
+# Run auto-update
+auto_update_repo()
+
 class SBMCommandGroup(click.Group):
     """A custom command group that allows running a default command."""
     def __init__(self, *args, **kwargs):
