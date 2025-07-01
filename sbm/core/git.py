@@ -135,12 +135,26 @@ class GitOperations:
             # Path to the dealer theme relative to the repo root
             theme_path = os.path.relpath(get_dealer_theme_dir(slug), get_platform_dir())
             
-            # Add all changes in the specific theme directory using subprocess
+            # Add specific files in the theme directory, excluding snapshots
             logger.info(f"Adding changes in {theme_path}")
-            add_command = f"git add {theme_path}"
-            add_success, _, _, _ = execute_command(add_command, "Failed to add changes", cwd=get_platform_dir())
-            if not add_success:
-                return False
+            
+            # Add specific SCSS files instead of the entire directory to avoid snapshots
+            scss_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+            files_added = False
+            
+            for scss_file in scss_files:
+                file_path = os.path.join(theme_path, scss_file)
+                if os.path.exists(os.path.join(get_platform_dir(), file_path)):
+                    add_command = f"git add {file_path}"
+                    add_success, _, _, _ = execute_command(add_command, f"Failed to add {scss_file}", cwd=get_platform_dir())
+                    if add_success:
+                        files_added = True
+                    else:
+                        logger.warning(f"Failed to add {scss_file}, continuing with other files")
+            
+            if not files_added:
+                logger.warning("No SCSS files were added to git")
+                return True  # Not necessarily a failure if no files to add
                 
             # Commit if there are changes to commit
             if repo.is_dirty(index=True):

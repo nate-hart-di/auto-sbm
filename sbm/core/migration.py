@@ -10,7 +10,8 @@ import click # Import click for interactive prompts
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
 from ..utils.command import execute_command, execute_interactive_command
-from .git import git_operations, commit_changes, push_changes, create_pr, create_automation_snapshot, cleanup_snapshots # Import new git functions
+from .git import git_operations, commit_changes, push_changes, create_automation_snapshot, cleanup_snapshots # Import new git functions
+from .git import create_pr as git_create_pr  # Import with alias to avoid naming conflicts
 from ..scss.processor import SCSSProcessor
 from ..scss.validator import validate_scss_files # Import SCSS validator
 from .maps import migrate_map_components
@@ -293,7 +294,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
         if not interactive_pr or click.confirm("Create a pull request?", default=True):
             logger.info("Creating pull request...")
             try:
-                pr_result = create_pr(slug=slug, branch_name=branch_name)
+                pr_result = git_create_pr(slug=slug, branch_name=branch_name)
                 
                 if pr_result and pr_result.get("success"):
                     pr_url = pr_result.get("pr_url")
