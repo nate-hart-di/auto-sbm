@@ -12,6 +12,7 @@ Welcome to Auto-SBM — the tool for automating dealer theme migrations to Site 
 - **Git** (with SSH access)
 - **GitHub CLI (`gh`)** (for PR automation)
 - **just** (for starting dealer sites)
+- **DI Websites Platform** cloned to `~/di-websites-platform` (i.e., `/Users/{youruser}/di-websites-platform`)
 
 ### 2. Setup
 
