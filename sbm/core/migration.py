@@ -10,7 +10,7 @@ import click # Import click for interactive prompts
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
 from ..utils.command import execute_command, execute_interactive_command
-from .git import git_operations, commit_changes, push_changes, create_automation_snapshot, cleanup_snapshots # Import new git functions
+from .git import git_operations, commit_changes, push_changes # Import git functions
 from .git import create_pr as git_create_pr  # Import with alias to avoid naming conflicts
 from ..scss.processor import SCSSProcessor
 from ..scss.validator import validate_scss_files # Import SCSS validator
@@ -187,8 +187,16 @@ def add_predetermined_styles(slug, oem_handler=None):
             oem_handler = OEMFactory.detect_from_theme(slug)
             logger.info(f"Using {oem_handler} for {slug}")
         
+        # Only add Stellantis styles for Stellantis dealers
+        from ..oem.stellantis import StellantisHandler
+        if not isinstance(oem_handler, StellantisHandler):
+            logger.info(f"Skipping Stellantis-specific styles for non-Stellantis dealer: {slug}")
+            return True
+        
         # 1. Add cookie banner styles (directly from source file)
-        cookie_banner_source = os.path.join(os.getcwd(), 'stellantis', 'add-to-sb-inside', 'stellantis-cookie-banner-styles.scss')
+        # Get the auto-sbm directory path
+        auto_sbm_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        cookie_banner_source = os.path.join(auto_sbm_dir, 'stellantis', 'add-to-sb-inside', 'stellantis-cookie-banner-styles.scss')
         if os.path.exists(cookie_banner_source):
             with open(cookie_banner_source, 'r') as f:
                 cookie_styles = f.read()
@@ -209,7 +217,7 @@ def add_predetermined_styles(slug, oem_handler=None):
             logger.warning(f"Cookie banner source file not found: {cookie_banner_source}")
         
         # 2. Add directions row styles (directly from source file)
-        directions_row_source = os.path.join(os.getcwd(), 'stellantis', 'add-to-sb-inside', 'stellantis-directions-row-styles.scss')
+        directions_row_source = os.path.join(auto_sbm_dir, 'stellantis', 'add-to-sb-inside', 'stellantis-directions-row-styles.scss')
         if os.path.exists(directions_row_source):
             with open(directions_row_source, 'r') as f:
                 directions_styles = f.read()
@@ -254,9 +262,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
     """
     logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Create snapshot before manual review
-    create_automation_snapshot(slug)
-    logger.info("Created automation snapshot before manual review")
+    # Manual review phase - no snapshots needed
 
     # Manual review phase
     if interactive_review:
@@ -300,9 +306,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
                     pr_url = pr_result.get("pr_url")
                     logger.info(f"Successfully created PR: {pr_url}")
                     
-                    # Clean up snapshots after successful PR creation
-                    cleanup_snapshots(slug)
-                    logger.info("Cleaned up automation snapshots")
+                    # PR created successfully
                 else:
                     error_message = pr_result.get("error", "Unknown error")
                     logger.error(f"Failed to create PR: {error_message}")

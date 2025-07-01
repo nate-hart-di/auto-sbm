@@ -420,104 +420,9 @@ class GitOperations:
         
         return manual_changes
 
-    def create_automation_snapshot(self, slug: str) -> bool:
-        """
-        Create a snapshot of the current state after automated migration but before manual review.
-        This allows us to later detect what changes were made manually.
-        """
-        try:
-            theme_dir = get_dealer_theme_dir(slug)
-            snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
-            os.makedirs(snapshot_dir, exist_ok=True)
-            
-            # Files to snapshot
-            files_to_snapshot = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
-            
-            for filename in files_to_snapshot:
-                source_path = os.path.join(theme_dir, filename)
-                if os.path.exists(source_path):
-                    snapshot_path = os.path.join(snapshot_dir, f"{filename}.automated")
-                    with open(source_path, 'r') as src, open(snapshot_path, 'w') as dst:
-                        dst.write(src.read())
-                    logger.debug(f"Created snapshot: {snapshot_path}")
-            
-            logger.info(f"Created automation snapshot for {slug}")
-            return True
-            
-        except Exception as e:
-            logger.warning(f"Failed to create automation snapshot: {e}")
-            return False
 
-    def _detect_manual_changes_from_snapshots(self, slug: str) -> Dict[str, Any]:
-        """
-        Detect manual changes by comparing current state with automation snapshots.
-        This is more accurate than analyzing git diff patterns.
-        """
-        manual_changes = {
-            'has_manual_changes': False,
-            'change_types': [],
-            'files_modified': [],
-            'estimated_manual_lines': 0,
-            'change_descriptions': [],
-            'detailed_changes': {}
-        }
-        
-        try:
-            theme_dir = get_dealer_theme_dir(slug)
-            snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
-            
-            if not os.path.exists(snapshot_dir):
-                logger.debug("No snapshots found, falling back to git diff analysis")
-                return self._detect_manual_changes()
-            
-            files_to_check = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
-            
-            for filename in files_to_check:
-                current_path = os.path.join(theme_dir, filename)
-                snapshot_path = os.path.join(snapshot_dir, f"{filename}.automated")
-                
-                if not os.path.exists(current_path) or not os.path.exists(snapshot_path):
-                    continue
-                
-                # Compare files
-                with open(current_path, 'r') as current_file, open(snapshot_path, 'r') as snapshot_file:
-                    current_content = current_file.read()
-                    snapshot_content = snapshot_file.read()
-                
-                if current_content != snapshot_content:
-                    manual_changes['has_manual_changes'] = True
-                    manual_changes['files_modified'].append(filename)
-                    
-                    # Analyze the differences
-                    current_lines = current_content.splitlines()
-                    snapshot_lines = snapshot_content.splitlines()
-                    
-                    # Simple diff analysis
-                    added_lines = []
-                    for i, line in enumerate(current_lines):
-                        if i >= len(snapshot_lines) or line != snapshot_lines[i]:
-                            added_lines.append(line)
-                    
-                    manual_changes['detailed_changes'][filename] = {
-                        'lines_added': len(added_lines),
-                        'content_added': added_lines
-                    }
-                    
-                    manual_changes['estimated_manual_lines'] += len(added_lines)
-                    
-                    # Analyze types of changes
-                    self._analyze_change_types(added_lines, manual_changes)
-            
-            # Generate descriptions
-            if manual_changes['has_manual_changes']:
-                manual_changes['change_descriptions'] = self._generate_change_descriptions(manual_changes)
-            
-        except Exception as e:
-            logger.debug(f"Error detecting manual changes from snapshots: {e}")
-            # Fallback to git diff analysis
-            return self._detect_manual_changes()
-        
-        return manual_changes
+
+
 
     def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]):
         """Analyze the types of changes made in the added lines."""
@@ -562,18 +467,7 @@ class GitOperations:
         
         return descriptions
 
-    def cleanup_snapshots(self, slug: str):
-        """Clean up snapshot files after PR creation."""
-        try:
-            theme_dir = get_dealer_theme_dir(slug)
-            snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
-            
-            if os.path.exists(snapshot_dir):
-                import shutil
-                shutil.rmtree(snapshot_dir)
-                logger.debug(f"Cleaned up snapshots for {slug}")
-        except Exception as e:
-            logger.debug(f"Failed to cleanup snapshots: {e}")
+
 
     def _build_stellantis_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str]) -> Dict[str, str]:
         """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
@@ -582,8 +476,8 @@ class GitOperations:
         # Get automated migration changes
         automated_items = self._analyze_migration_changes()
         
-        # Detect manual changes using snapshots (more accurate)
-        manual_analysis = self._detect_manual_changes_from_snapshots(slug)
+        # Detect manual changes using git diff analysis
+        manual_analysis = self._detect_manual_changes()
         
         # Build the what section
         what_items = []
@@ -824,13 +718,3 @@ def create_pr(slug, branch_name=None, **kwargs):
     """Legacy wrapper for create_pr."""
     git_ops = GitOperations(Config({}))
     return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)
-
-def create_automation_snapshot(slug):
-    """Legacy wrapper for create_automation_snapshot."""
-    git_ops = GitOperations(Config({}))
-    return git_ops.create_automation_snapshot(slug)
-
-def cleanup_snapshots(slug):
-    """Legacy wrapper for cleanup_snapshots."""
-    git_ops = GitOperations(Config({}))
-    return git_ops.cleanup_snapshots(slug)
