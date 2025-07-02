@@ -19,6 +19,252 @@ from sbm.utils.path import get_platform_dir, get_dealer_theme_dir
 from sbm.utils.helpers import get_branch_name
 
 
+class CommentIntelligence:
+    """Intelligent comment analysis to understand change intent."""
+    
+    def __init__(self):
+        self.intent_keywords = {
+            'testing': ['testing', 'test', 'experiment', 'trying', 'trial'],
+            'integration': ['adding', 'integrating', 'including', 'importing', 'merging'],
+            'fixing': ['fix', 'fixing', 'repair', 'correct', 'resolve', 'bug'],
+            'enhancement': ['improve', 'enhance', 'optimize', 'better', 'upgrade'],
+            'temporary': ['temp', 'temporary', 'quick', 'hotfix', 'placeholder'],
+            'migration': ['migrat', 'mov', 'transfer', 'port', 'convert'],
+            'customization': ['custom', 'dealer', 'brand', 'specific', 'override']
+        }
+        
+        self.automotive_terms = {
+            'vdp': 'Vehicle Detail Page',
+            'vrp': 'Vehicle Results Page', 
+            'inventory': 'Inventory Management',
+            'ctabox': 'Call-to-Action Component',
+            'premium-features': 'Premium Feature Display',
+            'incentives': 'Vehicle Incentives',
+            'badge': 'Vehicle Badge/Award',
+            'results-page': 'Search Results Page'
+        }
+    
+    def analyze_comment(self, comment_text: str) -> Dict[str, Any]:
+        """Analyze a comment to extract intent, action, and target."""
+        comment_lower = comment_text.lower().strip()
+        
+        # Remove comment markers
+        comment_clean = re.sub(r'^//\s*|^/\*\s*|\s*\*/$', '', comment_lower).strip()
+        
+        analysis = {
+            'raw_text': comment_text,
+            'clean_text': comment_clean,
+            'intent': None,
+            'action': None,
+            'target': None,
+            'automotive_context': [],
+            'confidence': 0.0,
+            'description': None
+        }
+        
+        # Extract intent
+        for intent_type, keywords in self.intent_keywords.items():
+            if any(keyword in comment_clean for keyword in keywords):
+                analysis['intent'] = intent_type
+                break
+        
+        # Extract action words
+        action_patterns = [
+            r'\b(adding|integrating|including|importing)\b',
+            r'\b(fixing|correcting|resolving)\b', 
+            r'\b(improving|enhancing|optimizing)\b',
+            r'\b(testing|experimenting)\b'
+        ]
+        
+        for pattern in action_patterns:
+            match = re.search(pattern, comment_clean)
+            if match:
+                analysis['action'] = match.group(1)
+                break
+        
+        # Extract automotive context
+        for term, description in self.automotive_terms.items():
+            if term in comment_clean:
+                analysis['automotive_context'].append({
+                    'term': term,
+                    'description': description
+                })
+        
+        # Extract target (what's being modified)
+        target_patterns = [
+            r'(vdp|vrp)\.css',
+            r'(vdp|vrp)\s+styles',
+            r'#([\w-]+)',  # CSS IDs
+            r'\.([\w-]+)',  # CSS classes
+        ]
+        
+        for pattern in target_patterns:
+            match = re.search(pattern, comment_clean)
+            if match:
+                analysis['target'] = match.group(1) if match.group(1) else match.group(0)
+                break
+        
+        # Calculate confidence and generate description
+        analysis['confidence'] = self._calculate_confidence(analysis)
+        if analysis['confidence'] > 0.5:
+            analysis['description'] = self._generate_description(analysis)
+        
+        return analysis
+    
+    def _calculate_confidence(self, analysis: Dict[str, Any]) -> float:
+        """Calculate confidence score for the analysis."""
+        confidence = 0.0
+        
+        # Base confidence from having intent
+        if analysis['intent']:
+            confidence += 0.3
+        
+        # Boost for having action
+        if analysis['action']:
+            confidence += 0.2
+        
+        # Boost for automotive context
+        if analysis['automotive_context']:
+            confidence += 0.3
+        
+        # Boost for having target
+        if analysis['target']:
+            confidence += 0.2
+        
+        return min(confidence, 1.0)
+    
+    def _generate_description(self, analysis: Dict[str, Any]) -> str:
+        """Generate human-readable description from analysis."""
+        parts = []
+        
+        # Start with action if available
+        if analysis['action']:
+            parts.append(analysis['action'].capitalize())
+        else:
+            parts.append("Modified")
+        
+        # Add target context
+        if analysis['target']:
+            if analysis['automotive_context']:
+                # Use automotive context for better description
+                auto_desc = analysis['automotive_context'][0]['description']
+                parts.append(f"{auto_desc.lower()} ({analysis['target']})")
+            else:
+                parts.append(f"styles for {analysis['target']}")
+        elif analysis['automotive_context']:
+            auto_desc = analysis['automotive_context'][0]['description']
+            parts.append(f"{auto_desc.lower()} styles")
+        
+        # Add intent context
+        if analysis['intent'] and analysis['intent'] != 'customization':
+            if analysis['intent'] == 'testing':
+                parts.append("for testing purposes")
+            elif analysis['intent'] == 'integration':
+                parts.append("integration")
+            elif analysis['intent'] == 'fixing':
+                parts.append("to resolve issues")
+        
+        return " ".join(parts)
+
+
+class CSSIntelligence:
+    """Intelligent CSS analysis to understand what selectors and properties do."""
+    
+    def __init__(self):
+        self.selector_types = {
+            # Page-specific selectors
+            '#results-page': 'Vehicle Results Page (VRP)',
+            '#lvrp-results-wrapper': 'Live Vehicle Results Page',
+            '#ctabox-premium-features': 'Premium Features CTA Component',
+            '#header': 'Site Header',
+            '#footer': 'Site Footer',
+            
+            # Component selectors
+            '.vehicle-description-text': 'Vehicle Description Content',
+            '.features-link': 'Feature Link Component',
+            '.list-group-item': 'List Item Component',
+            '.incentives': 'Vehicle Incentives Display',
+            '.badge-row': 'Vehicle Badge/Award Row',
+            '.cookie-banner': 'Cookie Consent Banner',
+            '.navbar': 'Navigation Menu',
+            '.fat-footer': 'Footer Content Area'
+        }
+        
+        self.property_purposes = {
+            'display': 'visibility control',
+            'position': 'element positioning',
+            'z-index': 'layering/stacking order',
+            'background': 'background styling',
+            'color': 'text color',
+            'border': 'border styling',
+            'padding': 'internal spacing',
+            'margin': 'external spacing',
+            'max-width': 'responsive width control',
+            'max-height': 'height constraint',
+            'overflow': 'content overflow handling',
+            'overflow-y': 'content overflow handling'
+        }
+    
+    def analyze_css_block(self, css_lines: List[str]) -> Dict[str, Any]:
+        """Analyze a block of CSS changes."""
+        analysis = {
+            'selectors': [],
+            'properties': [],
+            'purposes': [],
+            'component_type': None,
+            'business_context': None,
+            'confidence': 0.0
+        }
+        
+        # Extract selectors and properties
+        for line in css_lines:
+            line_clean = line.strip().lstrip('+').strip()
+            
+            # Extract CSS selectors
+            selector_match = re.match(r'^([#\.\w\-\s\[\]:,>+~]+)\s*\{?', line_clean)
+            if selector_match:
+                selector = selector_match.group(1).strip()
+                analysis['selectors'].append(selector)
+                
+                # Check if we know this selector
+                for known_selector, description in self.selector_types.items():
+                    if known_selector in selector:
+                        analysis['component_type'] = description
+                        break
+            
+            # Extract CSS properties
+            property_match = re.match(r'^([\w-]+)\s*:', line_clean)
+            if property_match:
+                prop = property_match.group(1)
+                analysis['properties'].append(prop)
+                
+                # Add purpose if we know it
+                if prop in self.property_purposes:
+                    purpose = self.property_purposes[prop]
+                    if purpose not in analysis['purposes']:
+                        analysis['purposes'].append(purpose)
+        
+        # Calculate confidence
+        analysis['confidence'] = self._calculate_css_confidence(analysis)
+        
+        return analysis
+    
+    def _calculate_css_confidence(self, analysis: Dict[str, Any]) -> float:
+        """Calculate confidence for CSS analysis."""
+        confidence = 0.0
+        
+        if analysis['component_type']:
+            confidence += 0.5
+        
+        if analysis['purposes']:
+            confidence += 0.3
+        
+        if analysis['selectors']:
+            confidence += 0.2
+        
+        return min(confidence, 1.0)
+
+
 class GitOperations:
     """Handles Git operations for SBM migrations."""
     
@@ -328,16 +574,15 @@ class GitOperations:
 
     def _detect_manual_changes(self) -> Dict[str, Any]:
         """
-        Detect manual changes made during the review process by analyzing git commit history
-        and diff content patterns that indicate manual refinements vs automated changes.
+        Simple, honest detection of manual changes - just count lines and let user explain.
         """
         manual_changes = {
             'has_manual_changes': False,
-            'change_types': [],
+            'change_descriptions': [],
             'files_modified': [],
             'estimated_manual_lines': 0,
-            'change_descriptions': [],
-            'added_lines': []  # Add missing key for test compatibility
+            'added_lines': [],
+            'file_line_counts': {}  # Track lines per file
         }
         
         try:
@@ -352,59 +597,40 @@ class GitOperations:
             if not diff_content.strip():
                 return manual_changes
             
-            # Patterns that suggest manual changes beyond automation
-            manual_indicators = {
-                'custom_comments': r'\+\s*\/\*.*(?:custom|manual|added|fix|tweak|adjust).*\*\/',
-                'media_queries': r'\+.*@media.*\(',
-                'pseudo_selectors': r'\+.*:(?:hover|focus|active|before|after)',
-                'custom_classes': r'\+.*\.(?:custom|manual|fix|temp|override)-',
-                'brand_specific': r'\+.*(?:brand-specific|dealer-custom)',
-                'important_overrides': r'\+.*!important',
-                'z_index_adjustments': r'\+.*z-index:\s*\d+',
-                'position_fixes': r'\+.*position:\s*(?:absolute|relative|fixed)',
-                'color_customizations': r'\+.*(?:color|background).*#[0-9a-fA-F]{3,6}',
-                'spacing_tweaks': r'\+.*(?:margin|padding).*(?:\d+px|\d+rem|\d+em)'
-            }
-            
             lines = diff_content.split('\n')
             added_lines = [line for line in lines if line.startswith('+') and not line.startswith('+++')]
-            
-            # Store added lines in the manual_changes dictionary
             manual_changes['added_lines'] = added_lines
             
-            # Analyze each added line for manual change indicators
-            for line in added_lines:
-                for change_type, pattern in manual_indicators.items():
-                    if re.search(pattern, line, re.IGNORECASE):
-                        if change_type not in manual_changes['change_types']:
-                            manual_changes['change_types'].append(change_type)
-                        manual_changes['has_manual_changes'] = True
+            if not added_lines:
+                return manual_changes
             
-            # Count estimated manual lines (heuristic)
-            manual_changes['estimated_manual_lines'] = len([
-                line for line in added_lines 
-                if any(re.search(pattern, line, re.IGNORECASE) for pattern in manual_indicators.values())
-            ])
+            # Count manual lines per file
+            current_file = None
+            for line in lines:
+                # Track which file we're in
+                if line.startswith('+++'):
+                    file_match = re.search(r'\+\+\+ b/(.+)', line)
+                    if file_match:
+                        current_file = os.path.basename(file_match.group(1))
+                        if current_file.endswith('.scss'):
+                            manual_changes['file_line_counts'][current_file] = 0
+                
+                # Count added lines for current file
+                elif line.startswith('+') and current_file and current_file.endswith('.scss'):
+                    manual_changes['file_line_counts'][current_file] += 1
             
-            # Generate human-readable descriptions - ONLY for clear, specific changes
-            type_descriptions = {
-                'custom_comments': 'Added explanatory comments for custom modifications',
-                'custom_classes': 'Created custom CSS classes for specific styling needs',
-                'brand_specific': 'Implemented brand-specific customizations',
-                'important_overrides': 'Added CSS !important overrides for specificity',
-                'z_index_adjustments': 'Fixed layering issues with z-index adjustments',
-                'position_fixes': 'Corrected element positioning'
-                # REMOVED: Generic template descriptions that don't provide meaningful information:
-                # - 'media_queries': 'Enhanced responsive design with custom media queries'
-                # - 'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)'  
-                # - 'color_customizations': 'Applied custom color schemes'
-                # - 'spacing_tweaks': 'Fine-tuned spacing and layout'
-            }
-            
-            manual_changes['change_descriptions'] = [
-                type_descriptions[change_type] for change_type in manual_changes['change_types']
-                if change_type in type_descriptions
-            ]
+            # Calculate totals
+            total_manual_lines = sum(manual_changes['file_line_counts'].values())
+            if total_manual_lines > 0:
+                manual_changes['has_manual_changes'] = True
+                manual_changes['estimated_manual_lines'] = total_manual_lines
+                
+                # Generate simple descriptions based on line counts
+                for filename, line_count in manual_changes['file_line_counts'].items():
+                    if line_count > 0:
+                        manual_changes['change_descriptions'].append(
+                            f"Manual changes to {filename} ({line_count} lines) - please add details if needed"
+                        )
             
             # Get list of files that were manually modified
             file_result = subprocess.run(
@@ -424,9 +650,7 @@ class GitOperations:
             logger.debug(f"Error detecting manual changes: {e}")
         
         return manual_changes
-
-
-
+    
 
 
     def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]):
@@ -472,8 +696,6 @@ class GitOperations:
                 descriptions.append(type_descriptions[change_type])
         
         return descriptions
-
-
 
     def _build_stellantis_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str]) -> Dict[str, str]:
         """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
