@@ -336,7 +336,8 @@ class GitOperations:
             'change_types': [],
             'files_modified': [],
             'estimated_manual_lines': 0,
-            'change_descriptions': []
+            'change_descriptions': [],
+            'added_lines': []  # Add missing key for test compatibility
         }
         
         try:
@@ -368,6 +369,9 @@ class GitOperations:
             lines = diff_content.split('\n')
             added_lines = [line for line in lines if line.startswith('+') and not line.startswith('+++')]
             
+            # Store added lines in the manual_changes dictionary
+            manual_changes['added_lines'] = added_lines
+            
             # Analyze each added line for manual change indicators
             for line in added_lines:
                 for change_type, pattern in manual_indicators.items():
@@ -382,18 +386,19 @@ class GitOperations:
                 if any(re.search(pattern, line, re.IGNORECASE) for pattern in manual_indicators.values())
             ])
             
-            # Generate human-readable descriptions
+            # Generate human-readable descriptions - ONLY for clear, specific changes
             type_descriptions = {
                 'custom_comments': 'Added explanatory comments for custom modifications',
-                'media_queries': 'Enhanced responsive design with custom media queries',
-                'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)',
                 'custom_classes': 'Created custom CSS classes for specific styling needs',
                 'brand_specific': 'Implemented brand-specific customizations',
                 'important_overrides': 'Added CSS !important overrides for specificity',
                 'z_index_adjustments': 'Fixed layering issues with z-index adjustments',
-                'position_fixes': 'Corrected element positioning',
-                'color_customizations': 'Applied custom color schemes',
-                'spacing_tweaks': 'Fine-tuned spacing and layout'
+                'position_fixes': 'Corrected element positioning'
+                # REMOVED: Generic template descriptions that don't provide meaningful information:
+                # - 'media_queries': 'Enhanced responsive design with custom media queries'
+                # - 'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)'  
+                # - 'color_customizations': 'Applied custom color schemes'
+                # - 'spacing_tweaks': 'Fine-tuned spacing and layout'
             }
             
             manual_changes['change_descriptions'] = [
@@ -446,18 +451,19 @@ class GitOperations:
                         manual_changes['change_types'].append(change_type)
 
     def _generate_change_descriptions(self, manual_changes: Dict[str, Any]) -> List[str]:
-        """Generate human-readable descriptions of the changes."""
+        """Generate human-readable descriptions of the changes - ONLY for clear, specific changes."""
         type_descriptions = {
             'custom_comments': 'Added explanatory comments for custom modifications',
-            'media_queries': 'Enhanced responsive design with custom media queries',
-            'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)',
             'custom_classes': 'Created custom CSS classes for specific styling needs',
             'brand_specific': 'Implemented brand-specific customizations',
             'important_overrides': 'Added CSS !important overrides for specificity',
             'z_index_adjustments': 'Fixed layering issues with z-index adjustments',
-            'position_fixes': 'Corrected element positioning',
-            'color_customizations': 'Applied custom color schemes',
-            'spacing_tweaks': 'Fine-tuned spacing and layout'
+            'position_fixes': 'Corrected element positioning'
+            # REMOVED: Generic template descriptions that don't provide meaningful information:
+            # - 'media_queries': 'Enhanced responsive design with custom media queries'
+            # - 'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)'  
+            # - 'color_customizations': 'Applied custom color schemes'
+            # - 'spacing_tweaks': 'Fine-tuned spacing and layout'
         }
         
         descriptions = []
@@ -489,10 +495,17 @@ class GitOperations:
             # Fallback if no changes detected
             what_items.append("- Migrated interior page styles from style.scss and inside.scss to sb-inside.scss")
         
-        # Add manual changes ONLY if they exist (simple format)
-        if manual_analysis['has_manual_changes'] and manual_analysis['change_descriptions']:
-            for description in manual_analysis['change_descriptions']:
-                what_items.append(f"- {description}")
+        # Add manual changes ONLY if they exist - with intelligent analysis
+        if manual_analysis['has_manual_changes']:
+            if manual_analysis['change_descriptions']:
+                # We have clear, identifiable changes - add specific descriptions
+                for description in manual_analysis['change_descriptions']:
+                    what_items.append(f"- {description}")
+            else:
+                # Manual changes detected but unclear what they are - prompt for details
+                manual_lines = manual_analysis.get('estimated_manual_lines', 0)
+                if manual_lines > 0:
+                    what_items.append(f"- Manual modifications added ({manual_lines} lines) - details need review")
         
         # Add FCA-specific items for Stellantis brands (only if files were actually changed)
         if automated_items and any(brand in slug.lower() for brand in ['chrysler', 'dodge', 'jeep', 'ram', 'fiat', 'cdjr', 'fca']):
@@ -544,7 +557,7 @@ just start {slug}
     def _copy_salesforce_message_to_clipboard(self, what_section: str, pr_url: str):
         """Copy Salesforce message to clipboard."""
         try:
-            salesforce_message = f"""Migration completed successfully!
+            salesforce_message = f"""FED Site Builder Migration Complete:
 
 {what_section}
 
