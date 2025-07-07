@@ -381,6 +381,13 @@ class GitOperations:
             # Path to the dealer theme relative to the repo root
             theme_path = os.path.relpath(get_dealer_theme_dir(slug), get_platform_dir())
             
+            # Clean up any snapshot files that might have been created after the initial cleanup
+            snapshot_dir = os.path.join(get_dealer_theme_dir(slug), '.sbm-snapshots')
+            if os.path.exists(snapshot_dir):
+                import shutil
+                shutil.rmtree(snapshot_dir)
+                logger.info(f"Cleaned up snapshot directory before commit: {snapshot_dir}")
+            
             # Add specific files in the theme directory, excluding snapshots
             logger.info(f"Adding changes in {theme_path}")
             
@@ -399,7 +406,7 @@ class GitOperations:
                         logger.warning(f"Failed to add {scss_file}, continuing with other files")
             
             if not files_added:
-                logger.warning("No SCSS files were added to git")
+                logger.warning("No files were added to git")
                 return True  # Not necessarily a failure if no files to add
                 
             # Commit if there are changes to commit
@@ -835,9 +842,14 @@ PR: {pr_url}"""
 
             # Get configuration values with fallbacks
             pr_base = base or getattr(self.config, 'default_branch', 'main')
-            if hasattr(self.config, 'git'):
-                pr_reviewers = reviewers or getattr(self.config.git, 'default_reviewers', ['carsdotcom/fe-dev'])
-                pr_labels = labels or getattr(self.config.git, 'default_labels', ['fe-dev'])
+            if hasattr(self.config, 'git') and self.config.git:
+                git_config = self.config.git
+                if isinstance(git_config, dict):
+                    pr_reviewers = reviewers or git_config.get('default_reviewers', ['carsdotcom/fe-dev'])
+                    pr_labels = labels or git_config.get('default_labels', ['fe-dev'])
+                else:
+                    pr_reviewers = reviewers or getattr(git_config, 'default_reviewers', ['carsdotcom/fe-dev'])
+                    pr_labels = labels or getattr(git_config, 'default_labels', ['fe-dev'])
             else:
                 pr_reviewers = reviewers or ['carsdotcom/fe-dev']
                 pr_labels = labels or ['fe-dev']
@@ -951,5 +963,14 @@ def git_operations(slug):
 
 def create_pr(slug, branch_name=None, **kwargs):
     """Legacy wrapper for create_pr."""
-    git_ops = GitOperations(Config({}))
+    from ..config import Config
+    # Initialize config with safe defaults
+    config_dict = {
+        'default_branch': 'main',
+        'git': {
+            'default_reviewers': ['carsdotcom/fe-dev'],
+            'default_labels': ['fe-dev']
+        }
+    }
+    git_ops = GitOperations(Config(config_dict))
     return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)
