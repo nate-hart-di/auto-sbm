@@ -462,7 +462,24 @@ class GitOperations:
             cmd.extend(['--label', ','.join(labels)])
 
         try:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=get_platform_dir())
+            # Set up environment with custom token if available
+            env = os.environ.copy()
+            
+            # Check for custom GitHub token in config
+            if hasattr(self.config, 'github_token') and self.config.github_token:
+                env['GH_TOKEN'] = self.config.github_token
+                logger.debug("Using custom GitHub token from config")
+            elif hasattr(self.config, 'git') and self.config.git:
+                git_config = self.config.git
+                if isinstance(git_config, dict) and 'github_token' in git_config:
+                    env['GH_TOKEN'] = git_config['github_token']
+                    logger.debug("Using custom GitHub token from git config")
+                elif hasattr(git_config, 'github_token') and git_config.github_token:
+                    env['GH_TOKEN'] = git_config.github_token
+                    logger.debug("Using custom GitHub token from git config")
+            
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True, 
+                                  cwd=get_platform_dir(), env=env)
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             error_output = e.stderr if e.stderr else str(e)
@@ -483,9 +500,22 @@ class GitOperations:
         else:
             # Fallback to gh pr list
             try:
+                # Set up environment with custom token if available
+                env = os.environ.copy()
+                
+                # Check for custom GitHub token in config
+                if hasattr(self.config, 'github_token') and self.config.github_token:
+                    env['GH_TOKEN'] = self.config.github_token
+                elif hasattr(self.config, 'git') and self.config.git:
+                    git_config = self.config.git
+                    if isinstance(git_config, dict) and 'github_token' in git_config:
+                        env['GH_TOKEN'] = git_config['github_token']
+                    elif hasattr(git_config, 'github_token') and git_config.github_token:
+                        env['GH_TOKEN'] = git_config.github_token
+                
                 list_result = subprocess.run([
                     'gh', 'pr', 'list', '--head', head_branch, '--json', 'url'
-                ], capture_output=True, text=True, check=True, cwd=get_platform_dir())
+                ], capture_output=True, text=True, check=True, cwd=get_platform_dir(), env=env)
                 pr_data = json.loads(list_result.stdout)
                 if pr_data and len(pr_data) > 0:
                     return pr_data[0]['url']
@@ -581,6 +611,76 @@ class GitOperations:
 
     def _detect_manual_changes(self) -> Dict[str, Any]:
         """
+        Detect manual changes by comparing current files with automation snapshots.
+        """
+        manual_changes = {
+            'has_manual_changes': False,
+            'change_descriptions': [],
+            'files_modified': [],
+            'estimated_manual_lines': 0,
+            'added_lines': [],
+            'file_line_counts': {}  # Track lines per file
+        }
+        
+        try:
+            # Get current working directory to find theme
+            current_dir = Path.cwd()
+            
+            # Look for snapshots directory
+            snapshot_dir = current_dir / '.sbm-snapshots'
+            if not snapshot_dir.exists():
+                logger.debug("No snapshot directory found, falling back to git diff method")
+                return self._detect_manual_changes_fallback()
+            
+            # Check each snapshot file against current file
+            migration_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+            
+            for sb_file in migration_files:
+                snapshot_file = snapshot_dir / f"{sb_file}.automated"
+                current_file = current_dir / sb_file
+                
+                if snapshot_file.exists() and current_file.exists():
+                    # Read both files
+                    snapshot_content = snapshot_file.read_text()
+                    current_content = current_file.read_text()
+                    
+                    # Compare content
+                    if snapshot_content != current_content:
+                        # Calculate line differences
+                        snapshot_lines = snapshot_content.splitlines()
+                        current_lines = current_content.splitlines()
+                        
+                        # Simple line count difference (could be more sophisticated)
+                        line_diff = len(current_lines) - len(snapshot_lines)
+                        
+                        if line_diff != 0:
+                            manual_changes['has_manual_changes'] = True
+                            manual_changes['file_line_counts'][sb_file] = abs(line_diff)
+                            manual_changes['files_modified'].append(sb_file)
+                            
+                            # Create description
+                            if line_diff > 0:
+                                manual_changes['change_descriptions'].append(
+                                    f"Manual changes to {sb_file} ({line_diff} lines added) - please add details if needed"
+                                )
+                            else:
+                                manual_changes['change_descriptions'].append(
+                                    f"Manual changes to {sb_file} ({abs(line_diff)} lines removed) - please add details if needed"
+                                )
+            
+            # Calculate total manual lines
+            manual_changes['estimated_manual_lines'] = sum(manual_changes['file_line_counts'].values())
+            
+            logger.debug(f"Snapshot comparison found {manual_changes['estimated_manual_lines']} manual lines")
+            
+        except Exception as e:
+            logger.debug(f"Error in snapshot-based manual change detection: {e}")
+            return self._detect_manual_changes_fallback()
+        
+        return manual_changes
+
+    def _detect_manual_changes_fallback(self) -> Dict[str, Any]:
+        """
         Simple, honest detection of manual changes - just count lines and let user explain.
         """
         manual_changes = {
@@ -611,7 +711,37 @@ class GitOperations:
             if not added_lines:
                 return manual_changes
             
-            # Count manual lines per file
+            # Get list of files that were changed
+            file_result = subprocess.run(
+                ['git', 'diff', '--name-status', 'main...HEAD'],
+                capture_output=True, text=True, check=True,
+                cwd=get_platform_dir()
+            )
+            
+            changed_files = file_result.stdout.strip().split('\n') if file_result.stdout.strip() else []
+            
+            # Check if files are newly created (A) vs modified (M)
+            new_files = []
+            modified_files = []
+            
+            for line in changed_files:
+                if not line.strip():
+                    continue
+                parts = line.split('\t', 1)
+                if len(parts) == 2:
+                    status, filepath = parts
+                    filename = os.path.basename(filepath)
+                    if filename.endswith('.scss'):
+                        if status == 'A':
+                            new_files.append(filename)
+                        elif status == 'M':
+                            modified_files.append(filename)
+            
+            # Only count modifications to existing files as potential manual changes
+            # New files created by migration (sb-*.scss) should not be counted as manual
+            migration_files = {'sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss'}
+            
+            # Count manual lines per file - only for modified existing files or new non-migration files
             current_file = None
             for line in lines:
                 # Track which file we're in
@@ -620,11 +750,15 @@ class GitOperations:
                     if file_match:
                         current_file = os.path.basename(file_match.group(1))
                         if current_file.endswith('.scss'):
-                            manual_changes['file_line_counts'][current_file] = 0
+                            # Only initialize count for files that aren't migration files
+                            # Exclude ALL migration files regardless of git status (A or M)
+                            if current_file not in migration_files:
+                                manual_changes['file_line_counts'][current_file] = 0
                 
-                # Count added lines for current file
+                # Count added lines for current file (only if it's not a migration file)
                 elif line.startswith('+') and current_file and current_file.endswith('.scss'):
-                    manual_changes['file_line_counts'][current_file] += 1
+                    if current_file in manual_changes['file_line_counts']:
+                        manual_changes['file_line_counts'][current_file] += 1
             
             # Calculate totals
             total_manual_lines = sum(manual_changes['file_line_counts'].values())
@@ -639,16 +773,10 @@ class GitOperations:
                             f"Manual changes to {filename} ({line_count} lines) - please add details if needed"
                         )
             
-            # Get list of files that were manually modified
-            file_result = subprocess.run(
-                ['git', 'diff', '--name-only', 'main...HEAD'],
-                capture_output=True, text=True, check=True,
-                cwd=get_platform_dir()
-            )
-            
+            # Only include modified files in the list, excluding ALL migration files
             manual_changes['files_modified'] = [
-                os.path.basename(f) for f in file_result.stdout.strip().split('\n')
-                if f.strip().endswith('.scss')
+                filename for filename in modified_files
+                if filename.endswith('.scss') and filename not in migration_files
             ]
             
         except subprocess.CalledProcessError as e:

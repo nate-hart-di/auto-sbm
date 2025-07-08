@@ -50,6 +50,49 @@ def _cleanup_snapshot_files(slug):
         logger.warning(f"Could not clean up snapshot files: {e}")
 
 
+def _create_automation_snapshots(slug):
+    """
+    Create snapshots of the automated migration output for comparison with manual changes.
+    
+    Args:
+        slug (str): Dealer theme slug
+    """
+    try:
+        theme_dir = get_dealer_theme_dir(slug)
+        snapshot_dir = os.path.join(theme_dir, '.sbm-snapshots')
+        
+        # Create snapshot directory
+        os.makedirs(snapshot_dir, exist_ok=True)
+        
+        # List of Site Builder files to snapshot
+        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        
+        snapshots_created = 0
+        for sb_file in sb_files:
+            source_path = os.path.join(theme_dir, sb_file)
+            if os.path.exists(source_path):
+                snapshot_path = os.path.join(snapshot_dir, f"{sb_file}.automated")
+                
+                # Copy the automated output to snapshot
+                with open(source_path, 'r') as source:
+                    content = source.read()
+                
+                with open(snapshot_path, 'w') as snapshot:
+                    snapshot.write(content)
+                
+                snapshots_created += 1
+                logger.debug(f"Created snapshot: {snapshot_path}")
+        
+        if snapshots_created > 0:
+            logger.info(f"Created automation snapshot for {slug}")
+            logger.info("Created automation snapshot before manual review")
+        else:
+            logger.debug(f"No Site Builder files found to snapshot for {slug}")
+            
+    except Exception as e:
+        logger.warning(f"Could not create automation snapshots: {e}")
+
+
 def run_just_start(slug):
     """
     Run the 'just start' command for the given slug with production database.
@@ -441,6 +484,9 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         logger.info(f"Map components migrated successfully for {slug}")
     
     logger.info(f"Migration completed successfully for {slug}")
+
+    # Create snapshots of the automated migration output for comparison
+    _create_automation_snapshots(slug)
 
     # Conditionally run post-migration workflow
     if interactive_review or interactive_git or interactive_pr:
