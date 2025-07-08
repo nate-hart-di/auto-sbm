@@ -319,6 +319,66 @@ def add_predetermined_styles(slug, oem_handler=None):
         return False
 
 
+def _check_prettier_available():
+    """
+    Check if prettier is available on the system.
+    
+    Returns:
+        bool: True if prettier is available, False otherwise
+    """
+    try:
+        # First check if prettier command exists
+        success, stdout, stderr, _ = execute_command(
+            "prettier --version", 
+            "Checking prettier availability", 
+            wait_for_completion=True
+        )
+        
+        if success and stdout:
+            # Parse version to ensure it's actually prettier
+            version_output = ''.join(stdout).strip()
+            if version_output and any(char.isdigit() for char in version_output):
+                logger.debug(f"Prettier version detected: {version_output}")
+                return True
+        
+        return False
+    except Exception as e:
+        logger.debug(f"Prettier not available: {e}")
+        return False
+
+
+def _format_scss_with_prettier(file_path):
+    """
+    Format an SCSS file with prettier if available.
+    
+    Args:
+        file_path (str): Path to the SCSS file to format
+        
+    Returns:
+        bool: True if formatting succeeded, False otherwise
+    """
+    try:
+        # Use prettier to format the file in place with explicit SCSS parser
+        success, stdout, stderr, _ = execute_command(
+            f"prettier --write --parser scss --tab-width 2 --single-quote '{file_path}'",
+            f"Failed to format {os.path.basename(file_path)} with prettier",
+            wait_for_completion=True
+        )
+        
+        if success:
+            return True
+        else:
+            # Log stderr for debugging if formatting failed
+            if stderr:
+                error_msg = ''.join(stderr).strip()
+                logger.debug(f"Prettier formatting error for {os.path.basename(file_path)}: {error_msg}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"Could not format {os.path.basename(file_path)} with prettier: {e}")
+        return False
+
+
 def reprocess_manual_changes(slug):
     """
     Reprocess Site Builder SCSS files after manual review to ensure consistency.
@@ -345,12 +405,19 @@ def reprocess_manual_changes(slug):
         changes_made = False
         processed_files = []
         
+        # Check if prettier is available for formatting
+        prettier_available = _check_prettier_available()
+        if prettier_available:
+            logger.info("Prettier detected - will format SCSS files after processing")
+        else:
+            logger.info("Prettier not available - using default formatting")
+        
         for sb_file in sb_files:
             file_path = os.path.join(theme_dir, sb_file)
             
             if os.path.exists(file_path):
                 # Read the current content
-                with open(file_path, 'r') as f:
+                with open(file_path, 'r', encoding='utf-8') as f:
                     original_content = f.read()
                 
                 # Skip if file is empty
@@ -362,9 +429,11 @@ def reprocess_manual_changes(slug):
                 
                 # Check if any changes were made
                 if processed_content != original_content:
-                    # Write the processed content back
-                    with open(file_path, 'w') as f:
+                    # Write the processed content back with explicit flushing
+                    with open(file_path, 'w', encoding='utf-8') as f:
                         f.write(processed_content)
+                        f.flush()  # Ensure content is written to disk
+                        os.fsync(f.fileno())  # Force write to disk
                     
                     changes_made = True
                     processed_files.append(sb_file)
@@ -373,13 +442,29 @@ def reprocess_manual_changes(slug):
                     original_lines = len(original_content.splitlines())
                     processed_lines = len(processed_content.splitlines())
                     logger.info(f"Reprocessed {sb_file}: {original_lines} → {processed_lines} lines")
+                    
+                    # Format with prettier if available
+                    if prettier_available:
+                        if _format_scss_with_prettier(file_path):
+                            logger.info(f"Formatted {sb_file} with prettier")
+                        else:
+                            logger.warning(f"Prettier formatting failed for {sb_file}, using default formatting")
+                
+                # Even if no content changes, still format with prettier if available
+                elif prettier_available:
+                    if _format_scss_with_prettier(file_path):
+                        logger.info(f"Formatted {sb_file} with prettier (no content changes)")
         
         if changes_made:
             logger.info(f"Reprocessing completed for {slug}. Files updated: {', '.join(processed_files)}")
-            return True
         else:
             logger.info(f"No reprocessing needed for {slug} - all files already properly formatted")
-            return True
+            
+        # Summary of formatting
+        if prettier_available:
+            logger.info(f"Applied prettier formatting to all {len([f for f in sb_files if os.path.exists(os.path.join(theme_dir, f))])} SCSS files")
+        
+        return True
             
     except Exception as e:
         logger.error(f"Error reprocessing manual changes for {slug}: {e}")
