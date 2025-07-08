@@ -35,6 +35,16 @@ def _cleanup_snapshot_files(slug):
             logger.info(f"Cleaned up snapshot directory: {snapshot_dir}")
         else:
             logger.debug(f"No snapshot directory found at: {snapshot_dir}")
+        
+        # Also clean up any individual .automated files that might exist
+        import glob
+        automated_files = glob.glob(os.path.join(theme_dir, "**", "*.automated"), recursive=True)
+        for file_path in automated_files:
+            try:
+                os.remove(file_path)
+                logger.info(f"Removed automated file: {file_path}")
+            except Exception as e:
+                logger.warning(f"Could not remove automated file {file_path}: {e}")
             
     except Exception as e:
         logger.warning(f"Could not clean up snapshot files: {e}")
@@ -302,13 +312,20 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
 
+    # Clean up snapshot files after manual review phase
+    logger.info("Cleaning up automation snapshots after manual review")
+    _cleanup_snapshot_files(slug)
+
     if not interactive_git or click.confirm(f"Commit all changes for {slug}?", default=True):
-        # Clean up any snapshot files before committing
+        # Clean up any snapshot files before committing - do this right before git operations
         _cleanup_snapshot_files(slug)
         
         if not commit_changes(slug):
             logger.error("Failed to commit changes.")
             return False
+        
+        # Clean up snapshots again after commit in case they were recreated
+        _cleanup_snapshot_files(slug)
     else:
         logger.info("Skipping commit.")
         return True # End workflow if user skips commit
@@ -343,17 +360,6 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
         else:
             logger.info("Skipping pull request creation.")
     
-    # Final step: Ask user if they want to run 'just start' for final validation
-    if interactive_review and click.confirm("\nDo you want to run 'just start' to visually inspect the site?", default=False):
-        logger.info(f"Running 'just start' for {slug}...")
-        just_start_success = run_just_start(slug)
-        logger.info(f"'just start' returned: {just_start_success}")
-        if not just_start_success:
-            logger.error(f"Failed to start site for {slug}")
-            return False
-        
-        logger.info(f"Site started successfully for {slug}")
-
     return True
 
 
