@@ -73,32 +73,121 @@ if need_setup:
         print(f"[SBM] Failed to run setup.sh: {e}")
         sys.exit(1)
 
-# --- Auto-update: Silent git pull ---
+# --- Auto-update: Enhanced git pull with better error handling ---
 def auto_update_repo():
-    """Silently pull the latest changes from the auto-sbm repository."""
+    """
+    Automatically pull the latest changes from the auto-sbm repository.
+    Runs at the start of every sbm command to ensure users have the latest features.
+    """
+    # Check if auto-update is disabled
+    disable_file = os.path.join(REPO_ROOT, '.sbm-no-auto-update')
+    if os.path.exists(disable_file):
+        return  # Auto-update disabled by user
+    
     try:
         # Check if we're in a git repository
-        if not os.path.exists(os.path.join(REPO_ROOT, '.git')):
+        git_dir = os.path.join(REPO_ROOT, '.git')
+        if not os.path.exists(git_dir):
             return  # Not a git repo, skip update
         
-        # Perform silent git pull
-        result = subprocess.run(
-            ['git', 'pull', '--quiet'],
+        # Check if we have network connectivity by testing git remote
+        connectivity_check = subprocess.run(
+            ['git', 'ls-remote', '--exit-code', 'origin', 'HEAD'],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=5
         )
         
-        # Only log if there were actual updates (not just "Already up to date")
-        if result.returncode == 0 and result.stdout.strip() and "Already up to date" not in result.stdout:
-            print("[SBM] Auto-updated to latest version.")
+        if connectivity_check.returncode != 0:
+            # No network or remote access, skip silently
+            return
         
+        # Check current branch and stash any local changes
+        current_branch_result = subprocess.run(
+            ['git', 'branch', '--show-current'],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if current_branch_result.returncode != 0:
+            return  # Can't determine branch, skip
+        
+        current_branch = current_branch_result.stdout.strip()
+        
+        # Only auto-update if we're on main/master branch
+        if current_branch not in ['main', 'master']:
+            return  # Don't auto-update on feature branches
+        
+        # Check if there are uncommitted changes
+        status_result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        has_changes = bool(status_result.stdout.strip())
+        stash_created = False
+        
+        if has_changes:
+            # Stash local changes
+            stash_result = subprocess.run(
+                ['git', 'stash', 'push', '-m', 'SBM auto-update stash'],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            stash_created = stash_result.returncode == 0
+        
+        # Perform git pull
+        pull_result = subprocess.run(
+            ['git', 'pull', '--quiet', 'origin', current_branch],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=15
+        )
+        
+        if pull_result.returncode == 0:
+            # Check if there were actual updates
+            if pull_result.stdout.strip() and "Already up to date" not in pull_result.stdout:
+                print("[SBM] ✅ Auto-updated to latest version.")
+            
+            # Restore stashed changes if we created a stash
+            if stash_created:
+                restore_result = subprocess.run(
+                    ['git', 'stash', 'pop'],
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if restore_result.returncode != 0:
+                    print("[SBM] ⚠️  Warning: Could not restore local changes. Check 'git stash list'.")
+        else:
+            # Pull failed, restore stash if we created one
+            if stash_created:
+                subprocess.run(
+                    ['git', 'stash', 'pop'],
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+        
+    except subprocess.TimeoutExpired:
+        # Network timeout, skip silently
+        pass
     except Exception:
-        # Silently fail - don't interrupt the user's workflow
+        # Any other error, fail silently to not interrupt user workflow
         pass
 
-# Run auto-update
+# Run auto-update at CLI initialization
 auto_update_repo()
 
 class SBMCommandGroup(click.Group):
@@ -381,6 +470,122 @@ def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publi
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         sys.exit(1)
+
+@cli.command()
+def update():
+    """
+    Manually update auto-sbm to the latest version.
+    """
+    click.echo("Manually updating auto-sbm...")
+    
+    try:
+        # Force update regardless of disable file
+        git_dir = os.path.join(REPO_ROOT, '.git')
+        if not os.path.exists(git_dir):
+            click.echo("❌ Not in a git repository. Cannot update.", err=True)
+            sys.exit(1)
+        
+        # Check current branch
+        current_branch_result = subprocess.run(
+            ['git', 'branch', '--show-current'],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if current_branch_result.returncode != 0:
+            click.echo("❌ Could not determine current branch.", err=True)
+            sys.exit(1)
+        
+        current_branch = current_branch_result.stdout.strip()
+        
+        # Stash changes if any
+        status_result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True
+        )
+        
+        has_changes = bool(status_result.stdout.strip())
+        if has_changes:
+            click.echo("Stashing local changes...")
+            subprocess.run(
+                ['git', 'stash', 'push', '-m', 'Manual SBM update stash'],
+                cwd=REPO_ROOT,
+                check=True
+            )
+        
+        # Perform git pull
+        click.echo(f"Pulling latest changes from origin/{current_branch}...")
+        pull_result = subprocess.run(
+            ['git', 'pull', 'origin', current_branch],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True
+        )
+        
+        if pull_result.returncode == 0:
+            if "Already up to date" in pull_result.stdout:
+                click.echo("✅ Already up to date.")
+            else:
+                click.echo("✅ Successfully updated to latest version.")
+            
+            # Restore stashed changes
+            if has_changes:
+                click.echo("Restoring local changes...")
+                subprocess.run(['git', 'stash', 'pop'], cwd=REPO_ROOT, check=True)
+        else:
+            click.echo(f"❌ Update failed: {pull_result.stderr}", err=True)
+            if has_changes:
+                subprocess.run(['git', 'stash', 'pop'], cwd=REPO_ROOT)
+            sys.exit(1)
+            
+    except subprocess.CalledProcessError as e:
+        click.echo(f"❌ Update failed: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ Unexpected error: {e}", err=True)
+        sys.exit(1)
+
+@cli.command()
+@click.argument('action', type=click.Choice(['enable', 'disable', 'status']))
+def auto_update(action):
+    """
+    Manage auto-update settings for auto-sbm.
+    
+    Actions:
+    - enable: Enable automatic updates (default behavior)
+    - disable: Disable automatic updates 
+    - status: Show current auto-update status
+    """
+    disable_file = os.path.join(REPO_ROOT, '.sbm-no-auto-update')
+    
+    if action == 'enable':
+        if os.path.exists(disable_file):
+            os.remove(disable_file)
+            click.echo("✅ Auto-updates enabled. SBM will automatically update at startup.")
+        else:
+            click.echo("✅ Auto-updates are already enabled.")
+    
+    elif action == 'disable':
+        if not os.path.exists(disable_file):
+            with open(disable_file, 'w') as f:
+                f.write("# This file disables auto-updates for auto-sbm\n")
+                f.write("# Delete this file or run 'sbm auto-update enable' to re-enable\n")
+            click.echo("✅ Auto-updates disabled. Run 'sbm auto-update enable' to re-enable.")
+        else:
+            click.echo("✅ Auto-updates are already disabled.")
+    
+    elif action == 'status':
+        if os.path.exists(disable_file):
+            click.echo("❌ Auto-updates are DISABLED")
+            click.echo("   Run 'sbm auto-update enable' to enable automatic updates")
+        else:
+            click.echo("✅ Auto-updates are ENABLED")
+            click.echo("   SBM will automatically update to the latest version at startup")
+            click.echo("   Run 'sbm auto-update disable' to disable automatic updates")
 
 if __name__ == '__main__':
     cli()
