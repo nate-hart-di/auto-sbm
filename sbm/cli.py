@@ -236,6 +236,28 @@ def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
 
 @cli.command()
 @click.argument('theme_name')
+def reprocess(theme_name):
+    """
+    Reprocess Site Builder SCSS files to ensure consistency.
+    
+    This command applies the same transformations as the initial migration
+    to existing Site Builder files, ensuring variables, mixins, and other
+    SCSS patterns are properly processed after manual changes.
+    """
+    click.echo(f"Reprocessing Site Builder files for {theme_name}...")
+    
+    from .core.migration import reprocess_manual_changes
+    
+    success = reprocess_manual_changes(theme_name)
+    
+    if success:
+        click.echo(f"✅ Reprocessing completed successfully for {theme_name}!")
+    else:
+        click.echo(f"❌ Reprocessing failed for {theme_name}.", err=True)
+        sys.exit(1)
+
+@cli.command()
+@click.argument('theme_name')
 def validate(theme_name):
     """Validate theme structure and SCSS syntax."""
     validate_scss_files(theme_name)

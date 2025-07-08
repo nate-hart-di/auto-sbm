@@ -319,6 +319,73 @@ def add_predetermined_styles(slug, oem_handler=None):
         return False
 
 
+def reprocess_manual_changes(slug):
+    """
+    Reprocess Site Builder SCSS files after manual review to ensure consistency.
+    
+    This function applies the same transformations as the initial migration
+    to any manual changes made by the user, ensuring variables, mixins,
+    and other SCSS patterns are properly processed.
+    
+    Args:
+        slug (str): Dealer theme slug
+        
+    Returns:
+        bool: True if reprocessing was successful, False otherwise
+    """
+    logger.info(f"Reprocessing manual changes for {slug}")
+    
+    try:
+        theme_dir = get_dealer_theme_dir(slug)
+        processor = SCSSProcessor(slug)
+        
+        # List of Site Builder files to reprocess
+        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        
+        changes_made = False
+        processed_files = []
+        
+        for sb_file in sb_files:
+            file_path = os.path.join(theme_dir, sb_file)
+            
+            if os.path.exists(file_path):
+                # Read the current content
+                with open(file_path, 'r') as f:
+                    original_content = f.read()
+                
+                # Skip if file is empty
+                if not original_content.strip():
+                    continue
+                
+                # Apply the same transformations as initial migration
+                processed_content = processor.transform_scss_content(original_content)
+                
+                # Check if any changes were made
+                if processed_content != original_content:
+                    # Write the processed content back
+                    with open(file_path, 'w') as f:
+                        f.write(processed_content)
+                    
+                    changes_made = True
+                    processed_files.append(sb_file)
+                    
+                    # Count lines for feedback
+                    original_lines = len(original_content.splitlines())
+                    processed_lines = len(processed_content.splitlines())
+                    logger.info(f"Reprocessed {sb_file}: {original_lines} → {processed_lines} lines")
+        
+        if changes_made:
+            logger.info(f"Reprocessing completed for {slug}. Files updated: {', '.join(processed_files)}")
+            return True
+        else:
+            logger.info(f"No reprocessing needed for {slug} - all files already properly formatted")
+            return True
+            
+    except Exception as e:
+        logger.error(f"Error reprocessing manual changes for {slug}: {e}")
+        return False
+
+
 def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True):
     """
     Run the post-migration workflow including manual review, git operations, and PR creation.
@@ -337,8 +404,6 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
     """
     logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Manual review phase - no snapshots needed
-
     # Manual review phase
     if interactive_review:
         click.echo("\n" + "="*80)
@@ -354,6 +419,12 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
         if not click.confirm("Continue with the migration after manual review?"):
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
+
+    # Reprocess manual changes to ensure consistency
+    logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+    if not reprocess_manual_changes(slug):
+        logger.error("Failed to reprocess manual changes.")
+        return False
 
     # Clean up snapshot files after manual review phase
     logger.info("Cleaning up automation snapshots after manual review")
