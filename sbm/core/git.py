@@ -572,6 +572,8 @@ class GitOperations:
                     source_files.append("style.scss")
                 if (current_dir / "css" / "inside.scss").exists():
                     source_files.append("inside.scss")
+                if (current_dir / "css" / "_support-requests.scss").exists():
+                    source_files.append("_support-requests.scss")
                 
                 if source_files:
                     source_text = " and ".join(source_files)
@@ -850,7 +852,7 @@ class GitOperations:
             what_items.extend(automated_items)
         else:
             # Fallback if no changes detected
-            what_items.append("- Migrated interior page styles from style.scss and inside.scss to sb-inside.scss")
+            what_items.append("- Migrated interior page styles from style.scss, inside.scss, and _support-requests.scss to sb-inside.scss")
         
         # Add manual changes ONLY if they exist - with intelligent analysis
         if manual_analysis['has_manual_changes']:

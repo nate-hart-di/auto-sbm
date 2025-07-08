@@ -180,7 +180,7 @@ def migrate_styles(slug: str) -> bool:
     Orchestrates the SCSS migration for a given theme.
     1. Finds the theme directory.
     2. Initializes the SCSS processor.
-    3. Processes the main SCSS files (style.scss, inside.scss, lvdp.scss, lvrp.scss).
+    3. Processes the main SCSS files (style.scss, inside.scss, _support-requests.scss, lvdp.scss, lvrp.scss).
     4. Writes the transformed files to the target directory.
     """
     logger.info(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
@@ -194,10 +194,11 @@ def migrate_styles(slug: str) -> bool:
 
         processor = SCSSProcessor(slug)
 
-        # Define source files - include both style.scss and inside.scss for sb-inside
+        # Define source files - include style.scss, inside.scss, and _support-requests.scss for sb-inside
         inside_sources = [
             os.path.join(source_scss_dir, 'style.scss'),
-            os.path.join(source_scss_dir, 'inside.scss')
+            os.path.join(source_scss_dir, 'inside.scss'),
+            os.path.join(source_scss_dir, '_support-requests.scss')
         ]
         # Only use lvdp.scss and lvrp.scss, not vdp.scss and vrp.scss
         vdp_sources = [os.path.join(source_scss_dir, 'lvdp.scss')]
