@@ -597,10 +597,8 @@ class GitOperations:
             
             # Check for home page migration
             if 'sb-home.scss' in css_files:
-                if (Path.cwd() / "css" / "home.scss").exists():
-                    what_items.append("- Migrated home page styles from home.scss to sb-home.scss")
-                else:
-                    what_items.append("- Created sb-home.scss for home page styles")
+                # sb-home.scss is always created blank for developer use
+                what_items.append("- Created sb-home.scss for home page styles (blank for developer use)")
             
             logger.debug(f"Analyzed {len(css_files)} CSS file changes, generated {len(what_items)} what items")
             

@@ -152,7 +152,7 @@ def create_sb_files(slug, force_reset=False):
         theme_dir = get_dealer_theme_dir(slug)
         
         # List of Site Builder files to create
-        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss']
+        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
         
         for file in sb_files:
             file_path = os.path.join(theme_dir, file)
@@ -251,11 +251,16 @@ def add_predetermined_styles(slug, oem_handler=None):
     try:
         theme_dir = get_dealer_theme_dir(slug)
         
-        # Path to the sb-inside.scss file
+        # Paths to the SCSS files
         sb_inside_path = os.path.join(theme_dir, "sb-inside.scss")
+        sb_home_path = os.path.join(theme_dir, "sb-home.scss")
         
         if not os.path.exists(sb_inside_path):
             logger.warning(f"sb-inside.scss not found for {slug}")
+            return False
+        
+        if not os.path.exists(sb_home_path):
+            logger.warning(f"sb-home.scss not found for {slug}")
             return False
         
         # Use OEM factory to get handler if not provided
@@ -269,26 +274,37 @@ def add_predetermined_styles(slug, oem_handler=None):
             logger.info(f"Skipping Stellantis-specific styles for non-Stellantis dealer: {slug}")
             return True
         
-        # 1. Add cookie banner styles (directly from source file)
+        # 1. Add cookie banner styles to both sb-inside.scss and sb-home.scss (directly from source file)
         # Get the auto-sbm directory path
         auto_sbm_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         cookie_banner_source = os.path.join(auto_sbm_dir, 'stellantis', 'add-to-sb-inside', 'stellantis-cookie-banner-styles.scss')
         if os.path.exists(cookie_banner_source):
             with open(cookie_banner_source, 'r') as f:
                 cookie_styles = f.read()
-                
-            # Check if cookie banner styles already exist
+            
+            # Add to sb-inside.scss
             with open(sb_inside_path, 'r') as f:
-                content = f.read()
+                inside_content = f.read()
                 
-            if '.cookie-banner' not in content:
-                # Append the cookie styles
+            if '.cookie-banner' not in inside_content:
                 with open(sb_inside_path, 'a') as f:
                     f.write('\n\n/* Cookie Banner Styles */\n')
                     f.write(cookie_styles)
-                logger.info("Added cookie banner styles")
+                logger.info("Added cookie banner styles to sb-inside.scss")
             else:
-                logger.info("Cookie banner styles already exist")
+                logger.info("Cookie banner styles already exist in sb-inside.scss")
+            
+            # Add to sb-home.scss
+            with open(sb_home_path, 'r') as f:
+                home_content = f.read()
+                
+            if '.cookie-banner' not in home_content:
+                with open(sb_home_path, 'a') as f:
+                    f.write('\n\n/* Cookie Banner Styles */\n')
+                    f.write(cookie_styles)
+                logger.info("Added cookie banner styles to sb-home.scss")
+            else:
+                logger.info("Cookie banner styles already exist in sb-home.scss")
         else:
             logger.warning(f"Cookie banner source file not found: {cookie_banner_source}")
         
@@ -498,6 +514,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
         click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-inside.scss")
         click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-vdp.scss")
         click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-vrp.scss")
+        click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-home.scss")
         click.echo("\nVerify the content and make any necessary manual adjustments.")
         click.echo("Once you are satisfied, proceed to the next step.")
         click.echo("="*80 + "\n")

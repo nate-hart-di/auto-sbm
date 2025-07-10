@@ -35,7 +35,8 @@ def validate_scss_files(slug: str) -> bool:
     sb_scss_files = [
         theme_dir / "sb-inside.scss",
         theme_dir / "sb-vdp.scss", 
-        theme_dir / "sb-vrp.scss"
+        theme_dir / "sb-vrp.scss",
+        theme_dir / "sb-home.scss"
     ]
     
     all_valid = True
