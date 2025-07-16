@@ -5,6 +5,8 @@ a clean, self-contained SCSS file with no external @import statements.
 """
 import os
 import re
+import subprocess
+import tempfile
 from typing import Dict, List, Optional
 
 from ..utils.logger import logger
@@ -177,7 +179,81 @@ class SCSSProcessor:
             content
         )
         
+        # MANDATORY: Verify SCSS compilation before returning
+        if not self._verify_scss_compilation(content):
+            raise Exception("SCSS compilation failed - output contains invalid SCSS syntax")
+        
         return content
+
+    def _verify_scss_compilation(self, content: str) -> bool:
+        """
+        Verify that SCSS content compiles successfully using Dart Sass.
+        Returns True if compilation succeeds, False otherwise.
+        """
+        try:
+            # Create a temporary file with the SCSS content
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.scss', delete=False) as temp_file:
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            
+            # Try to compile with Dart Sass to a temporary output file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.css', delete=False) as output_file:
+                output_file_path = output_file.name
+            
+            result = subprocess.run(
+                ['sass', '--no-source-map', temp_file_path, output_file_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            # Clean up output file
+            if os.path.exists(output_file_path):
+                os.unlink(output_file_path)
+            
+            # Clean up temporary file
+            os.unlink(temp_file_path)
+            
+            if result.returncode != 0:
+                logger.error(f"SCSS compilation failed: {result.stderr}")
+                return False
+            
+            logger.info("SCSS compilation verified successfully")
+            return True
+            
+        except subprocess.TimeoutExpired:
+            logger.error("SCSS compilation verification timed out")
+            return False
+        except FileNotFoundError:
+            # Fallback: Sass not installed, do basic regex validation
+            logger.warning("Sass compiler not found, using fallback validation")
+            return self._fallback_validation(content)
+        except Exception as e:
+            logger.error(f"SCSS compilation verification failed: {e}")
+            return False
+
+    def _fallback_validation(self, content: str) -> bool:
+        """
+        Fallback validation using regex patterns when Sass compiler is unavailable.
+        """
+        issues = []
+        
+        # Check for remaining SCSS syntax that would cause compilation failures
+        if re.search(r'@include\s+', content):
+            issues.append("@include statements found")
+        if re.search(r'\$[a-zA-Z]', content):
+            issues.append("SCSS variables found")
+        if re.search(r'(lighten|darken|mix)\(', content):
+            issues.append("SCSS functions found")
+        if re.search(r'@mixin\s+', content):
+            issues.append("@mixin definitions found")
+        
+        if issues:
+            logger.error(f"Fallback validation failed: {', '.join(issues)}")
+            return False
+        
+        logger.info("Fallback validation passed")
+        return True
 
     def transform_scss_content(self, content: str) -> str:
         """
