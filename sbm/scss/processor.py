@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir, get_common_theme_path
+from ..utils.helpers import lighten_hex, darken_hex
 from .mixin_parser import CommonThemeMixinParser
 
 class SCSSProcessor:
@@ -104,6 +105,82 @@ class SCSSProcessor:
         content = re.sub(r'@import\s+.*?;', '', content)
         return content
 
+    def _convert_scss_functions(self, content: str) -> str:
+        """
+        Convert SCSS functions to CSS-compatible equivalents.
+        
+        Handles two main cases:
+        1. SCSS functions with CSS variables (e.g., lighten(var(--primary), 20%))
+        2. SCSS functions with hardcoded colors (e.g., lighten(#252525, 2%))
+        """
+        logger.info("Converting SCSS functions to CSS-compatible equivalents...")
+        
+        # Case 1: SCSS functions with CSS variables - convert to CSS filter
+        # lighten(var(--primary), 20%) -> var(--primary); filter: brightness(1.2)
+        content = re.sub(
+            r'(\s+)color:\s*lighten\(var\(--([^)]+)\),\s*(\d+)%\);',
+            r'\1color: var(--\2);\n\1filter: brightness(1.\3);',
+            content
+        )
+        
+        # darken(var(--primary), 20%) -> var(--primary); filter: brightness(0.8)
+        content = re.sub(
+            r'(\s+)color:\s*darken\(var\(--([^)]+)\),\s*(\d+)%\);',
+            lambda m: f"{m.group(1)}color: var(--{m.group(2)});\n{m.group(1)}filter: brightness({1 - int(m.group(3))/100:.1f});",
+            content
+        )
+        
+        # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
+        # lighten(#252525, 2%) -> #2a2a2a
+        def replace_lighten(match):
+            hex_color = match.group(2)
+            percentage = int(match.group(3))
+            lightened = lighten_hex(hex_color, percentage)
+            return f"{match.group(1)}color: {lightened};"
+        
+        content = re.sub(
+            r'(\s+)color:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);',
+            replace_lighten,
+            content
+        )
+        
+        # darken(#00ccfe, 10%) -> #00b8e6
+        def replace_darken(match):
+            hex_color = match.group(2)
+            percentage = int(match.group(3))
+            darkened = darken_hex(hex_color, percentage)
+            return f"{match.group(1)}{match.group(4)}: {darkened};"
+        
+        content = re.sub(
+            r'(\s+)(background|background-color):\s*darken\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);',
+            lambda m: f"{m.group(1)}{m.group(2)}: {darken_hex(m.group(3), int(m.group(4)))};",
+            content
+        )
+        
+        # Handle background: lighten() cases
+        content = re.sub(
+            r'(\s+)background:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);',
+            lambda m: f"{m.group(1)}background: {lighten_hex(m.group(2), int(m.group(3)))};",
+            content
+        )
+        
+        # Fix malformed property declarations like "font-family: var(--weight): 300;"
+        # This separates them into proper CSS declarations
+        content = re.sub(
+            r'(\s+)font-family:\s*var\(--([^)]+)\):\s*(\d+);',
+            r'\1font-family: var(--\2);\n\1font-weight: \3;',
+            content
+        )
+        
+        # Remove any commented-out broken code patterns
+        content = re.sub(
+            r'//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);',
+            '',
+            content
+        )
+        
+        return content
+
     def transform_scss_content(self, content: str) -> str:
         """
         Performs transformations on SCSS content.
@@ -116,6 +193,9 @@ class SCSSProcessor:
 
             # Step 2: Convert relative image paths to absolute paths
             content = self._convert_image_paths(content)
+
+            # Step 2.5: Convert SCSS functions to CSS-compatible equivalents
+            content = self._convert_scss_functions(content)
 
             # Step 3: Convert all @include mixins using the intelligent parser
             logger.info("Converting mixins to CSS...")

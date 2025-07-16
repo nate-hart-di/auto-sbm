@@ -47,6 +47,7 @@ tmp/
 Thumbs.db
 
 # Editor folders
+issue-tracker/
 .vscode/
 .idea/
 

@@ -895,6 +895,13 @@ def _handle_color_classes(mixin_name, args, content):
         return ""
     
     name, hex_color = args[:2]
+    
+    # Import the color utility functions
+    from ..utils.helpers import lighten_hex
+    
+    # Pre-calculate lightened color to avoid SCSS function compilation issues
+    lightened_color = lighten_hex(hex_color, 10)
+    
     return f""".{name},
 .{name}-color {{
   color: {hex_color};
@@ -902,7 +909,7 @@ def _handle_color_classes(mixin_name, args, content):
 
 a.{name}:hover,
 a.{name}-color:hover {{
-  color: lighten({hex_color}, 10%);
+  color: {lightened_color};
 }}
 
 .{name}-background {{

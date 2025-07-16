@@ -85,4 +85,99 @@ def extract_nested_rule(content, selector):
         # Return the full match including selector and braces
         return match.group(0)
     
-    return "" 
+    return ""
+
+
+def hex_to_rgb(hex_color):
+    """
+    Convert hex color to RGB tuple.
+    
+    Args:
+        hex_color (str): Hex color string (e.g., "#ff0000" or "ff0000")
+        
+    Returns:
+        tuple: RGB tuple (r, g, b) or None if invalid
+    """
+    hex_color = hex_color.lstrip('#')
+    
+    if len(hex_color) == 3:
+        # Expand shorthand (e.g., "f0f" -> "ff00ff")
+        hex_color = ''.join([c*2 for c in hex_color])
+    
+    if len(hex_color) != 6:
+        return None
+    
+    try:
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+        return (r, g, b)
+    except ValueError:
+        return None
+
+
+def rgb_to_hex(r, g, b):
+    """
+    Convert RGB tuple to hex color string.
+    
+    Args:
+        r (int): Red component (0-255)
+        g (int): Green component (0-255)
+        b (int): Blue component (0-255)
+        
+    Returns:
+        str: Hex color string (e.g., "#ff0000")
+    """
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def lighten_hex(hex_color, percentage):
+    """
+    Lighten a hex color by a given percentage.
+    
+    Args:
+        hex_color (str): Hex color string (e.g., "#252525")
+        percentage (int): Percentage to lighten (0-100)
+        
+    Returns:
+        str: Lightened hex color string or original if invalid
+    """
+    rgb = hex_to_rgb(hex_color)
+    if not rgb:
+        return hex_color
+    
+    r, g, b = rgb
+    factor = percentage / 100.0
+    
+    # Lighten by moving closer to white (255)
+    r = min(255, int(r + (255 - r) * factor))
+    g = min(255, int(g + (255 - g) * factor))
+    b = min(255, int(b + (255 - b) * factor))
+    
+    return rgb_to_hex(r, g, b)
+
+
+def darken_hex(hex_color, percentage):
+    """
+    Darken a hex color by a given percentage.
+    
+    Args:
+        hex_color (str): Hex color string (e.g., "#00ccfe")
+        percentage (int): Percentage to darken (0-100)
+        
+    Returns:
+        str: Darkened hex color string or original if invalid
+    """
+    rgb = hex_to_rgb(hex_color)
+    if not rgb:
+        return hex_color
+    
+    r, g, b = rgb
+    factor = percentage / 100.0
+    
+    # Darken by moving closer to black (0)
+    r = max(0, int(r * (1 - factor)))
+    g = max(0, int(g * (1 - factor)))
+    b = max(0, int(b * (1 - factor)))
+    
+    return rgb_to_hex(r, g, b) 
