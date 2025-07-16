@@ -322,41 +322,104 @@ def _handle_placeholder_color(mixin_name, args, content):
 }}"""
 
 def _handle_absolute(mixin_name, args, content):
-    """Handle @include absolute"""
-    return "position: absolute;"
+    """Handle @include absolute($directions) - absolute positioning with direction parameters"""
+    return _handle_positioning("absolute", args, content)
 
 def _handle_relative(mixin_name, args, content):
-    """Handle @include relative"""
-    return "position: relative;"
+    """Handle @include relative($directions) - relative positioning with direction parameters"""
+    return _handle_positioning("relative", args, content)
 
 def _handle_fixed(mixin_name, args, content):
-    """Handle @include fixed"""
-    return "position: fixed;"
+    """Handle @include fixed($directions) - fixed positioning with direction parameters"""
+    return _handle_positioning("fixed", args, content)
+
+def _handle_positioning(position_type, args, content):
+    """Handle positioning mixins with direction parameters like (top: 10px, left: 20px)"""
+    result = f"position: {position_type};"
+    
+    # If no arguments, just return the position
+    if not args:
+        return result
+        
+    # Parse direction arguments - they come as a single string like "(top: 10px, left: 20px)"
+    if args and len(args) > 0:
+        directions_str = args[0]
+        # Remove parentheses and split by comma
+        directions_str = directions_str.strip('()')
+        if directions_str:
+            directions = directions_str.split(',')
+            for direction in directions:
+                direction = direction.strip()
+                if ':' in direction:
+                    prop, value = direction.split(':', 1)
+                    prop = prop.strip()
+                    value = value.strip()
+                    result += f"\n{prop}: {value};"
+    
+    return result
 
 def _handle_centering(mixin_name, args, content):
-    """Handle @include centering($position, $percent)"""
-    position = args[0] if args else "both"
-    percent = args[1] if len(args) > 1 else "50%"
+    """Handle @include centering($from, $amount, $sides) - matches actual CommonTheme mixin"""
+    from_param = args[0] if args else "top"
+    amount = args[1] if len(args) > 1 else "50%"
+    sides = args[2] if len(args) > 2 else "undefined"
     
-    if position == "top":
-        return f"""position: absolute;
-top: {percent};
-transform: translateY(-{percent});
--webkit-transform: translateY(-{percent});
--moz-transform: translateY(-{percent});
--o-transform: translateY(-{percent});
--ms-transform: translateY(-{percent});"""
-    elif position == "both":
-        return f"""position: absolute;
-top: {percent};
-left: {percent};
-transform: translate(-{percent}, -{percent});
--webkit-transform: translate(-{percent}, -{percent});
--moz-transform: translate(-{percent}, -{percent});
--o-transform: translate(-{percent}, -{percent});
--ms-transform: translate(-{percent}, -{percent});"""
+    # Handle the different centering modes based on the actual mixin logic
+    result = "position: absolute;"
+    
+    if from_param == "top":
+        result += f"""
+top: {amount};
+transform: translateY(-{amount});
+-webkit-transform: translateY(-{amount});
+-moz-transform: translateY(-{amount});
+-o-transform: translateY(-{amount});
+-ms-transform: translateY(-{amount});"""
+    elif from_param == "bottom":
+        result += f"""
+bottom: {amount};
+transform: translateY({amount});
+-webkit-transform: translateY({amount});
+-moz-transform: translateY({amount});
+-o-transform: translateY({amount});
+-ms-transform: translateY({amount});"""
+    elif from_param == "left":
+        result += f"""
+left: {amount};
+transform: translateX(-{amount});
+-webkit-transform: translateX(-{amount});
+-moz-transform: translateX(-{amount});
+-o-transform: translateX(-{amount});
+-ms-transform: translateX(-{amount});"""
+    elif from_param == "right":
+        result += f"""
+right: {amount};
+transform: translateX({amount});
+-webkit-transform: translateX({amount});
+-moz-transform: translateX({amount});
+-o-transform: translateX({amount});
+-ms-transform: translateX({amount});"""
+    elif from_param == "both":
+        result += f"""
+top: {amount};
+left: {amount};
+transform: translate(-{amount}, -{amount});
+-webkit-transform: translate(-{amount}, -{amount});
+-moz-transform: translate(-{amount}, -{amount});
+-o-transform: translate(-{amount}, -{amount});
+-ms-transform: translate(-{amount}, -{amount});"""
     else:
-        return "position: absolute;"
+        # Default to both directions
+        result += f"""
+top: {amount};
+left: {amount};
+transform: translate(-{amount}, -{amount});
+-webkit-transform: translate(-{amount}, -{amount});
+-moz-transform: translate(-{amount}, -{amount});
+-o-transform: translate(-{amount}, -{amount});
+-ms-transform: translate(-{amount}, -{amount});"""
+    
+    return result
 
 def _handle_pz_font_defaults(mixin_name, args, content):
     """Handle @include pz-font-defaults() - personalizer font defaults (FIXED)"""
@@ -896,11 +959,14 @@ def _handle_color_classes(mixin_name, args, content):
     
     name, hex_color = args[:2]
     
-    # Import the color utility functions
-    from ..utils.helpers import lighten_hex
-    
-    # Pre-calculate lightened color to avoid SCSS function compilation issues
-    lightened_color = lighten_hex(hex_color, 10)
+    # Check if hex_color is a CSS variable (starts with var(--))
+    if hex_color.startswith('var(--'):
+        # For CSS variables, use the -lighten variant as per the original mixin
+        hover_color = f"var(--{name}-lighten)"
+    else:
+        # For actual hex colors, pre-calculate lightened color to avoid SCSS function compilation issues
+        from ..utils.helpers import lighten_hex
+        hover_color = lighten_hex(hex_color, 10)
     
     return f""".{name},
 .{name}-color {{
@@ -909,7 +975,7 @@ def _handle_color_classes(mixin_name, args, content):
 
 a.{name}:hover,
 a.{name}-color:hover {{
-  color: {lightened_color};
+  color: {hover_color};
 }}
 
 .{name}-background {{
