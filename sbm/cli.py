@@ -243,47 +243,106 @@ def cli(ctx, verbose, config_path):
     ctx.obj['config'] = config
     ctx.obj['logger'] = logger
 
-@cli.command(hidden=True)
-@click.argument('theme_name', required=False)
-@click.option('--config', 'config_path', default='config.json', help='Path to config file.')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
-@click.option('--scss-only', is_flag=True, help='Only process SCSS files')
-def migrate(theme_name, config_path, dry_run, scss_only):
-    """Migrate a theme from Site Builder to custom theme structure."""
-    config = None
+@cli.command()
+@click.argument('theme_name')
+@click.option('--force-reset', is_flag=True, help="Force reset of existing Site Builder files.")
+@click.option('--skip-maps', is_flag=True, help="Skip map components migration.")
+def migrate(theme_name, force_reset, skip_maps):
+    """
+    Migrate a dealer theme SCSS files to Site Builder format.
     
-    if os.path.exists(config_path):
-        try:
-            config = get_config(config_path)
-            theme_name = config.get_setting('dealer_id')
-        except ConfigurationError as e:
-            click.echo(f"Configuration error: {e}", err=True)
-            sys.exit(1)
+    This command runs the core migration steps (create files, migrate styles, add predetermined styles,
+    migrate maps) followed by manual review and post-migration validation/formatting.
     
-    if not theme_name:
-        click.echo("Error: A theme name must be provided either as an argument or in a config file.", err=True)
+    This does NOT include Git operations, Docker container management, or PR creation.
+    Use 'sbm auto' for the full automated workflow including Git and PR operations.
+    """
+    from sbm.core.migration import (
+        create_sb_files, 
+        migrate_styles, 
+        add_predetermined_styles,
+        migrate_map_components,
+        reprocess_manual_changes,
+        _create_automation_snapshots,
+        _cleanup_snapshot_files
+    )
+    from sbm.oem.factory import OEMFactory
+    
+    click.echo(f"Starting SCSS migration for {theme_name}...")
+    
+    # Create the appropriate OEM handler for this slug
+    oem_handler = OEMFactory.detect_from_theme(theme_name)
+    logger.info(f"Using {oem_handler} for {theme_name}")
+    
+    # Step 1: Create Site Builder files
+    logger.info(f"Step 1/4: Creating Site Builder files for {theme_name}...")
+    if not create_sb_files(theme_name, force_reset):
+        logger.error(f"Failed to create Site Builder files for {theme_name}")
+        click.echo(f"❌ Failed to create Site Builder files for {theme_name}.", err=True)
         sys.exit(1)
-        
-    if dry_run:
-        click.echo("DRY RUN: SCSS migration would be performed for theme: " + theme_name)
-        return
-
-    if scss_only:
-        click.echo(f"Processing SCSS migration for {theme_name}...")
-        from sbm.core.migration import migrate_styles
-        if not migrate_styles(theme_name):
-            click.echo("SCSS migration failed.", err=True)
+    
+    # Step 2: Migrate styles
+    logger.info(f"Step 2/4: Migrating styles for {theme_name}...")
+    if not migrate_styles(theme_name):
+        logger.error(f"Failed to migrate styles for {theme_name}")
+        click.echo(f"❌ Failed to migrate styles for {theme_name}.", err=True)
+        sys.exit(1)
+    
+    # Step 3: Add predetermined styles
+    logger.info(f"Step 3/4: Adding predetermined styles for {theme_name}...")
+    if not add_predetermined_styles(theme_name):
+        logger.error(f"Failed to add predetermined styles for {theme_name}")
+        click.echo(f"❌ Failed to add predetermined styles for {theme_name}.", err=True)
+        sys.exit(1)
+    
+    # Step 4: Migrate map components if not skipped
+    if not skip_maps:
+        logger.info(f"Step 4/4: Migrating map components for {theme_name}...")
+        if not migrate_map_components(theme_name, oem_handler):
+            logger.error(f"Failed to migrate map components for {theme_name}")
+            click.echo(f"❌ Failed to migrate map components for {theme_name}.", err=True)
             sys.exit(1)
-        else:
-            click.echo(f"SCSS migration completed successfully for {theme_name}.")
+        logger.info(f"Map components migrated successfully for {theme_name}")
     else:
-        click.echo(f"Starting full migration for {theme_name}...")
-        success = migrate_dealer_theme(theme_name)
-        if success:
-            click.echo(f"Full migration completed successfully for {theme_name}!")
-        else:
-            click.echo(f"Full migration failed for {theme_name}.", err=True)
-            sys.exit(1)
+        logger.info(f"Step 4/4: Skipping map components migration for {theme_name}")
+    
+    logger.info(f"Migration completed successfully for {theme_name}")
+    
+    # Create snapshots of the automated migration output for comparison
+    _create_automation_snapshots(theme_name)
+    logger.info("Created automation snapshot before manual review")
+    
+    # Manual review phase
+    click.echo("\n" + "="*80)
+    click.echo(f"Manual Review Required for {theme_name}")
+    click.echo("Please review the migrated SCSS files in your theme directory:")
+    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-inside.scss")
+    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-vdp.scss")
+    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-vrp.scss")
+    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-home.scss")
+    click.echo("\nVerify the content and make any necessary manual adjustments.")
+    click.echo("Once you are satisfied, proceed to the next step.")
+    click.echo("="*80 + "\n")
+    
+    if not click.confirm("Continue with the migration after manual review?"):
+        logger.info("Migration stopped by user after manual review.")
+        click.echo("Migration stopped by user.")
+        return
+    
+    # Reprocess manual changes to ensure consistency (includes validation, fixing issues, prettier formatting)
+    logger.info(f"Reprocessing manual changes for {theme_name} to ensure consistency...")
+    if not reprocess_manual_changes(theme_name):
+        logger.error("Failed to reprocess manual changes.")
+        click.echo("❌ Failed to reprocess manual changes.", err=True)
+        sys.exit(1)
+    
+    # Clean up snapshot files after manual review phase
+    logger.info("Cleaning up automation snapshots after manual review")
+    _cleanup_snapshot_files(theme_name)
+    
+    click.echo(f"✅ SCSS migration completed successfully for {theme_name}!")
+    click.echo("Files have been validated, issues fixed, and formatted with prettier.")
+    click.echo("You can now review the final files and commit them when ready.")
 
 @cli.command()
 @click.argument('theme_name')
