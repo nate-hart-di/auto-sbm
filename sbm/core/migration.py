@@ -743,20 +743,48 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
             if len(compiled_files) < len(test_files):
                 time.sleep(1)
         
-        # Step 4: Check Docker container logs for compilation errors
+        # Step 4: Wait for full Gulp cycle completion and check logs
         try:
-            result = subprocess.run([
-                'docker', 'logs', '--tail', '100', 'dealerinspire_legacy_assets'
-            ], capture_output=True, text=True, timeout=10)
+            # Wait for both 'sass' and 'processCss' to complete
+            logger.info("Waiting for full Gulp cycle (sass + processCss) to complete...")
             
-            if result.returncode == 0 and result.stdout:
-                recent_logs = result.stdout.lower()
-                for test_filename, _ in test_files:
-                    if test_filename.lower() in recent_logs and ('error' in recent_logs or 'failed' in recent_logs):
-                        logger.error(f"Compilation error detected in Docker logs for {test_filename}")
-                        return False
+            max_wait_full_cycle = 15  # Additional time for full cycle
+            cycle_start = time.time()
+            sass_completed = False
+            process_css_completed = False
+            
+            while (time.time() - cycle_start) < max_wait_full_cycle:
+                result = subprocess.run([
+                    'docker', 'logs', '--tail', '20', 'dealerinspire_legacy_assets'
+                ], capture_output=True, text=True, timeout=5)
+                
+                if result.returncode == 0 and result.stdout:
+                    recent_logs = result.stdout.lower()
+                    
+                    # Check for completion markers
+                    if "finished 'sass'" in recent_logs:
+                        sass_completed = True
+                    if "finished 'processcss'" in recent_logs:
+                        process_css_completed = True
+                    
+                    # Check for errors
+                    for test_filename, _ in test_files:
+                        if test_filename.lower() in recent_logs and ('error' in recent_logs or 'failed' in recent_logs):
+                            logger.error(f"Compilation error detected in Docker logs for {test_filename}")
+                            return False
+                    
+                    # Break if full cycle is complete
+                    if sass_completed and process_css_completed:
+                        logger.info("✅ Full Gulp cycle (sass + processCss) completed successfully")
+                        break
+                
+                time.sleep(1)
+            
+            if not (sass_completed and process_css_completed):
+                logger.warning("Full Gulp cycle may not have completed within timeout")
+                
         except Exception as e:
-            logger.warning(f"Could not check Docker logs: {e}")
+            logger.warning(f"Could not monitor Docker logs for full cycle: {e}")
         
         # Step 5: Verify compilation success
         compilation_success = len(compiled_files) == len(test_files)
@@ -774,9 +802,10 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         return False
         
     finally:
-        # Step 6: Clean up test files FIRST (they're untracked), THEN reset CSS directory
+        # Step 6: Cleanup sequence to avoid triggering additional compilations
         try:
-            # Remove untracked test files first
+            # First: Remove untracked test files (this will trigger Gulp to compile again)
+            logger.info("Removing test files...")
             for test_filename, scss_path in test_files:
                 try:
                     # Remove test SCSS file
@@ -794,7 +823,38 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
                 except Exception as e:
                     logger.warning(f"Error removing test file {test_filename}: {e}")
             
-            # Then reset CSS directory to undo any changes to tracked files
+            # Second: Wait for Gulp to finish the cleanup compilation cycle
+            logger.info("Waiting for Gulp cleanup cycle to complete...")
+            time.sleep(5)  # Give Gulp time to process file removals
+            
+            try:
+                cleanup_wait = 10
+                cleanup_start = time.time()
+                cleanup_sass_done = False
+                cleanup_process_done = False
+                
+                while (time.time() - cleanup_start) < cleanup_wait:
+                    result = subprocess.run([
+                        'docker', 'logs', '--tail', '10', 'dealerinspire_legacy_assets'
+                    ], capture_output=True, text=True, timeout=5)
+                    
+                    if result.returncode == 0 and result.stdout:
+                        recent_logs = result.stdout.lower()
+                        if "finished 'sass'" in recent_logs:
+                            cleanup_sass_done = True
+                        if "finished 'processcss'" in recent_logs:
+                            cleanup_process_done = True
+                        
+                        if cleanup_sass_done and cleanup_process_done:
+                            logger.info("✅ Gulp cleanup cycle completed")
+                            break
+                    
+                    time.sleep(1)
+                    
+            except Exception as e:
+                logger.warning(f"Could not monitor cleanup cycle: {e}")
+            
+            # Third: Reset CSS directory to undo any changes to tracked files
             result = subprocess.run([
                 'git', 'checkout', 'HEAD', 'css/'
             ], cwd=theme_dir, capture_output=True, text=True, timeout=10)
