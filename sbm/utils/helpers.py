@@ -180,4 +180,4 @@ def darken_hex(hex_color, percentage):
     g = max(0, int(g * (1 - factor)))
     b = max(0, int(b * (1 - factor)))
     
-    return rgb_to_hex(r, g, b) 
+    return rgb_to_hex(r, g, b)

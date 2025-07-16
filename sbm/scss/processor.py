@@ -115,12 +115,13 @@ class SCSSProcessor:
         """
         logger.info("Converting SCSS functions to CSS-compatible equivalents...")
         
-        # Case 1: SCSS functions with CSS variables - should not occur if mixins are handled properly
-        # Log a warning if we encounter these patterns as they indicate mixin parsing issues
-        if re.search(r'lighten\(var\(--[^)]+\),\s*\d+%\)', content):
-            logger.warning("Found lighten() with CSS variables - this should be handled by mixin parsing")
-        if re.search(r'darken\(var\(--[^)]+\),\s*\d+%\)', content):
-            logger.warning("Found darken() with CSS variables - this should be handled by mixin parsing")
+        # Case 1: SCSS functions with CSS variables - convert to CSS-compatible equivalents
+        # These appear in raw SCSS content (not from mixins) and need to be handled
+        
+        # Convert SCSS variables to CSS variables
+        # $primary -> var(--primary)
+        content = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_-]*)', r'var(--\1)', content)
+        
         
         # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
         # lighten(#252525, 2%) -> #2a2a2a
