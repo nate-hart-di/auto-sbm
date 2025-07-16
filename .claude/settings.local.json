@@ -4,7 +4,8 @@
       "Bash(sbm migrate:*)",
       "Bash(python:*)",
       "Bash(grep:*)",
-      "Bash(sass --version)"
+      "Bash(sass --version)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

@@ -50,6 +50,7 @@ Thumbs.db
 issue-tracker/
 .vscode/
 .idea/
+.claude/
 
 # Archived files
 /archive/
