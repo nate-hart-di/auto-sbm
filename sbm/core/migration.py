@@ -774,9 +774,27 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         return False
         
     finally:
-        # Step 6: Clean up using git reset for CSS directory
+        # Step 6: Clean up test files FIRST (they're untracked), THEN reset CSS directory
         try:
-            # Reset CSS directory to original state to undo any Gulp compilation changes
+            # Remove untracked test files first
+            for test_filename, scss_path in test_files:
+                try:
+                    # Remove test SCSS file
+                    if os.path.exists(scss_path):
+                        os.remove(scss_path)
+                        logger.info(f"Removed test SCSS file: {test_filename}")
+                    
+                    # Remove generated CSS file
+                    css_filename = test_filename.replace('.scss', '.css')
+                    css_path = os.path.join(css_dir, css_filename)
+                    if os.path.exists(css_path):
+                        os.remove(css_path)
+                        logger.info(f"Removed generated CSS file: {css_filename}")
+                        
+                except Exception as e:
+                    logger.warning(f"Error removing test file {test_filename}: {e}")
+            
+            # Then reset CSS directory to undo any changes to tracked files
             result = subprocess.run([
                 'git', 'checkout', 'HEAD', 'css/'
             ], cwd=theme_dir, capture_output=True, text=True, timeout=10)
@@ -785,28 +803,6 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
                 logger.info("✅ CSS directory reset to original state using git checkout")
             else:
                 logger.warning(f"Git checkout of CSS directory failed: {result.stderr}")
-                
-                # Fallback: manually remove test files
-                for test_filename, scss_path in test_files:
-                    try:
-                        if os.path.exists(scss_path):
-                            os.remove(scss_path)
-                        
-                        css_filename = test_filename.replace('.scss', '.css')
-                        css_path = os.path.join(css_dir, css_filename)
-                        if os.path.exists(css_path):
-                            os.remove(css_path)
-                            
-                    except Exception as e:
-                        logger.warning(f"Error cleaning up {test_filename}: {e}")
                         
         except Exception as e:
             logger.warning(f"Error during CSS directory cleanup: {e}")
-            
-            # Final fallback: manual cleanup
-            for test_filename, scss_path in test_files:
-                try:
-                    if os.path.exists(scss_path):
-                        os.remove(scss_path)
-                except Exception as cleanup_error:
-                    logger.warning(f"Error in final cleanup of {test_filename}: {cleanup_error}")
