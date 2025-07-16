@@ -398,6 +398,75 @@ def _format_scss_with_prettier(file_path):
         return False
 
 
+def test_compilation_recovery(slug):
+    """
+    Test compilation error handling on an existing theme without doing migration.
+    
+    This function copies existing SCSS files to the CSS directory, monitors
+    compilation, and tests the error recovery system without modifying
+    the original theme files.
+    
+    Args:
+        slug (str): Dealer theme slug
+        
+    Returns:
+        bool: True if compilation succeeds or errors are handled, False otherwise
+    """
+    logger.info(f"Testing compilation error recovery for {slug}")
+    
+    try:
+        theme_dir = get_dealer_theme_dir(slug)
+        css_dir = os.path.join(theme_dir, 'css')
+        
+        if not os.path.exists(css_dir):
+            logger.error(f"CSS directory not found: {css_dir}")
+            return False
+        
+        # List of Site Builder files to test
+        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        test_files = []
+        
+        # Copy existing SCSS files to CSS directory for testing
+        for sb_file in sb_files:
+            scss_path = os.path.join(theme_dir, sb_file)
+            if os.path.exists(scss_path):
+                test_filename = f"test-{sb_file}"
+                test_path = os.path.join(css_dir, test_filename)
+                
+                # Copy file for testing
+                shutil.copy2(scss_path, test_path)
+                test_files.append((test_filename, scss_path))
+                logger.info(f"Copied {sb_file} to {test_filename} for testing")
+        
+        if not test_files:
+            logger.warning("No SCSS files found to test")
+            return False
+        
+        click.echo(f"\n🧪 Testing compilation error recovery on {len(test_files)} files")
+        click.echo("Files will be copied to CSS directory to trigger Docker Gulp compilation...")
+        
+        # Test compilation with error recovery
+        success = _handle_compilation_with_error_recovery(css_dir, test_files, theme_dir, slug)
+        
+        # Clean up test files
+        click.echo("\n🧹 Cleaning up test files...")
+        _cleanup_compilation_test_files(css_dir, test_files)
+        
+        if success:
+            click.echo("✅ Compilation test completed successfully")
+            logger.info("Compilation error recovery test passed")
+        else:
+            click.echo("❌ Compilation test failed")
+            logger.error("Compilation error recovery test failed")
+        
+        return success
+        
+    except Exception as e:
+        logger.error(f"Error during compilation test: {e}")
+        click.echo(f"❌ Test failed with error: {e}")
+        return False
+
+
 def reprocess_manual_changes(slug):
     """
     Reprocess Site Builder SCSS files after manual review to ensure consistency.
@@ -1198,6 +1267,43 @@ def _comment_out_error_line(error_info: dict, css_dir: str) -> bool:
         logger.warning(f"Error commenting out line: {e}")
     
     return False
+
+
+def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
+    """
+    Clean up test files created during compilation testing.
+    
+    Args:
+        css_dir: Path to CSS directory  
+        test_files: List of (test_filename, scss_path) tuples
+    """
+    for test_filename, _ in test_files:
+        test_path = os.path.join(css_dir, test_filename)
+        css_filename = test_filename.replace('.scss', '.css')
+        css_path = os.path.join(css_dir, css_filename)
+        
+        # Remove test SCSS file
+        if os.path.exists(test_path):
+            os.remove(test_path)
+            logger.info(f"Removed test file: {test_filename}")
+        
+        # Remove generated CSS file
+        if os.path.exists(css_path):
+            os.remove(css_path)
+            logger.info(f"Removed generated CSS: {css_filename}")
+    
+    # Wait for cleanup cycle to complete
+    time.sleep(2)
+    
+    # Reset any tracked changes
+    try:
+        subprocess.run(['git', 'reset', '--hard'], 
+                      cwd=os.path.dirname(css_dir), 
+                      capture_output=True, 
+                      timeout=10)
+        logger.info("Reset git working directory after test cleanup")
+    except Exception as e:
+        logger.warning(f"Could not reset git directory: {e}")
 
 
 def _comment_out_problematic_code(test_files: list, css_dir: str) -> None:

@@ -15,7 +15,7 @@ from .scss.processor import SCSSProcessor
 from .scss.validator import validate_scss_files # Import the new validation function
 from .utils.logger import logger # Import the pre-configured logger
 from .utils.path import get_dealer_theme_dir
-from .core.migration import migrate_dealer_theme, run_post_migration_workflow # Import both migration functions
+from .core.migration import migrate_dealer_theme, run_post_migration_workflow, test_compilation_recovery # Import migration functions
 from .config import get_config, ConfigurationError, Config
 from git import Repo # Import Repo for post_migrate command
 
@@ -412,6 +412,25 @@ def validate(theme_name):
 
 @cli.command()
 @click.argument('theme_name')
+def test_compilation(theme_name):
+    """
+    Test compilation error handling on an existing theme without doing migration.
+    
+    This command copies existing SCSS files to the CSS directory, monitors
+    Docker Gulp compilation, and tests the error recovery system without
+    modifying the original theme files.
+    """
+    click.echo(f"Testing compilation error recovery for {theme_name}...")
+    
+    if test_compilation_recovery(theme_name):
+        click.echo("✅ Compilation test passed")
+    else:
+        click.echo("❌ Compilation test failed")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument('theme_name')
 @click.option('--skip-git', is_flag=True, help="Skip Git operations (add, commit, push).")
 @click.option('--create-pr/--no-create-pr', default=True, help="Create a GitHub Pull Request after successful post-migration steps (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-review', is_flag=True, help="Skip interactive manual review and re-validation.")
@@ -607,6 +626,336 @@ def update():
     except Exception as e:
         click.echo(f"❌ Unexpected error: {e}", err=True)
         sys.exit(1)
+
+@cli.command()
+@click.argument('theme_name')
+@click.option('--no-cleanup', is_flag=True, help="Skip cleanup of test files (for debugging).")
+@click.option('--max-iterations', default=3, help="Maximum error recovery iterations (default: 3).")
+@click.option('--timeout', default=45, help="Maximum wait time for compilation in seconds (default: 45).")
+def test_compilation(theme_name, no_cleanup, max_iterations, timeout):
+    """
+    Test SCSS compilation error handling system without running a full migration.
+    
+    This command:
+    1. Copies existing SCSS files from the theme to CSS directory for compilation testing
+    2. Monitors Docker Gulp logs for compilation errors  
+    3. Applies the full error recovery pipeline with automated fixes
+    4. Reports results and cleans up afterward (unless --no-cleanup is used)
+    
+    This allows testing the error handling capabilities on themes with known
+    compilation issues without modifying the original files or running a full migration.
+    """
+    from .core.migration import (
+        _verify_scss_compilation_with_docker,
+        _handle_compilation_with_error_recovery,
+        _parse_compilation_errors,
+        _attempt_error_fix
+    )
+    import time
+    
+    click.echo(f"🧪 Testing SCSS compilation error handling for {theme_name}...")
+    click.echo(f"Max iterations: {max_iterations}, Timeout: {timeout}s")
+    
+    try:
+        theme_dir = get_dealer_theme_dir(theme_name)
+        css_dir = os.path.join(theme_dir, 'css')
+        
+        # Check if theme directory exists
+        if not os.path.exists(theme_dir):
+            click.echo(f"❌ Theme directory not found: {theme_dir}", err=True)
+            sys.exit(1)
+        
+        if not os.path.exists(css_dir):
+            click.echo(f"❌ CSS directory not found: {css_dir}", err=True)
+            sys.exit(1)
+        
+        # Find existing Site Builder SCSS files to test
+        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        existing_files = []
+        
+        for sb_file in sb_files:
+            file_path = os.path.join(theme_dir, sb_file)
+            if os.path.exists(file_path):
+                # Check if file has content
+                with open(file_path, 'r') as f:
+                    content = f.read().strip()
+                if content:
+                    existing_files.append(sb_file)
+        
+        if not existing_files:
+            click.echo(f"❌ No Site Builder SCSS files with content found in {theme_name}")
+            click.echo("Available files to test:")
+            for sb_file in sb_files:
+                file_path = os.path.join(theme_dir, sb_file)
+                if os.path.exists(file_path):
+                    click.echo(f"  - {sb_file} (empty)")
+                else:
+                    click.echo(f"  - {sb_file} (missing)")
+            sys.exit(1)
+        
+        click.echo(f"📁 Found {len(existing_files)} SCSS files to test: {', '.join(existing_files)}")
+        
+        # Copy files to CSS directory with test prefix
+        test_files = []
+        click.echo("📋 Copying SCSS files for compilation testing...")
+        
+        for sb_file in existing_files:
+            src_path = os.path.join(theme_dir, sb_file)
+            test_filename = f"test-compilation-{sb_file}"
+            dst_path = os.path.join(css_dir, test_filename)
+            
+            shutil.copy2(src_path, dst_path)
+            test_files.append((test_filename, dst_path))
+            click.echo(f"  ✅ {sb_file} → {test_filename}")
+        
+        # Monitor compilation with enhanced error recovery
+        click.echo(f"🔄 Starting compilation monitoring with error recovery...")
+        click.echo(f"📊 Monitoring up to {max_iterations} recovery iterations...")
+        
+        start_time = time.time()
+        success = _test_compilation_with_monitoring(
+            css_dir, test_files, theme_dir, theme_name, max_iterations, timeout
+        )
+        total_time = time.time() - start_time
+        
+        # Report results
+        click.echo(f"\n📈 Compilation Test Results for {theme_name}")
+        click.echo("=" * 60)
+        click.echo(f"Files tested: {len(test_files)}")
+        click.echo(f"Total time: {total_time:.1f}s")
+        click.echo(f"Result: {'✅ SUCCESS' if success else '❌ FAILED'}")
+        
+        if success:
+            click.echo("\n🎉 All SCSS files compiled successfully!")
+            click.echo("The error handling system is working correctly for this theme.")
+        else:
+            click.echo("\n⚠️  Compilation failed after all recovery attempts.")
+            click.echo("This theme may have complex errors requiring manual fixes.")
+            
+            # Provide helpful debugging info
+            click.echo(f"\n🔧 Debugging tips:")
+            click.echo(f"- Check Docker logs: docker logs dealerinspire_legacy_assets")
+            click.echo(f"- Use --no-cleanup to examine test files")
+            click.echo(f"- Try increasing --max-iterations or --timeout")
+        
+        return success
+        
+    except Exception as e:
+        click.echo(f"❌ Test failed with error: {e}", err=True)
+        logger.error(f"Compilation test error: {e}")
+        return False
+        
+    finally:
+        # Cleanup unless disabled
+        if not no_cleanup and 'test_files' in locals():
+            click.echo("\n🧹 Cleaning up test files...")
+            _cleanup_test_files(css_dir, test_files)
+        elif no_cleanup:
+            click.echo(f"\n🔍 Test files preserved for debugging in: {css_dir}")
+            if 'test_files' in locals():
+                click.echo("Test files:")
+                for test_filename, _ in test_files:
+                    click.echo(f"  - {test_filename}")
+
+def _test_compilation_with_monitoring(css_dir, test_files, theme_dir, slug, max_iterations, timeout):
+    """
+    Enhanced compilation monitoring specifically for testing error handling.
+    
+    Args:
+        css_dir: CSS directory path
+        test_files: List of (test_filename, scss_path) tuples  
+        theme_dir: Theme directory path
+        slug: Theme slug
+        max_iterations: Maximum recovery iterations
+        timeout: Maximum wait time in seconds
+        
+    Returns:
+        bool: True if compilation succeeds, False if all recovery attempts fail
+    """
+    import time
+    import subprocess
+    
+    iteration = 0
+    start_time = time.time()
+    
+    click.echo(f"🔄 Starting compilation monitoring...")
+    
+    while iteration < max_iterations and (time.time() - start_time) < timeout:
+        iteration += 1
+        click.echo(f"📍 Attempt {iteration}/{max_iterations}")
+        
+        # Wait for compilation cycle  
+        time.sleep(3)
+        
+        # Check Docker Gulp logs for errors
+        try:
+            result = subprocess.run([
+                'docker', 'logs', '--tail', '50', 'dealerinspire_legacy_assets'
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0 and result.stdout:
+                logs = result.stdout.lower()
+                
+                # Look for compilation success indicators
+                if "finished 'sass'" in logs and "finished 'processcss'" in logs:
+                    # Check if any errors in recent logs
+                    if not any(error_indicator in logs for error_indicator in [
+                        'error:', 'failed', 'scss compilation error', 'syntax error'
+                    ]):
+                        click.echo("✅ Compilation completed successfully")
+                        return True
+                
+                # Parse and handle specific errors
+                from .core.migration import _parse_compilation_errors, _attempt_error_fix
+                errors_found = _parse_compilation_errors(logs, test_files)
+                
+                if errors_found:
+                    click.echo(f"🔍 Found {len(errors_found)} compilation errors")
+                    
+                    # Display errors for testing visibility
+                    for i, error_info in enumerate(errors_found, 1):
+                        error_type = error_info.get('type', 'unknown')
+                        error_msg = error_info.get('line_content', 'No details')
+                        click.echo(f"  {i}. {error_type}: {error_msg}")
+                    
+                    # Attempt to fix each error
+                    fixes_applied = 0
+                    for error_info in errors_found:
+                        if _attempt_error_fix(error_info, css_dir, theme_dir):
+                            fixes_applied += 1
+                    
+                    if fixes_applied > 0:
+                        click.echo(f"🔧 Applied {fixes_applied} automated fixes, retrying...")
+                        continue
+                    else:
+                        click.echo("⚠️  No automated fixes available for detected errors")
+                        break
+                else:
+                    click.echo("⏳ No specific errors detected, waiting for compilation...")
+                    
+        except subprocess.TimeoutExpired:
+            click.echo("⏱️  Docker logs command timed out")
+        except Exception as e:
+            click.echo(f"⚠️  Error checking Docker logs: {e}")
+        
+        # Check for successful CSS file generation
+        success_count = 0
+        for test_filename, _ in test_files:
+            css_filename = test_filename.replace('.scss', '.css')
+            css_path = os.path.join(css_dir, css_filename)
+            if os.path.exists(css_path):
+                success_count += 1
+        
+        if success_count == len(test_files):
+            click.echo("✅ All CSS files generated successfully")
+            return True
+        
+        click.echo(f"📊 Compilation status: {success_count}/{len(test_files)} files compiled")
+        
+        # Check timeout
+        elapsed = time.time() - start_time
+        if elapsed >= timeout:
+            click.echo(f"⏱️  Timeout reached ({timeout}s)")
+            break
+    
+    # Final check and user option for manual intervention
+    click.echo(f"❌ Compilation failed after {iteration} attempts")
+    
+    if click.confirm("🔧 Comment out problematic SCSS code to allow compilation?", default=False):
+        _comment_out_problematic_code_for_test(test_files, css_dir)
+        
+        # Give one more chance after commenting out
+        time.sleep(3)
+        success_count = 0
+        for test_filename, _ in test_files:
+            css_filename = test_filename.replace('.scss', '.css')
+            css_path = os.path.join(css_dir, css_filename)
+            if os.path.exists(css_path):
+                success_count += 1
+        
+        if success_count == len(test_files):
+            click.echo("✅ Compilation successful after commenting out problematic code")
+            return True
+    
+    return False
+
+def _comment_out_problematic_code_for_test(test_files, css_dir):
+    """
+    Comment out potentially problematic SCSS code in test files.
+    
+    Args:
+        test_files: List of test files
+        css_dir: CSS directory path
+    """
+    click.echo("🔧 Commenting out potentially problematic SCSS code...")
+    
+    problematic_patterns = [
+        r'@include\s+[^;]+;',  # All mixin includes
+        r'lighten\([^)]+\)',   # lighten functions
+        r'darken\([^)]+\)',    # darken functions
+        r'\$[a-zA-Z_][a-zA-Z0-9_-]*'  # All SCSS variables
+    ]
+    
+    for test_filename, scss_path in test_files:
+        try:
+            with open(scss_path, 'r') as f:
+                content = f.read()
+            
+            lines = content.split('\n')
+            modified = False
+            
+            for i, line in enumerate(lines):
+                for pattern in problematic_patterns:
+                    import re
+                    if re.search(pattern, line):
+                        if not line.strip().startswith('//'):
+                            lines[i] = f'// TEST COMMENTED: {line}'
+                            modified = True
+                            break
+            
+            if modified:
+                with open(scss_path, 'w') as f:
+                    f.write('\n'.join(lines))
+                
+                click.echo(f"  ✅ Commented problematic code in {test_filename}")
+                
+        except Exception as e:
+            click.echo(f"  ⚠️  Error processing {test_filename}: {e}")
+
+def _cleanup_test_files(css_dir, test_files):
+    """
+    Clean up test files and wait for Docker Gulp to process the cleanup.
+    
+    Args:
+        css_dir: CSS directory path
+        test_files: List of (test_filename, scss_path) tuples
+    """
+    import time
+    import subprocess
+    
+    try:
+        # Remove test files
+        for test_filename, scss_path in test_files:
+            try:
+                # Remove test SCSS file
+                if os.path.exists(scss_path):
+                    os.remove(scss_path)
+                
+                # Remove generated CSS file
+                css_filename = test_filename.replace('.scss', '.css')
+                css_path = os.path.join(css_dir, css_filename)
+                if os.path.exists(css_path):
+                    os.remove(css_path)
+                    
+            except Exception as e:
+                click.echo(f"  ⚠️  Error removing {test_filename}: {e}")
+        
+        # Wait for Gulp cleanup cycle
+        time.sleep(3)
+        click.echo("✅ Test files cleaned up successfully")
+        
+    except Exception as e:
+        click.echo(f"⚠️  Error during cleanup: {e}")
 
 @cli.command()
 @click.argument('action', type=click.Choice(['enable', 'disable', 'status']))
