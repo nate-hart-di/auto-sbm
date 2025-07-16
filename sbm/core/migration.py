@@ -992,18 +992,62 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
         
         logger.info(f"Compilation status: {success_count}/{len(test_files)} files compiled")
     
-    # Final attempt - ask user for manual intervention
-    logger.error(f"❌ Compilation failed after {max_iterations} attempts")
-    click.echo(f"\n⚠️  SCSS Compilation Error Recovery Failed")
-    click.echo(f"After {max_iterations} automated attempts, compilation is still failing.")
-    click.echo(f"Please check the SCSS files manually and fix any remaining syntax errors.")
-    click.echo(f"Theme directory: {theme_dir}")
+    # Final attempt - aggressively comment out problematic code until it compiles
+    logger.warning(f"❌ Compilation failed after {max_iterations} attempts, entering aggressive fix mode...")
+    click.echo(f"\n🔧 Entering aggressive compilation fix mode...")
+    click.echo(f"Will automatically comment out problematic code until compilation succeeds...")
     
-    # Comment out problematic code as last resort
-    if click.confirm("Comment out problematic SCSS code to allow compilation?", default=False):
-        _comment_out_problematic_code(test_files, css_dir)
-        return True
+    # Track what was commented out for user reporting
+    commented_lines = []
     
+    # Try up to 3 aggressive fix attempts
+    for aggressive_attempt in range(1, 4):
+        logger.info(f"🔧 Aggressive fix attempt {aggressive_attempt}/3")
+        click.echo(f"🔧 Aggressive fix attempt {aggressive_attempt}/3")
+        
+        # Comment out problematic code
+        attempt_comments = _comment_out_problematic_code(test_files, css_dir)
+        commented_lines.extend(attempt_comments)
+        
+        # Wait for compilation
+        time.sleep(5)
+        
+        # Check compilation status
+        try:
+            result = subprocess.run([
+                'docker', 'logs', '--tail', '30', 'dealerinspire_legacy_assets'
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0 and result.stdout:
+                logs = result.stdout.lower()
+                
+                if "finished 'sass'" in logs and "finished 'processcss'" in logs:
+                    if not any(error_indicator in logs for error_indicator in [
+                        'error:', 'failed', 'scss compilation error', 'syntax error'
+                    ]):
+                        logger.info("✅ Compilation succeeded after aggressive fixes")
+                        click.echo("✅ Compilation succeeded after aggressive fixes")
+                        
+                        # Copy successful test files back to originals
+                        _copy_successful_test_files_to_originals(test_files, css_dir, theme_dir)
+                        
+                        # Report what was commented out
+                        _report_commented_code(commented_lines, slug)
+                        
+                        return True
+                
+                # Parse new errors for next iteration
+                new_errors = _parse_compilation_errors(logs, test_files)
+                if new_errors:
+                    logger.info(f"Found {len(new_errors)} new errors, continuing aggressive fixes...")
+                else:
+                    logger.warning("No specific errors found but compilation still failing")
+        
+        except Exception as e:
+            logger.warning(f"Error checking compilation status: {e}")
+    
+    logger.error("❌ Compilation still failing after all aggressive fix attempts")
+    click.echo("❌ Compilation still failing after all aggressive fix attempts")
     return False
 
 
@@ -1226,9 +1270,88 @@ def _fix_syntax_error(error_info: dict, css_dir: str) -> bool:
 
 
 def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
-    """Fix invalid CSS by commenting out problematic lines."""
-    # This is a more conservative approach - just comment out invalid CSS
+    """Fix invalid CSS syntax errors."""
+    error_message = error_info.get('message', '')
+    
+    # Handle specific mixin parameter syntax errors
+    if 'fade-transition(' in error_message and 'var(--element))' in error_message:
+        return _fix_mixin_parameter_syntax(error_info, css_dir)
+    
+    # Handle other invalid CSS patterns
+    if 'expected ")"' in error_message or 'expected "{"' in error_message:
+        return _fix_parenthesis_mismatch(error_info, css_dir)
+    
+    # Fall back to commenting out the line
     return _comment_out_error_line(error_info, css_dir)
+
+
+def _fix_mixin_parameter_syntax(error_info: dict, css_dir: str) -> bool:
+    """Fix mixin parameter syntax errors like fade-transition(var(--element))."""
+    for file_name in os.listdir(css_dir):
+        if file_name.startswith('test-') and file_name.endswith('.scss'):
+            file_path = os.path.join(css_dir, file_name)
+            
+            try:
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                
+                # Fix fade-transition mixin with double closing parentheses
+                import re
+                fixed_content = re.sub(
+                    r'fade-transition\(var\(--([^)]+)\)\)',
+                    r'fade-transition(var(--\1))',
+                    content
+                )
+                
+                if fixed_content != content:
+                    with open(file_path, 'w') as f:
+                        f.write(fixed_content)
+                    logger.info(f"Fixed mixin parameter syntax in {file_name}")
+                    return True
+                    
+            except Exception as e:
+                logger.warning(f"Error fixing mixin parameters in {file_name}: {e}")
+    
+    return False
+
+
+def _fix_parenthesis_mismatch(error_info: dict, css_dir: str) -> bool:
+    """Fix parenthesis mismatch errors."""
+    for file_name in os.listdir(css_dir):
+        if file_name.startswith('test-') and file_name.endswith('.scss'):
+            file_path = os.path.join(css_dir, file_name)
+            
+            try:
+                with open(file_path, 'r') as f:
+                    lines = f.readlines()
+                
+                modified = False
+                for i, line in enumerate(lines):
+                    # Fix common parenthesis issues
+                    if ')' in line and '(' in line:
+                        # Count parentheses
+                        open_count = line.count('(')
+                        close_count = line.count(')')
+                        
+                        if close_count > open_count:
+                            # Remove extra closing parentheses
+                            while close_count > open_count and ')' in line:
+                                line = line.replace(')', '', 1)
+                                close_count -= 1
+                            
+                            lines[i] = line
+                            modified = True
+                            logger.info(f"Fixed parenthesis mismatch in {file_name} line {i+1}")
+                
+                if modified:
+                    with open(file_path, 'w') as f:
+                        f.writelines(lines)
+                    return True
+                    
+            except Exception as e:
+                logger.warning(f"Error fixing parentheses in {file_name}: {e}")
+    
+    return False
 
 
 def _comment_out_error_line(error_info: dict, css_dir: str) -> bool:
@@ -1306,45 +1429,136 @@ def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
         logger.warning(f"Could not reset git directory: {e}")
 
 
-def _comment_out_problematic_code(test_files: list, css_dir: str) -> None:
+def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
     """
     Comment out all potentially problematic SCSS code as a last resort.
     
     Args:
         test_files: List of test files
         css_dir: CSS directory path
+        
+    Returns:
+        list: List of commented out lines with file info
     """
     logger.warning("Commenting out potentially problematic SCSS code...")
     
+    commented_lines = []
+    
+    # Target specific problematic patterns we've seen
     problematic_patterns = [
-        r'@include\s+[^;]+;',  # All mixin includes
-        r'lighten\([^)]+\)',   # lighten functions
-        r'darken\([^)]+\)',    # darken functions
-        r'\$[a-zA-Z_][a-zA-Z0-9_-]*'  # All SCSS variables
+        (r'@include\s+fade-transition\([^)]*\);', 'fade-transition mixin call'),
+        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*var\([^)]*\)[^)]*\);', 'mixin with CSS variables'),
+        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*\);', 'unknown mixin call'),
+        (r'lighten\([^)]+\)', 'lighten function'),
+        (r'darken\([^)]+\)', 'darken function'),
+        (r'\$[a-zA-Z_][a-zA-Z0-9_-]*', 'SCSS variable usage'),
     ]
     
-    for test_filename, scss_path in test_files:
+    for test_filename, _ in test_files:
+        test_file_path = os.path.join(css_dir, test_filename)
+        
+        if not os.path.exists(test_file_path):
+            continue
+            
         try:
-            with open(scss_path, 'r') as f:
+            with open(test_file_path, 'r') as f:
                 content = f.read()
             
             lines = content.split('\n')
             modified = False
             
             for i, line in enumerate(lines):
-                for pattern in problematic_patterns:
+                if line.strip().startswith('//'):
+                    continue  # Skip already commented lines
+                    
+                for pattern, description in problematic_patterns:
                     import re
                     if re.search(pattern, line):
-                        if not line.strip().startswith('//'):
-                            lines[i] = f'// PROBLEMATIC CODE: {line}'
-                            modified = True
-                            break
+                        original_line = line.strip()
+                        lines[i] = f'// COMMENTED OUT: {line}'
+                        modified = True
+                        
+                        # Track what was commented out
+                        commented_lines.append({
+                            'file': test_filename.replace('test-', ''),
+                            'line': original_line,
+                            'reason': description
+                        })
+                        
+                        logger.info(f"Commented out {description} in {test_filename}: {original_line}")
+                        break
             
             if modified:
-                with open(scss_path, 'w') as f:
+                with open(test_file_path, 'w') as f:
                     f.write('\n'.join(lines))
                 
                 logger.info(f"Commented out problematic code in {test_filename}")
+            else:
+                logger.warning(f"No problematic patterns found to comment in {test_filename}")
                 
         except Exception as e:
             logger.warning(f"Error processing {test_filename}: {e}")
+    
+    return commented_lines
+
+
+def _copy_successful_test_files_to_originals(test_files: list, css_dir: str, theme_dir: str) -> None:
+    """
+    Copy successful test files back to original locations.
+    
+    Args:
+        test_files: List of (test_filename, original_path) tuples
+        css_dir: CSS directory path
+        theme_dir: Theme directory path
+    """
+    logger.info("Copying successful test files back to original locations...")
+    
+    for test_filename, _ in test_files:
+        test_file_path = os.path.join(css_dir, test_filename)
+        original_filename = test_filename.replace('test-', '')
+        original_path = os.path.join(theme_dir, original_filename)
+        
+        if os.path.exists(test_file_path):
+            try:
+                shutil.copy2(test_file_path, original_path)
+                logger.info(f"Copied {test_filename} back to {original_filename}")
+            except Exception as e:
+                logger.warning(f"Error copying {test_filename} to {original_filename}: {e}")
+
+
+def _report_commented_code(commented_lines: list, slug: str) -> None:
+    """
+    Report what code was commented out to the user.
+    
+    Args:
+        commented_lines: List of commented line info
+        slug: Theme slug
+    """
+    if not commented_lines:
+        click.echo("✅ No code needed to be commented out")
+        return
+    
+    click.echo(f"\n📋 Compilation Success Report for {slug}")
+    click.echo("=" * 60)
+    click.echo(f"✅ SCSS files now compile successfully!")
+    click.echo(f"🔧 {len(commented_lines)} lines of code were automatically commented out to fix compilation errors:")
+    click.echo()
+    
+    # Group by file
+    by_file = {}
+    for item in commented_lines:
+        if item['file'] not in by_file:
+            by_file[item['file']] = []
+        by_file[item['file']].append(item)
+    
+    for filename, items in by_file.items():
+        click.echo(f"📄 {filename}:")
+        for item in items:
+            click.echo(f"   • {item['reason']}: {item['line']}")
+        click.echo()
+    
+    click.echo("💡 Next steps:")
+    click.echo("   • Review the commented code above")
+    click.echo("   • Consider implementing CSS equivalents where possible")
+    click.echo("   • Update your SCSS to avoid these patterns in the future")
+    click.echo("=" * 60)
