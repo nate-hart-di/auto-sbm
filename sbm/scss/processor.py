@@ -179,10 +179,6 @@ class SCSSProcessor:
             content
         )
         
-        # MANDATORY: Verify SCSS compilation before returning
-        if not self._verify_scss_compilation(content):
-            raise Exception("SCSS compilation failed - output contains invalid SCSS syntax")
-        
         return content
 
     def _verify_scss_compilation(self, content: str) -> bool:

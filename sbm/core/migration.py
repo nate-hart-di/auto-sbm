@@ -481,6 +481,30 @@ def reprocess_manual_changes(slug):
         if prettier_available:
             logger.info(f"Applied prettier formatting to all {len([f for f in sb_files if os.path.exists(os.path.join(theme_dir, f))])} SCSS files")
         
+        # MANDATORY: Verify SCSS compilation after all processing is complete
+        from ..scss.processor import SCSSProcessor
+        processor = SCSSProcessor(slug)
+        
+        compilation_errors = []
+        for sb_file in sb_files:
+            file_path = os.path.join(theme_dir, sb_file)
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    if not processor._verify_scss_compilation(content):
+                        compilation_errors.append(sb_file)
+                        logger.error(f"SCSS compilation failed for {sb_file}")
+                except Exception as e:
+                    compilation_errors.append(sb_file)
+                    logger.error(f"Error verifying compilation for {sb_file}: {e}")
+        
+        if compilation_errors:
+            logger.error(f"SCSS compilation failed for: {', '.join(compilation_errors)}")
+            raise Exception(f"SCSS compilation verification failed for {len(compilation_errors)} files")
+        
+        logger.info("✅ All SCSS files verified to compile successfully")
         return True
             
     except Exception as e:
