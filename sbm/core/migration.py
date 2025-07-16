@@ -6,6 +6,8 @@ This module handles the main migration logic for dealer themes.
 
 import os
 import time
+import subprocess
+import shutil
 import click # Import click for interactive prompts
 from ..utils.logger import logger
 from ..utils.path import get_dealer_theme_dir
@@ -481,30 +483,11 @@ def reprocess_manual_changes(slug):
         if prettier_available:
             logger.info(f"Applied prettier formatting to all {len([f for f in sb_files if os.path.exists(os.path.join(theme_dir, f))])} SCSS files")
         
-        # MANDATORY: Verify SCSS compilation after all processing is complete
-        from ..scss.processor import SCSSProcessor
-        processor = SCSSProcessor(slug)
+        # MANDATORY: Verify SCSS compilation using Docker Gulp
+        if not _verify_scss_compilation_with_docker(theme_dir, slug, sb_files):
+            raise Exception("SCSS compilation verification failed - files do not compile with Docker Gulp")
         
-        compilation_errors = []
-        for sb_file in sb_files:
-            file_path = os.path.join(theme_dir, sb_file)
-            if os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    if not processor._verify_scss_compilation(content):
-                        compilation_errors.append(sb_file)
-                        logger.error(f"SCSS compilation failed for {sb_file}")
-                except Exception as e:
-                    compilation_errors.append(sb_file)
-                    logger.error(f"Error verifying compilation for {sb_file}: {e}")
-        
-        if compilation_errors:
-            logger.error(f"SCSS compilation failed for: {', '.join(compilation_errors)}")
-            raise Exception(f"SCSS compilation verification failed for {len(compilation_errors)} files")
-        
-        logger.info("✅ All SCSS files verified to compile successfully")
+        logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
         return True
             
     except Exception as e:
@@ -699,3 +682,111 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         )
     
     return True
+
+
+def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: list) -> bool:
+    """
+    Verify SCSS compilation by copying files to CSS directory and monitoring Docker Gulp compilation.
+    
+    Args:
+        theme_dir: Path to dealer theme directory
+        slug: Dealer theme slug
+        sb_files: List of Site Builder SCSS files to verify
+        
+    Returns:
+        bool: True if all files compile successfully, False otherwise
+    """
+    css_dir = os.path.join(theme_dir, 'css')
+    test_files = []
+    
+    try:
+        logger.info("Verifying SCSS compilation using Docker Gulp...")
+        
+        # Step 1: Copy sb-*.scss files to CSS directory with test prefix
+        for sb_file in sb_files:
+            src_path = os.path.join(theme_dir, sb_file)
+            if os.path.exists(src_path):
+                # Create test filename (sb-inside.scss -> test-sb-inside.scss)
+                test_filename = f"test-{sb_file}"
+                dst_path = os.path.join(css_dir, test_filename)
+                
+                shutil.copy2(src_path, dst_path)
+                test_files.append((test_filename, dst_path))
+                logger.info(f"Copied {sb_file} to {test_filename} for compilation test")
+        
+        if not test_files:
+            logger.warning("No Site Builder files found to test")
+            return True
+        
+        # Step 2: Wait for Docker Gulp to process the files
+        logger.info("Monitoring Docker Gulp compilation...")
+        time.sleep(3)  # Give Gulp time to detect and process files
+        
+        # Step 3: Check for corresponding CSS files
+        max_wait = 30  # 30 seconds max wait time
+        start_time = time.time()
+        compiled_files = []
+        
+        while (time.time() - start_time) < max_wait and len(compiled_files) < len(test_files):
+            for test_filename, scss_path in test_files:
+                if test_filename in compiled_files:
+                    continue
+                    
+                # Check for corresponding CSS file
+                css_filename = test_filename.replace('.scss', '.css')
+                css_path = os.path.join(css_dir, css_filename)
+                
+                if os.path.exists(css_path):
+                    compiled_files.append(test_filename)
+                    logger.info(f"✅ {test_filename} compiled successfully to {css_filename}")
+            
+            if len(compiled_files) < len(test_files):
+                time.sleep(1)
+        
+        # Step 4: Check Docker container logs for compilation errors
+        try:
+            result = subprocess.run([
+                'docker', 'logs', '--tail', '100', 'dealerinspire_legacy_assets'
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0 and result.stdout:
+                recent_logs = result.stdout.lower()
+                for test_filename, _ in test_files:
+                    if test_filename.lower() in recent_logs and ('error' in recent_logs or 'failed' in recent_logs):
+                        logger.error(f"Compilation error detected in Docker logs for {test_filename}")
+                        return False
+        except Exception as e:
+            logger.warning(f"Could not check Docker logs: {e}")
+        
+        # Step 5: Verify compilation success
+        compilation_success = len(compiled_files) == len(test_files)
+        
+        if compilation_success:
+            logger.info(f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp")
+        else:
+            failed_files = [f for f, _ in test_files if f not in compiled_files]
+            logger.error(f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}")
+        
+        return compilation_success
+        
+    except Exception as e:
+        logger.error(f"Error during Docker Gulp compilation verification: {e}")
+        return False
+        
+    finally:
+        # Step 6: Clean up test files
+        for test_filename, scss_path in test_files:
+            try:
+                # Remove test SCSS file
+                if os.path.exists(scss_path):
+                    os.remove(scss_path)
+                    
+                # Remove generated CSS file
+                css_filename = test_filename.replace('.scss', '.css')
+                css_path = os.path.join(css_dir, css_filename)
+                if os.path.exists(css_path):
+                    os.remove(css_path)
+                    
+                logger.info(f"Cleaned up test files for {test_filename}")
+            except Exception as e:
+                logger.warning(f"Error cleaning up {test_filename}: {e}")
