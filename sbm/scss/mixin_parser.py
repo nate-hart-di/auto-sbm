@@ -1025,6 +1025,58 @@ def _handle_site_builder(mixin_name, args, content):
     # and applies complex styling. For SBM, we'll just output a comment.
     return f"/* site-builder mixin for {brand} brand - complex styling applied */"
 
+def _handle_position(mixin_name, args, content):
+    """Handle @include position($directions) mixin."""
+    if not args:
+        return ""
+    
+    # Parse direction map: (top: 10px, left: 20px)
+    directions_str = args[0] if args else ""
+    css_props = []
+    
+    # Simple parsing for direction: value pairs
+    pairs = directions_str.replace('(', '').replace(')', '').split(',')
+    for pair in pairs:
+        if ':' in pair:
+            prop, value = pair.split(':', 1)
+            css_props.append(f"{prop.strip()}: {value.strip()};")
+    
+    return '\n'.join(css_props)
+
+def _handle_save_compare_tab_base(mixin_name, args, content):
+    """Handle @include save-compare-tab-base() mixin."""
+    return """display: inline-block;
+position: fixed;
+z-index: 500;
+line-height: 1;
+padding: 15px 20px;
+letter-spacing: 1px;
+width: auto;
+margin-bottom: 0;
+top: 50%;
+
+&.position-right {
+  -webkit-transform: rotate(-90deg);
+  -ms-transform: rotate(-90deg);
+  transform: rotate(-90deg);
+  -webkit-transform-origin: bottom right;
+  -ms-transform-origin: bottom right;
+  transform-origin: bottom right;
+  right: 0;
+  left: auto !important;
+}
+
+&.position-left {
+  -webkit-transform: rotate(90deg);
+  -ms-transform: rotate(90deg);
+  transform: rotate(90deg);
+  -webkit-transform-origin: bottom left;
+  -ms-transform-origin: bottom left;
+  transform-origin: bottom left;
+  left: 0;
+  right: auto !important;
+}"""
+
 def _handle_keyframes(mixin_name, args, content):
     """Handle @include keyframes($name) with content block"""
     if not args or not content:
@@ -1146,6 +1198,8 @@ MIXIN_TRANSFORMATIONS = {
     "iframehack": _handle_iframehack,
     "color-classes": _handle_color_classes,
     "scrollbars": _handle_scrollbars,
+    "position": _handle_position,
+    "save-compare-tab-base": _handle_save_compare_tab_base,
     "site-builder": _handle_site_builder,
     
     # Generic content block handler for other mixins

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sbm migrate:*)",
+      "Bash(python:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}

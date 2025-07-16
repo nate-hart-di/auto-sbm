@@ -122,6 +122,11 @@ class SCSSProcessor:
         # $primary -> var(--primary)
         content = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_-]*)', r'var(--\1)', content)
         
+        # Handle SCSS functions that can't work with CSS variables
+        # lighten(var(--primary), 20%) -> var(--primary) (remove the function)
+        content = re.sub(r'lighten\(var\(--([^)]+)\),\s*\d+%\)', r'var(--\1)', content)
+        content = re.sub(r'darken\(var\(--([^)]+)\),\s*\d+%\)', r'var(--\1)', content)
+        
         
         # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
         # lighten(#252525, 2%) -> #2a2a2a
