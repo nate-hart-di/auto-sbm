@@ -789,7 +789,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         
         # Step 2: Wait for Docker Gulp to process the files
         logger.info("Monitoring Docker Gulp compilation...")
-        time.sleep(3)  # Give Gulp time to detect and process files
+        time.sleep(1)  # Give Gulp time to detect and process files
         
         # Step 3: Check for corresponding CSS files
         max_wait = 30  # 30 seconds max wait time
@@ -862,7 +862,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
             
             # Second: Wait for Gulp to finish the cleanup compilation cycle
             logger.info("Waiting for Gulp cleanup cycle to complete...")
-            time.sleep(5)  # Give Gulp time to process file removals
+            time.sleep(2)  # Give Gulp time to process file removals
             
             try:
                 cleanup_wait = 10
@@ -928,7 +928,7 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
         logger.info(f"🔄 Compilation attempt {iteration}/{max_iterations}")
         
         # Wait for compilation cycle
-        time.sleep(3)
+        time.sleep(1)
         
         # Check Docker Gulp logs for errors
         try:
@@ -1010,7 +1010,7 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
         commented_lines.extend(attempt_comments)
         
         # Wait for compilation
-        time.sleep(5)
+        time.sleep(2)
         
         # Check compilation status
         try:
@@ -1416,7 +1416,7 @@ def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
             logger.info(f"Removed generated CSS: {css_filename}")
     
     # Wait for cleanup cycle to complete
-    time.sleep(2)
+    time.sleep(1)
     
     # Reset any tracked changes
     try:
@@ -1446,11 +1446,13 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
     
     # Target specific problematic patterns we've seen
     problematic_patterns = [
-        (r'@include\s+fade-transition\([^)]*\);', 'fade-transition mixin call'),
-        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*var\([^)]*\)[^)]*\);', 'mixin with CSS variables'),
-        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*\);', 'unknown mixin call'),
+        (r'@mixin\s+fade-transition\([^)]*var\([^)]*\)[^)]*\)', 'malformed fade-transition mixin definition'),
+        (r'@include\s+fade-transition\([^)]*\)', 'fade-transition mixin call'),
+        (r'@mixin\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*var\([^)]*\)[^)]*\)', 'mixin definition with CSS variables'),
+        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*var\([^)]*\)[^)]*\)', 'mixin call with CSS variables'),
         (r'lighten\([^)]+\)', 'lighten function'),
         (r'darken\([^)]+\)', 'darken function'),
+        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*\)', 'unknown mixin call'),
         (r'\$[a-zA-Z_][a-zA-Z0-9_-]*', 'SCSS variable usage'),
     ]
     

@@ -6,7 +6,8 @@
       "Bash(grep:*)",
       "Bash(sass --version)",
       "Bash(git checkout:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }
