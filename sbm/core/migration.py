@@ -992,62 +992,57 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
         
         logger.info(f"Compilation status: {success_count}/{len(test_files)} files compiled")
     
-    # Final attempt - aggressively comment out problematic code until it compiles
-    logger.warning(f"❌ Compilation failed after {max_iterations} attempts, entering aggressive fix mode...")
-    click.echo(f"\n🔧 Entering aggressive compilation fix mode...")
-    click.echo(f"Will automatically comment out problematic code until compilation succeeds...")
+    # Final attempt - show user the exact error and let them fix it
+    logger.error(f"❌ Compilation failed after {max_iterations} attempts")
     
-    # Track what was commented out for user reporting
-    commented_lines = []
-    
-    # Try up to 3 aggressive fix attempts
-    for aggressive_attempt in range(1, 4):
-        logger.info(f"🔧 Aggressive fix attempt {aggressive_attempt}/3")
-        click.echo(f"🔧 Aggressive fix attempt {aggressive_attempt}/3")
+    # Get the exact error details
+    try:
+        result = subprocess.run([
+            'docker', 'logs', '--tail', '20', 'dealerinspire_legacy_assets'
+        ], capture_output=True, text=True, timeout=10)
         
-        # Comment out problematic code
-        attempt_comments = _comment_out_problematic_code(test_files, css_dir)
-        commented_lines.extend(attempt_comments)
-        
-        # Wait for compilation
-        time.sleep(2)
-        
-        # Check compilation status
-        try:
-            result = subprocess.run([
-                'docker', 'logs', '--tail', '30', 'dealerinspire_legacy_assets'
-            ], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0 and result.stdout:
+            logs = result.stdout
+            errors = _parse_compilation_errors(logs, test_files)
             
-            if result.returncode == 0 and result.stdout:
-                logs = result.stdout.lower()
-                
-                if "finished 'sass'" in logs and "finished 'processcss'" in logs:
-                    if not any(error_indicator in logs for error_indicator in [
-                        'error:', 'failed', 'scss compilation error', 'syntax error'
-                    ]):
-                        logger.info("✅ Compilation succeeded after aggressive fixes")
-                        click.echo("✅ Compilation succeeded after aggressive fixes")
-                        
-                        # Copy successful test files back to originals
-                        _copy_successful_test_files_to_originals(test_files, css_dir, theme_dir)
-                        
-                        # Report what was commented out
-                        _report_commented_code(commented_lines, slug)
-                        
-                        return True
-                
-                # Parse new errors for next iteration
-                new_errors = _parse_compilation_errors(logs, test_files)
-                if new_errors:
-                    logger.info(f"Found {len(new_errors)} new errors, continuing aggressive fixes...")
-                else:
-                    logger.warning("No specific errors found but compilation still failing")
-        
-        except Exception as e:
-            logger.warning(f"Error checking compilation status: {e}")
+            click.echo(f"\n❌ SCSS Compilation Error")
+            click.echo("=" * 50)
+            
+            if errors:
+                for error in errors[:3]:  # Show max 3 errors
+                    click.echo(f"Error: {error.get('message', 'Unknown error')}")
+                    if 'file' in error:
+                        file_display = error['file'].replace('test-', '')
+                        click.echo(f"File: {file_display}")
+                    if 'line_number' in error:
+                        click.echo(f"Line: {error['line_number']}")
+                    click.echo()
+            else:
+                # Show raw Docker logs if no structured errors found
+                error_lines = [line for line in logs.split('\n') if 'error' in line.lower()]
+                for line in error_lines[-3:]:  # Show last 3 error lines
+                    click.echo(f"Error: {line.strip()}")
+            
+            click.echo("=" * 50)
+            click.echo("Please fix the SCSS errors above in your theme files.")
+            click.echo("The problematic files are located in:")
+            click.echo(f"  {theme_dir}")
+            click.echo()
+            
+            if click.confirm("Continue after fixing the errors?", default=True):
+                return True
+            else:
+                return False
     
-    logger.error("❌ Compilation still failing after all aggressive fix attempts")
-    click.echo("❌ Compilation still failing after all aggressive fix attempts")
+    except Exception as e:
+        logger.warning(f"Error getting compilation details: {e}")
+        click.echo(f"\n❌ SCSS Compilation failed")
+        click.echo(f"Check Docker logs: docker logs dealerinspire_legacy_assets")
+        click.echo(f"Theme directory: {theme_dir}")
+        
+        if click.confirm("Continue anyway?", default=False):
+            return True
+    
     return False
 
 
