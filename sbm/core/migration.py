@@ -409,11 +409,9 @@ def _format_all_scss_with_prettier(slug):
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        # Run prettier directly with subprocess to get the real exit code  
-        import os
-        home_dir = os.path.expanduser("~")
+        # Run prettier directly with subprocess to get the real exit code
         result = subprocess.run(
-            f'prettier --write "{home_dir}/di-websites-platform/dealer-themes/{slug}/sb-*.scss"',
+            f'prettier --write "$HOME/di-websites-platform/dealer-themes/{slug}/sb-*.scss"',
             shell=True,
             capture_output=True,
             text=True
