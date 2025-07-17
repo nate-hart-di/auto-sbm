@@ -1072,9 +1072,24 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             click.echo("=" * 50)
             
             if click.confirm("Continue after fixing the errors?", default=True):
-                # User fixed the errors manually, continue without regenerating files
-                logger.info("User confirmed manual fixes, continuing with existing files...")
-                return True
+                # User fixed the errors manually, restart compilation test completely
+                logger.info("User confirmed manual fixes, restarting compilation test...")
+                
+                # Clean up existing test files and CSS outputs
+                for test_filename, _ in test_files:
+                    test_file_path = os.path.join(css_dir, test_filename)
+                    if os.path.exists(test_file_path):
+                        os.remove(test_file_path)
+                    
+                    # Also clean up any CSS output files
+                    css_filename = test_filename.replace('.scss', '.css')
+                    css_file_path = os.path.join(css_dir, css_filename)
+                    if os.path.exists(css_file_path):
+                        os.remove(css_file_path)
+                
+                # Restart the entire compilation verification from the beginning
+                sb_files = [tf[0].replace('test-', '') for tf in test_files]
+                return _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
             else:
                 return False
     
