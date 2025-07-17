@@ -411,7 +411,7 @@ def _format_all_scss_with_prettier(theme_dir):
     try:
         # Use prettier to format all sb-*.scss files at once
         success, stdout, stderr, _ = execute_command(
-            f"prettier --write '{theme_dir}/sb-*.scss'",
+            f"prettier --write {theme_dir}/sb-*.scss",
             f"Failed to format SCSS files with prettier",
             wait_for_completion=True
         )
