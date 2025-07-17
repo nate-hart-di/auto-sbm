@@ -1075,11 +1075,8 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
                 # User fixed the errors, re-run migration step to incorporate fixes
                 logger.info("User confirmed fixes, re-running migration step...")
                 
-                from ..scss.processor import SCSSProcessor
-                
-                # Re-run the SCSS migration step to incorporate manual fixes
-                processor = SCSSProcessor(theme_dir)
-                processor.migrate_styles()
+                # Re-run the migration by calling migrate_styles directly
+                migrate_styles(slug)
                 logger.info("Re-migrated styles after manual fixes")
                 
                 return True
