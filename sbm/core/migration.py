@@ -1024,21 +1024,21 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             error_line = None
             error_message = None
             
-            # Look for the fade-transition error specifically
-            if 'fade-transition(' in logs and 'var(--element)' in logs:
-                error_message = "Invalid mixin parameter: @mixin fade-transition(var(--element)) should be @mixin fade-transition($element)"
-                # Find which file has the fade-transition mixin
-                for test_filename, _ in test_files:
-                    if 'sb-inside' in test_filename:
-                        error_file = 'sb-inside.scss'
-                        error_line = 1393  # Based on the system reminder
-                        break
-            else:
-                # Extract error details from Docker logs
-                for line in logs.split('\n'):
-                    if 'error:' in line.lower() and 'invalid css' in line.lower():
-                        error_message = line.strip()
-                        break
+            # Extract error details from Docker logs
+            for line in logs.split('\n'):
+                if 'Error: Invalid CSS after' in line and 'fade-transition(' in line:
+                    error_message = line.strip()
+                elif 'on line' in line and 'test-sb-inside.scss' in line:
+                    # Extract line number from "on line 1152 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if part == 'line' and i + 1 < len(parts):
+                            try:
+                                error_line = int(parts[i + 1])
+                                error_file = 'sb-inside.scss'
+                                break
+                            except ValueError:
+                                continue
             
             if error_file and error_line:
                 click.echo(f"Error: {error_message}")
