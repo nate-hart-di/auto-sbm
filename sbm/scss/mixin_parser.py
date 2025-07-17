@@ -493,6 +493,31 @@ def _handle_transition_2(mixin_name, args, content):
     return f"""-webkit-transition: {transition1}, {transition2};
 transition: {transition1}, {transition2};"""
 
+def _handle_fade_transition(mixin_name, args, content):
+    """Handle @include fade-transition($element)"""
+    if not args:
+        return ""
+    
+    element = args[0]
+    
+    # Apply the conversion rules:
+    # If argument starts with $ → convert to var(--foo)
+    # If argument is already var(--...) → leave as-is  
+    # Otherwise (literal like 'opacity') → leave as-is
+    if element.startswith('$'):
+        # Convert $foo to var(--foo)
+        var_name = element[1:]  # Remove the $
+        transition_value = f"var(--{var_name})"
+    else:
+        # Already var(--...) or literal value, leave as-is
+        transition_value = element
+    
+    return f"""-webkit-transition: {transition_value} 0.15s ease-in-out;
+-moz-transition: {transition_value} 0.15s ease-in-out;
+-ms-transition: {transition_value} 0.15s ease-in-out;
+-o-transition: {transition_value} 0.15s ease-in-out;
+transition: {transition_value} 0.15s ease-in-out;"""
+
 def _handle_z_index(mixin_name, args, content):
     """Handle @include z-index($layer, $plus)"""
     if not args:
@@ -1151,6 +1176,7 @@ MIXIN_TRANSFORMATIONS = {
     # Transition mixins
     "transition": _handle_transition,
     "transition-2": _handle_transition_2,
+    "fade-transition": _handle_fade_transition,
     
     # Z-index mixins
     "z-index": _handle_z_index,

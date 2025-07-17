@@ -54,7 +54,38 @@ class SCSSProcessor:
             content = root_block + content.lstrip()
 
         # Finally, convert all remaining SCSS variable usages throughout the file
-        content = re.sub(r'\$([\w-]+)', r'var(--\1)', content)
+        # BUT exclude mixin definitions entirely (they should use #{$param} interpolation)
+        def replace_scss_variables(match):
+            full_match = match.group(0)
+            var_name = match.group(1)
+            
+            # Find the context around this variable
+            start_pos = match.start()
+            
+            # Check if we're inside a @mixin definition block
+            mixin_start = content.rfind('@mixin', 0, start_pos)
+            if mixin_start != -1:
+                # Find the closing brace of this mixin
+                mixin_brace_start = content.find('{', mixin_start)
+                if mixin_brace_start != -1 and mixin_brace_start < start_pos:
+                    # Count braces to find the end of this mixin
+                    brace_count = 1
+                    pos = mixin_brace_start + 1
+                    while pos < len(content) and brace_count > 0:
+                        if content[pos] == '{':
+                            brace_count += 1
+                        elif content[pos] == '}':
+                            brace_count -= 1
+                        pos += 1
+                    
+                    # If we're inside the mixin block, use interpolation
+                    if start_pos < pos:
+                        return f'#{{{full_match}}}'
+            
+            # Otherwise, convert to CSS variable
+            return f'var(--{var_name})'
+        
+        content = re.sub(r'\$([\w-]+)', replace_scss_variables, content)
         return content
 
     def _trim_whitespace(self, content: str) -> str:

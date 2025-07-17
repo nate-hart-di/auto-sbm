@@ -1431,7 +1431,7 @@ def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
 
 def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
     """
-    Comment out all potentially problematic SCSS code as a last resort.
+    Systematically comment out problematic SCSS code based on actual compilation errors.
     
     Args:
         test_files: List of test files
@@ -1440,21 +1440,85 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
     Returns:
         list: List of commented out lines with file info
     """
-    logger.warning("Commenting out potentially problematic SCSS code...")
+    logger.warning("Systematically commenting out problematic SCSS code...")
     
     commented_lines = []
     
-    # Target specific problematic patterns we've seen
-    problematic_patterns = [
-        (r'@mixin\s+fade-transition\([^)]*var\([^)]*\)[^)]*\)', 'malformed fade-transition mixin definition'),
-        (r'@include\s+fade-transition\([^)]*\)', 'fade-transition mixin call'),
-        (r'@mixin\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*var\([^)]*\)[^)]*\)', 'mixin definition with CSS variables'),
-        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*var\([^)]*\)[^)]*\)', 'mixin call with CSS variables'),
-        (r'lighten\([^)]+\)', 'lighten function'),
-        (r'darken\([^)]+\)', 'darken function'),
-        (r'@include\s+[a-zA-Z_][a-zA-Z0-9_-]*\([^)]*\)', 'unknown mixin call'),
-        (r'\$[a-zA-Z_][a-zA-Z0-9_-]*', 'SCSS variable usage'),
-    ]
+    # Get current Docker logs to identify specific errors
+    docker_errors = _get_current_compilation_errors()
+    
+    if docker_errors:
+        # Comment out lines based on actual errors
+        for error in docker_errors:
+            if 'fade-transition' in error.get('message', ''):
+                lines_commented = _comment_lines_containing(test_files, css_dir, 'fade-transition', 'fade-transition mixin')
+                commented_lines.extend(lines_commented)
+            elif 'undefined mixin' in error.get('message', '').lower():
+                mixin_name = _extract_mixin_name_from_error(error)
+                if mixin_name:
+                    lines_commented = _comment_lines_containing(test_files, css_dir, f'@include {mixin_name}', f'undefined mixin: {mixin_name}')
+                    commented_lines.extend(lines_commented)
+            elif 'lighten(' in error.get('message', '') or 'darken(' in error.get('message', ''):
+                lines_commented = _comment_lines_containing(test_files, css_dir, ['lighten(', 'darken('], 'SCSS color functions')
+                commented_lines.extend(lines_commented)
+    else:
+        # Fallback: comment common problematic patterns
+        logger.warning("No specific errors found, using fallback pattern commenting")
+        fallback_patterns = [
+            ('fade-transition', 'fade-transition mixin'),
+            ('lighten(', 'lighten function'),
+            ('darken(', 'darken function'),
+            ('@include', 'mixin calls'),
+        ]
+        
+        for pattern, description in fallback_patterns:
+            lines_commented = _comment_lines_containing(test_files, css_dir, pattern, description)
+            commented_lines.extend(lines_commented)
+            if lines_commented:  # Stop after first successful comment
+                break
+    return commented_lines
+
+
+def _get_current_compilation_errors():
+    """Get current compilation errors from Docker logs."""
+    try:
+        result = subprocess.run([
+            'docker', 'logs', '--tail', '30', 'dealerinspire_legacy_assets'
+        ], capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0 and result.stdout:
+            logs = result.stdout
+            errors = []
+            
+            # Parse different error patterns
+            for line in logs.split('\n'):
+                if 'error:' in line.lower():
+                    errors.append({'message': line, 'type': 'error'})
+                elif 'undefined' in line.lower():
+                    errors.append({'message': line, 'type': 'undefined'})
+            
+            return errors
+    except Exception as e:
+        logger.warning(f"Error getting Docker logs: {e}")
+    
+    return []
+
+
+def _extract_mixin_name_from_error(error):
+    """Extract mixin name from error message."""
+    message = error.get('message', '')
+    # Look for patterns like "Undefined mixin 'fade-transition'"
+    import re
+    match = re.search(r"mixin['\s]+([a-zA-Z_-]+)", message)
+    return match.group(1) if match else None
+
+
+def _comment_lines_containing(test_files, css_dir, patterns, description):
+    """Comment out lines containing specific patterns."""
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    
+    commented_lines = []
     
     for test_filename, _ in test_files:
         test_file_path = os.path.join(css_dir, test_filename)
@@ -1472,10 +1536,10 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
             for i, line in enumerate(lines):
                 if line.strip().startswith('//'):
                     continue  # Skip already commented lines
-                    
-                for pattern, description in problematic_patterns:
-                    import re
-                    if re.search(pattern, line):
+                
+                # Check if line contains any of the patterns
+                for pattern in patterns:
+                    if pattern in line:
                         original_line = line.strip()
                         lines[i] = f'// COMMENTED OUT: {line}'
                         modified = True
@@ -1494,9 +1558,7 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
                 with open(test_file_path, 'w') as f:
                     f.write('\n'.join(lines))
                 
-                logger.info(f"Commented out problematic code in {test_filename}")
-            else:
-                logger.warning(f"No problematic patterns found to comment in {test_filename}")
+                logger.info(f"Commented out {description} in {test_filename}")
                 
         except Exception as e:
             logger.warning(f"Error processing {test_filename}: {e}")
