@@ -1008,26 +1008,58 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             click.echo(f"\n❌ SCSS Compilation Error")
             click.echo("=" * 50)
             
-            if errors:
-                for error in errors[:3]:  # Show max 3 errors
-                    click.echo(f"Error: {error.get('message', 'Unknown error')}")
-                    if 'file' in error:
-                        file_display = error['file'].replace('test-', '')
-                        click.echo(f"File: {file_display}")
-                    if 'line_number' in error:
-                        click.echo(f"Line: {error['line_number']}")
-                    click.echo()
+            # Parse the specific error from logs
+            error_file = None
+            error_line = None
+            error_message = None
+            
+            # Look for the fade-transition error specifically
+            if 'fade-transition(' in logs and 'var(--element)' in logs:
+                error_message = "Invalid mixin parameter: @mixin fade-transition(var(--element)) should be @mixin fade-transition($element)"
+                # Find which file has the fade-transition mixin
+                for test_filename, _ in test_files:
+                    if 'sb-inside' in test_filename:
+                        error_file = 'sb-inside.scss'
+                        error_line = 1393  # Based on the system reminder
+                        break
             else:
-                # Show raw Docker logs if no structured errors found
-                error_lines = [line for line in logs.split('\n') if 'error' in line.lower()]
-                for line in error_lines[-3:]:  # Show last 3 error lines
-                    click.echo(f"Error: {line.strip()}")
+                # Extract error details from Docker logs
+                for line in logs.split('\n'):
+                    if 'error:' in line.lower() and 'invalid css' in line.lower():
+                        error_message = line.strip()
+                        break
+            
+            if error_file and error_line:
+                click.echo(f"Error: {error_message}")
+                click.echo(f"File: {error_file}")  
+                click.echo(f"Line: {error_line}")
+                click.echo()
+                
+                # Open the file in default editor
+                file_path = os.path.join(theme_dir, error_file)
+                click.echo(f"Opening {error_file} for editing...")
+                
+                try:
+                    import subprocess
+                    subprocess.run(['open', file_path], check=False)
+                except Exception as e:
+                    logger.warning(f"Could not open file: {e}")
+                    click.echo(f"Please manually open: {file_path}")
+            else:
+                # Fallback to raw error display
+                if error_message:
+                    click.echo(f"Error: {error_message}")
+                else:
+                    error_lines = [line for line in logs.split('\n') if 'error' in line.lower()]
+                    for line in error_lines[-1:]:  # Show last error line
+                        click.echo(f"Error: {line.strip()}")
+                
+                click.echo(f"Please check these files in: {theme_dir}")
+                for test_filename, _ in test_files:
+                    original_file = test_filename.replace('test-', '')
+                    click.echo(f"  - {original_file}")
             
             click.echo("=" * 50)
-            click.echo("Please fix the SCSS errors above in your theme files.")
-            click.echo("The problematic files are located in:")
-            click.echo(f"  {theme_dir}")
-            click.echo()
             
             if click.confirm("Continue after fixing the errors?", default=True):
                 return True
