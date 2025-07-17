@@ -96,8 +96,8 @@ class SCSSProcessor:
                 inside_map = False
                 continue
             
-            # Skip conversion for SCSS internal logic
-            if (inside_mixin or inside_map or 
+            # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
+            if (inside_mixin or 
                 stripped.startswith('@each') or 
                 stripped.startswith('@for') or 
                 stripped.startswith('@if') or 
@@ -105,6 +105,11 @@ class SCSSProcessor:
                 'map-get(' in stripped or
                 'map-keys(' in stripped or
                 stripped.startswith('%#')):
+                continue
+            
+            # Convert variables inside maps
+            if inside_map:
+                lines[i] = re.sub(r'\$([a-zA-Z][\w-]*)', r'var(--\1)', line)
                 continue
             
             # Convert variables in CSS property contexts only
