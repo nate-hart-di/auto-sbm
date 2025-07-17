@@ -564,7 +564,7 @@ def reprocess_manual_changes(slug):
         return False
 
 
-def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True):
+def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True, skip_reprocessing=False):
     """
     Run the post-migration workflow including manual review, git operations, and PR creation.
     
@@ -599,11 +599,14 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
 
-    # Reprocess manual changes to ensure consistency
-    logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
-    if not reprocess_manual_changes(slug):
-        logger.error("Failed to reprocess manual changes.")
-        return False
+    # Reprocess manual changes to ensure consistency (skip if already verified)
+    if not skip_reprocessing:
+        logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+        if not reprocess_manual_changes(slug):
+            logger.error("Failed to reprocess manual changes.")
+            return False
+    else:
+        logger.info("Skipping reprocessing - files were already manually fixed and verified")
 
     # Clean up snapshot files after manual review phase
     logger.info("Cleaning up automation snapshots after manual review")
@@ -1026,19 +1029,20 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             
             # Extract error details from Docker logs
             for line in logs.split('\n'):
-                if 'Error: Invalid CSS after' in line and 'fade-transition(' in line:
+                # Look for error message lines
+                if 'Error:' in line and any(keyword in line.lower() for keyword in ['invalid', 'undefined', 'expected', 'syntax']):
                     error_message = line.strip()
-                elif 'on line' in line and 'test-sb-inside.scss' in line:
-                    # Extract line number from "on line 1152 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
-                    parts = line.split()
-                    for i, part in enumerate(parts):
-                        if part == 'line' and i + 1 < len(parts):
-                            try:
-                                error_line = int(parts[i + 1])
-                                error_file = 'sb-inside.scss'
-                                break
-                            except ValueError:
-                                continue
+                # Look for "on line X of file" patterns
+                elif 'on line' in line and 'test-sb-' in line:
+                    # Parse: "on line 40 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
+                    import re
+                    match = re.search(r'on line (\d+) of [^/]*/(test-sb-[^/]+\.scss)', line)
+                    if match:
+                        error_line = int(match.group(1))
+                        test_file = match.group(2)
+                        # Convert test-sb-inside.scss -> sb-inside.scss
+                        error_file = test_file.replace('test-', '')
+                        break
             
             if error_file and error_line:
                 click.echo(f"Error: {error_message}")
@@ -1060,9 +1064,19 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
                 if error_message:
                     click.echo(f"Error: {error_message}")
                 else:
-                    error_lines = [line for line in logs.split('\n') if 'error' in line.lower()]
-                    for line in error_lines[-1:]:  # Show last error line
-                        click.echo(f"Error: {line.strip()}")
+                    # Show more comprehensive error information
+                    error_lines = [line for line in logs.split('\n') if 'error' in line.lower() and line.strip()]
+                    if error_lines:
+                        click.echo("Recent errors from Gulp:")
+                        for line in error_lines[-3:]:  # Show last 3 error lines
+                            click.echo(f"  {line.strip()}")
+                    else:
+                        # Show last few lines of logs for context
+                        recent_lines = [line for line in logs.split('\n')[-10:] if line.strip()]
+                        if recent_lines:
+                            click.echo("Recent Gulp output:")
+                            for line in recent_lines:
+                                click.echo(f"  {line.strip()}")
                 
                 click.echo(f"Please check these files in: {theme_dir}")
                 for test_filename, _ in test_files:
@@ -1072,8 +1086,8 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             click.echo("=" * 50)
             
             if click.confirm("Continue after fixing the errors?", default=True):
-                # User fixed the errors manually, restart compilation test completely
-                logger.info("User confirmed manual fixes, restarting compilation test...")
+                # User fixed the errors manually, reprocess the files and test compilation
+                logger.info("User confirmed manual fixes, reprocessing files...")
                 
                 # Clean up existing test files and CSS outputs
                 for test_filename, _ in test_files:
@@ -1087,9 +1101,8 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
                     if os.path.exists(css_file_path):
                         os.remove(css_file_path)
                 
-                # Restart the entire compilation verification from the beginning
-                sb_files = [tf[0].replace('test-', '') for tf in test_files]
-                return _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
+                # Reprocess the manually fixed files and verify compilation
+                return reprocess_manual_changes(slug)
             else:
                 return False
     

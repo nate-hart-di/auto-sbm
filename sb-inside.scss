@@ -1,0 +1,1141 @@
+:root {
+  --maintextfont: 'Open Sans', sans-serif;
+  --heading-font: 'Open Sans Condensed', sans-serif;
+}
+
+:root {
+  --types: map_keys(var(--font-types));
+}
+
+// *************************************************************************************************
+//	VARIABLES
+// *************************************************************************************************
+
+// *************************************************************************************************
+//	GENERAL
+// *************************************************************************************************
+@mixin declareFonts($family, $weight) {
+  font-family: $family;
+  @if $weight != null {
+    font-weight: $weight;
+  }
+}
+
+$font-types: (
+  regular: (
+    family: var(--maintextfont),
+    weight: 400,
+  ),
+  light: (
+    family: var(--maintextfont),
+    weight: 300,
+  ),
+  bold: (
+    family: var(--maintextfont),
+    weight: 700,
+  ),
+  condensed: (
+    family: var(--heading-font),
+    weight: 300,
+  ),
+);
+
+@each $type, $properties in $font-types {
+  %#{$type} {
+    @include declareFonts(map-get($properties, family), map-get($properties, weight));
+  }
+}
+
+@mixin transform($value) {
+  transform: $value;
+  -webkit-transform: $value;
+  -moz-transform: $value;
+  -o-transform: $value;
+  -ms-transform: $value;
+}
+
+.red-line {
+  text-align: center;
+  position: relative;
+  margin-bottom: 60px;
+
+  &:after {
+    content: '';
+    position: absolute;
+    top: calc(100% + 20px);
+    height: 1px;
+    width: 100px;
+    left: 50%;
+    -ms-transform: translateX(-50%);
+    -webkit-transform: translateX(-50%);
+    transform: translateX(-50%);
+    background-color: var(--primary);
+    // margin-bottom: 40px;
+  }
+}
+
+.button.button-transparent {
+  padding: 20px;
+  border: 1px solid #fff;
+  background: transparent;
+  color: #fff;
+  font-size: em(18, 14);
+
+  &:visited {
+    color: #fff;
+    border: 1px solid #fff;
+  }
+
+  &:hover {
+    background: var(--primary);
+  }
+}
+
+// *************************************************************************************************
+//	HEADER
+// *************************************************************************************************
+
+#header {
+  position: fixed;
+  width: 100%;
+  z-index: 1000;
+  border-bottom: 1px solid var(--primary);
+  top: 0;
+
+  .header-top {
+    background: #fff;
+    color: #898989;
+    padding: 6px 0;
+    font-size: em(12);
+
+    > .container-wide {
+      width: 100%;
+    }
+
+    a {
+      color: #898989;
+      font-size: em(12);
+      line-height: em(12, 12);
+
+      &:hover {
+        text-decoration: none;
+        color: var(--primary);
+      }
+    }
+
+    .dealer-hours {
+      text-align: left;
+
+      .hours + .department {
+        padding-left: 20px;
+        position: relative;
+
+        &:before {
+          content: '•';
+          position: absolute;
+          left: 8px;
+        }
+      }
+    }
+
+    .dealer-phone {
+      text-align: center;
+    }
+
+    .dealer-address {
+      text-align: right;
+    }
+  }
+
+  .header-bottom {
+    background: #111;
+
+    > .container-wide {
+      width: 100%;
+    }
+
+    .nav {
+      float: right;
+    }
+
+    .logo-img {
+      display: inline-block;
+      // position: relative;
+      img {
+        width: 150px;
+        top: 10px;
+      }
+    }
+
+    #alg-search {
+      height: 50px;
+      margin-top: 0;
+      border-radius: 0;
+      border-left: 1px solid #252525;
+      background: #111;
+      color: #fff;
+
+      @extend %bold;
+      font-size: em(14);
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    .tt-dropdown-menu {
+      left: auto !important;
+      right: -15px !important;
+    }
+
+    .search-field {
+      .search-icon,
+      .close-search {
+        position: absolute;
+        top: 50%;
+        -ms-transform: translateY(-50%);
+        -webkit-transform: translateY(-50%);
+        transform: translateY(-50%);
+
+        i {
+          color: #888;
+        }
+      }
+
+      .close-search {
+        display: none;
+        right: 21px;
+      }
+
+      .search-icon {
+        display: block;
+        right: 20px;
+      }
+
+      &.active {
+        .close-search {
+          display: block;
+        }
+        .search-icon {
+          display: none;
+        }
+      }
+    }
+  }
+  .logoWrapper {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -moz-flex;
+    display: -ms-flexbox;
+    display: flex;
+    .bottomWrapper__logo {
+      height: 50px;
+      width: 100px;
+      .logo-switch {
+        img {
+          max-height: 50px;
+        }
+      }
+    }
+    #cfirst {
+      img {
+        margin-top: 15px;
+      }
+    }
+  }
+
+  @media (max-width: 1200px) {
+    .header-bottom .logo-img {
+      width: 225px;
+
+      img {
+        width: 225px;
+      }
+    }
+
+    #logo-switch {
+      margin-left: 20px;
+    }
+  }
+
+  @media (min-width: 1201px) {
+    .header-bottom .logo-img {
+      width: 270px;
+
+      img {
+        width: 270px;
+      }
+    }
+  }
+
+  .navbar .navbar-inner ul.nav li a {
+    padding: 0 6px;
+    font-size: 13px;
+    @media (max-width: 1345px) {
+      padding: 0 4px;
+      font-size: 12px;
+    }
+    @media (max-width: 1199px) {
+      padding: 0 3px;
+      font-size: 11px;
+    }
+    @media (max-width: 1090px) {
+      padding: 0 2px;
+      font-size: 10px;
+    }
+  }
+}
+
+//start 01428333
+@media (min-width: 1025px) {
+  #DIsiteNotice.error.notice {
+    display: none;
+  }
+}
+//end 01428333
+
+// *************************************************************************************************
+//	NAVIGATION
+// *************************************************************************************************
+
+#header .navbar li.menu-item-25842 a,
+#header .navbar li.menu-item-535 a {
+  color: #f90707;
+}
+#header .navbar li.menu-item-25842 a:hover,
+#header .navbar li.menu-item-535 a:hover {
+  color: #fff;
+}
+#header .navbar li.menu-item-25842 ul.sub-menu a,
+#header .navbar li.menu-item-535 ul.sub-menu a {
+  color: #fff;
+}
+#header .navbar li.menu-item-25842 ul.sub-menu a:hover,
+#header .navbar li.menu-item-535 ul.sub-menu a:hover {
+  color: var(--primary);
+}
+
+// *************************************************************************************************
+//  Device Header
+// *************************************************************************************************
+
+// *************************************************************************************************
+//	FOOTER
+// *************************************************************************************************
+
+.fat-footer {
+  background-image: url('/wp-content/themes/DealerInspireDealerTheme/images/fat-footer-bg.png');
+  padding: 120px 0;
+
+  .social-links,
+  .contact-info {
+    text-align: center;
+
+    span {
+      display: block;
+    }
+  }
+
+  .prefooter-address,
+  .prefooter-phone {
+    position: relative;
+    text-align: left;
+    padding-left: 45px;
+    font-size: em(16, 14);
+    line-height: em(30, 16);
+    color: #111;
+
+    a {
+      color: #111;
+
+      &:hover {
+        color: var(--primary);
+        text-decoration: none;
+      }
+    }
+
+    &:before {
+      font-family: FontAwesome;
+      color: #111;
+      font-size: em(24, 16);
+      position: absolute;
+      left: 0;
+      top: 50%;
+      -ms-transform: translateY(-50%);
+      -webkit-transform: translateY(-50%);
+      transform: translateY(-50%);
+    }
+  }
+
+  .prefooter-address:before {
+    content: '\f041';
+  }
+
+  .prefooter-phone:before {
+    content: '\f095';
+  }
+
+  .social-links {
+    padding-bottom: 70px;
+
+    a {
+      padding: 0 10px;
+      display: inline;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .prefooter-address,
+    .prefooter-phone {
+      text-align: center;
+      padding-left: 0;
+      padding-top: 60px;
+
+      &:before {
+        top: 30px;
+        left: 50%;
+        -ms-transform: translateX(-50%);
+        -webkit-transform: translateX(-50%);
+        transform: translateX(-50%);
+      }
+    }
+  }
+
+  @media (max-width: 767px) {
+    padding: 45px 0;
+
+    .social-links {
+      padding-bottom: 0;
+    }
+  }
+}
+
+#footer {
+  .footer-left.footer-middle {
+    text-align: left;
+  }
+
+  .footer-middle,
+  .footer-right {
+    text-transform: capitalize;
+    font-size: em(12);
+  }
+
+  .footer-right a {
+    @extend %bold;
+
+    color: #fff;
+
+    &:hover {
+      color: var(--primary);
+      text-decoration: none;
+    }
+  }
+
+  #menu-footer {
+    li {
+      a {
+        text-transform: capitalize;
+
+        font-size: em(12, 12);
+        color: #fff;
+
+        &:hover {
+          text-decoration: none;
+          color: var(--primary);
+        }
+      }
+
+      + li {
+        &:before {
+          content: '•';
+        }
+      }
+    }
+  }
+
+  @media (max-width: 767px) {
+    #menu-footer {
+      text-align: center;
+    }
+  }
+}
+
+// *************************************************************************************************
+//	HOMEPAGE
+// *************************************************************************************************
+
+// ALL HOME PAGE STYLING IS IN THE "_home.scss" FILE
+
+// Defaults for PZ font mixin: var(--font-family):var(--heading-font), var(--color):var(--primary), var(--weight):bold, var(--line-height):normal, var(--align):center
+.personalizer-wrap {
+  color: #fff;
+  font-family: var(--heading-font);
+  text-align: center;
+
+  h1,
+  h1 a,
+  a h1,
+  h2,
+  h2 a,
+  a h2,
+  h3,
+  h3 a,
+  a h3,
+  h4,
+  h4 a,
+  a h4,
+  h5,
+  h5 a,
+  a h5,
+  h6,
+  h6 a,
+  a h6 {
+    color: #fff;
+    font-weight: bold;
+    line-height: normal;
+  }
+
+  h1 {
+    font-size: 4.172rem;
+  }
+  h2 {
+    font-size: 3.338rem;
+  }
+  h3 {
+    font-size: 2.67rem;
+  }
+  h4 {
+    font-size: 2.136rem;
+  }
+  h5 {
+    font-size: 1.709em;
+  }
+  h6 {
+    font-size: 1.367em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @media (max-width: 768px) {
+      font-size: 1.709em;
+    }
+  }
+  // 		(optional additional styles)
+}
+
+// *************************************************************************************************
+//	INSIDE PAGES
+// *************************************************************************************************
+
+// *************************************************************************************************
+//	VEHICLE RESULTS PAGE
+// *************************************************************************************************
+
+div.online-shopper-cta-button--v2 {
+  background: green;
+}
+
+.vdp--lightning .vdp-price-box__cta + .vdp-price-box__cta a {
+  background-color: green;
+}
+// ************************************************************************************************
+//  DEALER INSPIRE & THIRD PARTY PLUGINS
+// ************************************************************************************************
+
+//
+
+.third-party-shopping-box,
+.third-party-shopping-box ul,
+.third-party-shopping-box ul li {
+  width: 100%;
+}
+
+// *************************************************************************************************
+//	VEHICLE DETAILS PAGE
+// *************************************************************************************************
+
+//NEW VDP STYLING: DO NOT REMOVE
+
+/*************************************************************************************************
+	TABLET ELEMENT STYLING
+*************************************************************************************************/
+
+@media (max-width: 1024px) {
+}
+
+/*************************************************************************************************
+	MOBILE ELEMENT STYLING
+*************************************************************************************************/
+
+@media (max-width: 767px) {
+  #homepage-advanced-search {
+    .twitter-typeahead {
+      width: 100%;
+    }
+    #alg-search {
+      width: 100%;
+    }
+    .tt-dropdown-menu {
+      min-width: 200px;
+      width: 100%;
+      .algolia-dataset {
+        width: 100%;
+      }
+    }
+  }
+}
+
+/*************************************************************************************************
+	SUPPORT
+*************************************************************************************************/
+
+// 00338435 start
+.home .fixed-top-spacer {
+  height: 50px;
+}
+
+.fixed-top-spacer {
+  height: 80.15px;
+}
+
+div.lightning-custom-cta {
+  background-color: green;
+}
+
+#lvrp-results-wrapper .hit-price--primary div.hit-price__value {
+  color: green;
+}
+
+// 00338435 end
+
+// 00340640 start
+
+#header .header-bottom .logo-img {
+  width: 200px;
+  margin: 4px 0;
+  img {
+    width: 200px;
+  }
+}
+
+@media (min-width: 1266px) and (max-width: 1306px) {
+  .navbar .navbar-inner ul.nav li a {
+    font-size: 13px;
+  }
+}
+// 00340640 end
+
+// 00344404
+.page-id-17 {
+  .difo-wrapper .coupon-actions .difo-button {
+    background-color: #008000 !important;
+
+    &:hover,
+    &:focus,
+    &:active {
+      background-color: darken(#008000, 10%) !important;
+    }
+  }
+}
+
+.navbar .navbar-inner ul.nav li a {
+  @media (min-width: 1025px) and (max-width: 1059px) {
+    font-size: 0.8em;
+  }
+}
+// end 00344404
+
+.page-vehicle-display-page #payment-options {
+  display: none;
+}
+
+// Start
+@media (max-width: 767px) {
+  #lvrp-results-wrapper .hit .hit-content {
+    width: 50%;
+  }
+}
+// End
+
+// START 00366692
+#header .header-top {
+  color: #5d5c5c !important;
+  font-size: 0.969554em !important;
+  @media (max-width: 1120px) {
+    font-size: 0.85em !important;
+  }
+  a {
+    font-size: 0.969554em !important;
+    @media (max-width: 1120px) {
+      font-size: 0.85em !important;
+    }
+    color: #5d5c5c !important;
+  }
+}
+// END 00366692
+
+// 00440662 - Add Mobile Search to Header
+@media (max-width: 767px) {
+  .mobile-search {
+    display: none;
+    position: absolute;
+    top: 90px; // prob need to change depending on the site
+    right: 0;
+    padding: 10px 15px;
+    width: 100%;
+    background: var(--primary);
+    z-index: 9999;
+
+    .inventory-search-field {
+      width: 70%;
+      border: none;
+      padding: 8px;
+    }
+
+    .button.primary-button {
+      background: var(--secondary);
+      width: 24% !important;
+      height: 37px;
+      padding: 0;
+      margin: 0;
+      border: 1px solid #fff;
+      border-radius: 0;
+    }
+  }
+  .menu-top .menu-search {
+    float: right;
+
+    a {
+      display: block;
+      color: #fff;
+      line-height: 22px;
+      padding: 15px 0 0;
+      width: 34px;
+      text-align: center;
+
+      .glyphicon {
+        font-size: 20px;
+      }
+    }
+  }
+}
+// END 00440662 - Add Mobile Search to Header
+
+// 01269632
+.di-stacks-spacer.di-stacks-spacer--top {
+  @media (max-width: 767px) {
+    height: 35px !important;
+  }
+  @media (min-width: 768px) and (max-width: 1024px) {
+    height: 50px !important;
+  }
+  @media (min-width: 1025px) {
+    height: 75px !important;
+  }
+}
+// 01269632 END
+
+#header .logoWrapper .bottomWrapper__logo .logo-switch img {
+  width: auto;
+}
+
+.header-bottom .spanish-cta {
+  padding: 5px 15px;
+  margin: 5px;
+  position: relative;
+  line-height: 40px;
+  background-color: var(--cta);
+  color: #fff;
+  text-transform: uppercase;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+// 1438022 - mobile - fix issue with mobile tabs
+@media screen and (max-width: 767px) {
+  body .di-stacks .mobile-tabs {
+    position: fixed;
+    bottom: 0;
+    top: unset !important; //overwrite other !important styling
+  }
+}
+// end 1438022
+
+// Start 01450902
+#videobanner #videoOverlay {
+  z-index: 2;
+}
+// End 01450902
+// *************************************************************************************************
+//	Support request & third-party related styles
+// *************************************************************************************************
+
+#reviewsRow .review-button {
+  line-height: inherit !important;
+}
+
+@media (max-width: 767px) {
+  #footer {
+    margin-bottom: 90px !important;
+  }
+
+  .mobile-tabs {
+    bottom: 50px;
+  }
+}
+
+// START: VRP / VDP Adjustments
+#results-page {
+  #search-anything {
+    @media screen and (max-width: 767px) {
+      display: block !important;
+      .vrp-top-search-anything-label {
+        display: none;
+      }
+      input#search {
+        width: calc(100% - 100px) !important;
+      }
+    }
+  }
+  .vehicle {
+    .vehicle-overview .options {
+      width: 60%;
+    }
+
+    .vehicle-overview .vehicle-price {
+      width: 40%;
+    }
+
+    .vehicle-price {
+      .price-top .withdiscounts-left,
+      .price-top .withdiscounts-right {
+        width: 100%;
+      }
+
+      .price-block .price-label {
+        float: left;
+        clear: both;
+        line-height: 1.5em;
+        max-width: 50%;
+      }
+
+      .price-block.original,
+      .price-block.our-price {
+        .price,
+        .price-label {
+          font-size: 1.2em;
+        }
+      }
+
+      .price-block .price {
+        font-size: 13px;
+        text-align: right;
+        float: right;
+        line-height: 1.5em;
+        max-width: 50%;
+      }
+
+      .price-leaseandfinance .price-block .price {
+        float: none !important;
+      }
+
+      .price-top .withdiscounts-right .price-block .price-label:first-child {
+        margin-bottom: 10px;
+      }
+
+      .price-block.discounts a,
+      .incentives .price-block a {
+        color: green;
+      }
+
+      .price-block.conditional-final-price .price,
+      .price-block.our-price .price {
+        font-weight: bold;
+      }
+    }
+  }
+}
+
+#vehicleDetails #ctabox-pricing {
+  .original-price .ctabox-price {
+    text-decoration: line-through;
+  }
+
+  .real-price .ctabox-price {
+    font-size: 20px;
+  }
+
+  .discounts,
+  .incentives,
+  .savings,
+  .cash-incentives-breakdown {
+    color: green;
+  }
+
+  .real-price {
+    font-weight: bold;
+  }
+
+  .target-incentive-breakdown {
+    color: green;
+
+    .conditional-final-price {
+      color: #333;
+      font-weight: bold;
+    }
+  }
+
+  > div {
+    clear: both;
+  }
+
+  .ctabox-price-label {
+    clear: both;
+    float: left;
+  }
+
+  .ctabox-price {
+    float: right;
+  }
+}
+// END: VRP / VDP Adjustments
+.navbar .navbar-inner ul.nav li.megamenu ul.sub-menu {
+  width: 1010px;
+  left: -400px;
+  padding-top: 35px;
+  z-index: 999;
+}
+#header .header-bottom .logo-img {
+  z-index: 999;
+}
+.gg-chatbox {
+  z-index: 1 !important;
+}
+
+//#00048515 START
+#videobanner #videoOverlay .personalizer-wrap h2 {
+  padding-bottom: 25px;
+}
+
+#videobanner #hero-cta a {
+  background-color: green;
+  border: none;
+  padding-left: 15px;
+  padding-right: 15px;
+  white-space: nowrap;
+  &:hover {
+    background-color: #005400;
+  }
+}
+
+@media (max-width: 767px) {
+  #videobanner #hero-cta a {
+    padding: 15px;
+    width: 100% !important;
+    background-color: green;
+  }
+}
+
+//#00048515 END
+
+//#00049532 START
+@media (max-width: 767px) {
+  .mobile-tabs {
+    top: 50px !important;
+    .mobile-tab {
+      background-color: green !important;
+      -webkit-transition: all 0.35s ease-in-out;
+      -moz-transition: all 0.35s ease-in-out;
+      -o-transition: all 0.35s ease-in-out;
+      transition: all 0.35s ease-in-out;
+      &:hover {
+        background-color: #006700 !important;
+        //background: #d4291c !important; //previous
+      }
+    }
+  }
+  .container-wide {
+    margin-top: 50px;
+  }
+}
+//#00049532 END
+@media (max-width: 1024px) {
+  main.di-fca-content-wrapper {
+    margin-top: 25px;
+  }
+}
+
+//83939
+#header .header-bottom .logo-img {
+  left: 15px;
+}
+//end 83939
+.llu {
+  position: absolute;
+  max-width: 200px;
+}
+
+.llu2 {
+  position: absolute;
+  max-width: 280px;
+  right: 5%;
+}
+// 00937065 - Customer First Logo
+.secondary-logos img {
+  margin: 5px;
+  width: 170px;
+  max-width: 100%;
+}
+
+.secondary-logos-mobile {
+  width: 110px;
+  max-width: 100%;
+  position: absolute;
+  left: 230px;
+  @media (min-width: 767px) {
+    left: 320px;
+  }
+  @media (max-width: 470px) {
+    display: none;
+  }
+}
+
+/* Cookie Banner Styles */
+//▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+// _Cookie Banner
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+
+.cookie-banner {
+  z-index: 2147483650; // might need to adjust per site - depending on 3rd parties
+  bottom: 0; // might need to adjust per site - depending on 3rd parties
+  border-top: 2px solid var(--primary);
+  position: fixed;
+  right: 0;
+  left: 0;
+  padding: 16px 24px;
+  color: #fff; // might need to adjust per site - depending on secondary color
+  background-color: var(--secondary);
+
+  -webkit-transition: -webkit-transform 200ms cubic-bezier(0.4, 0, 1, 1) 400ms;
+  -moz-transition: -moz-transform 200ms cubic-bezier(0.4, 0, 1, 1) 400ms;
+  -o-transition: -o-transform 200ms cubic-bezier(0.4, 0, 1, 1) 400ms;
+  transition: transform 200ms cubic-bezier(0.4, 0, 1, 1) 400ms;
+  -webkit-transform: translate(0, 100%);
+  -ms-transform: translate(0, 100%);
+  -o-transform: translate(0, 100%);
+  transform: translate(0, 100%);
+
+  &.on {
+    -webkit-transform: translate(0, 0);
+    -ms-transform: translate(0, 0);
+    -o-transform: translate(0, 0);
+    transform: translate(0, 0);
+    -webkit-transition: -webkit-transform 200ms cubic-bezier(0, 0, 0.2, 1) 400ms;
+    -moz-transition: -moz-transform 200ms cubic-bezier(0, 0, 0.2, 1) 400ms;
+    -o-transition: -o-transform 200ms cubic-bezier(0, 0, 0.2, 1) 400ms;
+    transition: transform 200ms cubic-bezier(0, 0, 0.2, 1) 400ms;
+  }
+
+  .cookie-banner-container {
+    margin: 0 auto;
+    padding: 0 12px;
+    text-align: center;
+    max-width: 1440px;
+    justify-content: space-between;
+    display: flex;
+
+    .cookie-banner-paragraph {
+      text-align: left;
+
+      p {
+        margin: 0;
+      }
+    }
+    .cookie-button {
+      width: auto;
+      flex-shrink: 0;
+      margin-left: 25px;
+      padding: 0 18px;
+      background-color: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+
+      .fa {
+        padding-left: 5px;
+      }
+    }
+  }
+
+  @media (max-width: 767px) {
+    .cookie-banner-container {
+      display: block;
+
+      .cookie-banner-paragraph {
+        text-align: center;
+      }
+      .cookie-button {
+        padding: 8px 18px;
+        margin-left: 0;
+        margin-top: 15px;
+      }
+    }
+  }
+}
+
+/* Directions Row Styles */
+/* MAP ROW **************************************************/
+#mapRow {
+  position: relative;
+  .mapwrap {
+    height: 600px;
+  }
+}
+#map-canvas {
+  height: 100%;
+}
+/* DIRECTIONS BOX **************************************************/
+#directionsBox {
+  padding: 50px 0;
+  text-align: left;
+  width: 400px;
+  position: absolute;
+  top: 200px;
+  left: 50px;
+  background: #fff;
+  text-align: left;
+  color: #111;
+  font-family: 'Lato', sans-serif;
+  .getdirectionstext {
+    display: inline-block;
+    font-size: 24px;
+    margin: 0;
+  }
+  .locationtext {
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+  .address {
+    margin-bottom: 20px;
+  }
+}
+@media (max-width: 920px) {
+  #mapRow {
+    .mapwrap {
+      height: 250px;
+    }
+    #directionsBox {
+      width: unset;
+      height: 100%;
+      top: 0;
+      left: 0;
+      padding: 20px;
+      max-width: 45%;
+    }
+  }
+}
