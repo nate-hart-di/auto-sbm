@@ -1051,7 +1051,6 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
                 click.echo(f"Opening {error_file} for editing...")
                 
                 try:
-                    import subprocess
                     subprocess.run(['open', file_path], check=False)
                 except Exception as e:
                     logger.warning(f"Could not open file: {e}")
