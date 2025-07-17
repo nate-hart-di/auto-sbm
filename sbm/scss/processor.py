@@ -53,27 +53,67 @@ class SCSSProcessor:
             # Prepend the new :root block to the content
             content = root_block + content.lstrip()
 
-        # Finally, convert all remaining SCSS variable usages throughout the file
-        # BUT NOT in mixin definitions (both parameters and body)
+        # Finally, convert SCSS variable usages to CSS custom properties
+        # BUT exclude SCSS internal logic (mixins, maps, loops, functions)
+        content = self._convert_scss_variables_intelligently(content)
+        return content
+
+    def _convert_scss_variables_intelligently(self, content: str) -> str:
+        """
+        Convert SCSS variables to CSS custom properties, but only in appropriate contexts.
+        Excludes SCSS internal logic like mixin parameters, maps, loops, and functions.
+        """
         lines = content.split('\n')
         inside_mixin = False
+        inside_map = False
+        brace_depth = 0
         
         for i, line in enumerate(lines):
             stripped = line.strip()
+            original_line = line
+            
+            # Track brace depth for nested structures
+            brace_depth += line.count('{') - line.count('}')
             
             # Check if we're entering a mixin definition
             if stripped.startswith('@mixin'):
                 inside_mixin = True
-            # Check if we're exiting a mixin definition (closing brace at start of line)
-            elif inside_mixin and stripped == '}':
-                inside_mixin = False
+                continue
             
-            # Only convert variables if we're not inside a mixin definition
-            if not inside_mixin:
+            # Check if we're exiting a mixin definition
+            elif inside_mixin and stripped == '}' and brace_depth == 0:
+                inside_mixin = False
+                continue
+            
+            # Check if we're in a map definition
+            elif ':' in stripped and '(' in stripped and not inside_mixin:
+                if re.match(r'^\s*\$[\w-]+\s*:\s*\(', stripped):
+                    inside_map = True
+                    continue
+            
+            # Check if we're exiting a map definition  
+            elif inside_map and stripped.endswith(');'):
+                inside_map = False
+                continue
+            
+            # Skip conversion for SCSS internal logic
+            if (inside_mixin or inside_map or 
+                stripped.startswith('@each') or 
+                stripped.startswith('@for') or 
+                stripped.startswith('@if') or 
+                stripped.startswith('@else') or
+                'map-get(' in stripped or
+                'map-keys(' in stripped or
+                stripped.startswith('%#')):
+                continue
+            
+            # Convert variables in CSS property contexts only
+            # Look for patterns like "property: $variable" but exclude SCSS variable assignments
+            if (':' in stripped and not stripped.startswith('@') and 
+                not re.match(r'^\s*\$[\w-]+\s*:', stripped)):
                 lines[i] = re.sub(r'\$([\w-]+)', r'var(--\1)', line)
         
-        content = '\n'.join(lines)
-        return content
+        return '\n'.join(lines)
 
     def _trim_whitespace(self, content: str) -> str:
         """
@@ -138,14 +178,8 @@ class SCSSProcessor:
         # Case 1: SCSS functions with CSS variables - convert to CSS-compatible equivalents
         # These appear in raw SCSS content (not from mixins) and need to be handled
         
-        # Convert SCSS variables to CSS variables
-        # $primary -> var(--primary)
-        # BUT NOT in mixin parameters - exclude lines that start with @mixin
-        lines = content.split('\n')
-        for i, line in enumerate(lines):
-            if not line.strip().startswith('@mixin'):
-                lines[i] = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_-]*)', r'var(--\1)', line)
-        content = '\n'.join(lines)
+        # Convert SCSS variables to CSS variables using intelligent conversion
+        content = self._convert_scss_variables_intelligently(content)
         
         # Handle SCSS functions that can't work with CSS variables
         # lighten(var(--primary), 20%) -> var(--primary) (remove the function)
