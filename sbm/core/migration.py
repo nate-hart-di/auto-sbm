@@ -411,7 +411,7 @@ def _format_all_scss_with_prettier(slug):
     try:
         # Run prettier directly with subprocess to get the real exit code
         result = subprocess.run(
-            f'prettier --write "$HOME/di-websites-platform/dealer-themes/{slug}/sb-*.scss"',
+            'prettier --write "$HOME/di-websites-platform/dealer-themes/**/sb-*.scss"',
             shell=True,
             capture_output=True,
             text=True
