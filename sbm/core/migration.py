@@ -398,6 +398,38 @@ def _format_scss_with_prettier(file_path):
         return False
 
 
+def _format_all_scss_with_prettier(theme_dir):
+    """
+    Format all SCSS files in the theme directory with prettier using glob pattern.
+    
+    Args:
+        theme_dir (str): Path to the theme directory
+        
+    Returns:
+        bool: True if formatting succeeded, False otherwise
+    """
+    try:
+        # Use prettier to format all sb-*.scss files at once
+        success, stdout, stderr, _ = execute_command(
+            f"prettier --write '{theme_dir}/sb-*.scss'",
+            f"Failed to format SCSS files with prettier",
+            wait_for_completion=True
+        )
+        
+        if success:
+            return True
+        else:
+            # Log stderr for debugging if formatting failed
+            if stderr:
+                error_msg = ''.join(stderr).strip()
+                logger.debug(f"Prettier formatting error: {error_msg}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"Could not format SCSS files with prettier: {e}")
+        return False
+
+
 def test_compilation_recovery(slug):
     """
     Test compilation error handling on an existing theme without doing migration.
@@ -531,26 +563,18 @@ def reprocess_manual_changes(slug):
                     processed_lines = len(processed_content.splitlines())
                     logger.info(f"Reprocessed {sb_file}: {original_lines} → {processed_lines} lines")
                     
-                    # Format with prettier if available
-                    if prettier_available:
-                        if _format_scss_with_prettier(file_path):
-                            logger.info(f"Formatted {sb_file} with prettier")
-                        else:
-                            logger.warning(f"Prettier formatting failed for {sb_file}, using default formatting")
-                
-                # Even if no content changes, still format with prettier if available
-                elif prettier_available:
-                    if _format_scss_with_prettier(file_path):
-                        logger.info(f"Formatted {sb_file} with prettier (no content changes)")
         
         if changes_made:
             logger.info(f"Reprocessing completed for {slug}. Files updated: {', '.join(processed_files)}")
         else:
             logger.info(f"No reprocessing needed for {slug} - all files already properly formatted")
             
-        # Summary of formatting
+        # Format all SCSS files at once with prettier if available
         if prettier_available:
-            logger.info(f"Applied prettier formatting to all {len([f for f in sb_files if os.path.exists(os.path.join(theme_dir, f))])} SCSS files")
+            if _format_all_scss_with_prettier(theme_dir):
+                logger.info(f"Applied prettier formatting to all SCSS files")
+            else:
+                logger.warning(f"Prettier formatting failed, using default formatting")
         
         # MANDATORY: Verify SCSS compilation using Docker Gulp
         if not _verify_scss_compilation_with_docker(theme_dir, slug, sb_files):
