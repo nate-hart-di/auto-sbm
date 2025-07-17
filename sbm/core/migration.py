@@ -955,9 +955,10 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
                 
                 # Look for compilation success indicators
                 if "finished 'sass'" in logs and "finished 'processcss'" in logs:
-                    # Check if any errors in recent logs
-                    if not any(error_indicator in logs for error_indicator in [
-                        'error:', 'failed', 'scss compilation error', 'syntax error'
+                    # Check if any errors in recent logs (check original case-sensitive logs)
+                    original_logs = result.stdout
+                    if not any(error_indicator in original_logs for error_indicator in [
+                        'Error:', 'gulp-notify: [Error running Gulp]'
                     ]):
                         logger.info("✅ Compilation completed successfully")
                         return True
@@ -1032,7 +1033,7 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
                 # Look for error message lines
                 if 'Error:' in line and any(keyword in line.lower() for keyword in ['invalid', 'undefined', 'expected', 'syntax']):
                     error_message = line.strip()
-                # Look for "on line X of file" patterns
+                # Look for "on line X of file" patterns  
                 elif 'on line' in line and 'test-sb-' in line:
                     # Parse: "on line 40 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
                     import re
