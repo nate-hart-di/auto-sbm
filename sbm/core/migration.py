@@ -1072,36 +1072,17 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             click.echo("=" * 50)
             
             if click.confirm("Continue after fixing the errors?", default=True):
-                # Retry compilation after manual fixes
-                logger.info("Retrying compilation after manual fixes...")
+                # User fixed the errors, re-run migration step to incorporate fixes
+                logger.info("User confirmed fixes, re-running migration step...")
                 
-                # Clean up old test files first
-                cleanup_test_files(css_dir, test_files)
+                from ..scss.processor import SCSSProcessor
                 
-                # Create fresh test files and try compilation again
-                test_files_created = []
-                for original_file, test_file in test_files:
-                    original_path = os.path.join(theme_dir, original_file)
-                    test_path = os.path.join(css_dir, test_file)
-                    
-                    if os.path.exists(original_path):
-                        shutil.copy2(original_path, test_path)
-                        test_files_created.append((original_file, test_file))
-                        logger.info(f"Copied {original_file} to {test_file} for retry compilation test")
+                # Re-run the SCSS migration step to incorporate manual fixes
+                processor = SCSSProcessor(theme_dir)
+                processor.migrate_styles()
+                logger.info("Re-migrated styles after manual fixes")
                 
-                # Monitor compilation again
-                compiled_files = monitor_docker_compilation(css_dir, test_files_created, max_wait=5)
-                
-                if len(compiled_files) == len(test_files_created):
-                    logger.info("✅ All files compiled successfully after manual fixes!")
-                    return True
-                else:
-                    logger.warning("⚠️ Some files still have compilation issues after manual fixes")
-                    # Show which files still fail but continue anyway since user requested it
-                    failed_files = [tf for tf in test_files_created if tf[1].replace('.scss', '.css') not in compiled_files]
-                    if failed_files:
-                        click.echo(f"Files still failing: {[f[0] for f in failed_files]}")
-                    return True  # Continue anyway since user chose to proceed
+                return True
             else:
                 return False
     
