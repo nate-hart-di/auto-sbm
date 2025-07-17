@@ -54,7 +54,7 @@ class SCSSProcessor:
             content = root_block + content.lstrip()
 
         # Finally, convert all remaining SCSS variable usages throughout the file
-        # BUT exclude mixin definitions entirely (they should use #{$param} interpolation)
+        # BUT exclude mixin parameter definitions and use interpolation inside mixin bodies
         def replace_scss_variables(match):
             full_match = match.group(0)
             var_name = match.group(1)
@@ -62,10 +62,21 @@ class SCSSProcessor:
             # Find the context around this variable
             start_pos = match.start()
             
-            # Check if we're inside a @mixin definition block
+            # Check if we're in a mixin parameter list (should stay as $param)
+            line_start = content.rfind('\n', 0, start_pos) + 1
+            line_end = content.find('\n', start_pos)
+            if line_end == -1:
+                line_end = len(content)
+            line_text = content[line_start:line_end]
+            
+            # If this is a mixin parameter definition, don't convert
+            if re.match(r'\s*@mixin\s+[\w-]+\s*\([^{]*$', line_text.split('{')[0]):
+                return full_match  # Keep as $element in parameter list
+            
+            # Check if we're inside a @mixin definition body (should use interpolation)
             mixin_start = content.rfind('@mixin', 0, start_pos)
             if mixin_start != -1:
-                # Find the closing brace of this mixin
+                # Find the opening brace of this mixin
                 mixin_brace_start = content.find('{', mixin_start)
                 if mixin_brace_start != -1 and mixin_brace_start < start_pos:
                     # Count braces to find the end of this mixin
@@ -78,7 +89,7 @@ class SCSSProcessor:
                             brace_count -= 1
                         pos += 1
                     
-                    # If we're inside the mixin block, use interpolation
+                    # If we're inside the mixin body, use interpolation
                     if start_pos < pos:
                         return f'#{{{full_match}}}'
             
