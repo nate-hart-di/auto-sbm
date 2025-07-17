@@ -362,8 +362,8 @@ def copy_partial_to_dealer_theme(slug, partial_info):
         theme_dir = get_dealer_theme_dir(slug)
         partial_path = partial_info['partial_path']
         
-        # Remove leading slash and partials/ prefix for CommonTheme path
-        commontheme_partial_path = partial_path.lstrip('/').replace('partials/', '')
+        # Use the exact path from template part call for CommonTheme
+        commontheme_partial_path = partial_path.lstrip('/')
         
         # CommonTheme source file (always .php extension)
         commontheme_source = os.path.join(COMMON_THEME_DIR, f"{commontheme_partial_path}.php")
@@ -391,12 +391,18 @@ def copy_partial_to_dealer_theme(slug, partial_info):
             
             return False
         
-        # DealerTheme destination
-        dealer_dest_dir = os.path.join(theme_dir, 'partials', os.path.dirname(commontheme_partial_path))
-        dealer_dest_file = os.path.join(dealer_dest_dir, f"{os.path.basename(commontheme_partial_path)}.php")
+        # Use the exact same relative path from front-page.php in dealer theme
+        dealer_dest_file = os.path.join(theme_dir, f"{commontheme_partial_path}.php")
+        dealer_dest_dir = os.path.dirname(dealer_dest_file)
         
-        # Create directory structure
+        # Create directory structure only if it doesn't exist
         os.makedirs(dealer_dest_dir, exist_ok=True)
+        
+        # Check if file already exists
+        if os.path.exists(dealer_dest_file):
+            logger.info(f"✅ Partial already exists: {os.path.relpath(dealer_dest_file, theme_dir)}")
+            logger.info(f"   Using existing file instead of overwriting")
+            return True
         
         # Copy the file
         shutil.copy2(commontheme_source, dealer_dest_file)
