@@ -377,9 +377,9 @@ def _format_scss_with_prettier(file_path):
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        # Use prettier to format the file in place with explicit SCSS parser
+        # Use prettier to format the file in place
         success, stdout, stderr, _ = execute_command(
-            f"prettier --write --parser scss --tab-width 2 --single-quote '{file_path}'",
+            f"prettier --write '{file_path}'",
             f"Failed to format {os.path.basename(file_path)} with prettier",
             wait_for_completion=True
         )

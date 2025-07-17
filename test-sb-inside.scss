@@ -1,0 +1,14 @@
+:root {
+  --primary: #252525;
+  --secondary: #ffffff;
+}
+
+.test-class {
+  color: var(--primary);
+  background: var(--secondary);
+}
+
+@mixin fade-transition($element) {
+  -webkit-transition: $element 0.15s ease-in-out;
+  transition: $element 0.15s ease-in-out;
+}
