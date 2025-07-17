@@ -54,7 +54,12 @@ class SCSSProcessor:
             content = root_block + content.lstrip()
 
         # Finally, convert all remaining SCSS variable usages throughout the file
-        content = re.sub(r'\$([\w-]+)', r'var(--\1)', content)
+        # BUT NOT in mixin parameters - exclude lines that start with @mixin
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            if not line.strip().startswith('@mixin'):
+                lines[i] = re.sub(r'\$([\w-]+)', r'var(--\1)', line)
+        content = '\n'.join(lines)
         return content
 
     def _trim_whitespace(self, content: str) -> str:
@@ -122,7 +127,12 @@ class SCSSProcessor:
         
         # Convert SCSS variables to CSS variables
         # $primary -> var(--primary)
-        content = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_-]*)', r'var(--\1)', content)
+        # BUT NOT in mixin parameters - exclude lines that start with @mixin
+        lines = content.split('\n')
+        for i, line in enumerate(lines):
+            if not line.strip().startswith('@mixin'):
+                lines[i] = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_-]*)', r'var(--\1)', line)
+        content = '\n'.join(lines)
         
         # Handle SCSS functions that can't work with CSS variables
         # lighten(var(--primary), 20%) -> var(--primary) (remove the function)
