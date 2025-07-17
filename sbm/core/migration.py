@@ -409,20 +409,21 @@ def _format_all_scss_with_prettier(theme_dir):
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        # Use prettier to format all sb-*.scss files at once
-        success, stdout, stderr, exit_code = execute_command(
+        # Run prettier directly with subprocess to get the real exit code
+        result = subprocess.run(
             f"prettier --write {theme_dir}/sb-*.scss",
-            f"Failed to format SCSS files with prettier",
-            wait_for_completion=True
+            shell=True,
+            capture_output=True,
+            text=True
         )
         
-        # Prettier might output warnings to stderr but still succeed with exit code 0
-        if success or exit_code == 0:
+        # Prettier returns 0 on success even with warnings in stderr
+        if result.returncode == 0:
             return True
         else:
-            # Log stderr for debugging if formatting actually failed
-            if stderr:
-                error_msg = ''.join(stderr).strip()
+            # Only log errors if prettier actually failed
+            if result.stderr:
+                error_msg = result.stderr.strip()
                 logger.debug(f"Prettier formatting error: {error_msg}")
             return False
             
