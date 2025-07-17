@@ -54,11 +54,24 @@ class SCSSProcessor:
             content = root_block + content.lstrip()
 
         # Finally, convert all remaining SCSS variable usages throughout the file
-        # BUT NOT in mixin parameters - exclude lines that start with @mixin
+        # BUT NOT in mixin definitions (both parameters and body)
         lines = content.split('\n')
+        inside_mixin = False
+        
         for i, line in enumerate(lines):
-            if not line.strip().startswith('@mixin'):
+            stripped = line.strip()
+            
+            # Check if we're entering a mixin definition
+            if stripped.startswith('@mixin'):
+                inside_mixin = True
+            # Check if we're exiting a mixin definition (closing brace at start of line)
+            elif inside_mixin and stripped == '}':
+                inside_mixin = False
+            
+            # Only convert variables if we're not inside a mixin definition
+            if not inside_mixin:
                 lines[i] = re.sub(r'\$([\w-]+)', r'var(--\1)', line)
+        
         content = '\n'.join(lines)
         return content
 
