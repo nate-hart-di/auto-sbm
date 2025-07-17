@@ -410,16 +410,17 @@ def _format_all_scss_with_prettier(theme_dir):
     """
     try:
         # Use prettier to format all sb-*.scss files at once
-        success, stdout, stderr, _ = execute_command(
+        success, stdout, stderr, exit_code = execute_command(
             f"prettier --write {theme_dir}/sb-*.scss",
             f"Failed to format SCSS files with prettier",
             wait_for_completion=True
         )
         
-        if success:
+        # Prettier might output warnings to stderr but still succeed with exit code 0
+        if success or exit_code == 0:
             return True
         else:
-            # Log stderr for debugging if formatting failed
+            # Log stderr for debugging if formatting actually failed
             if stderr:
                 error_msg = ''.join(stderr).strip()
                 logger.debug(f"Prettier formatting error: {error_msg}")
