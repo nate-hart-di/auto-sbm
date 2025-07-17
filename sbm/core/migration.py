@@ -398,20 +398,20 @@ def _format_scss_with_prettier(file_path):
         return False
 
 
-def _format_all_scss_with_prettier(theme_dir):
+def _format_all_scss_with_prettier(slug):
     """
     Format all SCSS files in the theme directory with prettier using glob pattern.
     
     Args:
-        theme_dir (str): Path to the theme directory
+        slug (str): Dealer theme slug
         
     Returns:
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        # Run prettier directly with subprocess to get the real exit code
+        # Run prettier directly with subprocess to get the real exit code  
         result = subprocess.run(
-            f"prettier --write {theme_dir}/sb-*.scss",
+            f'prettier --write "$HOME/di-websites-platform/dealer-themes/{slug}/sb-*.scss"',
             shell=True,
             capture_output=True,
             text=True
@@ -573,7 +573,7 @@ def reprocess_manual_changes(slug):
             
         # Format all SCSS files at once with prettier if available
         if prettier_available:
-            if _format_all_scss_with_prettier(theme_dir):
+            if _format_all_scss_with_prettier(slug):
                 logger.info(f"Applied prettier formatting to all SCSS files")
             else:
                 logger.warning(f"Prettier formatting failed, using default formatting")
