@@ -108,10 +108,20 @@ class SCSSProcessor:
                 continue
             
             # Convert variables in CSS property contexts only
-            # Look for patterns like "property: $variable" but exclude SCSS variable assignments
+            # Look for patterns like "property: $variable" but exclude SCSS variable assignments and interpolation
             if (':' in stripped and not stripped.startswith('@') and 
                 not re.match(r'^\s*\$[\w-]+\s*:', stripped)):
-                lines[i] = re.sub(r'\$([\w-]+)', r'var(--\1)', line)
+                
+                # Don't convert variables inside interpolation #{...}
+                if '#{' in line:
+                    # Split line into parts, only convert variables outside interpolation
+                    parts = re.split(r'(#\{[^}]*\})', line)
+                    for j, part in enumerate(parts):
+                        if not part.startswith('#{'):
+                            parts[j] = re.sub(r'\$([\w-]+)', r'var(--\1)', part)
+                    lines[i] = ''.join(parts)
+                else:
+                    lines[i] = re.sub(r'\$([\w-]+)', r'var(--\1)', line)
         
         return '\n'.join(lines)
 
