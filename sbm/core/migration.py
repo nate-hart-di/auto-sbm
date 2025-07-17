@@ -410,8 +410,10 @@ def _format_all_scss_with_prettier(slug):
     """
     try:
         # Run prettier directly with subprocess to get the real exit code  
+        import os
+        home_dir = os.path.expanduser("~")
         result = subprocess.run(
-            f'prettier --write "$HOME/di-websites-platform/dealer-themes/{slug}/sb-*.scss"',
+            f'prettier --write "{home_dir}/di-websites-platform/dealer-themes/{slug}/sb-*.scss"',
             shell=True,
             capture_output=True,
             text=True
@@ -421,10 +423,13 @@ def _format_all_scss_with_prettier(slug):
         if result.returncode == 0:
             return True
         else:
-            # Only log errors if prettier actually failed
+            # Log errors so we can see what's happening
             if result.stderr:
                 error_msg = result.stderr.strip()
-                logger.debug(f"Prettier formatting error: {error_msg}")
+                logger.warning(f"Prettier formatting error: {error_msg}")
+            if result.stdout:
+                logger.warning(f"Prettier stdout: {result.stdout.strip()}")
+            logger.warning(f"Prettier exit code: {result.returncode}")
             return False
             
     except Exception as e:
