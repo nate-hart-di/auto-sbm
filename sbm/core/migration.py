@@ -1072,13 +1072,8 @@ def _handle_compilation_with_error_recovery(css_dir: str, test_files: list, them
             click.echo("=" * 50)
             
             if click.confirm("Continue after fixing the errors?", default=True):
-                # User fixed the errors, re-run migration step to incorporate fixes
-                logger.info("User confirmed fixes, re-running migration step...")
-                
-                # Re-run the migration by calling migrate_styles directly
-                migrate_styles(slug)
-                logger.info("Re-migrated styles after manual fixes")
-                
+                # User fixed the errors manually, continue without regenerating files
+                logger.info("User confirmed manual fixes, continuing with existing files...")
                 return True
             else:
                 return False
