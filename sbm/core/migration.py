@@ -792,9 +792,12 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         time.sleep(1)  # Give Gulp time to detect and process files
         
         # Step 3: Check for corresponding CSS files
-        max_wait = 30  # 30 seconds max wait time
+        max_wait = 5  # 5 seconds max wait time total
         start_time = time.time()
         compiled_files = []
+        
+        # If any file compiles, wait max 2 more seconds for others
+        first_compile_time = None
         
         while (time.time() - start_time) < max_wait and len(compiled_files) < len(test_files):
             for test_filename, scss_path in test_files:
@@ -808,9 +811,17 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
                 if os.path.exists(css_path):
                     compiled_files.append(test_filename)
                     logger.info(f"✅ {test_filename} compiled successfully to {css_filename}")
+                    
+                    # Start 2-second countdown after first compile
+                    if first_compile_time is None:
+                        first_compile_time = time.time()
             
+            # If we have at least one compile and it's been 2+ seconds, stop waiting
+            if first_compile_time and (time.time() - first_compile_time) >= 2:
+                break
+                
             if len(compiled_files) < len(test_files):
-                time.sleep(1)
+                time.sleep(0.2)  # Check every 200ms
         
         # Step 4: Monitor compilation with iterative error handling
         try:
