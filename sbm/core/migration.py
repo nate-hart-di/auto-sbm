@@ -423,7 +423,18 @@ def _format_all_scss_with_prettier(slug):
             logger.warning("No sb-*.scss files found")
             return False
             
-        command = ['prettier', '--write'] + files
+        # Use prettier from auto-sbm venv to ensure it's always available
+        auto_sbm_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        prettier_path = os.path.join(auto_sbm_dir, '.venv', 'bin', 'prettier')
+        
+        # Fallback to system prettier if venv prettier doesn't exist
+        if not os.path.exists(prettier_path):
+            prettier_path = 'prettier'
+            logger.info(f"Prettier: Using system prettier (venv prettier not found)")
+        else:
+            logger.info(f"Prettier: Using venv prettier at {prettier_path}")
+        
+        command = [prettier_path, '--write'] + files
         logger.info(f"Prettier: Running command: {' '.join(command)}")
         
         result = subprocess.run(
