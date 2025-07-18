@@ -409,12 +409,20 @@ def _format_all_scss_with_prettier(slug):
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        # Run prettier directly with subprocess to get the real exit code
+        import glob
+        home_dir = os.path.expanduser("~")
+        pattern = f"{home_dir}/di-websites-platform/dealer-themes/**/sb-*.scss"
+        files = glob.glob(pattern, recursive=True)
+        
+        if not files:
+            logger.warning("No sb-*.scss files found")
+            return False
+            
         result = subprocess.run(
-            'prettier --write "$HOME/di-websites-platform/dealer-themes/**/sb-*.scss"',
-            shell=True,
+            ['prettier', '--write'] + files,
             capture_output=True,
-            text=True
+            text=True,
+            env=os.environ
         )
         
         # Prettier returns 0 on success even with warnings in stderr
