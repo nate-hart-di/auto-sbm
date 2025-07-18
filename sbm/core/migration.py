@@ -412,34 +412,45 @@ def _format_all_scss_with_prettier(slug):
         import glob
         home_dir = os.path.expanduser("~")
         pattern = f"{home_dir}/di-websites-platform/dealer-themes/**/sb-*.scss"
+        logger.info(f"Prettier: Looking for files with pattern: {pattern}")
+        
         files = glob.glob(pattern, recursive=True)
+        logger.info(f"Prettier: Found {len(files)} files:")
+        for file in files:
+            logger.info(f"  - {file}")
         
         if not files:
             logger.warning("No sb-*.scss files found")
             return False
             
+        command = ['prettier', '--write'] + files
+        logger.info(f"Prettier: Running command: {' '.join(command)}")
+        
         result = subprocess.run(
-            ['prettier', '--write'] + files,
+            command,
             capture_output=True,
             text=True,
             env=os.environ
         )
         
+        logger.info(f"Prettier: Exit code: {result.returncode}")
+        if result.stdout:
+            logger.info(f"Prettier stdout: {result.stdout}")
+        if result.stderr:
+            logger.info(f"Prettier stderr: {result.stderr}")
+        
         # Prettier returns 0 on success even with warnings in stderr
         if result.returncode == 0:
+            logger.info("Prettier: Formatting completed successfully")
             return True
         else:
-            # Log errors so we can see what's happening
-            if result.stderr:
-                error_msg = result.stderr.strip()
-                logger.warning(f"Prettier formatting error: {error_msg}")
-            if result.stdout:
-                logger.warning(f"Prettier stdout: {result.stdout.strip()}")
-            logger.warning(f"Prettier exit code: {result.returncode}")
+            logger.error(f"Prettier: Failed with exit code {result.returncode}")
             return False
             
     except Exception as e:
-        logger.warning(f"Could not format SCSS files with prettier: {e}")
+        logger.error(f"Prettier: Exception occurred: {e}")
+        import traceback
+        logger.error(f"Prettier: Traceback: {traceback.format_exc()}")
         return False
 
 
