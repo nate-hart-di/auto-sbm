@@ -411,7 +411,7 @@ def _format_all_scss_with_prettier(slug):
     try:
         import glob
         home_dir = os.path.expanduser("~")
-        pattern = f"{home_dir}/di-websites-platform/dealer-themes/**/sb-*.scss"
+        pattern = f"{home_dir}/di-websites-platform/dealer-themes/{slug}/sb-*.scss"
         logger.info(f"Prettier: Looking for files with pattern: {pattern}")
         
         files = glob.glob(pattern, recursive=True)
