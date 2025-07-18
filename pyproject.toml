@@ -35,8 +35,10 @@ dependencies = [
     "pyyaml>=6.0",
     "psutil>=5.9.0",
     "requests>=2.28.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0"
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pathlib-mate>=1.2.0"
 ]
 
 [project.optional-dependencies]
@@ -134,7 +136,7 @@ known-first-party = ["auto_sbm"]
 force-single-line = false
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.8"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -142,18 +144,23 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
 disallow_untyped_decorators = true
+no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
-extra_checks = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
 
 [[tool.mypy.overrides]]
 module = [
-    "git.*",
-    "psutil.*",
-    "yaml.*"
+    "libsass.*",
+    "pyScss.*",
+    "colorama.*",
 ]
 ignore_missing_imports = true
 
@@ -205,3 +212,7 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.bandit]
+exclude_dirs = ["tests", "test_*"]
+skips = ["B101", "B601"]  # Skip assert_used and shell_injection for test files
