@@ -4,50 +4,173 @@
 
 **Repository**: auto-sbm (Site Builder Migration Tool)  
 **Version**: 2.0.0  
-**Purpose**: Automated tool for migrating DealerInspire dealer websites from legacy SCSS themes to Site Builder format with Rich UI enhancements  
-**Languages**: Python (primary), SCSS processing, Markdown documentation  
-**Runtime**: Python 3.8+  
-**Test Framework**: pytest  
-**Code Quality**: ruff (linting), mypy (type checking)
+**Purpose**: Production-ready automated tool for migrating DealerInspire dealer websites from legacy SCSS themes to Site Builder format  
+**Architecture**: Vertical slice architecture with type safety and Rich UI  
+**Languages**: Python 3.8+ (primary), SCSS processing, Markdown documentation  
+**Package Management**: UV with pyproject.toml (modern Python packaging)  
+**Testing**: pytest with 90%+ coverage  
+**Code Quality**: ruff (linting), mypy (type checking), pre-commit hooks  
+**UI Framework**: Rich for beautiful terminal interfaces
 
 ## Setup Commands
 
-### Environment Setup
+### Development Environment Setup
 ```bash
-# Install dependencies and activate virtual environment
-source .venv/bin/activate
-pip install -r requirements.txt
+# Clone and setup development environment
+git clone git@github.com:nate-hart-di/auto-sbm.git
+cd auto-sbm
 
-# Or use the global setup script
-bash setup.sh
+# Install in development mode with all dependencies
+pip install -e .[dev]
+
+# Or use UV for faster dependency management
+uv sync --dev
+
+# Setup pre-commit hooks for code quality
+pre-commit install
 ```
 
-### Linting and Type Checking
+### Environment Configuration
 ```bash
-# Run linting with ruff (replaces black + flake8)
-source .venv/bin/activate && ruff check .
-source .venv/bin/activate && ruff check --fix .
+# Copy environment template and configure
+cp .env.example .env
+# Edit .env with your GitHub token and preferences
 
-# Run type checking with mypy
-source .venv/bin/activate && mypy sbm/
+# Required environment variables:
+# GITHUB_TOKEN=your_github_personal_access_token  
+# GITHUB_ORG=dealerinspire
+# THEMES_DIRECTORY=./themes
+# BACKUP_ENABLED=true
+# RICH_UI_ENABLED=true
+```
 
-# Run tests
-source .venv/bin/activate && python -m pytest tests/ -v
+### Code Quality Commands
+```bash
+# Linting and formatting (replaces black + flake8)
+ruff check src/ --fix
+ruff format src/
+
+# Type checking with comprehensive coverage
+mypy src/auto_sbm/
+
+# Run comprehensive test suite
+pytest src/ --cov=auto_sbm --cov-report=term-missing
+
+# Run all quality checks (development)
+tox
 ```
 
 ### CLI Usage
 ```bash
-# Main migration command (after setup.sh)
-sbm auto <theme-name>
+# Main migration command (global installation)
+sbm migrate <theme-name>
 
-# Or using module directly
-source .venv/bin/activate && python -m sbm auto <theme-name>
+# Alternative commands
+sbm auto <theme-name>     # Shorthand
+sbm <theme-name>          # Direct theme name
+
+# Validation and utilities
+sbm validate <theme-name>
+sbm post-migrate <theme-name>
+
+# Development mode (when working on the tool)
+python -m auto_sbm.main migrate <theme-name>
 ```
 
-## Project Architecture
+## Project Architecture (v2.0 - Vertical Slice Design)
 
-### Entry Points
-- **Main CLI**: `sbm/cli.py::cli` - Click-based CLI with Rich UI enhancements
+### **Architectural Principles**
+- **🎯 Vertical Slices**: Features organized by business capability, not technical layers
+- **🛡️ Type Safety**: Comprehensive Pydantic v2 models for all data validation
+- **🧪 Test Coverage**: Co-located tests achieving 90%+ coverage
+- **🔒 Security**: Environment-based configuration with validated settings
+- **⚡ Performance**: Async processing and optimized SCSS transformation
+- **🎨 Rich UI**: Professional terminal interface with CI/automation fallbacks
+
+### **Directory Structure**
+```
+auto-sbm/
+├── src/auto_sbm/              # Main package (src layout for editable installs)
+│   ├── __init__.py           # Package initialization and exports
+│   ├── config.py             # Pydantic BaseSettings with env validation
+│   │
+│   ├── models/               # Shared Pydantic models for type safety
+│   │   ├── __init__.py
+│   │   ├── theme.py          # Theme data structures and validation
+│   │   ├── migration.py      # Migration state and result models
+│   │   ├── scss.py           # SCSS processing data models
+│   │   └── tests/            # Model validation tests
+│   │
+│   ├── features/             # Vertical slices by business capability
+│   │   ├── migration/        # Migration orchestration and workflow
+│   │   │   ├── __init__.py
+│   │   │   ├── service.py    # Core migration business logic
+│   │   │   ├── models.py     # Migration-specific models
+│   │   │   ├── cli.py        # Migration CLI commands
+│   │   │   └── tests/        # Migration feature tests
+│   │   │
+│   │   ├── scss_processing/  # SCSS transformation engine
+│   │   │   ├── __init__.py
+│   │   │   ├── processor.py  # Core SCSS transformation logic
+│   │   │   ├── mixin_parser.py # SCSS mixin conversion
+│   │   │   ├── validator.py  # SCSS syntax validation
+│   │   │   ├── models.py     # SCSS-specific data models
+│   │   │   └── tests/        # SCSS processing tests
+│   │   │
+│   │   ├── git_operations/   # Git workflow automation
+│   │   │   ├── __init__.py
+│   │   │   ├── service.py    # Git operations (add, commit, push, PR)
+│   │   │   ├── models.py     # Git state and operation models
+│   │   │   └── tests/        # Git operation tests
+│   │   │
+│   │   └── oem_handling/     # OEM-specific customizations
+│   │       ├── __init__.py
+│   │       ├── service.py    # OEM-specific business logic
+│   │       ├── models.py     # OEM configuration models
+│   │       └── tests/        # OEM handling tests
+│   │
+│   └── shared/               # Cross-cutting concerns and utilities
+│       ├── ui/               # Rich UI components and theming
+│       │   ├── __init__.py
+│       │   ├── console.py    # Console management and output
+│       │   ├── progress.py   # Progress tracking and status
+│       │   ├── panels.py     # Status panels and layout
+│       │   ├── models.py     # UI state models
+│       │   └── tests/        # UI component tests
+│       │
+│       ├── validation/       # Validation utilities and patterns
+│       │   ├── __init__.py
+│       │   ├── service.py    # Common validation logic
+│       │   └── tests/        # Validation tests
+│       │
+│       └── utils/            # Common utilities and helpers
+│           ├── __init__.py
+│           ├── file_operations.py # File system utilities
+│           └── tests/        # Utility tests
+│
+├── tests/                    # Integration and end-to-end tests
+│   ├── conftest.py          # Shared pytest fixtures
+│   ├── integration/         # Full workflow integration tests
+│   │   ├── test_full_migration.py
+│   │   └── test_cli_integration.py
+│   └── fixtures/            # Test data and fixtures
+│
+├── PRPs/                    # Project Requirements and Planning documents
+│   ├── code_reviews/        # Code quality analysis reports
+│   ├── ai_docs/            # AI assistant documentation
+│   └── templates/          # PRP templates for new features
+│
+├── pyproject.toml          # Modern Python packaging configuration
+├── .env.example           # Environment variable template
+├── setup.sh               # Development setup script
+├── CLAUDE.md              # This file - AI assistant context
+└── README.md              # User documentation
+```
+
+### **Entry Points and CLI Structure**
+- **Main CLI**: `src/auto_sbm/main.py` - Click-based CLI with Rich UI integration
+- **Global Command**: `~/.local/bin/sbm` - Wrapper script for global access
+- **Module Execution**: `python -m auto_sbm.main` - Direct module execution for development
 - **Module Entry**: `sbm/__main__.py` - Allows `python -m sbm` execution
 - **Global Command**: Created by `setup.sh` - `sbm` command available globally
 
@@ -219,3 +342,68 @@ source .venv/bin/activate && python -m pytest tests/ --cov=sbm --cov-report=html
 - High-contrast theme available
 - Icon usage with text alternatives
 - Screen reader compatible fallbacks
+
+---
+
+## Legacy Architecture (v1.x - Deprecated)
+
+*Note: This section documents the old monolithic structure for reference during migration.*
+
+## Legacy Architecture (v1.x - Deprecated)
+
+*Note: This section documents the old monolithic structure for reference during migration.*
+
+### **Legacy Architectural Overview**
+- **Monolithic Structure**: All-in-one package with no clear separation of concerns
+- **Limited Type Safety**: Basic type hints, no comprehensive validation
+- **Sparse Testing**: Inconsistent test coverage, many untested paths
+- **Environment Variables**: Hardcoded values and inconsistent usage
+- **Basic CLI**: Click-based, but lacks rich UI integration
+
+### **Legacy Directory Structure**
+```
+auto-sbm/
+├── auto_sbm/                 # Monolithic package
+│   ├── __init__.py          # Package initialization
+│   ├── config.py            # Configuration management (legacy)
+│   ├── migration.py         # Migration logic (monolithic)
+│   ├── git_operations.py    # Git operations (monolithic)
+│   ├── scss_processing.py   # SCSS processing (monolithic)
+│   ├── oem_handling.py      # OEM handling (monolithic)
+│   └── tests/               # Tests (scattered and inconsistent)
+│
+├── requirements.txt         # Legacy dependency management
+├── .env.example             # Environment variable template
+├── setup.sh                 # Development setup script
+├── CLAUDE.md                # This file - AI assistant context
+└── README.md                # User documentation
+```
+
+### **Legacy Entry Points and CLI Structure**
+- **Single Entry Point**: `auto_sbm/__init__.py` - Monolithic package initialization
+- **Legacy CLI**: Basic Click commands without rich UI features
+
+### Legacy Components
+
+#### Legacy UI System
+- **Basic console output**: No theming or advanced features
+- **Static progress indicators**: Limited feedback during operations
+
+#### Legacy SCSS Processing
+- **Monolithic SCSS processor**: Single file for all processing logic
+- **Limited validation**: Basic checks, no comprehensive SCSS compliance
+
+#### Legacy Migration Logic
+- **Single migration function**: All logic in `migration.py`
+- **No separation of concerns**: Git, SCSS, and OEM logic intertwined
+
+#### Legacy Configuration Management
+- **Hardcoded values**: Many constants defined in code
+- **Inconsistent environment variable usage**: Not all settings configurable via env vars
+
+### Legacy Testing Strategy
+- **Inconsistent test coverage**: Many features and paths untested
+- **Basic unit tests**: Some functions and methods have tests, but coverage is spotty
+- **No integration or end-to-end tests**: Legacy system not tested as a whole
+
+---

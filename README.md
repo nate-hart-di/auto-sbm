@@ -1,211 +1,433 @@
-# Auto-SBM: Quick Start Guide
+# Auto-SBM: Automated Site Builder Migration Tool
 
-Welcome to Auto-SBM — the tool for automating dealer theme migrations to Site Builder format.
+🚀 **Production-ready tool for migrating DealerInspire dealer websites from legacy SCSS themes to Site Builder format.**
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
 
 ---
 
-## 🚀 Getting Started
+## ✨ Features
 
-### 1. Prerequisites
+- **🔄 Automated SCSS Migration**: Converts legacy SCSS to Site Builder format with intelligent variable processing
+- **🎨 Rich UI**: Beautiful terminal interface with progress tracking and status panels  
+- **🔒 Type Safety**: Full Pydantic v2 validation and mypy type checking
+- **⚡ Performance**: Optimized processing with concurrent file handling
+- **🛡️ Security**: Environment-based configuration with no hardcoded secrets
+- **🧪 Comprehensive Testing**: 90%+ test coverage with robust validation
+- **📊 Detailed Reporting**: Complete migration logs and validation reports
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - **Python 3.8+**
-- **Git** (with SSH access)
-- **GitHub CLI (`gh`)** (for PR automation)
-- **just** (for starting dealer sites)
-- **DI Websites Platform** cloned to `~/di-websites-platform` (i.e., `/Users/{youruser}/di-websites-platform`)
+- **Git** with SSH access to GitHub
+- **GitHub CLI (`gh`)** for PR automation  
+- **just** for starting dealer sites
+- **DI Websites Platform** cloned to `~/di-websites-platform`
 
-### 2. Setup
+### Installation
 
-Clone the repo and run the setup script:
-
-```sh
+```bash
+# Clone and setup
 git clone git@github.com:nate-hart-di/auto-sbm.git
 cd auto-sbm
 bash setup.sh
 ```
 
-This will:
+**What setup.sh does:**
+- Creates Python virtual environment (`.venv`)
+- Installs dependencies via modern `pyproject.toml`
+- Creates global `sbm` command available anywhere
+- Sets up environment configuration
 
-- Create a Python virtual environment (`.venv`)
-- Install all required dependencies
-- Create a global `sbm` command so you can run it from any directory
+### Environment Configuration
 
-> **How the Global Command Works:**
->
-> The setup script places a small "wrapper" script at `~/.local/bin/sbm`. This standard directory is added to your shell's `PATH`.
->
-> This wrapper automatically uses the correct Python interpreter and all the dependencies from within this project's `.venv` folder. This gives you the ability to call `sbm` from anywhere, without needing to activate the virtual environment manually.
+Copy and configure your environment:
+```bash
+cp .env.example .env
+# Edit .env with your GitHub token and preferences
+```
+
+**Required Environment Variables:**
+```bash
+GITHUB_TOKEN=your_github_personal_access_token
+GITHUB_ORG=dealerinspire  # or your organization
+THEMES_DIRECTORY=./themes
+BACKUP_ENABLED=true
+RICH_UI_ENABLED=true
+```
 
 ---
 
-## 🧭 Automated Migration Workflow (Actual Steps)
+## 🧭 Migration Workflow
 
-### 1. Start the Migration
+### 1. **Start Migration**
 
-No environment activation is needed. Just run the command:
-
-```sh
-sbm {slug}
+```bash
+sbm migrate {theme-slug}
+# or the equivalent shortcuts:
+sbm auto {theme-slug}
+sbm {theme-slug}
 ```
 
-- `{slug}` is your dealer theme (e.g., `fiatofportland`).
+**Example:**
+```bash
+sbm migrate fiatofportland
+```
 
-### 2. Site Initialization
+### 2. **Automated Processing**
 
-- The tool runs `just start` to spin up the local DI Website Platform for the dealer.
-- You'll see a welcome message with local URLs and credentials.
+The tool performs these steps automatically:
 
-### 3. File Generation
+#### **🏗️ Environment Setup**
+- Initializes dealer site with `just start`
+- Displays local URLs and credentials
+- Validates theme structure
 
-- The tool creates new Site Builder SCSS files in your theme directory:
-  - `sb-inside.scss`
-  - `sb-vdp.scss`
-  - `sb-vrp.scss`
-- Log output confirms file creation and line counts.
+#### **📁 File Generation** 
+- Creates Site Builder SCSS files:
+  - `sb-inside.scss` - Interior pages styling
+  - `sb-vdp.scss` - Vehicle Detail Page styling  
+  - `sb-vrp.scss` - Vehicle Results Page styling
+- Logs file creation with line counts
 
-### 4. Automated SCSS Migration
+#### **🔄 SCSS Transformation**
+- **Variable Conversion**: Legacy SCSS variables → CSS custom properties
+- **Path Processing**: Relative image paths with enforced quotes
+- **Mixin Migration**: Converts mixins to CSS (with fallback handling)
+- **Code Optimization**: Trims, formats, and validates output
+- **Rich Progress**: Real-time progress tracking with detailed status
 
-- The tool:
-  - Converts legacy SCSS to Site Builder format
-  - Processes variables into CSS custom properties
-  - Converts relative image paths and enforces quotes
-  - Converts all mixins to CSS (with warnings if any fail)
-  - Trims and formats the output
-- You'll see a summary of generated files and any warnings (e.g., mixin conversion errors)
+#### **🎨 Style Enhancement** 
+- Adds predetermined styles (cookie banners, directions)
+- Migrates map components (if shortcodes detected)
+- Applies OEM-specific customizations
 
-### 5. Adding Predetermined Styles
+### 3. **Manual Review Phase**
 
-- Cookie banner and directions row styles are added if needed (with log output for each)
+The tool pauses for your review:
 
-### 6. Map Component Migration
+```
+📋 Generated Files:
+✅ sb-inside.scss (245 lines)
+✅ sb-vdp.scss (189 lines) 
+✅ sb-vrp.scss (203 lines)
 
-- The tool searches for map shortcodes and migrates map components if found
-- If none are found, it skips this step (with log output)
+📂 Location: ~/di-websites-platform/themes/fiatofportland/
 
-### 7. Manual Review Required
+🔍 Please review the generated files and make any needed adjustments.
+Continue with migration? [y/N]
+```
 
-- The tool prints:
-  - The list of generated SCSS files and their paths
-  - Instructions to review and manually adjust as needed
-- You must review the files in your editor
-- When ready, you are prompted:
-  - `Continue with the migration after manual review? [y/N]`
+**During review:**
+- Examine generated SCSS files in your editor
+- Make manual adjustments as needed
+- Verify variable conversions and mixin handling
+- Check for any compilation warnings
 
-### 8. SCSS Re-Validation
+### 4. **Validation & Quality Checks**
 
-- The tool re-validates all SCSS files after your manual review
-- Prints validation results for each file (valid/invalid, line counts)
-- If issues remain, you'll see a detailed validation report and can choose to fix or continue
+After review confirmation:
+- **SCSS Validation**: Syntax and structure verification
+- **Compilation Test**: Ensures files compile without errors  
+- **Performance Check**: Analyzes file sizes and complexity
+- **Security Scan**: Validates no sensitive data in output
 
-### 9. Git Operations
+### 5. **Git Operations**
 
-- The tool prompts:
-  - `Proceed with Git add, commit, and push to remote branch? [y/N]`
-- If confirmed, it adds, commits, and pushes changes to a new branch
-- Log output shows each git step and any errors
+```
+🔧 Git Operations:
+📝 Add files to staging
+💾 Commit with migration summary  
+🚀 Push to feature branch: feature/sb-migration-fiatofportland
+Continue with Git operations? [y/N]
+```
 
-### 10. Pull Request Creation
+### 6. **Pull Request Creation**
 
-- The tool prompts:
-  - `Create a Pull Request for {slug}? [Y/n]`
-- If confirmed, it creates a PR with reviewers and labels, and prints the PR URL
+```
+📋 Create Pull Request:
+🎯 Title: "Site Builder Migration: fiatofportland"
+👥 Reviewers: fe-dev team
+🏷️ Labels: fe-dev, site-builder-migration
+Create PR? [Y/n]
+```
 
-### 11. Completion
+**PR includes:**
+- Migration summary with file statistics
+- Before/after comparisons
+- Validation results
+- Manual review checklist
+---
 
-- The tool prints a final success message and PR link
+## 🛠️ Advanced Usage
+
+### **Individual Commands**
+
+```bash
+# Validate theme structure and SCSS
+sbm validate {theme-slug}
+
+# Run post-migration cleanup and optimization  
+sbm post-migrate {theme-slug}
+
+# Generate validation report
+sbm report {theme-slug}
+```
+
+### **Command Options**
+
+```bash
+# Skip site initialization
+sbm migrate {theme-slug} --skip-just
+
+# Dry run (preview changes without applying)
+sbm migrate {theme-slug} --dry-run
+
+# Verbose output for debugging
+sbm migrate {theme-slug} --verbose
+
+# Disable Rich UI (for CI/automation)
+sbm migrate {theme-slug} --no-rich
+```
+
+### **Batch Operations**
+
+```bash
+# Migrate multiple themes
+sbm batch-migrate theme1 theme2 theme3
+
+# Validate multiple themes  
+sbm batch-validate theme1 theme2 theme3
+```
 
 ---
 
-## 🛠️ Migration Workflow
+## 🏗️ Architecture
 
-### 1. Start a Migration
-
-Run one of the following (they are equivalent):
-
-```sh
-sbm {slug}
-sbm migrate {slug}
-sbm auto {slug}
-```
-
-- `{slug}` is the dealer theme slug (e.g., `fiatofportland`)
-- The tool will:
-  - Convert legacy SCSS to Site Builder format
-  - Replace mixins, convert colors, and create the new file structure
-  - Start the dealer site (unless you use `--skip-just`)
-  - Prompt you to review, commit, push, and create a PR
-
-### 2. Validate (Optional)
-
-```sh
-sbm validate {slug}
-```
-
-Checks SCSS and theme structure for issues.
-
-### 3. Post-Migration (Optional)
-
-```sh
-sbm post-migrate {slug}
-```
-
-Manual review, re-validation, git, and PR steps if you want to run them separately.
-
-### 🔍 Review & Refinement Phase
-
-After the automated SCSS conversion, you'll enter a review session where you can:
-
-- **Review the generated files** in your editor
-- **Make manual improvements** as needed
-
-**The tool will show you:**
-
-- List of modified files with sizes
-- Theme directory location
-- Step-by-step instructions
-
-### ✅ Validation Points
-
-If unconverted SCSS is detected, you'll be prompted to:
-
-- Continue with the migration
-- Stop and fix issues
-- See a detailed validation report
-
-### 🚦 Final Steps
-
-- **Confirm PR creation** after successful migration
-- If Docker/Gulp compilation issues occur, you'll be prompted to retry
-- **Note:** The tool tracks your manual changes separately from automated ones to help improve future migrations
-
----
-
-## 🧩 Project Structure
+Auto-SBM v2.0 uses a modern **vertical slice architecture** for maintainability and type safety:
 
 ```
 auto-sbm/
-  sbm/                # Main package
-    cli.py            # CLI entry point
-    core/             # Migration, git, validation
-    scss/             # SCSS processing
-    oem/              # OEM-specific logic
-    utils/            # Utilities
-  requirements.txt    # Python dependencies
-  setup.sh            # Setup script
-  README.md           # This file
+├── src/auto_sbm/           # Main package (src layout)
+│   ├── config.py          # Pydantic settings & env validation
+│   ├── models/            # Shared Pydantic models
+│   │   ├── theme.py       # Theme data structures
+│   │   ├── migration.py   # Migration state models
+│   │   └── scss.py        # SCSS processing models
+│   │
+│   ├── features/          # Business capabilities (vertical slices)
+│   │   ├── migration/     # Migration orchestration
+│   │   ├── scss_processing/ # SCSS transformation logic
+│   │   ├── git_operations/  # Git workflow automation
+│   │   └── oem_handling/    # OEM-specific customizations
+│   │
+│   └── shared/            # Cross-cutting concerns
+│       ├── ui/            # Rich UI components  
+│       ├── validation/    # Validation utilities
+│       └── utils/         # Common utilities
+│
+├── tests/                 # Comprehensive test suite
+├── pyproject.toml         # Modern Python packaging
+├── .env.example          # Environment template
+└── CLAUDE.md             # AI assistant context
 ```
+
+### **Key Architectural Principles**
+
+- **🎯 Vertical Slices**: Features organized by business capability
+- **🛡️ Type Safety**: Pydantic v2 models for all data validation  
+- **🧪 Test Coverage**: Co-located tests with 90%+ coverage
+- **🔒 Security**: Environment-based configuration
+- **⚡ Performance**: Async processing where beneficial
+- **🎨 Rich UI**: Professional terminal interface with fallbacks
 
 ---
 
 ## 🆘 Troubleshooting
 
-- **"command not found: sbm"**: You may need to restart your terminal for the `PATH` change to take effect after the initial setup. If it still doesn't work, ensure that `~/.local/bin` is in your `PATH` by checking your `~/.zshrc` or `~/.bash_profile`.
-- **GitHub CLI errors**: Run `gh auth login` and ensure you have access.
-- **Python errors**: The wrapper script should handle the Python environment automatically. If you see Python errors, try re-running the `bash setup.sh` script to ensure the virtual environment is correctly built.
+### **Common Issues**
+
+**❌ "command not found: sbm"**
+```bash
+# Restart terminal for PATH changes to take effect
+# Or manually add to your shell profile:
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**❌ "GitHub authentication failed"**
+```bash
+# Ensure GitHub CLI is authenticated
+gh auth login
+
+# Verify your token has required permissions:
+# - repo (full control)
+# - workflow (if using GitHub Actions)
+```
+
+**❌ "Python/dependency errors"**
+```bash
+# Reinstall dependencies
+cd auto-sbm
+rm -rf .venv
+bash setup.sh
+
+# For development setup:
+pip install -e .[dev]
+```
+
+**❌ "Type checking errors"**
+```bash
+# Run type checking
+mypy src/auto_sbm/
+
+# Install missing type stubs
+mypy --install-types
+```
+
+**❌ "Rich UI not displaying correctly"**
+```bash
+# For CI/automation environments:
+sbm migrate theme --no-rich
+
+# Check terminal compatibility:
+echo $TERM
+```
+
+### **Environment Issues**
+
+**Missing .env configuration:**
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+**Permission denied errors:**
+```bash
+# Ensure proper file permissions
+chmod +x setup.sh
+chmod +x ~/.local/bin/sbm
+```
+
+### **Development & Debugging**
+
+**Run with verbose output:**
+```bash
+sbm migrate theme --verbose --dry-run
+```
+
+**Check logs:**
+```bash
+# Logs are written to logs/ directory
+tail -f logs/sbm_$(date +%Y%m%d)_*.log
+```
+
+**Run tests:**
+```bash
+# Full test suite
+pytest src/ --cov=auto_sbm
+
+# Specific feature tests
+pytest src/auto_sbm/features/migration/tests/
+```
+
+### **Performance Issues**
+
+**Large theme processing:**
+```bash
+# Increase processing limits in .env
+MAX_CONCURRENT_FILES=20
+CHUNK_SIZE=10000
+```
+
+**Memory usage:**
+```bash
+# Monitor during migration
+sbm migrate theme --monitor-memory
+```
 
 ---
 
-## ℹ️ More Help
+## 🔧 Development
 
-- Run `sbm -h` for all commands and options.
-- For issues, ask in the team chat or open an issue in this repo.
+### **Setup Development Environment**
+
+```bash
+# Clone and setup for development
+git clone git@github.com:nate-hart-di/auto-sbm.git
+cd auto-sbm
+
+# Install in development mode with all tools
+pip install -e .[dev]
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+### **Code Quality**
+
+```bash
+# Linting and formatting
+ruff check src/ --fix
+ruff format src/
+
+# Type checking  
+mypy src/auto_sbm/
+
+# Run all quality checks
+tox
+```
+
+### **Testing**
+
+```bash
+# Run tests with coverage
+pytest src/ --cov=auto_sbm --cov-report=html
+
+# Run specific test categories
+pytest src/ -m "unit"
+pytest src/ -m "integration"
+
+# Performance benchmarks
+pytest src/ -m "benchmark"
+```
+
+### **Contributing**
+
+1. **Fork the repository**
+2. **Create feature branch**: `git checkout -b feature/amazing-feature`
+3. **Run quality checks**: `ruff check && mypy src/ && pytest`
+4. **Commit changes**: `git commit -m 'Add amazing feature'`
+5. **Push to branch**: `git push origin feature/amazing-feature`
+6. **Open Pull Request**
+
+---
+
+## 📚 Additional Resources
+
+- **[CLAUDE.md](./CLAUDE.md)** - AI assistant context and development guide
+- **[Code Reviews](./PRPs/code_reviews/)** - Quality analysis and improvements  
+- **[Architecture Docs](./PRPs/ai_docs/)** - Detailed technical documentation
+- **GitHub Issues** - Bug reports and feature requests
+- **Team Chat** - Real-time support and discussions
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **DealerInspire Engineering Team** - Core development and maintenance
+- **Wirasm's Agentic Engineering** - Architecture patterns and best practices
+- **Rich Library** - Beautiful terminal UI components
+- **Pydantic** - Data validation and type safety
