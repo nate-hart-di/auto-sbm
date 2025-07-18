@@ -3,7 +3,7 @@
   "git": {
     "default_labels": ["fe-dev"],
     "default_reviewers": ["carsdotcom/fe-dev"],
-    "github_token": "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"
+    "github_token": "REMOVED_FOR_SECURITY_USE_ENV_VAR"
   },
   "migration": {
     "cleanup_snapshots": true,

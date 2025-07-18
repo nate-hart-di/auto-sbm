@@ -16,10 +16,11 @@ pytest>=7.0.0
 prettier
 
 # --- Development & Testing Tools (not required for end users) ---
-# pytest-cov>=4.0.0
-# black>=22.0.0
-# flake8>=4.0.0
-# mypy>=0.950
-# pre-commit>=2.17.0
-# libsass>=0.22.0
-# pyScss
+pytest-cov>=4.0.0
+ruff>=0.1.0
+mypy>=1.0.0
+pre-commit>=2.17.0
+libsass>=0.22.0
+pyScss
+
+# Note: black and flake8 are replaced by ruff

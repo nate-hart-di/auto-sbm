@@ -23,6 +23,11 @@ build/
 dist/
 *.egg-info/
 
+# Modern Python tooling cache
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
 # Other secrets/configs
 _.secret
 _.secrets
@@ -33,14 +38,25 @@ _.local
 logs/
 *.log
 
-# Test output
-PRPs/
-tests/
+# Test output (but NOT the tests themselves!)
 test-output/
-
-# Coverage reports
+test-results/
 .coverage
 htmlcov/
+coverage.xml
+junit.xml
+
+# Development progress files (personal tracking)
+*-progress.md
+*-refactor-progress.md
+auto-sbm-refactor-progress.md
+
+# UV lock file (can be regenerated, but you might want to track it)
+# uv.lock
+
+# IDE-specific files
+.vscode/settings.json
+.idea/workspace.xml
 
 # Other temporary files
 tmp/

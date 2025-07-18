@@ -51,7 +51,7 @@ class CommentIntelligence:
         # Remove comment markers
         comment_clean = re.sub(r'^//\s*|^/\*\s*|\s*\*/$', '', comment_lower).strip()
         
-        analysis = {
+        analysis: Dict[str, Any] = {
             'raw_text': comment_text,
             'clean_text': comment_clean,
             'intent': None,
@@ -83,12 +83,14 @@ class CommentIntelligence:
                 break
         
         # Extract automotive context
-        for term, description in self.automotive_terms.items():
-            if term in comment_clean:
-                analysis['automotive_context'].append({
-                    'term': term,
-                    'description': description
-                })
+        automotive_context = analysis['automotive_context']
+        if isinstance(automotive_context, list):
+            for term, description in self.automotive_terms.items():
+                if term in comment_clean:
+                    automotive_context.append({
+                        'term': term,
+                        'description': description
+                    })
         
         # Extract target (what's being modified)
         target_patterns = [
@@ -105,8 +107,9 @@ class CommentIntelligence:
                 break
         
         # Calculate confidence and generate description
-        analysis['confidence'] = self._calculate_confidence(analysis)
-        if analysis['confidence'] > 0.5:
+        confidence = self._calculate_confidence(analysis)
+        analysis['confidence'] = confidence
+        if isinstance(confidence, float) and confidence > 0.5:
             analysis['description'] = self._generate_description(analysis)
         
         return analysis
@@ -207,7 +210,7 @@ class CSSIntelligence:
     
     def analyze_css_block(self, css_lines: List[str]) -> Dict[str, Any]:
         """Analyze a block of CSS changes."""
-        analysis = {
+        analysis: Dict[str, Any] = {
             'selectors': [],
             'properties': [],
             'purposes': [],
@@ -224,7 +227,9 @@ class CSSIntelligence:
             selector_match = re.match(r'^([#\.\w\-\s\[\]:,>+~]+)\s*\{?', line_clean)
             if selector_match:
                 selector = selector_match.group(1).strip()
-                analysis['selectors'].append(selector)
+                selectors = analysis['selectors']
+                if isinstance(selectors, list):
+                    selectors.append(selector)
                 
                 # Check if we know this selector
                 for known_selector, description in self.selector_types.items():
@@ -236,13 +241,16 @@ class CSSIntelligence:
             property_match = re.match(r'^([\w-]+)\s*:', line_clean)
             if property_match:
                 prop = property_match.group(1)
-                analysis['properties'].append(prop)
+                properties = analysis['properties']
+                purposes = analysis['purposes']
+                if isinstance(properties, list):
+                    properties.append(prop)
                 
                 # Add purpose if we know it
-                if prop in self.property_purposes:
+                if prop in self.property_purposes and isinstance(purposes, list):
                     purpose = self.property_purposes[prop]
-                    if purpose not in analysis['purposes']:
-                        analysis['purposes'].append(purpose)
+                    if purpose not in purposes:
+                        purposes.append(purpose)
         
         # Calculate confidence
         analysis['confidence'] = self._calculate_css_confidence(analysis)
@@ -282,7 +290,7 @@ class GitOperations:
         try:
             self._get_repo()
             return True
-        except:
+        except Exception:
             return False
     
     def _check_gh_cli(self) -> bool:
@@ -291,7 +299,7 @@ class GitOperations:
             subprocess.run(['gh', '--version'], check=True, capture_output=True)
             subprocess.run(['gh', 'auth', 'status'], check=True, capture_output=True)
             return True
-        except:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             return False
     
     def _get_repo_info(self) -> Dict[str, str]:
@@ -654,21 +662,30 @@ class GitOperations:
                         
                         if line_diff != 0:
                             manual_changes['has_manual_changes'] = True
-                            manual_changes['file_line_counts'][sb_file] = abs(line_diff)
-                            manual_changes['files_modified'].append(sb_file)
+                            file_line_counts = manual_changes.get('file_line_counts', {})
+                            files_modified = manual_changes.get('files_modified', [])
+                            change_descriptions = manual_changes.get('change_descriptions', [])
+                            
+                            if isinstance(file_line_counts, dict):
+                                file_line_counts[sb_file] = abs(line_diff)
+                            if isinstance(files_modified, list):
+                                files_modified.append(sb_file)
                             
                             # Create description
-                            if line_diff > 0:
-                                manual_changes['change_descriptions'].append(
-                                    f"Manual changes to {sb_file} ({line_diff} lines added) - please add details if needed"
-                                )
-                            else:
-                                manual_changes['change_descriptions'].append(
-                                    f"Manual changes to {sb_file} ({abs(line_diff)} lines removed) - please add details if needed"
-                                )
+                            if isinstance(change_descriptions, list):
+                                if line_diff > 0:
+                                    change_descriptions.append(
+                                        f"Manual changes to {sb_file} ({line_diff} lines added) - please add details if needed"
+                                    )
+                                else:
+                                    change_descriptions.append(
+                                        f"Manual changes to {sb_file} ({abs(line_diff)} lines removed) - please add details if needed"
+                                    )
             
             # Calculate total manual lines
-            manual_changes['estimated_manual_lines'] = sum(manual_changes['file_line_counts'].values())
+            file_line_counts = manual_changes.get('file_line_counts', {})
+            if isinstance(file_line_counts, dict):
+                manual_changes['estimated_manual_lines'] = sum(file_line_counts.values())
             
             logger.debug(f"Snapshot comparison found {manual_changes['estimated_manual_lines']} manual lines")
             
@@ -752,25 +769,31 @@ class GitOperations:
                             # Only initialize count for files that aren't migration files
                             # Exclude ALL migration files regardless of git status (A or M)
                             if current_file not in migration_files:
-                                manual_changes['file_line_counts'][current_file] = 0
+                                file_line_counts = manual_changes.get('file_line_counts', {})
+                                if isinstance(file_line_counts, dict):
+                                    file_line_counts[current_file] = 0
                 
                 # Count added lines for current file (only if it's not a migration file)
                 elif line.startswith('+') and current_file and current_file.endswith('.scss'):
-                    if current_file in manual_changes['file_line_counts']:
-                        manual_changes['file_line_counts'][current_file] += 1
+                    file_line_counts = manual_changes.get('file_line_counts', {})
+                    if isinstance(file_line_counts, dict) and current_file in file_line_counts:
+                        file_line_counts[current_file] += 1
             
             # Calculate totals
-            total_manual_lines = sum(manual_changes['file_line_counts'].values())
+            file_line_counts = manual_changes.get('file_line_counts', {})
+            total_manual_lines = sum(file_line_counts.values()) if isinstance(file_line_counts, dict) else 0
             if total_manual_lines > 0:
                 manual_changes['has_manual_changes'] = True
                 manual_changes['estimated_manual_lines'] = total_manual_lines
                 
                 # Generate simple descriptions based on line counts
-                for filename, line_count in manual_changes['file_line_counts'].items():
-                    if line_count > 0:
-                        manual_changes['change_descriptions'].append(
-                            f"Manual changes to {filename} ({line_count} lines) - please add details if needed"
-                        )
+                change_descriptions = manual_changes.get('change_descriptions', [])
+                if isinstance(file_line_counts, dict) and isinstance(change_descriptions, list):
+                    for filename, line_count in file_line_counts.items():
+                        if line_count > 0:
+                            change_descriptions.append(
+                                f"Manual changes to {filename} ({line_count} lines) - please add details if needed"
+                            )
             
             # Only include modified files in the list, excluding ALL migration files
             manual_changes['files_modified'] = [
@@ -898,8 +921,7 @@ just start {slug}
         return {
             'title': title,
             'body': body,
-            'what_section': what_section,
-            'manual_analysis': manual_analysis
+            'what_section': what_section
         }
 
     def _open_pr_in_browser(self, pr_url: str):
@@ -925,9 +947,9 @@ PR: {pr_url}"""
         except subprocess.CalledProcessError:
             logger.warning("Could not copy message to clipboard")
 
-    def create_pr(self, slug: str, branch_name: str = None, title: str = None, body: str = None,
-                  base: str = None, head: str = None, reviewers: List[str] = None,
-                  labels: List[str] = None, draft: bool = False) -> Dict[str, Any]:
+    def create_pr(self, slug: str, branch_name: Optional[str] = None, title: Optional[str] = None, body: Optional[str] = None,
+                  base: Optional[str] = None, head: Optional[str] = None, reviewers: Optional[List[str]] = None,
+                  labels: Optional[List[str]] = None, draft: bool = False) -> Dict[str, Any]:
         """
         Create a GitHub Pull Request for a given theme. This is the primary method for PR creation.
 
@@ -981,12 +1003,16 @@ PR: {pr_url}"""
                 pr_reviewers = reviewers or ['carsdotcom/fe-dev']
                 pr_labels = labels or ['fe-dev']
 
+            # Ensure non-None values for type safety
+            safe_current_branch = current_branch or 'main'
+            safe_pr_base = pr_base or 'main'
+
             # Create the PR
             pr_url = self._execute_gh_pr_create(
                 title=pr_title,
                 body=pr_body,
-                base=pr_base,
-                head=current_branch,
+                base=safe_pr_base,
+                head=safe_current_branch,
                 draft=draft,
                 reviewers=pr_reviewers,
                 labels=pr_labels
@@ -1003,7 +1029,7 @@ PR: {pr_url}"""
             return {
                 "success": True,
                 "pr_url": pr_url,
-                "branch": current_branch,
+                "branch": safe_current_branch,
                 "title": pr_title,
                 "body": pr_body
             }
@@ -1015,16 +1041,17 @@ PR: {pr_url}"""
             # Handle existing PR gracefully
             if self._is_pr_exists_error(error_str):
                 try:
-                    existing_pr_url = self._handle_existing_pr(error_str, head or branch_name)
+                    safe_head_branch = head or branch_name or 'main'
+                    existing_pr_url = self._handle_existing_pr(error_str, safe_head_branch)
                     logger.info(f"PR already exists: {existing_pr_url}")
                     # Still copy Salesforce message since migration likely completed
-                    pr_content = self._build_stellantis_pr_content(slug, head or branch_name, {})
+                    pr_content = self._build_stellantis_pr_content(slug, safe_head_branch, {})
                     self._copy_salesforce_message_to_clipboard(pr_content['what_section'], existing_pr_url)
 
                     return {
                         "success": True,
                         "pr_url": existing_pr_url,
-                        "branch": head or branch_name,
+                        "branch": safe_head_branch,
                         "title": pr_content['title'],
                         "existing": True
                     }

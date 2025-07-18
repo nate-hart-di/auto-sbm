@@ -1,0 +1,1 @@
+"""Test package for Auto-SBM models"""
