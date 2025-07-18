@@ -158,6 +158,9 @@ def auto_update_repo():
             if pull_result.stdout.strip() and "Already up to date" not in pull_result.stdout:
                 print("[SBM] ✅ Auto-updated to latest version.")
             
+            # Check if we need to run full setup (if >8 hours since last setup)
+            _check_and_run_setup_if_needed()
+            
             # Restore stashed changes if we created a stash
             if stash_created:
                 restore_result = subprocess.run(
@@ -186,6 +189,44 @@ def auto_update_repo():
     except Exception:
         # Any other error, fail silently to not interrupt user workflow
         pass
+
+
+def _check_and_run_setup_if_needed():
+    """
+    Check if setup needs to be run (if >8 hours since last setup) and run it silently.
+    """
+    setup_complete_file = os.path.join(REPO_ROOT, '.sbm_setup_complete')
+    
+    try:
+        # Check if setup file exists and when it was last modified
+        if os.path.exists(setup_complete_file):
+            import time
+            file_mtime = os.path.getmtime(setup_complete_file)
+            current_time = time.time()
+            hours_since_setup = (current_time - file_mtime) / 3600
+            
+            if hours_since_setup <= 8:
+                return  # Setup is still fresh, no need to run
+        
+        # Setup is needed - delete old marker and run setup
+        if os.path.exists(setup_complete_file):
+            os.remove(setup_complete_file)
+        
+        # Run pip install requirements silently
+        pip_result = subprocess.run([
+            sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'
+        ], cwd=REPO_ROOT, capture_output=True, text=True, timeout=60)
+        
+        if pip_result.returncode == 0:
+            # Create the setup complete marker
+            import time
+            with open(setup_complete_file, 'w') as f:
+                f.write(f"Setup completed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        
+    except Exception:
+        # Silently ignore setup errors during auto-update
+        pass
+
 
 # Run auto-update at CLI initialization
 auto_update_repo()
@@ -609,6 +650,16 @@ def update():
                 click.echo("✅ Already up to date.")
             else:
                 click.echo("✅ Successfully updated to latest version.")
+                
+                # Install/update requirements after git pull
+                click.echo("Installing updated requirements...")
+                try:
+                    subprocess.run([
+                        sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'
+                    ], cwd=REPO_ROOT, check=True)
+                    click.echo("✅ Requirements updated successfully.")
+                except subprocess.CalledProcessError as e:
+                    click.echo(f"⚠️  Warning: Failed to update requirements: {e}")
             
             # Restore stashed changes
             if has_changes:
