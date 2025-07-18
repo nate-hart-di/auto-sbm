@@ -78,9 +78,9 @@ log "Running ruff linting..."
 ruff check src/ || warn "Linting found issues - see output above"
 
 # Run tests if they exist
-if [ -d "tests" ] || [ -d "src/auto_sbm/*/tests" ]; then
+if [ -d "tests" ] || [ -d "src/tests" ]; then
     log "Running tests..."
-    pytest src/ -v || warn "Some tests failed - see output above"
+    pytest src/ tests/ -v || warn "Some tests failed - see output above"
 else
     warn "No tests found - consider adding tests"
 fi
