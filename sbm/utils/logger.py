@@ -1,23 +1,25 @@
 """
 Logging utilities for the SBM tool.
 
-This module provides a centralized logging system for the SBM tool.
+This module provides a centralized logging system for the SBM tool with Rich support.
 """
 
 import logging
 import os
 import sys
 from datetime import datetime
+from typing import Optional
 
 
-def setup_logger(name=None, log_file=None, level=logging.INFO):
+def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
     """
-    Set up and configure a logger instance.
+    Set up and configure a logger instance with Rich support.
     
     Args:
         name (str, optional): Logger name. Defaults to 'sbm'.
         log_file (str, optional): Path to log file. If None, a default path is used.
         level (int, optional): Logging level. Defaults to logging.INFO.
+        use_rich (bool, optional): Whether to use Rich logging handler. Defaults to True.
         
     Returns:
         logging.Logger: Configured logger instance
@@ -34,12 +36,32 @@ def setup_logger(name=None, log_file=None, level=logging.INFO):
     # Child loggers will propagate messages to the main logger.
     main_logger = logging.getLogger('sbm')
     if name == 'sbm' and not main_logger.handlers:
-        # Create formatter
+        # Create formatter for file handler
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         
-        # Create console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
+        # Create console handler (Rich or standard based on use_rich parameter)
+        if use_rich and not _is_ci_environment():
+            try:
+                from rich.logging import RichHandler
+                console_handler = RichHandler(
+                    rich_tracebacks=True,
+                    markup=True,
+                    show_path=False,
+                    show_time=False,  # Rich handles time display
+                    tracebacks_suppress=[
+                        'click',  # Suppress Click framework tracebacks
+                        'rich'    # Suppress Rich internal tracebacks
+                    ]
+                )
+            except ImportError:
+                # Fallback to standard handler if Rich is not available
+                console_handler = logging.StreamHandler(sys.stdout)
+                console_handler.setFormatter(formatter)
+        else:
+            # Use standard console handler for CI environments or when Rich is disabled
+            console_handler = logging.StreamHandler(sys.stdout)
+            console_handler.setFormatter(formatter)
+        
         main_logger.addHandler(console_handler)
         
         # Create file handler if a log file is specified or use default
@@ -57,6 +79,39 @@ def setup_logger(name=None, log_file=None, level=logging.INFO):
         main_logger.addHandler(file_handler)
     
     return logger
+
+
+def _is_ci_environment() -> bool:
+    """
+    Check if running in CI/CD environment.
+    
+    Returns:
+        True if in CI environment, False otherwise
+    """
+    ci_indicators = [
+        'CI', 'CONTINUOUS_INTEGRATION', 'GITHUB_ACTIONS',
+        'TRAVIS', 'CIRCLECI', 'JENKINS_URL', 'GITLAB_CI'
+    ]
+    
+    return any(os.getenv(var) for var in ci_indicators) or os.getenv('TERM') == 'dumb'
+
+
+def get_rich_logger(name: Optional[str] = None, config=None) -> logging.Logger:
+    """
+    Get a Rich-enhanced logger with configuration support.
+    
+    Args:
+        name: Logger name (defaults to 'sbm')
+        config: Optional Config object for Rich settings
+        
+    Returns:
+        Configured logger instance
+    """
+    use_rich = True
+    if config:
+        use_rich = config.get_setting('ui', {}).get('use_rich', True)
+    
+    return setup_logger(name=name, use_rich=use_rich)
 
 
 # Create a default logger for the entire package

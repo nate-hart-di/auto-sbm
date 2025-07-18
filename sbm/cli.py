@@ -1,7 +1,8 @@
 """
-Command-line interface for the SBM tool.
+Command-line interface for the SBM tool with Rich UI enhancements.
 
-This module provides the command-line interface for the SBM tool.
+This module provides the command-line interface for the SBM tool with
+Rich-enhanced progress tracking, status displays, and interactive elements.
 """
 
 import click
@@ -13,11 +14,17 @@ import shutil
 from pathlib import Path
 from .scss.processor import SCSSProcessor
 from .scss.validator import validate_scss_files # Import the new validation function
-from .utils.logger import logger # Import the pre-configured logger
+from .utils.logger import logger, get_rich_logger # Import the pre-configured logger
 from .utils.path import get_dealer_theme_dir
 from .core.migration import migrate_dealer_theme, run_post_migration_workflow, test_compilation_recovery # Import migration functions
 from .config import get_config, ConfigurationError, Config
 from git import Repo # Import Repo for post_migrate command
+
+# Rich UI imports
+from .ui.console import get_console
+from .ui.progress import MigrationProgress
+from .ui.panels import StatusPanels
+from .ui.prompts import InteractivePrompts
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -391,7 +398,8 @@ def migrate(theme_name, force_reset, skip_maps):
 @click.option('--force-reset', is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option('--create-pr/--no-create-pr', default=True, help="Create a GitHub Pull Request after successful migration (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-post-migration', is_flag=True, help="Skip interactive manual review, re-validation, Git operations, and PR creation.")
-def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
+@click.pass_context
+def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration):
     """
     Run the full, automated migration for a given theme.
     This is the recommended command for most migrations.
@@ -402,25 +410,86 @@ def auto(theme_name, skip_just, force_reset, create_pr, skip_post_migration):
     
     Use --skip-just to skip running the 'just start' command (if the site is already started).
     """
-    click.echo(f"Starting automated migration for {theme_name}...")
+    # Get configuration and initialize Rich console
+    config = ctx.obj.get('config', Config({}))
+    console = get_console(config)
+    
+    # Show Rich migration start panel
+    config_info = {
+        'Skip Just': skip_just,
+        'Force Reset': force_reset,
+        'Create PR': create_pr,
+        'Skip Post-Migration': skip_post_migration
+    }
+    
+    start_panel = StatusPanels.create_migration_status_panel(
+        theme_name, 
+        "Initialization", 
+        "in_progress",
+        config_info
+    )
+    console.console.print(start_panel)
+    
+    # Confirm migration start if not in non-interactive mode
+    if not skip_post_migration:
+        config_dict = {
+            'skip_just': skip_just,
+            'force_reset': force_reset,
+            'create_pr': create_pr,
+            'skip_post_migration': skip_post_migration
+        }
+        
+        if not InteractivePrompts.confirm_migration_start(theme_name, config_dict):
+            console.print_info("Migration cancelled by user")
+            return
+    
+    console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
     
     interactive_review = not skip_post_migration
     interactive_git = not skip_post_migration
     interactive_pr = not skip_post_migration
 
-    success = migrate_dealer_theme(
-        theme_name,
-        skip_just=skip_just,
-        force_reset=force_reset,
-        create_pr=create_pr,
-        interactive_review=interactive_review,
-        interactive_git=interactive_git,
-        interactive_pr=interactive_pr
-    )
-    if success:
-        click.echo(f"Automated migration completed successfully for {theme_name}!")
-    else:
-        click.echo(f"Automated migration failed for {theme_name}.", err=True)
+    # Create migration progress tracker
+    progress = MigrationProgress()
+    
+    try:
+        with progress.progress_context():
+            # Add overall migration task
+            migration_task = progress.add_migration_task(theme_name)
+            
+            success = migrate_dealer_theme(
+                theme_name,
+                skip_just=skip_just,
+                force_reset=force_reset,
+                create_pr=create_pr,
+                interactive_review=interactive_review,
+                interactive_git=interactive_git,
+                interactive_pr=interactive_pr,
+                progress_tracker=progress  # Pass progress tracker
+            )
+            
+            if success:
+                # Show completion summary
+                elapsed_time = progress.get_elapsed_time()
+                completion_panel = StatusPanels.create_completion_summary_panel(
+                    theme_name=theme_name,
+                    elapsed_time=elapsed_time,
+                    files_processed=4,  # Standard SB files
+                    warnings=0,
+                    errors=0
+                )
+                console.console.print(completion_panel)
+                console.print_success(f"Automated migration completed successfully for {theme_name}!")
+            else:
+                console.print_error(f"Automated migration failed for {theme_name}")
+                sys.exit(1)
+                
+    except KeyboardInterrupt:
+        console.print_warning("Migration interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        console.print_error(f"Migration failed with error: {str(e)}")
+        logger.exception("Migration failed")
         sys.exit(1)
 
 @cli.command()

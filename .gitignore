@@ -34,7 +34,8 @@ logs/
 *.log
 
 # Test output
-tests/output/
+PRPs/
+tests/
 test-output/
 
 # Coverage reports

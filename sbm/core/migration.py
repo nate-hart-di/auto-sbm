@@ -718,7 +718,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
     return True
 
 
-def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True):
+def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True, progress_tracker=None):
     """
     Migrate a dealer theme to the Site Builder platform.
     
@@ -733,6 +733,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         interactive_review (bool): Whether to prompt for manual review and re-validation.
         interactive_git (bool): Whether to prompt for Git add, commit, push.
         interactive_pr (bool): Whether to prompt for PR creation.
+        progress_tracker (MigrationProgress, optional): Rich progress tracker for UI updates.
         
     Returns:
         bool: True if all steps are successful, False otherwise.
@@ -750,50 +751,124 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     # Perform Git operations if not skipped
     if not skip_git:
         logger.info(f"Step 1/6: Performing Git operations for {slug}...")
+        
+        # Add step task for progress tracking
+        step_task = None
+        if progress_tracker:
+            step_task = progress_tracker.add_step_task("git_ops", "Setting up Git branch", 100)
+        
         success, branch_name = git_operations(slug)
         if not success:
             logger.error(f"Git operations failed for {slug}")
             return False
+        
+        # Complete step
+        if progress_tracker and step_task:
+            progress_tracker.complete_step("git_ops")
         
         logger.info(f"Git operations completed successfully, branch: {branch_name}")
     
     # Run 'just start' if not skipped
     if not skip_just:
         logger.info(f"Step 2/6: Running 'just start' for {slug}...")
+        
+        # Add step task for progress tracking
+        step_task = None
+        if progress_tracker:
+            step_task = progress_tracker.add_step_task("docker_start", "Starting Docker environment", 100)
+        
         just_start_success = run_just_start(slug)
         logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
             logger.error(f"Failed to start site for {slug}")
             return False
         
+        # Complete step
+        if progress_tracker and step_task:
+            progress_tracker.complete_step("docker_start")
+        
         logger.info(f"Site started successfully for {slug}")
     
     # Create Site Builder files
     logger.info(f"Step 3/6: Creating Site Builder files for {slug}...\n")
+    
+    # Add step task for progress tracking
+    step_task = None
+    if progress_tracker:
+        step_task = progress_tracker.add_step_task("create_files", "Creating Site Builder files", 100)
+    
+    # Update progress as files are created
+    if progress_tracker and step_task:
+        progress_tracker.update_step_progress("create_files", 25, "Initializing file creation")
+    
     if not create_sb_files(slug, force_reset):
         logger.error(f"Failed to create Site Builder files for {slug}")
         return False
     
+    # Complete step
+    if progress_tracker and step_task:
+        progress_tracker.update_step_progress("create_files", 75, "Site Builder files created")
+        progress_tracker.complete_step("create_files")
+    
     # Migrate styles
     logger.info(f"Step 4/6: Migrating styles for {slug}...\n")
+    
+    # Add step task for progress tracking
+    step_task = None
+    if progress_tracker:
+        step_task = progress_tracker.add_step_task("migrate_styles", "Migrating SCSS styles", 100)
+    
+    # Update progress during style migration
+    if progress_tracker and step_task:
+        progress_tracker.update_step_progress("migrate_styles", 20, "Analyzing SCSS files")
+    
     if not migrate_styles(slug):
         logger.error(f"Failed to migrate styles for {slug}")
         return False
     
+    # Complete step
+    if progress_tracker and step_task:
+        progress_tracker.update_step_progress("migrate_styles", 80, "SCSS migration completed")
+        progress_tracker.complete_step("migrate_styles")
+    
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
     logger.info(f"Step 5/6: Adding predetermined styles for {slug}...\n")
+    
+    # Add step task for progress tracking
+    step_task = None
+    if progress_tracker:
+        step_task = progress_tracker.add_step_task("predetermined_styles", "Adding predetermined styles", 100)
+    
     if not add_predetermined_styles(slug, oem_handler):
         logger.warning(f"Could not add all predetermined styles for {slug}")
+    
+    # Complete step
+    if progress_tracker and step_task:
+        progress_tracker.complete_step("predetermined_styles")
     
     # Migrate map components if not skipped
     logger.info(f"Step 6/6: Migrating map components for {slug}...\n")
     if not skip_maps:
+        # Add step task for progress tracking
+        step_task = None
+        if progress_tracker:
+            step_task = progress_tracker.add_step_task("map_components", "Migrating map components", 100)
+        
         if not migrate_map_components(slug, oem_handler):
             logger.error(f"Failed to migrate map components for {slug}")
             return False
         
+        # Complete step
+        if progress_tracker and step_task:
+            progress_tracker.complete_step("map_components")
+        
         logger.info(f"Map components migrated successfully for {slug}")
+    else:
+        # Still advance progress if skipped
+        if progress_tracker:
+            step_task = progress_tracker.add_step_task("map_components", "Skipping map components", 100)
+            progress_tracker.complete_step("map_components")
     
     logger.info(f"Migration completed successfully for {slug}")
 
