@@ -648,7 +648,12 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
 
     # Manual review phase
     if interactive_review:
-        click.echo("\n" + "="*80)
+        # Clear the terminal to remove stale progress bars
+        import os
+        os.system('clear' if os.name == 'posix' else 'cls')
+        
+        click.echo("🎉 MIGRATION COMPLETED SUCCESSFULLY! 🎉\n")
+        click.echo("="*80)
         click.echo(f"Manual Review Required for {slug}")
         click.echo("Please review the migrated SCSS files in your theme directory:")
         click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-inside.scss")

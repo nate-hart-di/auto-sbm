@@ -308,39 +308,26 @@ class MigrationProgress:
     def _cleanup_all_tasks(self):
         """
         Clean up all active tasks on error.
-        """
-        print(f"DEBUG: Cleaning up {len(self.tasks)} main tasks and {len(self.step_tasks)} step tasks")
-        
+        """        
         # Clean up main tasks
         for task_name, task_id in list(self.tasks.items()):
             try:
-                print(f"DEBUG: Removing main task {task_name} (ID: {task_id})")
                 if task_id in self.progress.tasks:
                     self.progress.remove_task(task_id)
-                    print(f"DEBUG: Successfully removed main task {task_name}")
-                else:
-                    print(f"DEBUG: Main task {task_name} already gone from Rich")
             except Exception as e:
-                print(f"DEBUG: Error removing main task {task_name}: {e}")
                 logger.debug(f"Error removing task {task_name}: {e}")
         
         # Clean up step tasks  
         for step_name, task_id in list(self.step_tasks.items()):
             try:
-                print(f"DEBUG: Removing step task {step_name} (ID: {task_id})")
                 if task_id in self.progress.tasks:
                     self.progress.remove_task(task_id)
-                    print(f"DEBUG: Successfully removed step task {step_name}")
-                else:
-                    print(f"DEBUG: Step task {step_name} already gone from Rich")
             except Exception as e:
-                print(f"DEBUG: Error removing step task {step_name}: {e}")
                 logger.debug(f"Error removing step task {step_name}: {e}")
         
         # Clear dictionaries
         self.tasks.clear()
         self.step_tasks.clear()
-        print("DEBUG: Cleared all task dictionaries")
     
     def _reset_state(self):
         """
