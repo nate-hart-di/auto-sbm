@@ -16,6 +16,9 @@ from rich.progress import (
 from typing import Dict, Any, Optional
 from contextlib import contextmanager
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MigrationProgress:
@@ -53,14 +56,22 @@ class MigrationProgress:
     @contextmanager
     def progress_context(self):
         """
-        Context manager for progress display.
+        Context manager for progress display with exception safety.
         
         Yields:
             Self instance for method chaining
         """
         self._start_time = time.time()
-        with self.progress:
-            yield self
+        try:
+            with self.progress:
+                yield self
+        except Exception as e:
+            # Clean up all active tasks on error
+            self._cleanup_all_tasks()
+            raise
+        finally:
+            # Ensure clean state
+            self._reset_state()
     
     def add_migration_task(self, theme_name: str, total_steps: int = 6) -> int:
         """
@@ -109,11 +120,25 @@ class MigrationProgress:
             advance: Amount to advance progress
             description: Optional new description
         """
-        if step_name in self.step_tasks:
-            task_id = self.step_tasks[step_name]
+        if step_name not in self.step_tasks:
+            logger.debug(f"Step {step_name} not found in active steps")
+            return
+        
+        task_id = self.step_tasks[step_name]
+        
+        # Validate task still exists
+        if task_id not in self.progress.tasks:
+            logger.warning(f"Task {task_id} for step {step_name} no longer exists")
+            # Clean up stale reference
+            del self.step_tasks[step_name]
+            return
+        
+        try:
             if description:
                 self.progress.update(task_id, description=f"[progress]{description}[/]")
             self.progress.update(task_id, advance=advance)
+        except Exception as e:
+            logger.warning(f"Error updating progress for {step_name}: {e}")
     
     def complete_step(self, step_name: str):
         """
@@ -122,23 +147,29 @@ class MigrationProgress:
         Args:
             step_name: Name of the step to complete
         """
-        if step_name in self.step_tasks:
-            task_id = self.step_tasks[step_name]
-            
-            # Ensure task still exists before updating
+        if step_name not in self.step_tasks:
+            return
+        
+        task_id = self.step_tasks[step_name]
+        
+        try:
+            # Safely complete task
             if task_id in self.progress.tasks:
-                self.progress.update(task_id, completed=self.progress.tasks[task_id].total)
+                task = self.progress.tasks[task_id]
+                self.progress.update(task_id, completed=task.total)
                 
-                # Remove the step task and advance migration
+            # Always clean up our tracking regardless of Rich's state
+            if task_id in self.progress.tasks:
                 self.progress.remove_task(task_id)
-            
+                
+        except Exception as e:
+            logger.warning(f"Error completing step {step_name}: {e}")
+        finally:
+            # Always clean up our dictionary
             del self.step_tasks[step_name]
             
             # Advance overall migration
-            if 'migration' in self.tasks:
-                migration_task_id = self.tasks['migration']
-                if migration_task_id in self.progress.tasks:
-                    self.progress.update(migration_task_id, advance=1)
+            self._advance_migration_progress()
     
     def add_file_processing_task(self, file_count: int) -> int:
         """
@@ -220,13 +251,18 @@ class MigrationProgress:
             task_id: Task ID to complete
             final_message: Final completion message
         """
-        self.progress.update(
-            task_id,
-            description=f"[progress]✅ {final_message}[/]"
-        )
-        # Remove task after a brief pause
-        time.sleep(0.5)
-        self.progress.remove_task(task_id)
+        if task_id not in self.progress.tasks:
+            return
+        
+        try:
+            self.progress.update(
+                task_id,
+                description=f"[progress]✅ {final_message}[/]"
+            )
+            # Remove immediately without timing dependency
+            self.progress.remove_task(task_id)
+        except Exception as e:
+            logger.warning(f"Error completing indeterminate task {task_id}: {e}")
     
     def get_elapsed_time(self) -> float:
         """
@@ -254,3 +290,47 @@ class MigrationProgress:
             if task.total and task.total > 0:
                 return (task.completed / task.total) * 100
         return 0.0
+    
+    def _advance_migration_progress(self):
+        """
+        Advance overall migration progress by one step.
+        """
+        try:
+            if 'migration' in self.tasks:
+                migration_task_id = self.tasks['migration']
+                if migration_task_id in self.progress.tasks:
+                    self.progress.update(migration_task_id, advance=1)
+        except Exception as e:
+            logger.warning(f"Error advancing migration progress: {e}")
+    
+    def _cleanup_all_tasks(self):
+        """
+        Clean up all active tasks on error.
+        """
+        # Clean up main tasks
+        for task_name, task_id in list(self.tasks.items()):
+            try:
+                if task_id in self.progress.tasks:
+                    self.progress.remove_task(task_id)
+            except Exception as e:
+                logger.debug(f"Error removing task {task_name}: {e}")
+        
+        # Clean up step tasks
+        for step_name, task_id in list(self.step_tasks.items()):
+            try:
+                if task_id in self.progress.tasks:
+                    self.progress.remove_task(task_id)
+            except Exception as e:
+                logger.debug(f"Error removing step task {step_name}: {e}")
+        
+        # Clear dictionaries
+        self.tasks.clear()
+        self.step_tasks.clear()
+    
+    def _reset_state(self):
+        """
+        Reset progress tracker to clean state.
+        """
+        self.tasks.clear()
+        self.step_tasks.clear()
+        self._start_time = None

@@ -458,33 +458,46 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
             # Add overall migration task
             migration_task = progress.add_migration_task(theme_name)
             
-            success = migrate_dealer_theme(
-                theme_name,
-                skip_just=skip_just,
-                force_reset=force_reset,
-                create_pr=create_pr,
-                interactive_review=interactive_review,
-                interactive_git=interactive_git,
-                interactive_pr=interactive_pr,
-                progress_tracker=progress,  # Pass progress tracker
-                verbose_docker=verbose_docker  # Pass verbose Docker flag
-            )
-            
-            if success:
-                # Show completion summary
-                elapsed_time = progress.get_elapsed_time()
-                completion_panel = StatusPanels.create_completion_summary_panel(
-                    theme_name=theme_name,
-                    elapsed_time=elapsed_time,
-                    files_processed=4,  # Standard SB files
-                    warnings=0,
-                    errors=0
+            try:
+                success = migrate_dealer_theme(
+                    theme_name,
+                    skip_just=skip_just,
+                    force_reset=force_reset,
+                    create_pr=create_pr,
+                    interactive_review=interactive_review,
+                    interactive_git=interactive_git,
+                    interactive_pr=interactive_pr,
+                    progress_tracker=progress,  # Pass progress tracker
+                    verbose_docker=verbose_docker  # Pass verbose Docker flag
                 )
-                console.console.print(completion_panel)
-                console.print_success(f"Automated migration completed successfully for {theme_name}!")
-            else:
-                console.print_error(f"Automated migration failed for {theme_name}")
-                sys.exit(1)
+                
+                if success:
+                    # Ensure overall migration task is completed
+                    if 'migration' in progress.tasks:
+                        migration_task_id = progress.tasks['migration']
+                        if migration_task_id in progress.progress.tasks:
+                            task = progress.progress.tasks[migration_task_id]
+                            progress.progress.update(migration_task_id, completed=task.total)
+                    
+                    # Show completion summary
+                    elapsed_time = progress.get_elapsed_time()
+                    completion_panel = StatusPanels.create_completion_summary_panel(
+                        theme_name=theme_name,
+                        elapsed_time=elapsed_time,
+                        files_processed=4,  # Standard SB files
+                        warnings=0,
+                        errors=0
+                    )
+                    console.console.print(completion_panel)
+                    console.print_success(f"Automated migration completed successfully for {theme_name}!")
+                else:
+                    console.print_error(f"Automated migration failed for {theme_name}")
+                    sys.exit(1)
+            except Exception as migration_error:
+                # Progress cleanup handled by context manager
+                console.print_error(f"Migration failed with error: {str(migration_error)}")
+                logger.exception("Migration failed")
+                raise
                 
     except KeyboardInterrupt:
         console.print_warning("Migration interrupted by user")
