@@ -95,15 +95,13 @@ def _create_automation_snapshots(slug):
         logger.warning(f"Could not create automation snapshots: {e}")
 
 
-def run_just_start(slug, progress_tracker=None, task_id=None, suppress_output=True):
+def run_just_start(slug, suppress_output=True):
     """
     Run the 'just start' command for the given slug with production database.
     Uses interactive execution to allow password prompts and user input.
     
     Args:
         slug (str): Dealer theme slug
-        progress_tracker: Optional Rich progress tracker
-        task_id: Optional task ID for progress updates
         suppress_output (bool): Whether to suppress verbose Docker output (default: True)
         
     Returns:
@@ -124,8 +122,6 @@ def run_just_start(slug, progress_tracker=None, task_id=None, suppress_output=Tr
     # Run the 'just start' command with appropriate output handling
     if suppress_output:
         logger.info(f"Running 'just start {slug} prod' with suppressed output...")
-        if progress_tracker and task_id:
-            progress_tracker.update_indeterminate_task(task_id, "Starting Docker environment...")
     else:
         logger.info(f"Running 'just start {slug} prod' interactively...")
         logger.warning("⚠️  You may be prompted for AWS login credentials - please respond as needed")
@@ -134,9 +130,7 @@ def run_just_start(slug, progress_tracker=None, task_id=None, suppress_output=Tr
         f"just start {slug} prod", 
         f"Failed to run 'just start {slug} prod'",
         cwd=platform_dir,
-        suppress_output=suppress_output,
-        progress_tracker=progress_tracker,
-        task_id=task_id
+        suppress_output=suppress_output
     )
     
     if success:
@@ -784,14 +778,12 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         logger.info(f"Step 2/6: Running 'just start' for {slug}...")
         
         # Add step task for progress tracking
-        step_task = None
         if progress_tracker:
-            step_task = progress_tracker.add_indeterminate_task("Starting Docker environment...")
+            progress_tracker.add_step_task("docker_start", "Starting Docker environment", 100)
+            progress_tracker.update_step_progress("docker_start", 0, "Starting Docker containers...")
         
         just_start_success = run_just_start(
             slug, 
-            progress_tracker=progress_tracker, 
-            task_id=step_task,
             suppress_output=not verbose_docker  # Suppress unless verbose requested
         )
         logger.info(f"'just start' returned: {just_start_success}")
@@ -800,8 +792,9 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
             return False
         
         # Complete step
-        if progress_tracker and step_task:
-            progress_tracker.complete_indeterminate_task(step_task, "Docker environment started")
+        if progress_tracker:
+            progress_tracker.update_step_progress("docker_start", 100, "Docker environment started")
+            progress_tracker.complete_step("docker_start")
         
         logger.info(f"Site started successfully for {slug}")
     
@@ -809,12 +802,8 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     logger.info(f"Step 3/6: Creating Site Builder files for {slug}...\n")
     
     # Add step task for progress tracking
-    step_task = None
     if progress_tracker:
-        step_task = progress_tracker.add_step_task("create_files", "Creating Site Builder files", 100)
-    
-    # Update progress as files are created
-    if progress_tracker and step_task:
+        progress_tracker.add_step_task("create_files", "Creating Site Builder files", 100)
         progress_tracker.update_step_progress("create_files", 25, "Initializing file creation")
     
     if not create_sb_files(slug, force_reset):
@@ -822,7 +811,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         return False
     
     # Complete step
-    if progress_tracker and step_task:
+    if progress_tracker:
         progress_tracker.update_step_progress("create_files", 75, "Site Builder files created")
         progress_tracker.complete_step("create_files")
     
@@ -830,12 +819,12 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     logger.info(f"Step 4/6: Migrating styles for {slug}...\n")
     
     # Add step task for progress tracking
-    step_task = None
     if progress_tracker:
-        step_task = progress_tracker.add_step_task("migrate_styles", "Migrating SCSS styles", 100)
+        progress_tracker.add_step_task("migrate_styles", "Migrating SCSS styles", 100)
+        progress_tracker.update_step_progress("migrate_styles", 0, "Starting SCSS migration")
     
     # Update progress during style migration
-    if progress_tracker and step_task:
+    if progress_tracker:
         progress_tracker.update_step_progress("migrate_styles", 20, "Analyzing SCSS files")
     
     if not migrate_styles(slug):
@@ -843,7 +832,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         return False
     
     # Complete step
-    if progress_tracker and step_task:
+    if progress_tracker:
         progress_tracker.update_step_progress("migrate_styles", 80, "SCSS migration completed")
         progress_tracker.complete_step("migrate_styles")
     
@@ -852,38 +841,41 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     logger.info(f"Step 5/6: Adding predetermined styles for {slug}...\n")
     
     # Add step task for progress tracking
-    step_task = None
     if progress_tracker:
-        step_task = progress_tracker.add_step_task("predetermined_styles", "Adding predetermined styles", 100)
+        progress_tracker.add_step_task("predetermined_styles", "Adding predetermined styles", 100)
+        progress_tracker.update_step_progress("predetermined_styles", 0, "Adding OEM-specific styles")
     
     if not add_predetermined_styles(slug, oem_handler):
         logger.warning(f"Could not add all predetermined styles for {slug}")
     
     # Complete step
-    if progress_tracker and step_task:
+    if progress_tracker:
+        progress_tracker.update_step_progress("predetermined_styles", 100, "Predetermined styles added")
         progress_tracker.complete_step("predetermined_styles")
     
     # Migrate map components if not skipped
     logger.info(f"Step 6/6: Migrating map components for {slug}...\n")
     if not skip_maps:
         # Add step task for progress tracking
-        step_task = None
         if progress_tracker:
-            step_task = progress_tracker.add_step_task("map_components", "Migrating map components", 100)
+            progress_tracker.add_step_task("map_components", "Migrating map components", 100)
+            progress_tracker.update_step_progress("map_components", 0, "Scanning for map components")
         
         if not migrate_map_components(slug, oem_handler, interactive=False):
             logger.error(f"Failed to migrate map components for {slug}")
             return False
         
         # Complete step
-        if progress_tracker and step_task:
+        if progress_tracker:
+            progress_tracker.update_step_progress("map_components", 100, "Map components migrated")
             progress_tracker.complete_step("map_components")
         
         logger.info(f"Map components migrated successfully for {slug}")
     else:
         # Still advance progress if skipped
         if progress_tracker:
-            step_task = progress_tracker.add_step_task("map_components", "Skipping map components", 100)
+            progress_tracker.add_step_task("map_components", "Skipping map components", 100)
+            progress_tracker.update_step_progress("map_components", 100, "Map components skipped")
             progress_tracker.complete_step("map_components")
     
     logger.info(f"Migration completed successfully for {slug}")
