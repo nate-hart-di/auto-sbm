@@ -453,9 +453,21 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
     # Create migration progress tracker
     progress = MigrationProgress()
     
-    # FUCK the Rich UI - just run the migration without progress bars
+    # Use Rich UI for beautiful output WITHOUT progress bars
     try:
-        console.print_info(f"Starting migration for {theme_name} (no progress bars to avoid hanging)")
+        # Beautiful startup panel
+        from rich.panel import Panel
+        startup_panel = Panel(
+            f"[bold cyan]🚀 Starting Site Builder Migration[/]\n"
+            f"[bold]Theme:[/] {theme_name}\n"
+            f"[dim]Skip Docker:[/] {skip_just}\n"
+            f"[dim]Force Reset:[/] {force_reset}\n"
+            f"[dim]Create PR:[/] {create_pr}",
+            title="[bold green]SBM Migration",
+            border_style="cyan",
+            padding=(1, 2)
+        )
+        console.console.print(startup_panel)
         
         success = migrate_dealer_theme(
             theme_name,
@@ -465,12 +477,23 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
             interactive_review=interactive_review,
             interactive_git=interactive_git,
             interactive_pr=interactive_pr,
-            progress_tracker=None,  # NO PROGRESS TRACKER - this is what causes the hang
+            progress_tracker=None,  # No progress bars - they cause hangs
             verbose_docker=verbose_docker
         )
         
         if success:
-            console.print_success(f"✅ Migration completed successfully for {theme_name}!")
+            # Beautiful completion panel
+            completion_panel = Panel(
+                f"[bold green]✅ Migration Completed Successfully![/]\n\n"
+                f"[bold]Theme:[/] {theme_name}\n"
+                f"[bold]Status:[/] [green]Complete[/]\n"
+                f"[bold]Files:[/] Site Builder SCSS files created and validated\n"
+                f"[bold]Next:[/] Review files and commit changes",
+                title="[bold green]🎉 Success",
+                border_style="green",
+                padding=(1, 2)
+            )
+            console.console.print(completion_panel)
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
