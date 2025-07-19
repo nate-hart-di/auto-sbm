@@ -18,7 +18,7 @@ from ..oem.factory import OEMFactory
 COMMON_THEME_DIR = "/Users/nathanhart/di-websites-platform/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme"
 
 
-def migrate_map_components(slug, oem_handler=None):
+def migrate_map_components(slug, oem_handler=None, interactive=False):
     """
     Enhanced map components migration that scans for CommonTheme @import statements
     and migrates both SCSS content and PHP partials.
@@ -26,6 +26,7 @@ def migrate_map_components(slug, oem_handler=None):
     Args:
         slug (str): Dealer theme slug
         oem_handler (BaseOEMHandler, optional): OEM handler for the dealer
+        interactive (bool): Whether to prompt for user confirmation (default: False)
         
     Returns:
         bool: True if migration was successful, False otherwise
@@ -51,7 +52,7 @@ def migrate_map_components(slug, oem_handler=None):
         scss_success = migrate_map_scss_content(slug, map_imports)
         
         # Step 3: Find and migrate corresponding PHP partials
-        partials_success = migrate_map_partials(slug, map_imports)
+        partials_success = migrate_map_partials(slug, map_imports, interactive=interactive)
         
         if scss_success and partials_success:
             logger.info(f"✅ Enhanced map migration completed successfully for {slug}")
@@ -210,13 +211,14 @@ def migrate_map_scss_content(slug, map_imports):
         return False
 
 
-def migrate_map_partials(slug, map_imports):
+def migrate_map_partials(slug, map_imports, interactive=False):
     """
     Find and migrate corresponding PHP partials for map components.
     
     Args:
         slug (str): Dealer theme slug
         map_imports (list): List of map import dictionaries
+        interactive (bool): Whether to prompt for user confirmation (default: False)
         
     Returns:
         bool: True if successful, False otherwise
@@ -256,7 +258,7 @@ def migrate_map_partials(slug, map_imports):
         # Copy partials from CommonTheme to DealerTheme
         success_count = 0
         for partial_info in partial_paths:
-            if copy_partial_to_dealer_theme(slug, partial_info):
+            if copy_partial_to_dealer_theme(slug, partial_info, interactive=interactive):
                 success_count += 1
         
         logger.info(f"Successfully migrated {success_count}/{len(partial_paths)} map partials")
@@ -347,13 +349,14 @@ def guess_partial_paths_from_scss(map_imports):
     return partial_paths
 
 
-def copy_partial_to_dealer_theme(slug, partial_info):
+def copy_partial_to_dealer_theme(slug, partial_info, interactive=False):
     """
     Copy a PHP partial from CommonTheme to DealerTheme with proper directory structure.
     
     Args:
         slug (str): Dealer theme slug
         partial_info (dict): Partial information dictionary
+        interactive (bool): Whether to prompt for user confirmation (default: False)
         
     Returns:
         bool: True if successful, False otherwise
@@ -372,21 +375,26 @@ def copy_partial_to_dealer_theme(slug, partial_info):
         if not os.path.exists(commontheme_source):
             logger.warning(f"CommonTheme partial not found: {commontheme_source}")
             
-            # If it's a guess, ask user for confirmation
+            # If it's a guess, ask user for confirmation (only in interactive mode)
             if partial_info.get('is_guess'):
-                click.echo(f"\n🤔 Guessed partial not found: {commontheme_partial_path}.php")
-                click.echo(f"Related SCSS: {partial_info['related_scss']}")
-                
-                # Try to find similar files
-                similar_files = find_similar_partials(commontheme_partial_path)
-                if similar_files:
-                    click.echo("Similar files found:")
-                    for similar_file in similar_files[:3]:  # Show top 3
-                        click.echo(f"  - {similar_file}")
-                
-                if not click.confirm("Skip this partial?", default=True):
-                    return False
+                if interactive:
+                    click.echo(f"\n🤔 Guessed partial not found: {commontheme_partial_path}.php")
+                    click.echo(f"Related SCSS: {partial_info['related_scss']}")
+                    
+                    # Try to find similar files
+                    similar_files = find_similar_partials(commontheme_partial_path)
+                    if similar_files:
+                        click.echo("Similar files found:")
+                        for similar_file in similar_files[:3]:  # Show top 3
+                            click.echo(f"  - {similar_file}")
+                    
+                    if not click.confirm("Skip this partial?", default=True):
+                        return False
+                    else:
+                        return True
                 else:
+                    # In non-interactive mode, automatically skip missing guessed partials
+                    logger.warning(f"Skipping missing guessed partial: {commontheme_partial_path}.php")
                     return True
             
             return False

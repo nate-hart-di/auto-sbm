@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def execute_interactive_command(command, error_message="Command failed", cwd=None):
+def execute_interactive_command(command, error_message="Command failed", cwd=None, suppress_output=False, progress_tracker=None, task_id=None):
     """
     Execute an interactive shell command that may require user input.
     This allows commands like 'just start' to prompt for passwords and receive input.
@@ -22,23 +22,71 @@ def execute_interactive_command(command, error_message="Command failed", cwd=Non
         command (str): Command to execute
         error_message (str): Message to display on error
         cwd (str, optional): The working directory for the command. Defaults to None.
+        suppress_output (bool): Whether to suppress verbose output (default: False)
+        progress_tracker: Optional Rich progress tracker
+        task_id: Optional task ID for progress updates
         
     Returns:
         bool: True if successful, False otherwise
     """
     try:
-        print(f"Executing interactive command: {command}")
+        if not suppress_output:
+            print(f"Executing interactive command: {command}")
         
-        # Use subprocess.run with no redirection to allow interactive input
-        result = subprocess.run(
-            command,
-            shell=True,
-            cwd=cwd,
-            # Don't redirect stdin/stdout/stderr - let the command interact directly with terminal
-        )
+        if suppress_output and progress_tracker and task_id:
+            # Run with output suppression and progress updates
+            process = subprocess.Popen(
+                command,
+                shell=True,
+                cwd=cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+            
+            # Monitor process while updating progress
+            import time
+            import select
+            import sys
+            
+            while process.poll() is None:
+                # Update progress periodically
+                if progress_tracker and task_id:
+                    progress_tracker.update_indeterminate_task(task_id, "Building Docker containers...")
+                
+                # Check for AWS/interactive prompts in output (Unix systems only)
+                try:
+                    if hasattr(select, 'select'):  # Unix systems
+                        ready, _, _ = select.select([process.stdout], [], [], 0.1)
+                        if ready:
+                            line = process.stdout.readline()
+                            if line and any(keyword in line.lower() for keyword in ['password', 'login', 'credentials', 'aws', 'mfa']):
+                                # Interactive prompt detected - switch to interactive mode
+                                print(f"\n🔐 Authentication required for: {command}")
+                                print("Switching to interactive mode...")
+                                process.terminate()
+                                return execute_interactive_command(command, error_message, cwd, suppress_output=False)
+                except (ImportError, OSError):
+                    # Fall back to basic monitoring on systems without select
+                    pass
+                
+                time.sleep(0.5)
+            
+            result_code = process.wait()
+        else:
+            # Standard interactive execution
+            result = subprocess.run(
+                command,
+                shell=True,
+                cwd=cwd,
+                # Don't redirect stdin/stdout/stderr - let the command interact directly with terminal
+            )
+            result_code = result.returncode
         
-        if result.returncode != 0:
-            logger.error(f"{error_message} (exit code: {result.returncode})")
+        if result_code != 0:
+            logger.error(f"{error_message} (exit code: {result_code})")
             return False
             
         return True

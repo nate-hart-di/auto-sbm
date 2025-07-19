@@ -398,8 +398,9 @@ def migrate(theme_name, force_reset, skip_maps):
 @click.option('--force-reset', is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option('--create-pr/--no-create-pr', default=True, help="Create a GitHub Pull Request after successful migration (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
 @click.option('--skip-post-migration', is_flag=True, help="Skip interactive manual review, re-validation, Git operations, and PR creation.")
+@click.option('--verbose-docker', is_flag=True, help="Show verbose Docker output during startup (for debugging).")
 @click.pass_context
-def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration):
+def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration, verbose_docker):
     """
     Run the full, automated migration for a given theme.
     This is the recommended command for most migrations.
@@ -465,7 +466,8 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
                 interactive_review=interactive_review,
                 interactive_git=interactive_git,
                 interactive_pr=interactive_pr,
-                progress_tracker=progress  # Pass progress tracker
+                progress_tracker=progress,  # Pass progress tracker
+                verbose_docker=verbose_docker  # Pass verbose Docker flag
             )
             
             if success:

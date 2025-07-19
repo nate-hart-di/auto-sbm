@@ -95,13 +95,16 @@ def _create_automation_snapshots(slug):
         logger.warning(f"Could not create automation snapshots: {e}")
 
 
-def run_just_start(slug):
+def run_just_start(slug, progress_tracker=None, task_id=None, suppress_output=True):
     """
     Run the 'just start' command for the given slug with production database.
     Uses interactive execution to allow password prompts and user input.
     
     Args:
         slug (str): Dealer theme slug
+        progress_tracker: Optional Rich progress tracker
+        task_id: Optional task ID for progress updates
+        suppress_output (bool): Whether to suppress verbose Docker output (default: True)
         
     Returns:
         bool: True if successful, False otherwise
@@ -118,14 +121,22 @@ def run_just_start(slug):
     from ..utils.path import get_platform_dir
     platform_dir = get_platform_dir()
     
-    # Run the 'just start' command interactively to allow password input
-    logger.info(f"Running 'just start {slug} prod' interactively...")
-    logger.warning("⚠️  You may be prompted for AWS login credentials - please respond as needed")
+    # Run the 'just start' command with appropriate output handling
+    if suppress_output:
+        logger.info(f"Running 'just start {slug} prod' with suppressed output...")
+        if progress_tracker and task_id:
+            progress_tracker.update_indeterminate_task(task_id, "Starting Docker environment...")
+    else:
+        logger.info(f"Running 'just start {slug} prod' interactively...")
+        logger.warning("⚠️  You may be prompted for AWS login credentials - please respond as needed")
     
     success = execute_interactive_command(
         f"just start {slug} prod", 
         f"Failed to run 'just start {slug} prod'",
-        cwd=platform_dir
+        cwd=platform_dir,
+        suppress_output=suppress_output,
+        progress_tracker=progress_tracker,
+        task_id=task_id
     )
     
     if success:
@@ -718,7 +729,7 @@ def run_post_migration_workflow(slug, branch_name, skip_git=False, create_pr=Tru
     return True
 
 
-def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True, progress_tracker=None):
+def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=False, skip_maps=False, oem_handler=None, create_pr=True, interactive_review=True, interactive_git=True, interactive_pr=True, progress_tracker=None, verbose_docker=False):
     """
     Migrate a dealer theme to the Site Builder platform.
     
@@ -775,9 +786,14 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         # Add step task for progress tracking
         step_task = None
         if progress_tracker:
-            step_task = progress_tracker.add_step_task("docker_start", "Starting Docker environment", 100)
+            step_task = progress_tracker.add_indeterminate_task("Starting Docker environment...")
         
-        just_start_success = run_just_start(slug)
+        just_start_success = run_just_start(
+            slug, 
+            progress_tracker=progress_tracker, 
+            task_id=step_task,
+            suppress_output=not verbose_docker  # Suppress unless verbose requested
+        )
         logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
             logger.error(f"Failed to start site for {slug}")
@@ -785,7 +801,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         
         # Complete step
         if progress_tracker and step_task:
-            progress_tracker.complete_step("docker_start")
+            progress_tracker.complete_indeterminate_task(step_task, "Docker environment started")
         
         logger.info(f"Site started successfully for {slug}")
     
@@ -855,7 +871,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
         if progress_tracker:
             step_task = progress_tracker.add_step_task("map_components", "Migrating map components", 100)
         
-        if not migrate_map_components(slug, oem_handler):
+        if not migrate_map_components(slug, oem_handler, interactive=False):
             logger.error(f"Failed to migrate map components for {slug}")
             return False
         
