@@ -112,7 +112,7 @@ cat > "$WRAPPER_PATH" << EOF
 
 VENV_PYTHON="$VENV_PYTHON"
 PROJECT_ROOT="$PROJECT_ROOT"
-PROJECT_CLI_MODULE="auto_sbm.main"
+PROJECT_CLI_MODULE="sbm.cli"
 
 # Check if the venv python exists
 if [ ! -f "\$VENV_PYTHON" ]; then

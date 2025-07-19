@@ -62,7 +62,7 @@ test = [
 ]
 
 [project.scripts]
-sbm = "auto_sbm.main:cli"
+sbm = "sbm.cli:cli"
 
 [project.urls]
 Homepage = "https://github.com/dealerinspire/auto-sbm"
