@@ -208,80 +208,34 @@ def run_just_start(slug, suppress_output=True, progress_tracker=None):
     from ..utils.path import get_platform_dir
     platform_dir = get_platform_dir()
 
-    # Enhanced AWS authentication with Rich UI integration
-    if progress_tracker:
-        # Use enhanced console with AWS styling
-        from ..ui.console import get_console
-        console = get_console()
-        console.print_aws_status("Ensuring AWS authentication before Docker startup...")
+    # AWS authentication (simplified to avoid subprocess tracking issues)
+    from ..ui.simple_rich import print_step_success, print_step_warning
+    print_step_warning("Ensuring AWS authentication before Docker startup...")
 
-        # Track AWS authentication with progress monitoring
-        aws_task_id = progress_tracker.track_subprocess(
-            command=["saml2aws", "login", "-a", "inventory-non-prod-423154430651-developer"],
-            description="AWS SAML authentication",
-            cwd=platform_dir,
-            progress_callback=lambda line: _process_aws_output(line, console)
-        )
+    aws_login_success = execute_interactive_command(
+        "saml2aws login -a inventory-non-prod-423154430651-developer",
+        "AWS login failed",
+        cwd=platform_dir,
+        suppress_output=False  # Always show AWS login prompts
+    )
 
-        # Wait for AWS authentication completion with extended timeout
-        aws_login_success = progress_tracker.wait_for_subprocess_completion(timeout=180)  # 3 minutes timeout for AWS
-
+    if not aws_login_success:
+        print_step_warning("AWS login failed - continuing anyway (Docker may fail)")
     else:
-        # Fallback to simple Rich UI
-        from ..ui.simple_rich import print_step_success, print_step_warning
-        print_step_warning("Ensuring AWS authentication before Docker startup...")
+        print_step_success("AWS authentication completed")
 
-        aws_login_success = execute_interactive_command(
-            "saml2aws login -a inventory-non-prod-423154430651-developer",
-            "AWS login failed",
-            cwd=platform_dir,
-            suppress_output=False  # Always show AWS login prompts
-        )
-
-    # Enhanced status reporting
-    if progress_tracker:
-        from ..ui.console import get_console
-        console = get_console()
-        if not aws_login_success:
-            console.print_aws_status("AWS login failed - continuing anyway (Docker may fail)")
-        else:
-            console.print_aws_status("AWS authentication completed successfully")
+    # Run the 'just start' command (disable subprocess tracking for now due to hanging issues)
+    if suppress_output:
+        logger.info(f"Running 'just start {slug} prod' with suppressed output...")
     else:
-        from ..ui.simple_rich import print_step_success, print_step_warning
-        if not aws_login_success:
-            print_step_warning("AWS login failed - continuing anyway (Docker may fail)")
-        else:
-            print_step_success("AWS authentication completed")
+        logger.info(f"Running 'just start {slug} prod' interactively...")
 
-    # Run the 'just start' command with enhanced monitoring
-    if progress_tracker and not suppress_output:
-        # Use enhanced progress tracking for Docker startup
-        logger.info(f"Running 'just start {slug} prod' with progress monitoring...")
-
-        # Track Docker startup with progress monitoring
-        task_id = progress_tracker.track_subprocess(
-            command=["just", "start", slug, "prod"],
-            description=f"Starting Docker environment for {slug}",
-            cwd=platform_dir,
-            progress_callback=lambda line: _process_docker_output(line, progress_tracker)
-        )
-
-        # Wait for Docker startup completion with extended timeout
-        success = progress_tracker.wait_for_subprocess_completion(timeout=600)  # 10 minutes timeout for Docker startup
-
-    else:
-        # Fallback to traditional execution
-        if suppress_output:
-            logger.info(f"Running 'just start {slug} prod' with suppressed output...")
-        else:
-            logger.info(f"Running 'just start {slug} prod' interactively...")
-
-        success = execute_interactive_command(
-            f"just start {slug} prod",
-            f"Failed to run 'just start {slug} prod'",
-            cwd=platform_dir,
-            suppress_output=suppress_output
-        )
+    success = execute_interactive_command(
+        f"just start {slug} prod",
+        f"Failed to run 'just start {slug} prod'",
+        cwd=platform_dir,
+        suppress_output=suppress_output
+    )
 
     if success:
         logger.info("'just start' command completed successfully.")
