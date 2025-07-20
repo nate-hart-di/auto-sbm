@@ -476,11 +476,30 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
                     skip_just=skip_just,
                     force_reset=force_reset,
                     create_pr=create_pr,
-                    interactive_review=interactive_review,
-                    interactive_git=interactive_git,
-                    interactive_pr=interactive_pr,
+                    interactive_review=False,  # Handle interactivity outside progress context
+                    interactive_git=False,    # Handle interactivity outside progress context  
+                    interactive_pr=False,     # Handle interactivity outside progress context
                     progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
                     verbose_docker=verbose_docker
+                )
+            
+            # Handle interactive prompts AFTER progress context ends
+            if success and (interactive_review or interactive_git or interactive_pr):
+                # Import required for post-migration workflow
+                from .core.migration import run_post_migration_workflow
+                
+                # Get branch name from git operations
+                from .utils.git import get_current_branch
+                branch_name = get_current_branch()
+                
+                success = run_post_migration_workflow(
+                    theme_name,
+                    branch_name,
+                    skip_git=skip_just,  # Use skip_just for skip_git logic
+                    create_pr=create_pr,
+                    interactive_review=interactive_review,
+                    interactive_git=interactive_git,
+                    interactive_pr=interactive_pr
                 )
 
         except Exception as e:
