@@ -580,5 +580,4 @@ class MigrationProgress:
             except queue.Empty:
                 break
 
-        # Clear any remaining updates in queue
-        self._process_remaining_updates()
+        # No more recursive calls - processed_count safety limit handles cleanup
