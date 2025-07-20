@@ -488,9 +488,10 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
                 # Import required for post-migration workflow
                 from .core.migration import run_post_migration_workflow
                 
-                # Get branch name from git operations
-                from .utils.git import get_current_branch
-                branch_name = get_current_branch()
+                # Get branch name - use theme-sbm date format
+                from datetime import datetime
+                date_suffix = datetime.now().strftime("%m%d")
+                branch_name = f"{theme_name}-sbm{date_suffix}"
                 
                 success = run_post_migration_workflow(
                     theme_name,
