@@ -185,7 +185,7 @@ def _process_docker_output(output_line: str, progress_tracker) -> None:
 
 def run_just_start(slug, suppress_output=True, progress_tracker=None):
     """
-    Run the 'just start' command for the given slug with production database.
+    Run the 'just start' command for the given slug (automatically chooses dev/prod database).
     Uses interactive execution to allow password prompts and user input.
     
     Args:
@@ -224,15 +224,15 @@ def run_just_start(slug, suppress_output=True, progress_tracker=None):
     else:
         print_step_success("AWS authentication completed")
 
-    # Run the 'just start' command (disable subprocess tracking for now due to hanging issues)
+    # Run the 'just start' command (let it choose dev/prod automatically)
     if suppress_output:
-        logger.info(f"Running 'just start {slug} prod' with suppressed output...")
+        logger.info(f"Running 'just start {slug}' with suppressed output...")
     else:
-        logger.info(f"Running 'just start {slug} prod' interactively...")
+        logger.info(f"Running 'just start {slug}' interactively...")
 
     success = execute_interactive_command(
-        f"just start {slug} prod",
-        f"Failed to run 'just start {slug} prod'",
+        f"just start {slug}",
+        f"Failed to run 'just start {slug}'",
         cwd=platform_dir,
         suppress_output=suppress_output
     )
