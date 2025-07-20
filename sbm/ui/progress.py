@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SubprocessUpdate:
     """Data class for subprocess progress updates."""
+
     task_id: int
     message: str
     progress: Optional[int] = None
@@ -39,7 +40,7 @@ class SubprocessUpdate:
 class MigrationProgress:
     """
     Enhanced progress tracking for SBM migration workflow.
-    
+
     This class provides visual progress tracking for the 6-step migration process,
     with support for both determinate and indeterminate progress indicators.
     """
@@ -47,7 +48,7 @@ class MigrationProgress:
     def __init__(self, show_speed: bool = False):
         """
         Initialize migration progress tracker.
-        
+
         Args:
             show_speed: Whether to show processing speed (default: False)
         """
@@ -56,11 +57,12 @@ class MigrationProgress:
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TaskProgressColumn(),
-            TimeElapsedColumn()
+            TimeElapsedColumn(),
         ]
 
         if show_speed:
             from rich.progress import MofNCompleteColumn
+
             columns.insert(-1, MofNCompleteColumn())
 
         self.progress = Progress(*columns, expand=True)
@@ -79,7 +81,7 @@ class MigrationProgress:
     def progress_context(self):
         """
         Context manager for progress display with exception safety.
-        
+
         Yields:
             Self instance for method chaining
         """
@@ -104,45 +106,38 @@ class MigrationProgress:
     def add_migration_task(self, theme_name: str, total_steps: int = 6) -> int:
         """
         Add overall migration task.
-        
+
         Args:
             theme_name: Name of the theme being migrated
             total_steps: Total number of migration steps
-            
+
         Returns:
             Task ID for the migration task
         """
-        task_id = self.progress.add_task(
-            f"[cyan]Migrating {theme_name}[/]",
-            total=total_steps
-        )
+        task_id = self.progress.add_task(f"[cyan]Migrating {theme_name}[/]", total=total_steps)
         self.tasks["migration"] = task_id
         return task_id
 
     def add_step_task(self, step_name: str, description: str, total: int = 100) -> int:
         """
         Add individual step task.
-        
+
         Args:
             step_name: Name/key for the step
             description: Human-readable description
             total: Total units for this step
-            
+
         Returns:
             Task ID for the step task
         """
-        task_id = self.progress.add_task(
-            f"[progress]{description}[/]",
-            total=total
-        )
+        task_id = self.progress.add_task(f"[progress]{description}[/]", total=total)
         self.step_tasks[step_name] = task_id
         return task_id
 
-    def update_step_progress(self, step_name: str, advance: int = 1,
-                           description: str = None):
+    def update_step_progress(self, step_name: str, advance: int = 1, description: str = None):
         """
         Update step progress and optionally advance overall migration.
-        
+
         Args:
             step_name: Name of the step to update
             advance: Amount to advance progress
@@ -171,55 +166,65 @@ class MigrationProgress:
     def complete_step(self, step_name: str):
         """
         Mark a step as complete and advance overall migration.
-        
+
         Args:
             step_name: Name of the step to complete
         """
         if step_name not in self.step_tasks:
+            logger.warning(f"Task {step_name} not found in step_tasks")
             return
 
         task_id = self.step_tasks[step_name]
 
-        try:
-            # Mark task as 100% complete but keep it visible
-            if task_id in self.progress.tasks:
-                task = self.progress.tasks[task_id]
-                # Advance by the remaining amount to reach 100%
-                remaining = task.total - task.completed
-                self.progress.update(task_id, advance=remaining)
-                self.progress.update(task_id, description=f"[green]✅ {step_name.title()} Complete[/]")
+        # CRITICAL: Get current task state atomically
+        with self._lock:  # Thread safety
+            try:
+                # Rich Progress API: access task directly by task_id
+                if task_id in self.progress.tasks:
+                    task = self.progress.tasks[task_id]
 
-        except Exception as e:
-            logger.warning(f"Error completing step {step_name}: {e}")
-        finally:
-            # Keep task visible but mark as completed in our tracking
-            # Don't remove from step_tasks so we can see 100% progress
-            pass
+                    # GOTCHA: Calculate remaining correctly (handle edge cases)
+                    remaining = max(0, task.total - task.completed)
+                    if remaining > 0:
+                        self.progress.update(task_id, advance=remaining)
 
-            # Advance overall migration
-            self._advance_migration_progress()
+                    # PATTERN: Update description with completion indicator
+                    self.progress.update(
+                        task_id, description=f"[green]✅ {step_name.title()} Complete[/]"
+                    )
+
+                    logger.debug(
+                        f"Step '{step_name}' completed successfully (progress: {task.completed + remaining}/{task.total})"
+                    )
+                else:
+                    logger.error(f"Task {task_id} not found in progress tracker")
+                    return
+
+            except Exception as e:
+                logger.error(f"Error completing step {step_name}: {e}")
+                return
+
+        # Advance overall migration (outside lock to prevent deadlock)
+        self._advance_migration_progress()
 
     def add_file_processing_task(self, file_count: int) -> int:
         """
         Add file processing task for tracking individual file operations.
-        
+
         Args:
             file_count: Number of files to process
-            
+
         Returns:
             Task ID for file processing
         """
-        task_id = self.progress.add_task(
-            "[progress]Processing files...[/]",
-            total=file_count
-        )
+        task_id = self.progress.add_task("[progress]Processing files...[/]", total=file_count)
         self.tasks["file_processing"] = task_id
         return task_id
 
     def update_file_progress(self, filename: str, advance: int = 1):
         """
         Update file processing progress.
-        
+
         Args:
             filename: Name of current file being processed
             advance: Amount to advance progress
@@ -227,9 +232,7 @@ class MigrationProgress:
         if "file_processing" in self.tasks:
             task_id = self.tasks["file_processing"]
             self.progress.update(
-                task_id,
-                description=f"[progress]Processing {filename}...[/]",
-                advance=advance
+                task_id, description=f"[progress]Processing {filename}...[/]", advance=advance
             )
 
     def complete_file_processing(self):
@@ -239,42 +242,39 @@ class MigrationProgress:
             self.progress.update(
                 task_id,
                 description="[progress]✅ File processing complete[/]",
-                completed=self.progress.tasks[task_id].total
+                completed=self.progress.tasks[task_id].total,
             )
 
     def add_indeterminate_task(self, description: str) -> int:
         """
         Add indeterminate task (spinner only).
-        
+
         Args:
             description: Task description
-            
+
         Returns:
             Task ID for indeterminate task
         """
         task_id = self.progress.add_task(
             f"[progress]{description}[/]",
-            total=None  # Indeterminate
+            total=None,  # Indeterminate
         )
         return task_id
 
     def update_indeterminate_task(self, task_id: int, description: str):
         """
         Update indeterminate task description.
-        
+
         Args:
             task_id: Task ID to update
             description: New description
         """
-        self.progress.update(
-            task_id,
-            description=f"[progress]{description}[/]"
-        )
+        self.progress.update(task_id, description=f"[progress]{description}[/]")
 
     def complete_indeterminate_task(self, task_id: int, final_message: str):
         """
         Complete indeterminate task with final message.
-        
+
         Args:
             task_id: Task ID to complete
             final_message: Final completion message
@@ -283,10 +283,7 @@ class MigrationProgress:
             return
 
         try:
-            self.progress.update(
-                task_id,
-                description=f"[progress]✅ {final_message}[/]"
-            )
+            self.progress.update(task_id, description=f"[progress]✅ {final_message}[/]")
             # Remove immediately without timing dependency
             self.progress.remove_task(task_id)
         except Exception as e:
@@ -295,7 +292,7 @@ class MigrationProgress:
     def get_elapsed_time(self) -> float:
         """
         Get elapsed time since progress started.
-        
+
         Returns:
             Elapsed time in seconds
         """
@@ -306,10 +303,10 @@ class MigrationProgress:
     def get_task_progress(self, task_id: int) -> float:
         """
         Get completion percentage for a task.
-        
+
         Args:
             task_id: Task ID to check
-            
+
         Returns:
             Completion percentage (0.0 to 100.0)
         """
@@ -331,51 +328,60 @@ class MigrationProgress:
         except Exception as e:
             logger.warning(f"Error advancing migration progress: {e}")
 
-    def track_subprocess(self, command: List[str], description: str,
-                        cwd: Optional[str] = None,
-                        progress_callback: Optional[Callable[[str], None]] = None) -> int:
+    def track_subprocess(
+        self,
+        command: List[str],
+        description: str,
+        cwd: Optional[str] = None,
+        progress_callback: Optional[Callable[[str], None]] = None,
+    ) -> int:
         """
         Track subprocess execution without blocking Rich UI.
-        
+
         Args:
             command: Command list to execute
             description: Description for progress display
             cwd: Working directory for command
             progress_callback: Optional callback for custom progress parsing
-            
+
         Returns:
             Task ID for tracking progress
         """
         with self._lock:
             task_id = self.progress.add_task(
                 f"[progress]{description}[/]",
-                total=None  # Indeterminate for subprocess
+                total=None,  # Indeterminate for subprocess
             )
 
         # Start subprocess in background thread
         thread = threading.Thread(
             target=self._run_subprocess_background,
             args=(task_id, command, description, cwd, progress_callback),
-            daemon=True
+            daemon=True,
         )
         self._subprocess_threads.append(thread)
         thread.start()
 
         return task_id
 
-    def _run_subprocess_background(self, task_id: int, command: List[str],
-                                  description: str, cwd: Optional[str],
-                                  progress_callback: Optional[Callable[[str], None]]):
+    def _run_subprocess_background(
+        self,
+        task_id: int,
+        command: List[str],
+        description: str,
+        cwd: Optional[str],
+        progress_callback: Optional[Callable[[str], None]],
+    ):
         """
         Run subprocess in background thread and send updates via queue.
         """
         try:
             # Send initial status
-            self._subprocess_queue.put(SubprocessUpdate(
-                task_id=task_id,
-                message=f"{description} - Starting...",
-                progress=None
-            ))
+            self._subprocess_queue.put(
+                SubprocessUpdate(
+                    task_id=task_id, message=f"{description} - Starting...", progress=None
+                )
+            )
 
             # Start subprocess with real-time output
             process = subprocess.Popen(
@@ -384,7 +390,7 @@ class MigrationProgress:
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                cwd=cwd
+                cwd=cwd,
             )
 
             # Monitor output in real-time
@@ -396,11 +402,13 @@ class MigrationProgress:
                 if output:
                     line = output.strip()
                     # Send progress update
-                    self._subprocess_queue.put(SubprocessUpdate(
-                        task_id=task_id,
-                        message=f"{description} - {line[:50]}...",
-                        progress=None
-                    ))
+                    self._subprocess_queue.put(
+                        SubprocessUpdate(
+                            task_id=task_id,
+                            message=f"{description} - {line[:50]}...",
+                            progress=None,
+                        )
+                    )
 
                     # Call custom progress callback if provided
                     if progress_callback:
@@ -411,50 +419,83 @@ class MigrationProgress:
 
             # Send completion status
             if returncode == 0:
-                self._subprocess_queue.put(SubprocessUpdate(
-                    task_id=task_id,
-                    message=f"✅ {description} - Complete",
-                    completed=True
-                ))
+                self._subprocess_queue.put(
+                    SubprocessUpdate(
+                        task_id=task_id, message=f"✅ {description} - Complete", completed=True
+                    )
+                )
             else:
                 stderr_output = process.stderr.read()
-                self._subprocess_queue.put(SubprocessUpdate(
-                    task_id=task_id,
-                    message=f"❌ {description} - Failed",
-                    completed=True,
-                    error=stderr_output
-                ))
+                self._subprocess_queue.put(
+                    SubprocessUpdate(
+                        task_id=task_id,
+                        message=f"❌ {description} - Failed",
+                        completed=True,
+                        error=stderr_output,
+                    )
+                )
 
         except Exception as e:
             # Send error status
-            self._subprocess_queue.put(SubprocessUpdate(
-                task_id=task_id,
-                message=f"❌ {description} - Error: {e!s}",
-                completed=True,
-                error=str(e)
-            ))
+            self._subprocess_queue.put(
+                SubprocessUpdate(
+                    task_id=task_id,
+                    message=f"❌ {description} - Error: {e!s}",
+                    completed=True,
+                    error=str(e),
+                )
+            )
 
     def _start_update_thread(self):
         """Start background thread to process subprocess updates."""
         if self._update_thread is None or not self._update_thread.is_alive():
             self._stop_updates.clear()
             self._update_thread = threading.Thread(
-                target=self._process_subprocess_updates,
-                daemon=True
+                target=self._process_subprocess_updates, daemon=True
             )
             self._update_thread.start()
 
     def _stop_update_thread(self):
         """Stop background update thread."""
         self._stop_updates.set()
-        if self._update_thread and self._update_thread.is_alive():
-            self._update_thread.join(timeout=1.0)
 
-        # Wait for all subprocess threads to complete
-        for thread in self._subprocess_threads:
+        # Stop main update thread with reasonable timeout
+        if self._update_thread and self._update_thread.is_alive():
+            self._update_thread.join(timeout=5.0)  # Reasonable timeout for cleanup
+            if self._update_thread.is_alive():
+                logger.warning("Update thread failed to stop within timeout")
+
+        # Clean up subprocess threads safely
+        self._cleanup_subprocess_threads()
+
+    def _cleanup_subprocess_threads(self) -> bool:
+        """Safe thread cleanup with proper timeout handling."""
+        cleanup_success = True
+
+        # PATTERN: Copy list to avoid modification during iteration
+        threads_to_cleanup = self._subprocess_threads[:]
+
+        for thread in threads_to_cleanup:
             if thread.is_alive():
-                thread.join(timeout=1.0)
-        self._subprocess_threads.clear()
+                # CRITICAL: Configurable timeout, not hardcoded
+                thread.join(timeout=5.0)  # Reasonable timeout for cleanup
+                if thread.is_alive():
+                    logger.warning(f"Thread {thread.name} failed to cleanup within timeout")
+                    cleanup_success = False
+                else:
+                    # PATTERN: Remove completed threads immediately (thread-safe)
+                    with self._lock:
+                        if thread in self._subprocess_threads:
+                            self._subprocess_threads.remove(thread)
+
+        # Clear any remaining threads (those that didn't respond to cleanup)
+        with self._lock:
+            remaining_count = len(self._subprocess_threads)
+            if remaining_count > 0:
+                logger.warning(f"Forcibly clearing {remaining_count} unresponsive threads")
+                self._subprocess_threads.clear()
+
+        return cleanup_success
 
     def _process_subprocess_updates(self):
         """Process subprocess updates from queue in background thread."""
@@ -467,8 +508,7 @@ class MigrationProgress:
                 with self._lock:
                     if update.task_id in self.progress.tasks:
                         self.progress.update(
-                            update.task_id,
-                            description=f"[progress]{update.message}[/]"
+                            update.task_id, description=f"[progress]{update.message}[/]"
                         )
 
                         # Remove completed tasks
@@ -492,34 +532,53 @@ class MigrationProgress:
     def wait_for_subprocess_completion(self, timeout: Optional[float] = None) -> bool:
         """
         Wait for all subprocess operations to complete.
-        
+
         Args:
             timeout: Maximum time to wait in seconds
-            
+
         Returns:
             True if all completed successfully, False if timeout or error
         """
         start_time = time.time()
         completed_successfully = True
 
-        for i, thread in enumerate(self._subprocess_threads):
+        # PATTERN: Copy list to avoid modification during iteration
+        threads_to_wait = self._subprocess_threads[:]
+
+        for i, thread in enumerate(threads_to_wait):
             if thread.is_alive():
                 remaining_time = None
                 if timeout:
                     elapsed = time.time() - start_time
                     remaining_time = max(0, timeout - elapsed)
                     if remaining_time <= 0:
-                        logger.warning(f"Timeout reached ({timeout}s): Subprocess thread {i} still running")
-                        return False
+                        logger.warning(
+                            f"Timeout reached ({timeout}s): Subprocess thread {i} still running"
+                        )
+                        completed_successfully = False
+                        break
 
-                thread.join(timeout=remaining_time)
+                # CRITICAL: Per-thread timeout, not global
+                thread_timeout = (
+                    remaining_time if remaining_time else 30.0
+                )  # Default 30s per thread
+                thread.join(timeout=thread_timeout)
+
                 if thread.is_alive():
-                    logger.warning(f"Subprocess thread {i} failed to complete within timeout")
+                    logger.warning(
+                        f"Subprocess thread {i} ({thread.name}) failed to complete within {thread_timeout}s timeout"
+                    )
                     completed_successfully = False
+                else:
+                    # PATTERN: Remove completed threads immediately (thread-safe)
+                    with self._lock:
+                        if thread in self._subprocess_threads:
+                            self._subprocess_threads.remove(thread)
+                    logger.debug(f"Subprocess thread {i} ({thread.name}) completed successfully")
 
         # Process any remaining updates from completed threads
         self._process_remaining_updates()
-        
+
         return completed_successfully
 
     def _cleanup_all_tasks(self):
@@ -558,7 +617,7 @@ class MigrationProgress:
         self._subprocess_threads.clear()
         self._stop_updates.clear()
         self._update_thread = None
-    
+
     def _process_remaining_updates(self):
         """
         Process any remaining updates from completed subprocess threads.
@@ -567,14 +626,14 @@ class MigrationProgress:
         while not self._subprocess_queue.empty() and processed_count < 50:  # Safety limit
             try:
                 update = self._subprocess_queue.get_nowait()
-                
+
                 # Log final status or errors
                 if update.completed:
                     if update.error:
                         logger.error(f"Subprocess completed with error: {update.error}")
                     else:
                         logger.debug(f"Subprocess completed successfully: {update.message}")
-                        
+
                 self._subprocess_queue.task_done()
                 processed_count += 1
             except queue.Empty:

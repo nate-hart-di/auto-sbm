@@ -13,10 +13,10 @@ from ..utils.logger import logger
 def validate_php_syntax(file_path):
     """
     Validate PHP syntax in a file.
-    
+
     Args:
         file_path (str): Path to the PHP file
-        
+
     Returns:
         bool: True if syntax is valid, False otherwise
     """
@@ -37,8 +37,10 @@ def validate_php_syntax(file_path):
     logger.info(f"PHP brace count: {opening_count} opening, {closing_count} closing")
 
     if opening_count != closing_count:
-        logger.warning(f"Unbalanced braces in {os.path.basename(file_path)}: "
-                      f"{opening_count} opening, {closing_count} closing")
+        logger.warning(
+            f"Unbalanced braces in {os.path.basename(file_path)}: "
+            f"{opening_count} opening, {closing_count} closing"
+        )
 
         # If we have more opening than closing braces, try to fix it
         if opening_count > closing_count:
@@ -58,16 +60,15 @@ def validate_php_syntax(file_path):
     # If php command is available, use it for syntax validation
     try:
         result = subprocess.run(
-            f"php -l {file_path}",
-            check=False, shell=True,
-            capture_output=True,
-            text=True
+            f"php -l {file_path}", check=False, shell=True, capture_output=True, text=True
         )
 
         if "No syntax errors detected" in result.stdout:
             logger.info(f"PHP syntax validation passed for {os.path.basename(file_path)}")
             return True
-        logger.error(f"PHP syntax validation failed for {os.path.basename(file_path)}: {result.stderr}")
+        logger.error(
+            f"PHP syntax validation failed for {os.path.basename(file_path)}: {result.stderr}"
+        )
         return False
 
     except Exception as e:
@@ -81,11 +82,11 @@ def validate_php_syntax(file_path):
 def validate_theme_files(slug, theme_dir):
     """
     Validate important files in a dealer theme.
-    
+
     Args:
         slug (str): Dealer theme slug
         theme_dir (str): Path to the dealer theme directory
-        
+
     Returns:
         bool: True if all validations pass, False otherwise
     """

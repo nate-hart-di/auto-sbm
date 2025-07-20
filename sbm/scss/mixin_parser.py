@@ -140,7 +140,9 @@ def _parse_mixin_arguments(raw_args: str) -> List[str]:
     for arg in args:
         arg = arg.strip()
         # Remove surrounding quotes but preserve inner quotes
-        if (arg.startswith('"') and arg.endswith('"')) or (arg.startswith("'") and arg.endswith("'")):
+        if (arg.startswith('"') and arg.endswith('"')) or (
+            arg.startswith("'") and arg.endswith("'")
+        ):
             arg = arg[1:-1]
         cleaned_args.append(arg)
 
@@ -152,10 +154,12 @@ def _handle_appearance(mixin_name, args, content):
     appearance = args[0] if args else "none"
     return f"-webkit-appearance: {appearance};\n-moz-appearance: {appearance};\nappearance: {appearance};"
 
+
 def _handle_border_radius(mixin_name, args, content):
     """Handle @include border-radius($radii)"""
     radius = args[0] if args else "5px"
     return f"border-radius: {radius};\nbackground-clip: padding-box;"
+
 
 def _handle_breakpoint(mixin_name, args, content):
     """Handle @include breakpoint($point) { content }"""
@@ -172,19 +176,22 @@ def _handle_breakpoint(mixin_name, args, content):
         "md": "min-width:1025px",
         "lg": "min-width:1200px",
         "xl": "min-width:1400px",
-        "sm-desktop": "max-width:1199px"
+        "sm-desktop": "max-width:1199px",
     }
 
     media_query = breakpoint_map.get(point, point)
     return f"@media ({media_query}) {{\n{content.strip()}\n}}"
 
+
 def _handle_flexbox(mixin_name, args, content):
     """Handle @include flexbox"""
     return "display: -webkit-box;\ndisplay: -webkit-flex;\ndisplay: -moz-flex;\ndisplay: -ms-flexbox;\ndisplay: flex;"
 
+
 def _handle_inline_flex(mixin_name, args, content):
     """Handle @include inline-flex"""
     return "display: -webkit-inline-box;\ndisplay: -webkit-inline-flex;\ndisplay: -moz-inline-flex;\ndisplay: -ms-inline-flexbox;\ndisplay: inline-flex;"
+
 
 def _handle_flex_direction(mixin_name, args, content):
     """Handle @include flex-direction($value)"""
@@ -205,6 +212,7 @@ def _handle_flex_direction(mixin_name, args, content):
 
     return f"{webkit_box_props}-webkit-flex-direction: {value};\n-moz-flex-direction: {value};\n-ms-flex-direction: {value};\nflex-direction: {value};"
 
+
 def _handle_flex_wrap(mixin_name, args, content):
     """Handle @include flex-wrap($value)"""
     if not args:
@@ -214,6 +222,7 @@ def _handle_flex_wrap(mixin_name, args, content):
     ms_value = "none" if value == "nowrap" else value
 
     return f"-webkit-flex-wrap: {value};\n-moz-flex-wrap: {value};\n-ms-flex-wrap: {ms_value};\nflex-wrap: {value};"
+
 
 def _handle_justify_content(mixin_name, args, content):
     """Handle @include justify-content($value)"""
@@ -241,6 +250,7 @@ def _handle_justify_content(mixin_name, args, content):
 
     return f"{webkit_box}{ms_flex}-webkit-justify-content: {value};\n-moz-justify-content: {value};\njustify-content: {value};"
 
+
 def _handle_align_items(mixin_name, args, content):
     """Handle @include align-items($value)"""
     if not args:
@@ -262,10 +272,12 @@ def _handle_align_items(mixin_name, args, content):
 
     return f"{webkit_box}{ms_flex}-webkit-align-items: {value};\n-moz-align-items: {value};\nalign-items: {value};"
 
+
 def _handle_font_size_mixin(mixin_name, args, content):
     """Handle @include font_size($property, $sizeValue, $lineHeightValue)"""
     # This is a complex mixin that generates utility classes
     return "/* font_size mixin converted - generates utility classes */"
+
 
 def _handle_fluid_font(mixin_name, args, content):
     """Handle @include fluid-font($min-vw, $max-vw, $min-font-size, $max-font-size)"""
@@ -281,6 +293,7 @@ def _handle_fluid_font(mixin_name, args, content):
   font-size: {max_font};
 }}"""
 
+
 def _handle_responsive_font(mixin_name, args, content):
     """Handle @include responsive-font($responsive, $min, $max, $fallback)"""
     if len(args) < 1:
@@ -294,6 +307,7 @@ def _handle_responsive_font(mixin_name, args, content):
     return f"""font-size: {fallback};
 font-size: {responsive};
 font-size: clamp({min_size}, {responsive}, {max_size});"""
+
 
 def _handle_placeholder_color(mixin_name, args, content):
     """Handle @include placeholder-color($color, $opacity)"""
@@ -320,17 +334,21 @@ def _handle_placeholder_color(mixin_name, args, content):
   opacity: {opacity};
 }}"""
 
+
 def _handle_absolute(mixin_name, args, content):
     """Handle @include absolute($directions) - absolute positioning with direction parameters"""
     return _handle_positioning("absolute", args, content)
+
 
 def _handle_relative(mixin_name, args, content):
     """Handle @include relative($directions) - relative positioning with direction parameters"""
     return _handle_positioning("relative", args, content)
 
+
 def _handle_fixed(mixin_name, args, content):
     """Handle @include fixed($directions) - fixed positioning with direction parameters"""
     return _handle_positioning("fixed", args, content)
+
 
 def _handle_positioning(position_type, args, content):
     """Handle positioning mixins with direction parameters like (top: 10px, left: 20px)"""
@@ -356,6 +374,7 @@ def _handle_positioning(position_type, args, content):
                     result += f"\n{prop}: {value};"
 
     return result
+
 
 def _handle_centering(mixin_name, args, content):
     """Handle @include centering($from, $amount, $sides) - matches actual CommonTheme mixin"""
@@ -420,6 +439,7 @@ transform: translate(-{amount}, -{amount});
 
     return result
 
+
 def _handle_pz_font_defaults(mixin_name, args, content):
     """Handle @include pz-font-defaults() - personalizer font defaults (FIXED)"""
     font_family = args[0] if args else "$heading-font"
@@ -464,6 +484,7 @@ def _handle_pz_font_defaults(mixin_name, args, content):
 
     return base_styles
 
+
 def _handle_transform(mixin_name, args, content):
     """Handle @include transform($transform) (FIXED)"""
     if not args:
@@ -474,6 +495,7 @@ def _handle_transform(mixin_name, args, content):
 -webkit-transform: {transform_val};
 transform: {transform_val};"""
 
+
 def _handle_transition(mixin_name, args, content):
     """Handle @include transition($transition)"""
     if not args:
@@ -483,6 +505,7 @@ def _handle_transition(mixin_name, args, content):
     return f"""-webkit-transition: {transition_val};
 transition: {transition_val};"""
 
+
 def _handle_transition_2(mixin_name, args, content):
     """Handle @include transition-2($transition, $transition-2)"""
     if len(args) < 2:
@@ -491,6 +514,7 @@ def _handle_transition_2(mixin_name, args, content):
     transition1, transition2 = args[:2]
     return f"""-webkit-transition: {transition1}, {transition2};
 transition: {transition1}, {transition2};"""
+
 
 def _handle_fade_transition(mixin_name, args, content):
     """Handle @include fade-transition($element)"""
@@ -517,12 +541,13 @@ def _handle_fade_transition(mixin_name, args, content):
 -o-transition: {transition_value} 0.15s ease-in-out;
 transition: {transition_value} 0.15s ease-in-out;"""
 
+
 def _handle_z_index(mixin_name, args, content):
     """Handle @include z-index($layer, $plus)"""
     if not args:
         return ""
 
-    layer = args[0].strip('"\'')
+    layer = args[0].strip("\"'")
     plus = int(args[1]) if len(args) > 1 and args[1].isdigit() else 0
 
     # Z-index layer values from the mixin
@@ -542,7 +567,7 @@ def _handle_z_index(mixin_name, args, content):
         "half": 50,
         "impact": 1,
         "buried": -1,
-        "third-party": -100000000000000000
+        "third-party": -100000000000000000,
     }
 
     if layer in z_layers:
@@ -554,6 +579,7 @@ def _handle_z_index(mixin_name, args, content):
     # Unknown layer, return as-is
     return f"z-index: {layer};"
 
+
 def _handle_content_block_mixin(mixin_name, args, content):
     """
     Generic handler for mixins that simply wrap a content block.
@@ -562,6 +588,7 @@ def _handle_content_block_mixin(mixin_name, args, content):
     if content:
         return content.strip()
     return ""
+
 
 # Additional flexbox mixins
 def _handle_flex(mixin_name, args, content):
@@ -587,6 +614,7 @@ def _handle_flex(mixin_name, args, content):
 -ms-flex: {flex_value};
 flex: {flex_value};"""
 
+
 def _handle_order(mixin_name, args, content):
     """Handle @include order($int)"""
     if not args:
@@ -601,6 +629,7 @@ def _handle_order(mixin_name, args, content):
 -ms-flex-order: {order_val};
 order: {order_val};"""
 
+
 def _handle_flex_grow(mixin_name, args, content):
     """Handle @include flex-grow($int)"""
     if not args:
@@ -613,6 +642,7 @@ def _handle_flex_grow(mixin_name, args, content):
 -ms-flex-positive: {grow_val};
 flex-grow: {grow_val};"""
 
+
 def _handle_flex_shrink(mixin_name, args, content):
     """Handle @include flex-shrink($int)"""
     if not args:
@@ -623,6 +653,7 @@ def _handle_flex_shrink(mixin_name, args, content):
 -moz-flex-shrink: {shrink_val};
 -ms-flex-negative: {shrink_val};
 flex-shrink: {shrink_val};"""
+
 
 def _handle_flex_basis(mixin_name, args, content):
     """Handle @include flex-basis($value)"""
@@ -635,6 +666,7 @@ def _handle_flex_basis(mixin_name, args, content):
 -ms-flex-preferred-size: {basis_val};
 flex-basis: {basis_val};"""
 
+
 def _handle_flex_flow(mixin_name, args, content):
     """Handle @include flex-flow($values)"""
     if not args:
@@ -645,6 +677,7 @@ def _handle_flex_flow(mixin_name, args, content):
 -moz-flex-flow: {flow_val};
 -ms-flex-flow: {flow_val};
 flex-flow: {flow_val};"""
+
 
 def _handle_align_self(mixin_name, args, content):
     """Handle @include align-self($value)"""
@@ -664,6 +697,7 @@ def _handle_align_self(mixin_name, args, content):
     return f"""-webkit-align-self: {value};
 -moz-align-self: {value};
 {ms_flex}align-self: {value};"""
+
 
 def _handle_align_content(mixin_name, args, content):
     """Handle @include align-content($value)"""
@@ -688,6 +722,7 @@ def _handle_align_content(mixin_name, args, content):
 -moz-align-content: {value};
 {ms_flex}align-content: {value};"""
 
+
 def _handle_trans(mixin_name, args, content):
     """Handle @include trans($color, $opacity) - transparent background"""
     if len(args) < 2:
@@ -698,6 +733,7 @@ def _handle_trans(mixin_name, args, content):
 background: none;
 background: rgba({color}, {opacity});"""
 
+
 def _handle_vertical_align(mixin_name, args, content):
     """Handle @include vertical-align"""
     return """position: relative;
@@ -706,12 +742,14 @@ top: 50%;
 -ms-transform: translateY(-50%);
 transform: translateY(-50%);"""
 
+
 def _handle_translatez(mixin_name, args, content):
     """Handle @include translatez() or @include translateZ()"""
     return """-webkit-transform: translatez(0);
 -moz-transform: translatez(0);
 -ms-transform: translatez(0);
 transform: translatez(0);"""
+
 
 def _handle_box_shadow(mixin_name, args, content):
     """Handle @include box-shadow($value) (FIXED)"""
@@ -723,6 +761,7 @@ def _handle_box_shadow(mixin_name, args, content):
 -webkit-box-shadow: {shadow_value};
 -moz-box-shadow: {shadow_value};"""
 
+
 def _handle_box_shadow_2(mixin_name, args, content):
     """Handle @include box-shadow-2($args1, $args2) (FIXED)"""
     if len(args) < 2:
@@ -732,6 +771,7 @@ def _handle_box_shadow_2(mixin_name, args, content):
     return f"""box-shadow: {shadow1}, {shadow2};
 -webkit-box-shadow: {shadow1}, {shadow2};
 -moz-box-shadow: {shadow1}, {shadow2};"""
+
 
 def _handle_box_sizing(mixin_name, args, content):
     """Handle @include box-sizing($value)"""
@@ -743,6 +783,7 @@ def _handle_box_sizing(mixin_name, args, content):
 -moz-box-sizing: {value};
 box-sizing: {value};"""
 
+
 def _handle_clearfix(mixin_name, args, content):
     """Handle @include clearfix"""
     return """&:after {
@@ -750,6 +791,7 @@ def _handle_clearfix(mixin_name, args, content):
   display: table;
   clear: both;
 }"""
+
 
 def _handle_list_padding(mixin_name, args, content):
     """Handle @include list-padding($position, $value)"""
@@ -761,6 +803,7 @@ def _handle_list_padding(mixin_name, args, content):
 -webkit-padding-{position}: {value};
 -khtml-padding-{position}: {value};
 -o-padding-{position}: {value};"""
+
 
 def _handle_filter(mixin_name, args, content):
     """Handle @include filter($filter-type, $filter-amount)"""
@@ -774,6 +817,7 @@ def _handle_filter(mixin_name, args, content):
 -o-filter: {filter_type}({filter_amount});
 filter: {filter_type}({filter_amount});"""
 
+
 def _handle_rotate(mixin_name, args, content):
     """Handle @include rotate($degrees)"""
     if not args:
@@ -786,6 +830,7 @@ transform: rotate({degrees});
 filter: progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}}, M21=#{{{degrees}}}, M22=#{{{degrees}}});
 -ms-filter: "progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}}, M21=#{{{degrees}}}, M22=#{{{degrees}}})";
 zoom: 1;"""
+
 
 def _handle_gradient(mixin_name, args, content):
     """Handle @include gradient($top, $bottom) - vertical gradient"""
@@ -802,6 +847,7 @@ background: -o-linear-gradient(top, {top}, {bottom});
 background: -ms-linear-gradient(top, {top} 0%, {bottom} 100%);
 background: linear-gradient(to bottom, {top}, {bottom});"""
 
+
 def _handle_gradient_left_right(mixin_name, args, content):
     """Handle @include gradient-left-right($left, $right) - horizontal gradient"""
     if len(args) < 2:
@@ -817,6 +863,7 @@ background: -o-linear-gradient(left, {left}, {right});
 background: -ms-linear-gradient(left, {left} 0%, {right} 100%);
 background: linear-gradient(to right, {left}, {right});"""
 
+
 def _handle_horgradient(mixin_name, args, content):
     """Handle @include horgradient($color, $opacity) - horizontal gradient with transparent sides"""
     if len(args) < 2:
@@ -830,6 +877,7 @@ background: -webkit-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {op
 background: -o-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
 background: -ms-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
 background: linear-gradient(to right, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);"""
+
 
 def _handle_horgradientright(mixin_name, args, content):
     """Handle @include horgradientright($color, $opacity) - horizontal gradient transparent on right"""
@@ -845,6 +893,7 @@ background: -o-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, 
 background: -ms-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
 background: linear-gradient(to right, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);"""
 
+
 def _handle_horgradientleft(mixin_name, args, content):
     """Handle @include horgradientleft($color, $opacity) - horizontal gradient transparent on left"""
     if len(args) < 2:
@@ -859,6 +908,7 @@ background: -o-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, r
 background: -ms-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
 background: linear-gradient(to right, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);"""
 
+
 def _handle_horgradienttop(mixin_name, args, content):
     """Handle @include horgradienttop($color, $opacity) - vertical gradient transparent on top"""
     if len(args) < 2:
@@ -872,6 +922,7 @@ background: -webkit-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0
 background: -o-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
 background: -ms-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
 background: linear-gradient(to bottom, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);"""
+
 
 def _handle_diagonal_top_bottom(mixin_name, args, content):
     """Handle @include diagonal-top-bottom($top, $bottom, $top-percent, $bottom-percent)"""
@@ -892,6 +943,7 @@ background: -o-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_per
 background: -ms-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
 background: linear-gradient(135deg, {top} {top_percent}, {bottom} {bottom_percent});"""
 
+
 def _handle_metalgradient(mixin_name, args, content):
     """Handle @include metalgradient() - metal look gradient"""
     return """background: rgb(187,187,187);
@@ -901,6 +953,7 @@ background: -webkit-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187
 background: -o-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
 background: -ms-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
 background: linear-gradient(to bottom, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);"""
+
 
 def _handle_backgroundGradientWithImage(mixin_name, args, content):
     """Handle @include backgroundGradientWithImage($top, $bottom, $imagePath)"""
@@ -918,6 +971,7 @@ background: url({image_path}), -o-linear-gradient(top, {top}, {bottom});
 background: url({image_path}), -ms-linear-gradient(top, {top} 0%, {bottom} 100%);
 background: url({image_path}), linear-gradient(to bottom, {top}, {bottom});"""
 
+
 def _handle_stroke(mixin_name, args, content):
     """Handle @include stroke($stroke, $color)"""
     if len(args) < 2:
@@ -930,6 +984,7 @@ def _handle_stroke(mixin_name, args, content):
   -{stroke}px {stroke}px 0 {color},
   {stroke}px {stroke}px 0 {color};"""
 
+
 def _handle_opacity(mixin_name, args, content):
     """Handle @include opacity($opacity)"""
     if not args:
@@ -940,6 +995,7 @@ def _handle_opacity(mixin_name, args, content):
     return f"""opacity: {opacity};
 filter: alpha(opacity={filter_value});"""
 
+
 def _handle_user_select(mixin_name, args, content):
     """Handle @include user-select($value)"""
     value = args[0] if args else "none"
@@ -947,6 +1003,7 @@ def _handle_user_select(mixin_name, args, content):
 -moz-user-select: {value};
 -ms-user-select: {value};
 user-select: {value};"""
+
 
 def _handle_animation_commontheme(mixin_name, args, content):
     """Handle @include animation($animations...)"""
@@ -959,6 +1016,7 @@ def _handle_animation_commontheme(mixin_name, args, content):
 -o-animation: {animations};
 animation: {animations};"""
 
+
 def _handle_calc(mixin_name, args, content):
     """Handle @include calc($property, $value)"""
     if len(args) < 2:
@@ -969,11 +1027,13 @@ def _handle_calc(mixin_name, args, content):
 {property_name}: -moz-calc({value});
 {property_name}: calc({value});"""
 
+
 def _handle_iframehack(mixin_name, args, content):
     """Handle @include iframehack() - responsive iframe hack"""
     return """width: 1px;
 min-width: 100%;
 *width: 100%;"""
+
 
 def _handle_color_classes(mixin_name, args, content):
     """Handle @include color-classes($name, $hex) - generates color utility classes (FIXED)"""
@@ -989,6 +1049,7 @@ def _handle_color_classes(mixin_name, args, content):
     else:
         # For actual hex colors, pre-calculate lightened color to avoid SCSS function compilation issues
         from ..utils.helpers import lighten_hex
+
         hover_color = lighten_hex(hex_color, 10)
 
     return f""".{name},
@@ -1004,6 +1065,7 @@ a.{name}-color:hover {{
 .{name}-background {{
   background: {hex_color};
 }}"""
+
 
 def _handle_scrollbars(mixin_name, args, content):
     """Handle @include scrollbars($size, $foreground-color, $background-color)"""
@@ -1037,16 +1099,18 @@ def _handle_scrollbars(mixin_name, args, content):
 
     return result
 
+
 def _handle_site_builder(mixin_name, args, content):
     """Handle @include site-builder($brand) - complex brand-specific styling (FIXED)"""
     if not args:
         return ""
 
-    brand = args[0].strip('"\'')
+    brand = args[0].strip("\"'")
 
     # This is a simplified conversion - the actual mixin sets global variables
     # and applies complex styling. For SBM, we'll just output a comment.
     return f"/* site-builder mixin for {brand} brand - complex styling applied */"
+
 
 def _handle_position(mixin_name, args, content):
     """Handle @include position($directions) mixin."""
@@ -1065,6 +1129,7 @@ def _handle_position(mixin_name, args, content):
             css_props.append(f"{prop.strip()}: {value.strip()};")
 
     return "\n".join(css_props)
+
 
 def _handle_save_compare_tab_base(mixin_name, args, content):
     """Handle @include save-compare-tab-base() mixin."""
@@ -1100,6 +1165,7 @@ top: 50%;
   right: auto !important;
 }"""
 
+
 def _handle_keyframes(mixin_name, args, content):
     """Handle @include keyframes($name) with content block"""
     if not args or not content:
@@ -1119,17 +1185,15 @@ def _handle_keyframes(mixin_name, args, content):
 {content.strip()}
 }}"""
 
+
 # Master dictionary mapping mixin names to their handler functions
 MIXIN_TRANSFORMATIONS = {
     # Appearance mixins
     "appearance": _handle_appearance,
-
     # Border radius mixins
     "border-radius": _handle_border_radius,
-
     # Breakpoint mixins
     "breakpoint": _handle_breakpoint,
-
     # Flexbox mixins
     "flexbox": _handle_flexbox,
     "inline-flex": _handle_inline_flex,
@@ -1147,56 +1211,43 @@ MIXIN_TRANSFORMATIONS = {
     "flex-grow": _handle_flex_grow,
     "flex-shrink": _handle_flex_shrink,
     "flex-basis": _handle_flex_basis,
-
     # Font size mixins
     "font_size": _handle_font_size_mixin,
     "fluid-font": _handle_fluid_font,
     "responsive-font": _handle_responsive_font,
-
     # Placeholder mixins
     "placeholder-color": _handle_placeholder_color,
-
     # Positioning mixins
     "absolute": _handle_absolute,
     "relative": _handle_relative,
     "fixed": _handle_fixed,
     "centering": _handle_centering,
-
     # Personalizer defaults
     "pz-font-defaults": _handle_pz_font_defaults,
-
     # Transform mixins
     "transform": _handle_transform,
     "rotate": _handle_rotate,
     "translatez": _handle_translatez,
     "translateZ": _handle_translatez,  # Alternative capitalization
-
     # Transition mixins
     "transition": _handle_transition,
     "transition-2": _handle_transition_2,
     "fade-transition": _handle_fade_transition,
-
     # Z-index mixins
     "z-index": _handle_z_index,
-
     # Background and transparency mixins
     "trans": _handle_trans,
-
     # Layout mixins
     "vertical-align": _handle_vertical_align,
     "clearfix": _handle_clearfix,
-
     # Box model mixins
     "box-shadow": _handle_box_shadow,
     "box-shadow-2": _handle_box_shadow_2,
     "box-sizing": _handle_box_sizing,
-
     # List mixins
     "list-padding": _handle_list_padding,
-
     # Filter mixins
     "filter": _handle_filter,
-
     # Gradient mixins
     "gradient": _handle_gradient,
     "gradient-left-right": _handle_gradient_left_right,
@@ -1207,17 +1258,14 @@ MIXIN_TRANSFORMATIONS = {
     "diagonal-top-bottom": _handle_diagonal_top_bottom,
     "metalgradient": _handle_metalgradient,
     "backgroundGradientWithImage": _handle_backgroundGradientWithImage,
-
     # Text effects mixins
     "stroke": _handle_stroke,
-
     # Additional utility mixins
     "opacity": _handle_opacity,
     "user-select": _handle_user_select,
     "animation": _handle_animation_commontheme,
     "keyframes": _handle_keyframes,
     "calc": _handle_calc,
-
     # Missing CommonTheme mixins from imports
     "iframehack": _handle_iframehack,
     "color-classes": _handle_color_classes,
@@ -1225,16 +1273,16 @@ MIXIN_TRANSFORMATIONS = {
     "position": _handle_position,
     "save-compare-tab-base": _handle_save_compare_tab_base,
     "site-builder": _handle_site_builder,
-
     # Generic content block handler for other mixins
     "button-variant": _handle_content_block_mixin,
     "button-size": _handle_content_block_mixin,
 }
 
+
 class CommonThemeMixinParser:
     """
     Intelligent parser for CommonTheme SCSS mixins.
-    
+
     This parser knows the actual mixin definitions from CommonTheme and can
     intelligently convert ANY mixin usage to its CSS equivalent.
     """
@@ -1261,7 +1309,7 @@ class CommonThemeMixinParser:
     def _load_commontheme_mixins(self) -> Dict[str, str]:
         """
         Load basic CommonTheme mixin definitions for fallback.
-        
+
         Most mixins are now handled by specific handler functions,
         but these provide fallback templates for simple cases.
         """
@@ -1271,7 +1319,6 @@ class CommonThemeMixinParser:
             "visually-hidden": "position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;",
             "sr-only": "position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;",
         }
-
 
     def parse_and_convert_mixins(self, content: str) -> Tuple[str, List[str], List[str]]:
         """Main method to parse and convert all mixins in SCSS content with multiple passes for complete conversion."""
@@ -1296,7 +1343,9 @@ class CommonThemeMixinParser:
                 break
 
         if pass_count >= max_passes:
-            self.logger.warning(f"Maximum passes ({max_passes}) reached. Some deeply nested mixins may remain.")
+            self.logger.warning(
+                f"Maximum passes ({max_passes}) reached. Some deeply nested mixins may remain."
+            )
 
         return current_content, self.converted_mixins, self.unconverted_mixins
 
@@ -1368,7 +1417,9 @@ class CommonThemeMixinParser:
         last_index = 0
 
         while True:
-            start_index, mixin_name, args_string, content_block = self._find_mixin_with_args(content, last_index)
+            start_index, mixin_name, args_string, content_block = self._find_mixin_with_args(
+                content, last_index
+            )
 
             if start_index == -1:
                 # No more mixins found
@@ -1403,7 +1454,9 @@ class CommonThemeMixinParser:
                 self.converted_mixins.append(original_call)
             else:
                 # Unknown mixin, keep original
-                original_text = self._reconstruct_mixin_call(mixin_name, args_string, processed_content_block)
+                original_text = self._reconstruct_mixin_call(
+                    mixin_name, args_string, processed_content_block
+                )
                 self.logger.warning(f"Unknown mixin: {original_text}")
                 self.unconverted_mixins.append(original_text)
                 replacement = original_text
@@ -1473,7 +1526,6 @@ class CommonThemeMixinParser:
 
         return i
 
-
     def _find_closing_brace(self, text: str, start_index: int) -> Tuple[int, str]:
         """Finds the matching closing brace for a block starting at start_index."""
         brace_level = 1
@@ -1485,12 +1537,12 @@ class CommonThemeMixinParser:
                 if brace_level == 0:
                     # Return end index (after brace) and content (inside braces)
                     return i + 1, text[start_index:i]
-        return -1, "" # Not found
+        return -1, ""  # Not found
 
     def validate_conversion(self, content: str) -> Dict[str, List[str]]:
         """
         Validate that all SCSS has been properly converted.
-        
+
         Returns dict with validation results:
         - remaining_mixins: List of unconverted @include statements
         - remaining_variables: List of unconverted $variables
@@ -1499,7 +1551,7 @@ class CommonThemeMixinParser:
         validation_results = {
             "remaining_mixins": [],
             "remaining_variables": [],
-            "remaining_functions": []
+            "remaining_functions": [],
         }
 
         # Find remaining @include statements

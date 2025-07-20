@@ -3,6 +3,7 @@ SCSS processor for the SBM tool.
 This processor performs a targeted SCSS-to-SCSS transformation to produce
 a clean, self-contained SCSS file with no external @import statements.
 """
+
 import os
 import re
 import subprocess
@@ -98,14 +99,16 @@ class SCSSProcessor:
                 continue
 
             # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
-            if (inside_mixin or
-                stripped.startswith("@each") or
-                stripped.startswith("@for") or
-                stripped.startswith("@if") or
-                stripped.startswith("@else") or
-                "map-get(" in stripped or
-                "map-keys(" in stripped or
-                stripped.startswith("%#")):
+            if (
+                inside_mixin
+                or stripped.startswith("@each")
+                or stripped.startswith("@for")
+                or stripped.startswith("@if")
+                or stripped.startswith("@else")
+                or "map-get(" in stripped
+                or "map-keys(" in stripped
+                or stripped.startswith("%#")
+            ):
                 continue
 
             # Convert variables inside maps
@@ -115,9 +118,11 @@ class SCSSProcessor:
 
             # Convert variables in CSS property contexts only
             # Look for patterns like "property: $variable" but exclude SCSS variable assignments and interpolation
-            if (":" in stripped and not stripped.startswith("@") and
-                not re.match(r"^\s*\$[\w-]+\s*:", stripped)):
-
+            if (
+                ":" in stripped
+                and not stripped.startswith("@")
+                and not re.match(r"^\s*\$[\w-]+\s*:", stripped)
+            ):
                 # Don't convert variables inside interpolation #{...}
                 if "#{" in line:
                     # Split line into parts, only convert variables outside interpolation
@@ -163,11 +168,13 @@ class SCSSProcessor:
         content = re.sub(
             r"url\((['\"]?)\.\.\/images\/(.*?)(['\"]?)\)",
             r'url("/wp-content/themes/DealerInspireDealerTheme/images/\2")',
-            content
+            content,
         )
 
         # A second pass to catch any unquoted, already-absolute paths that were missed
-        unquoted_pattern = re.compile(r"url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)")
+        unquoted_pattern = re.compile(
+            r"url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)"
+        )
         content = unquoted_pattern.sub(r'url("\1")', content)
 
         return content
@@ -183,7 +190,7 @@ class SCSSProcessor:
     def _convert_scss_functions(self, content: str) -> str:
         """
         Convert SCSS functions to CSS-compatible equivalents.
-        
+
         Handles two main cases:
         1. SCSS functions with CSS variables (e.g., lighten(var(--primary), 20%))
         2. SCSS functions with hardcoded colors (e.g., lighten(#252525, 2%))
@@ -201,7 +208,6 @@ class SCSSProcessor:
         content = re.sub(r"lighten\(var\(--([^)]+)\),\s*\d+%\)", r"var(--\1)", content)
         content = re.sub(r"darken\(var\(--([^)]+)\),\s*\d+%\)", r"var(--\1)", content)
 
-
         # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
         # lighten(#252525, 2%) -> #2a2a2a
         def replace_lighten(match):
@@ -211,9 +217,7 @@ class SCSSProcessor:
             return f"{match.group(1)}color: {lightened};"
 
         content = re.sub(
-            r"(\s+)color:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);",
-            replace_lighten,
-            content
+            r"(\s+)color:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);", replace_lighten, content
         )
 
         # darken(#00ccfe, 10%) -> #00b8e6
@@ -226,14 +230,14 @@ class SCSSProcessor:
         content = re.sub(
             r"(\s+)(background|background-color):\s*darken\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);",
             lambda m: f"{m.group(1)}{m.group(2)}: {darken_hex(m.group(3), int(m.group(4)))};",
-            content
+            content,
         )
 
         # Handle background: lighten() cases
         content = re.sub(
             r"(\s+)background:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);",
             lambda m: f"{m.group(1)}background: {lighten_hex(m.group(2), int(m.group(3)))};",
-            content
+            content,
         )
 
         # Fix malformed property declarations like "font-family: var(--weight): 300;"
@@ -241,15 +245,11 @@ class SCSSProcessor:
         content = re.sub(
             r"(\s+)font-family:\s*var\(--([^)]+)\):\s*(\d+);",
             r"\1font-family: var(--\2);\n\1font-weight: \3;",
-            content
+            content,
         )
 
         # Remove any commented-out broken code patterns
-        content = re.sub(
-            r"//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);",
-            "",
-            content
-        )
+        content = re.sub(r"//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);", "", content)
 
         return content
 
@@ -270,9 +270,10 @@ class SCSSProcessor:
 
             result = subprocess.run(
                 ["sass", "--no-source-map", temp_file_path, output_file_path],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             # Clean up output file
@@ -360,7 +361,10 @@ class SCSSProcessor:
             return processed_content
 
         except Exception as e:
-            logger.error(f"An unexpected error occurred during SCSS processing for {self.slug}.", exc_info=True)
+            logger.error(
+                f"An unexpected error occurred during SCSS processing for {self.slug}.",
+                exc_info=True,
+            )
             return f"/* SBM: UNEXPECTED ERROR. CHECK LOGS. ERROR: {e} */\n{content}"
 
     def process_scss_file(self, file_path: str) -> str:
@@ -372,7 +376,7 @@ class SCSSProcessor:
             return ""
 
         with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+            content = f.read()
 
         return self.transform_scss_content(content)
 
@@ -388,7 +392,7 @@ class SCSSProcessor:
 
                 final_path = os.path.join(theme_dir, name)
                 with open(final_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+                    f.write(content)
                 logger.info(f"Successfully wrote {final_path}")
             return True
         except Exception as e:

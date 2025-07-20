@@ -29,11 +29,11 @@ class OEMFactory:
     def create_handler(cls, slug, dealer_info=None):
         """
         Create the appropriate OEM handler based on dealer information.
-        
+
         Args:
             slug (str): Dealer theme slug
             dealer_info (dict, optional): Additional dealer information
-            
+
         Returns:
             BaseOEMHandler: An instance of the appropriate OEM handler
         """
@@ -48,7 +48,9 @@ class OEMFactory:
 
                 for pattern in patterns:
                     if re.search(pattern, brand, re.IGNORECASE):
-                        logger.info(f"Matched {slug} to {handler.__class__.__name__} based on brand: {brand}")
+                        logger.info(
+                            f"Matched {slug} to {handler.__class__.__name__} based on brand: {brand}"
+                        )
                         return handler
 
         # If no dealer_info is provided or no match was found, try to infer from the slug
@@ -69,11 +71,11 @@ class OEMFactory:
     def detect_from_theme(cls, slug, platform_dir=None):
         """
         Detect the OEM from the theme directory structure and content.
-        
+
         Args:
             slug (str): Dealer theme slug
             platform_dir (str, optional): Path to the platform directory
-            
+
         Returns:
             BaseOEMHandler: An instance of the appropriate OEM handler
         """
@@ -87,7 +89,9 @@ class OEMFactory:
 
         # Check if the theme directory exists
         if not theme_dir.exists():
-            logger.warning(f"Theme directory not found at {theme_dir}, unable to detect OEM from theme")
+            logger.warning(
+                f"Theme directory not found at {theme_dir}, unable to detect OEM from theme"
+            )
             return cls.create_handler(slug)
 
         # Look for OEM-specific indicators in files
@@ -109,7 +113,9 @@ class OEMFactory:
                         matches += len(re.findall(pattern, content, re.IGNORECASE))
 
                     if matches > 0:
-                        indicators[handler_class.__name__] = indicators.get(handler_class.__name__, 0) + matches
+                        indicators[handler_class.__name__] = (
+                            indicators.get(handler_class.__name__, 0) + matches
+                        )
 
         # If any indicators were found, use the handler with the most matches
         if indicators:

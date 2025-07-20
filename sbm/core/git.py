@@ -32,7 +32,7 @@ class CommentIntelligence:
             "enhancement": ["improve", "enhance", "optimize", "better", "upgrade"],
             "temporary": ["temp", "temporary", "quick", "hotfix", "placeholder"],
             "migration": ["migrat", "mov", "transfer", "port", "convert"],
-            "customization": ["custom", "dealer", "brand", "specific", "override"]
+            "customization": ["custom", "dealer", "brand", "specific", "override"],
         }
 
         self.automotive_terms = {
@@ -43,7 +43,7 @@ class CommentIntelligence:
             "premium-features": "Premium Feature Display",
             "incentives": "Vehicle Incentives",
             "badge": "Vehicle Badge/Award",
-            "results-page": "Search Results Page"
+            "results-page": "Search Results Page",
         }
 
     def analyze_comment(self, comment_text: str) -> Dict[str, Any]:
@@ -61,7 +61,7 @@ class CommentIntelligence:
             "target": None,
             "automotive_context": [],
             "confidence": 0.0,
-            "description": None
+            "description": None,
         }
 
         # Extract intent
@@ -75,7 +75,7 @@ class CommentIntelligence:
             r"\b(adding|integrating|including|importing)\b",
             r"\b(fixing|correcting|resolving)\b",
             r"\b(improving|enhancing|optimizing)\b",
-            r"\b(testing|experimenting)\b"
+            r"\b(testing|experimenting)\b",
         ]
 
         for pattern in action_patterns:
@@ -89,10 +89,7 @@ class CommentIntelligence:
         if isinstance(automotive_context, list):
             for term, description in self.automotive_terms.items():
                 if term in comment_clean:
-                    automotive_context.append({
-                        "term": term,
-                        "description": description
-                    })
+                    automotive_context.append({"term": term, "description": description})
 
         # Extract target (what's being modified)
         target_patterns = [
@@ -183,7 +180,6 @@ class CSSIntelligence:
             "#ctabox-premium-features": "Premium Features CTA Component",
             "#header": "Site Header",
             "#footer": "Site Footer",
-
             # Component selectors
             ".vehicle-description-text": "Vehicle Description Content",
             ".features-link": "Feature Link Component",
@@ -192,7 +188,7 @@ class CSSIntelligence:
             ".badge-row": "Vehicle Badge/Award Row",
             ".cookie-banner": "Cookie Consent Banner",
             ".navbar": "Navigation Menu",
-            ".fat-footer": "Footer Content Area"
+            ".fat-footer": "Footer Content Area",
         }
 
         self.property_purposes = {
@@ -207,7 +203,7 @@ class CSSIntelligence:
             "max-width": "responsive width control",
             "max-height": "height constraint",
             "overflow": "content overflow handling",
-            "overflow-y": "content overflow handling"
+            "overflow-y": "content overflow handling",
         }
 
     def analyze_css_block(self, css_lines: List[str]) -> Dict[str, Any]:
@@ -218,7 +214,7 @@ class CSSIntelligence:
             "purposes": [],
             "component_type": None,
             "business_context": None,
-            "confidence": 0.0
+            "confidence": 0.0,
         }
 
         # Extract selectors and properties
@@ -310,7 +306,7 @@ class GitOperations:
             repo = self._get_repo()
             return {
                 "current_branch": repo.active_branch.name,
-                "remote_url": repo.remotes.origin.url if repo.remotes else ""
+                "remote_url": repo.remotes.origin.url if repo.remotes else "",
             }
         except Exception as e:
             logger.warning(f"Could not get repo info: {e}")
@@ -319,7 +315,7 @@ class GitOperations:
     def checkout_main_and_pull(self) -> bool:
         """
         Checkout the main branch and pull the latest changes.
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -344,10 +340,10 @@ class GitOperations:
     def create_branch(self, slug: str) -> tuple:
         """
         Create a new branch for the migration.
-        
+
         Args:
             slug (str): Dealer theme slug
-            
+
         Returns:
             tuple: (success, branch_name) - a tuple containing success status and branch name
         """
@@ -358,7 +354,9 @@ class GitOperations:
 
             # If branch already exists, delete it
             if branch_name in repo.heads:
-                logger.warning(f"Branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state.")
+                logger.warning(
+                    f"Branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
+                )
                 repo.delete_head(branch_name, force=True)
 
             # Create and checkout the new branch
@@ -373,11 +371,11 @@ class GitOperations:
     def commit_changes(self, slug: str, message: Optional[str] = None) -> bool:
         """
         Commit changes to the dealer theme.
-        
+
         Args:
             slug (str): Dealer theme slug
             message (str, optional): Commit message. If None, a default message is used.
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -395,6 +393,7 @@ class GitOperations:
             snapshot_dir = os.path.join(get_dealer_theme_dir(slug), ".sbm-snapshots")
             if os.path.exists(snapshot_dir):
                 import shutil
+
                 shutil.rmtree(snapshot_dir)
                 logger.info(f"Cleaned up snapshot directory before commit: {snapshot_dir}")
 
@@ -409,7 +408,9 @@ class GitOperations:
                 file_path = os.path.join(theme_path, scss_file)
                 if os.path.exists(os.path.join(get_platform_dir(), file_path)):
                     add_command = f"git add {file_path}"
-                    add_success, _, _, _ = execute_command(add_command, f"Failed to add {scss_file}", cwd=get_platform_dir())
+                    add_success, _, _, _ = execute_command(
+                        add_command, f"Failed to add {scss_file}", cwd=get_platform_dir()
+                    )
                     if add_success:
                         files_added = True
                     else:
@@ -423,10 +424,12 @@ class GitOperations:
             if repo.is_dirty(index=True):
                 logger.info(f'Committing with message: "{message}"')
                 commit_command = f'git commit -m "{message}"'
-                commit_success, _, _, _ = execute_command(commit_command, "Failed to commit changes", cwd=get_platform_dir())
+                commit_success, _, _, _ = execute_command(
+                    commit_command, "Failed to commit changes", cwd=get_platform_dir()
+                )
                 return commit_success
             logger.info("No changes to commit.")
-            return True # Nothing to do is a success
+            return True  # Nothing to do is a success
 
         except GitCommandError as e:
             logger.error(f"Failed to commit changes for {slug}: {e}")
@@ -435,10 +438,10 @@ class GitOperations:
     def push_changes(self, branch_name: str) -> bool:
         """
         Push changes to the remote repository.
-        
+
         Args:
             branch_name (str): Branch name to push
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -451,17 +454,31 @@ class GitOperations:
             logger.error(f"Failed to push changes to origin/{branch_name}: {e}")
             return False
 
-    def _execute_gh_pr_create(self, title: str, body: str, base: str, head: str,
-                                draft: bool, reviewers: List[str], labels: List[str]) -> str:
+    def _execute_gh_pr_create(
+        self,
+        title: str,
+        body: str,
+        base: str,
+        head: str,
+        draft: bool,
+        reviewers: List[str],
+        labels: List[str],
+    ) -> str:
         """
         Creates GitHub PR using gh CLI with advanced error handling
         """
         cmd = [
-            "gh", "pr", "create",
-            "--title", title,
-            "--body", body,
-            "--base", base,
-            "--head", head
+            "gh",
+            "pr",
+            "create",
+            "--title",
+            title,
+            "--body",
+            body,
+            "--base",
+            base,
+            "--head",
+            head,
         ]
         if draft:
             cmd.append("--draft")
@@ -487,8 +504,9 @@ class GitOperations:
                     env["GH_TOKEN"] = git_config.github_token
                     logger.debug("Using custom GitHub token from git config")
 
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True,
-                                  cwd=get_platform_dir(), env=env)
+            result = subprocess.run(
+                cmd, check=True, capture_output=True, text=True, cwd=get_platform_dir(), env=env
+            )
             return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             error_output = e.stderr if e.stderr else str(e)
@@ -498,7 +516,10 @@ class GitOperations:
 
     def _is_pr_exists_error(self, error_output: str) -> bool:
         """Checks if the error output indicates that a PR already exists."""
-        return "already exists" in error_output.lower() or "pull request for branch" in error_output.lower()
+        return (
+            "already exists" in error_output.lower()
+            or "pull request for branch" in error_output.lower()
+        )
 
     def _handle_existing_pr(self, error_output: str, head_branch: str) -> str:
         """Extracts the existing PR URL from the error output or by listing PRs."""
@@ -521,9 +542,14 @@ class GitOperations:
                 elif hasattr(git_config, "github_token") and git_config.github_token:
                     env["GH_TOKEN"] = git_config.github_token
 
-            list_result = subprocess.run([
-                "gh", "pr", "list", "--head", head_branch, "--json", "url"
-            ], capture_output=True, text=True, check=True, cwd=get_platform_dir(), env=env)
+            list_result = subprocess.run(
+                ["gh", "pr", "list", "--head", head_branch, "--json", "url"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
+                env=env,
+            )
             pr_data = json.loads(list_result.stdout)
             if pr_data and len(pr_data) > 0:
                 return pr_data[0]["url"]
@@ -539,8 +565,10 @@ class GitOperations:
             # Get the diff between current branch and main
             result = subprocess.run(
                 ["git", "diff", "--name-status", "main...HEAD"],
-                capture_output=True, text=True, check=True,
-                cwd=get_platform_dir()
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
             )
 
             changed_files = result.stdout.strip().split("\n") if result.stdout.strip() else []
@@ -585,7 +613,9 @@ class GitOperations:
 
                 if source_files:
                     source_text = " and ".join(source_files)
-                    what_items.append(f"- Migrated interior page styles from {source_text} to sb-inside.scss")
+                    what_items.append(
+                        f"- Migrated interior page styles from {source_text} to sb-inside.scss"
+                    )
                 else:
                     what_items.append("- Created sb-inside.scss for interior page styles")
 
@@ -607,7 +637,9 @@ class GitOperations:
             if "sb-home.scss" in css_files:
                 what_items.append("- Created sb-home.scss for home page styles")
 
-            logger.debug(f"Analyzed {len(css_files)} CSS file changes, generated {len(what_items)} what items")
+            logger.debug(
+                f"Analyzed {len(css_files)} CSS file changes, generated {len(what_items)} what items"
+            )
 
         except subprocess.CalledProcessError as e:
             logger.warning(f"Could not analyze Git changes: {e}")
@@ -626,7 +658,7 @@ class GitOperations:
             "files_modified": [],
             "estimated_manual_lines": 0,
             "added_lines": [],
-            "file_line_counts": {}  # Track lines per file
+            "file_line_counts": {},  # Track lines per file
         }
 
         try:
@@ -687,7 +719,9 @@ class GitOperations:
             if isinstance(file_line_counts, dict):
                 manual_changes["estimated_manual_lines"] = sum(file_line_counts.values())
 
-            logger.debug(f"Snapshot comparison found {manual_changes['estimated_manual_lines']} manual lines")
+            logger.debug(
+                f"Snapshot comparison found {manual_changes['estimated_manual_lines']} manual lines"
+            )
 
         except Exception as e:
             logger.debug(f"Error in snapshot-based manual change detection: {e}")
@@ -705,15 +739,17 @@ class GitOperations:
             "files_modified": [],
             "estimated_manual_lines": 0,
             "added_lines": [],
-            "file_line_counts": {}  # Track lines per file
+            "file_line_counts": {},  # Track lines per file
         }
 
         try:
             # Get detailed diff content to analyze
             result = subprocess.run(
                 ["git", "diff", "--unified=3", "main...HEAD"],
-                capture_output=True, text=True, check=True,
-                cwd=get_platform_dir()
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
             )
 
             diff_content = result.stdout
@@ -721,7 +757,9 @@ class GitOperations:
                 return manual_changes
 
             lines = diff_content.split("\n")
-            added_lines = [line for line in lines if line.startswith("+") and not line.startswith("+++")]
+            added_lines = [
+                line for line in lines if line.startswith("+") and not line.startswith("+++")
+            ]
             manual_changes["added_lines"] = added_lines
 
             if not added_lines:
@@ -730,11 +768,15 @@ class GitOperations:
             # Get list of files that were changed
             file_result = subprocess.run(
                 ["git", "diff", "--name-status", "main...HEAD"],
-                capture_output=True, text=True, check=True,
-                cwd=get_platform_dir()
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
             )
 
-            changed_files = file_result.stdout.strip().split("\n") if file_result.stdout.strip() else []
+            changed_files = (
+                file_result.stdout.strip().split("\n") if file_result.stdout.strip() else []
+            )
 
             # Check if files are newly created (A) vs modified (M)
             new_files = []
@@ -781,7 +823,9 @@ class GitOperations:
 
             # Calculate totals
             file_line_counts = manual_changes.get("file_line_counts", {})
-            total_manual_lines = sum(file_line_counts.values()) if isinstance(file_line_counts, dict) else 0
+            total_manual_lines = (
+                sum(file_line_counts.values()) if isinstance(file_line_counts, dict) else 0
+            )
             if total_manual_lines > 0:
                 manual_changes["has_manual_changes"] = True
                 manual_changes["estimated_manual_lines"] = total_manual_lines
@@ -797,7 +841,8 @@ class GitOperations:
 
             # Only include modified files in the list, excluding ALL migration files
             manual_changes["files_modified"] = [
-                filename for filename in modified_files
+                filename
+                for filename in modified_files
                 if filename.endswith(".scss") and filename not in migration_files
             ]
 
@@ -807,8 +852,6 @@ class GitOperations:
             logger.debug(f"Error detecting manual changes: {e}")
 
         return manual_changes
-
-
 
     def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]):
         """Analyze the types of changes made in the added lines."""
@@ -822,7 +865,7 @@ class GitOperations:
             "z_index_adjustments": r"z-index:\s*\d+",
             "position_fixes": r"position:\s*(?:absolute|relative|fixed)",
             "color_customizations": r"(?:color|background).*#[0-9a-fA-F]{3,6}",
-            "spacing_tweaks": r"(?:margin|padding).*(?:\d+px|\d+rem|\d+em)"
+            "spacing_tweaks": r"(?:margin|padding).*(?:\d+px|\d+rem|\d+em)",
         }
 
         for line in added_lines:
@@ -839,7 +882,7 @@ class GitOperations:
             "brand_specific": "Implemented brand-specific customizations",
             "important_overrides": "Added CSS !important overrides for specificity",
             "z_index_adjustments": "Fixed layering issues with z-index adjustments",
-            "position_fixes": "Corrected element positioning"
+            "position_fixes": "Corrected element positioning",
             # REMOVED: Generic template descriptions that don't provide meaningful information:
             # - 'media_queries': 'Enhanced responsive design with custom media queries'
             # - 'pseudo_selectors': 'Improved interactive states (hover, focus, etc.)'
@@ -854,7 +897,9 @@ class GitOperations:
 
         return descriptions
 
-    def _build_stellantis_pr_content(self, slug: str, branch: str, repo_info: Dict[str, str]) -> Dict[str, str]:
+    def _build_stellantis_pr_content(
+        self, slug: str, branch: str, repo_info: Dict[str, str]
+    ) -> Dict[str, str]:
         """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
         title = f"{slug} - SBM FE Audit"
 
@@ -872,7 +917,9 @@ class GitOperations:
             what_items.extend(automated_items)
         else:
             # Fallback if no changes detected
-            what_items.append("- Migrated interior page styles from style.scss, inside.scss, and _support-requests.scss to sb-inside.scss")
+            what_items.append(
+                "- Migrated interior page styles from style.scss, inside.scss, and _support-requests.scss to sb-inside.scss"
+            )
 
         # Add manual changes ONLY if they exist - with intelligent analysis
         if manual_analysis["has_manual_changes"]:
@@ -884,10 +931,15 @@ class GitOperations:
                 # Manual changes detected but unclear what they are - prompt for details
                 manual_lines = manual_analysis.get("estimated_manual_lines", 0)
                 if manual_lines > 0:
-                    what_items.append(f"- Manual modifications added ({manual_lines} lines) - details need review")
+                    what_items.append(
+                        f"- Manual modifications added ({manual_lines} lines) - details need review"
+                    )
 
         # Add FCA-specific items for Stellantis brands (only if files were actually changed)
-        if automated_items and any(brand in slug.lower() for brand in ["chrysler", "dodge", "jeep", "ram", "fiat", "cdjr", "fca"]):
+        if automated_items and any(
+            brand in slug.lower()
+            for brand in ["chrysler", "dodge", "jeep", "ram", "fiat", "cdjr", "fca"]
+        ):
             what_items.append("- Added FCA Direction Row Styles")
             what_items.append("- Added FCA Cookie Banner styles")
 
@@ -918,11 +970,7 @@ just start {slug}
 - Verify that homepage and interior pages load properly
 - Request changes as needed"""
 
-        return {
-            "title": title,
-            "body": body,
-            "what_section": what_section
-        }
+        return {"title": title, "body": body, "what_section": what_section}
 
     def _open_pr_in_browser(self, pr_url: str):
         """Open PR URL in browser."""
@@ -947,9 +995,18 @@ PR: {pr_url}"""
         except subprocess.CalledProcessError:
             logger.warning("Could not copy message to clipboard")
 
-    def create_pr(self, slug: str, branch_name: Optional[str] = None, title: Optional[str] = None, body: Optional[str] = None,
-                  base: Optional[str] = None, head: Optional[str] = None, reviewers: Optional[List[str]] = None,
-                  labels: Optional[List[str]] = None, draft: bool = False) -> Dict[str, Any]:
+    def create_pr(
+        self,
+        slug: str,
+        branch_name: Optional[str] = None,
+        title: Optional[str] = None,
+        body: Optional[str] = None,
+        base: Optional[str] = None,
+        head: Optional[str] = None,
+        reviewers: Optional[List[str]] = None,
+        labels: Optional[List[str]] = None,
+        draft: bool = False,
+    ) -> Dict[str, Any]:
         """
         Create a GitHub Pull Request for a given theme. This is the primary method for PR creation.
 
@@ -994,10 +1051,14 @@ PR: {pr_url}"""
             if hasattr(self.config, "git") and self.config.git:
                 git_config = self.config.git
                 if isinstance(git_config, dict):
-                    pr_reviewers = reviewers or git_config.get("default_reviewers", ["carsdotcom/fe-dev"])
+                    pr_reviewers = reviewers or git_config.get(
+                        "default_reviewers", ["carsdotcom/fe-dev"]
+                    )
                     pr_labels = labels or git_config.get("default_labels", ["fe-dev"])
                 else:
-                    pr_reviewers = reviewers or getattr(git_config, "default_reviewers", ["carsdotcom/fe-dev"])
+                    pr_reviewers = reviewers or getattr(
+                        git_config, "default_reviewers", ["carsdotcom/fe-dev"]
+                    )
                     pr_labels = labels or getattr(git_config, "default_labels", ["fe-dev"])
             else:
                 pr_reviewers = reviewers or ["carsdotcom/fe-dev"]
@@ -1015,7 +1076,7 @@ PR: {pr_url}"""
                 head=safe_current_branch,
                 draft=draft,
                 reviewers=pr_reviewers,
-                labels=pr_labels
+                labels=pr_labels,
             )
 
             logger.info(f"Successfully created PR: {pr_url}")
@@ -1031,7 +1092,7 @@ PR: {pr_url}"""
                 "pr_url": pr_url,
                 "branch": safe_current_branch,
                 "title": pr_title,
-                "body": pr_body
+                "body": pr_body,
             }
 
         except Exception as e:
@@ -1046,31 +1107,29 @@ PR: {pr_url}"""
                     logger.info(f"PR already exists: {existing_pr_url}")
                     # Still copy Salesforce message since migration likely completed
                     pr_content = self._build_stellantis_pr_content(slug, safe_head_branch, {})
-                    self._copy_salesforce_message_to_clipboard(pr_content["what_section"], existing_pr_url)
+                    self._copy_salesforce_message_to_clipboard(
+                        pr_content["what_section"], existing_pr_url
+                    )
 
                     return {
                         "success": True,
                         "pr_url": existing_pr_url,
                         "branch": safe_head_branch,
                         "title": pr_content["title"],
-                        "existing": True
+                        "existing": True,
                     }
                 except Exception as handle_e:
-                     logger.error(f"Failed to handle existing PR: {handle_e}")
+                    logger.error(f"Failed to handle existing PR: {handle_e}")
 
-
-            return {
-                "success": False,
-                "error": error_str
-            }
+            return {"success": False, "error": error_str}
 
     def git_operations(self, slug: str) -> tuple:
         """
         Perform all Git operations for a migration.
-        
+
         Args:
             slug (str): Dealer theme slug
-            
+
         Returns:
             tuple: (success, branch_name) - a tuple containing success status and branch name
         """
@@ -1090,41 +1149,45 @@ def _get_repo() -> Repo:
     platform_dir = get_platform_dir()
     return Repo(platform_dir)
 
+
 def checkout_main_and_pull():
     """Legacy wrapper for checkout_main_and_pull."""
     git_ops = GitOperations(Config({}))
     return git_ops.checkout_main_and_pull()
+
 
 def create_branch(slug):
     """Legacy wrapper for create_branch."""
     git_ops = GitOperations(Config({}))
     return git_ops.create_branch(slug)
 
+
 def commit_changes(slug, message=None):
     """Legacy wrapper for commit_changes."""
     git_ops = GitOperations(Config({}))
     return git_ops.commit_changes(slug, message)
+
 
 def push_changes(branch_name):
     """Legacy wrapper for push_changes."""
     git_ops = GitOperations(Config({}))
     return git_ops.push_changes(branch_name)
 
+
 def git_operations(slug):
     """Legacy wrapper for git_operations."""
     git_ops = GitOperations(Config({}))
     return git_ops.git_operations(slug)
 
+
 def create_pr(slug, branch_name=None, **kwargs):
     """Legacy wrapper for create_pr."""
     from ..config import Config
+
     # Initialize config with safe defaults
     config_dict = {
         "default_branch": "main",
-        "git": {
-            "default_reviewers": ["carsdotcom/fe-dev"],
-            "default_labels": ["fe-dev"]
-        }
+        "git": {"default_reviewers": ["carsdotcom/fe-dev"], "default_labels": ["fe-dev"]},
     }
     git_ops = GitOperations(Config(config_dict))
     return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)

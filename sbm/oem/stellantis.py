@@ -10,14 +10,14 @@ from .base import BaseOEMHandler
 class StellantisHandler(BaseOEMHandler):
     """
     Stellantis/CDJR specific implementation.
-    
+
     Handles Chrysler, Dodge, Jeep, Ram, and Fiat brands.
     """
 
     def get_map_styles(self):
         """
         Get Stellantis-specific map styles.
-        
+
         Returns:
             str: CSS/SCSS content for map styles
         """
@@ -26,7 +26,7 @@ class StellantisHandler(BaseOEMHandler):
     def get_directions_styles(self):
         """
         Get Stellantis-specific direction box styles.
-        
+
         Returns:
             str: CSS/SCSS content for directions box styles
         """
@@ -35,7 +35,7 @@ class StellantisHandler(BaseOEMHandler):
     def get_map_partial_patterns(self):
         """
         Get Stellantis-specific patterns for identifying map partials.
-        
+
         Returns:
             list: Regular expression patterns for finding map partials
         """
@@ -43,23 +43,15 @@ class StellantisHandler(BaseOEMHandler):
         stellantis_patterns = [
             r"dealer-groups/fca/map-row-\d+",
             r"dealer-groups/cdjr/map-row-\d+",
-            r"dealer-groups/stellantis/map-row-\d+"
+            r"dealer-groups/stellantis/map-row-\d+",
         ]
         return stellantis_patterns + super().get_map_partial_patterns()
 
     def get_brand_match_patterns(self):
         """
         Get patterns for identifying if a dealer belongs to Stellantis.
-        
+
         Returns:
             list: Regular expression patterns for matching Stellantis brands
         """
-        return [
-            r"chrysler",
-            r"dodge",
-            r"jeep",
-            r"ram",
-            r"fiat",
-            r"cdjr",
-            r"fca"
-        ]
+        return [r"chrysler", r"dodge", r"jeep", r"ram", r"fiat", r"cdjr", r"fca"]

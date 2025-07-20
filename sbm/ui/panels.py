@@ -19,27 +19,24 @@ from ..utils.path import get_dealer_theme_dir
 class StatusPanels:
     """
     Rich status panels for different migration phases.
-    
+
     This class provides static methods for creating consistent status displays
     throughout the SBM migration workflow.
     """
 
     @staticmethod
     def create_migration_status_panel(
-        theme_name: str,
-        step: str,
-        status: str,
-        additional_info: Optional[Dict[str, Any]] = None
+        theme_name: str, step: str, status: str, additional_info: Optional[Dict[str, Any]] = None
     ) -> Panel:
         """
         Create migration status panel with theme information.
-        
+
         Args:
             theme_name: Name of the theme being migrated
             step: Current migration step
             status: Current status (success, warning, error, in_progress, pending)
             additional_info: Optional dictionary of additional information
-            
+
         Returns:
             Rich Panel object for display
         """
@@ -49,7 +46,7 @@ class StatusPanels:
             "error": "❌",
             "in_progress": "⏳",
             "pending": "⏸️",
-            "running": "🔄"
+            "running": "🔄",
         }
 
         # Truncate long theme names for display
@@ -70,37 +67,26 @@ class StatusPanels:
                 content.append(str(value), style="white")
 
         return Panel(
-            content,
-            title="Migration Status",
-            border_style="cyan",
-            width=80,
-            padding=(1, 2)
+            content, title="Migration Status", border_style="cyan", width=80, padding=(1, 2)
         )
 
     @staticmethod
     def create_docker_status_panel(
-        container_name: str,
-        logs: List[str],
-        status: str = "running"
+        container_name: str, logs: List[str], status: str = "running"
     ) -> Panel:
         """
         Create Docker container status panel.
-        
+
         Args:
             container_name: Name of the Docker container
             logs: List of recent log lines
             status: Container status
-            
+
         Returns:
             Rich Panel object for display
         """
         # Create status header
-        status_icons = {
-            "running": "🟢",
-            "stopped": "🔴",
-            "starting": "🟡",
-            "error": "❌"
-        }
+        status_icons = {"running": "🟢", "stopped": "🔴", "starting": "🟡", "error": "❌"}
 
         header = Text()
         header.append("Container: ", style="bold docker")
@@ -140,11 +126,7 @@ class StatusPanels:
         content.append("\n\n")
 
         return Panel(
-            content,
-            title="Docker Container Status",
-            border_style="blue",
-            width=120,
-            padding=(1, 2)
+            content, title="Docker Container Status", border_style="blue", width=120, padding=(1, 2)
         )
 
     @staticmethod
@@ -154,11 +136,11 @@ class StatusPanels:
         line_number: int,
         message: str,
         code_snippet: Optional[str] = None,
-        suggested_fix: Optional[str] = None
+        suggested_fix: Optional[str] = None,
     ) -> Panel:
         """
         Create error display panel with context.
-        
+
         Args:
             error_type: Type of error (e.g., "Syntax Error", "Compilation Error")
             file_path: Path to the file with the error
@@ -166,7 +148,7 @@ class StatusPanels:
             message: Error message
             code_snippet: Optional code snippet showing the error
             suggested_fix: Optional suggested fix
-            
+
         Returns:
             Rich Panel object for display
         """
@@ -189,7 +171,7 @@ class StatusPanels:
                     "scss",
                     line_numbers=True,
                     start_line=max(1, line_number - 3),
-                    highlight_lines={line_number}
+                    highlight_lines={line_number},
                 )
                 content.append(syntax)
             except Exception:
@@ -201,22 +183,18 @@ class StatusPanels:
             content.append(suggested_fix, style="green")
 
         return Panel(
-            content,
-            title="Compilation Error",
-            border_style="red",
-            width=100,
-            padding=(1, 2)
+            content, title="Compilation Error", border_style="red", width=100, padding=(1, 2)
         )
 
     @staticmethod
     def create_file_review_table(theme_name: str, files: List[str]) -> Table:
         """
         Create file review table for manual review phase.
-        
+
         Args:
             theme_name: Name of theme being reviewed
             files: List of file names to review
-            
+
         Returns:
             Rich Table object for display
         """
@@ -245,12 +223,13 @@ class StatusPanels:
                     if size < 1024:
                         size_str = f"{size} B"
                     elif size < 1024 * 1024:
-                        size_str = f"{size/1024:.1f} KB"
+                        size_str = f"{size / 1024:.1f} KB"
                     else:
-                        size_str = f"{size/(1024*1024):.1f} MB"
+                        size_str = f"{size / (1024 * 1024):.1f} MB"
 
                     # Format modification time
                     from datetime import datetime
+
                     mod_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
 
                     # Determine status
@@ -262,29 +241,15 @@ class StatusPanels:
                         status_style = "yellow"
 
                     table.add_row(
-                        file_name,
-                        f"[{status_style}]{status}[/]",
-                        str(lines),
-                        size_str,
-                        mod_time
+                        file_name, f"[{status_style}]{status}[/]", str(lines), size_str, mod_time
                     )
 
                 except Exception as e:
                     table.add_row(
-                        file_name,
-                        "[red]❌ Error[/]",
-                        "N/A",
-                        "N/A",
-                        f"Error: {str(e)[:20]}..."
+                        file_name, "[red]❌ Error[/]", "N/A", "N/A", f"Error: {str(e)[:20]}..."
                     )
             else:
-                table.add_row(
-                    file_name,
-                    "[red]❌ Missing[/]",
-                    "0",
-                    "0 B",
-                    "N/A"
-                )
+                table.add_row(file_name, "[red]❌ Missing[/]", "0", "0 B", "N/A")
 
         return table
 
@@ -293,17 +258,17 @@ class StatusPanels:
         theme_name: str,
         branch_name: str,
         files_changed: List[str],
-        commit_message: Optional[str] = None
+        commit_message: Optional[str] = None,
     ) -> Panel:
         """
         Create Git status panel for repository operations.
-        
+
         Args:
             theme_name: Name of theme
             branch_name: Current Git branch
             files_changed: List of files that have been modified
             commit_message: Optional commit message preview
-            
+
         Returns:
             Rich Panel object for display
         """
@@ -323,11 +288,7 @@ class StatusPanels:
             content.append(f"{commit_message}", style="dim")
 
         return Panel(
-            content,
-            title="Git Operations",
-            border_style="green",
-            width=80,
-            padding=(1, 2)
+            content, title="Git Operations", border_style="green", width=80, padding=(1, 2)
         )
 
     @staticmethod
@@ -337,11 +298,11 @@ class StatusPanels:
         files_processed: int,
         warnings: int = 0,
         errors: int = 0,
-        pr_url: Optional[str] = None
+        pr_url: Optional[str] = None,
     ) -> Panel:
         """
         Create migration completion summary panel.
-        
+
         Args:
             theme_name: Name of migrated theme
             elapsed_time: Total elapsed time in seconds
@@ -349,7 +310,7 @@ class StatusPanels:
             warnings: Number of warnings encountered
             errors: Number of errors encountered
             pr_url: Optional pull request URL
-            
+
         Returns:
             Rich Panel object for display
         """
@@ -391,9 +352,5 @@ class StatusPanels:
             content.append(f"{pr_url}", style="blue underline")
 
         return Panel(
-            content,
-            title="Migration Summary",
-            border_style="green",
-            width=80,
-            padding=(1, 2)
+            content, title="Migration Summary", border_style="green", width=80, padding=(1, 2)
         )

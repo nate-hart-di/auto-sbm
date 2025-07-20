@@ -8,21 +8,26 @@ from rich.panel import Panel
 # Global Rich console for step output
 _console = Console()
 
+
 def print_step(step_num: int, total_steps: int, description: str, theme_name: str):
     """Print a beautiful step header without progress bars."""
     _console.print(f"\n🌟 [bold cyan]Step {step_num}/{total_steps}:[/] {description}")
+
 
 def print_step_success(message: str):
     """Print step completion message."""
     _console.print(f"✅ [bold green]{message}[/]")
 
+
 def print_step_warning(message: str):
     """Print step warning message."""
     _console.print(f"⚠️ [bold yellow]{message}[/]")
 
+
 def print_step_error(message: str):
     """Print step error message."""
     _console.print(f"❌ [bold red]{message}[/]")
+
 
 def print_migration_header(theme_name: str):
     """Print beautiful migration start header."""
@@ -33,9 +38,10 @@ def print_migration_header(theme_name: str):
         f"[dim]Rich UI enabled with step-by-step feedback[/]",
         title="[bold green]SBM Migration",
         border_style="cyan",
-        padding=(1, 2)
+        padding=(1, 2),
     )
     _console.print(panel)
+
 
 def print_migration_complete(theme_name: str):
     """Print beautiful migration completion message."""
@@ -47,6 +53,6 @@ def print_migration_complete(theme_name: str):
         f"[bold]Next:[/] Manual review and Git operations",
         title="[bold green]✅ Success",
         border_style="green",
-        padding=(1, 2)
+        padding=(1, 2),
     )
     _console.print(panel)

@@ -13,9 +13,4 @@ from .panels import StatusPanels
 from .progress import MigrationProgress
 from .prompts import InteractivePrompts
 
-__all__ = [
-    "InteractivePrompts",
-    "MigrationProgress",
-    "SBMConsole",
-    "StatusPanels"
-]
+__all__ = ["InteractivePrompts", "MigrationProgress", "SBMConsole", "StatusPanels"]

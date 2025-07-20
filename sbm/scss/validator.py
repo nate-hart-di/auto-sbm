@@ -16,10 +16,10 @@ from .processor import SCSSProcessor  # Import SCSSProcessor for validate_scss_s
 def validate_scss_files(slug: str) -> bool:
     """
     Validate theme SCSS files for syntax and structure.
-    
+
     Args:
         slug (str): Dealer theme slug
-        
+
     Returns:
         bool: True if all SCSS files are valid, False otherwise
     """
@@ -38,7 +38,7 @@ def validate_scss_files(slug: str) -> bool:
         theme_dir / "sb-inside.scss",
         theme_dir / "sb-vdp.scss",
         theme_dir / "sb-vrp.scss",
-        theme_dir / "sb-home.scss"
+        theme_dir / "sb-home.scss",
     ]
 
     all_valid = True

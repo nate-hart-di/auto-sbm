@@ -10,14 +10,14 @@ from .base import BaseOEMHandler
 class DefaultHandler(BaseOEMHandler):
     """
     Default handler for dealers that don't match any specific OEM.
-    
+
     Provides generic styles and patterns that work across most dealers.
     """
 
     def get_map_styles(self):
         """
         Get generic map styles.
-        
+
         Returns:
             str: CSS/SCSS content for map styles
         """
@@ -78,7 +78,7 @@ class DefaultHandler(BaseOEMHandler):
     def get_directions_styles(self):
         """
         Get generic direction box styles.
-        
+
         Returns:
             str: CSS/SCSS content for directions box styles
         """
@@ -88,7 +88,7 @@ class DefaultHandler(BaseOEMHandler):
     def get_brand_match_patterns(self):
         """
         Get patterns for identifying if a dealer belongs to this handler.
-        
+
         Returns:
             list: Regular expression patterns for matching dealer brands
         """

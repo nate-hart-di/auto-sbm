@@ -14,13 +14,13 @@ from typing import Optional
 def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
     """
     Set up and configure a logger instance with Rich support.
-    
+
     Args:
         name (str, optional): Logger name. Defaults to 'sbm'.
         log_file (str, optional): Path to log file. If None, a default path is used.
         level (int, optional): Logging level. Defaults to logging.INFO.
         use_rich (bool, optional): Whether to use Rich logging handler. Defaults to True.
-        
+
     Returns:
         logging.Logger: Configured logger instance
     """
@@ -43,6 +43,7 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
         if use_rich and not _is_ci_environment():
             try:
                 from rich.logging import RichHandler
+
                 console_handler = RichHandler(
                     rich_tracebacks=True,
                     markup=True,
@@ -50,8 +51,8 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
                     show_time=False,  # Rich handles time display
                     tracebacks_suppress=[
                         "click",  # Suppress Click framework tracebacks
-                        "rich"    # Suppress Rich internal tracebacks
-                    ]
+                        "rich",  # Suppress Rich internal tracebacks
+                    ],
                 )
             except ImportError:
                 # Fallback to standard handler if Rich is not available
@@ -67,7 +68,9 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
         # Create file handler if a log file is specified or use default
         if log_file is None:
             # Create logs directory if it doesn't exist
-            log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+            log_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs"
+            )
             os.makedirs(log_dir, exist_ok=True)
 
             # Default log file name with timestamp
@@ -84,13 +87,18 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
 def _is_ci_environment() -> bool:
     """
     Check if running in CI/CD environment.
-    
+
     Returns:
         True if in CI environment, False otherwise
     """
     ci_indicators = [
-        "CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS",
-        "TRAVIS", "CIRCLECI", "JENKINS_URL", "GITLAB_CI"
+        "CI",
+        "CONTINUOUS_INTEGRATION",
+        "GITHUB_ACTIONS",
+        "TRAVIS",
+        "CIRCLECI",
+        "JENKINS_URL",
+        "GITLAB_CI",
     ]
 
     return any(os.getenv(var) for var in ci_indicators) or os.getenv("TERM") == "dumb"
@@ -99,11 +107,11 @@ def _is_ci_environment() -> bool:
 def get_rich_logger(name: Optional[str] = None, config=None) -> logging.Logger:
     """
     Get a Rich-enhanced logger with configuration support.
-    
+
     Args:
         name: Logger name (defaults to 'sbm')
         config: Optional Config object for Rich settings
-        
+
     Returns:
         Configured logger instance
     """

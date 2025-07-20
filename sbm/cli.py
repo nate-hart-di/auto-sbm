@@ -5,6 +5,8 @@ This module provides the command-line interface for the SBM tool with
 Rich-enhanced progress tracking, status displays, and interactive elements.
 """
 
+from __future__ import annotations  # CRITICAL: Must be first import for forward references
+
 import logging  # Re-add the logging import
 import os
 import shutil
@@ -12,6 +14,7 @@ import subprocess
 import sys
 
 import click
+from typing import Any, Dict, List, Optional, Tuple  # Add typing imports for Click functions
 from git import Repo  # Import Repo for post_migrate command
 
 from .config import Config, ConfigurationError, get_config
@@ -36,56 +39,85 @@ SETUP_MARKER = os.path.join(REPO_ROOT, ".sbm_setup_complete")
 SETUP_SCRIPT = os.path.join(REPO_ROOT, "setup.sh")
 
 REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip"]
-REQUIRED_PYTHON_PACKAGES = ["click", "rich", "gitpython", "pyyaml", "jinja2", "pytest", "requests", "colorama"]
+REQUIRED_PYTHON_PACKAGES = [
+    "click",
+    "rich",
+    "gitpython",
+    "pyyaml",
+    "jinja2",
+    "pytest",
+    "requests",
+    "colorama",
+]
 
 
-def is_env_healthy():
+def is_env_healthy() -> bool:
+    """
+    Check if the environment has all required tools and packages.
+
+    Returns:
+        True if environment is healthy, False otherwise
+    """
     # Check CLI tools
     for cmd in REQUIRED_CLI_TOOLS:
         if not shutil.which(cmd):
-            print(f"[SBM] Required CLI tool missing: {cmd}")
+            logger.warning(f"Required CLI tool missing: {cmd}")
             return False
+
     # Check Python venv and packages
     venv_path = os.path.join(REPO_ROOT, ".venv")
     pip_path = os.path.join(venv_path, "bin", "pip")
     if not os.path.isdir(venv_path) or not os.path.isfile(pip_path):
-        print("[SBM] Python virtual environment or pip not found.")
+        logger.warning("Python virtual environment or pip not found")
         return False
+
     try:
-        result = subprocess.run([pip_path, "freeze"], check=False, capture_output=True, text=True, timeout=10)
-        installed = [line.split("==")[0].lower() for line in result.stdout.splitlines() if "==" in line]
+        result = subprocess.run(
+            [pip_path, "freeze"], check=False, capture_output=True, text=True, timeout=10
+        )
+        installed = [
+            line.split("==")[0].lower() for line in result.stdout.splitlines() if "==" in line
+        ]
         for pkg in REQUIRED_PYTHON_PACKAGES:
             if pkg.lower() not in installed:
-                print(f"[SBM] Required Python package missing: {pkg}")
+                logger.warning(f"Required Python package missing: {pkg}")
                 return False
-    except Exception as e:
-        print(f"[SBM] Error checking Python packages: {e}")
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout while checking Python packages")
         return False
+    except Exception as e:
+        logger.error(f"Error checking Python packages: {type(e).__name__}")
+        return False
+
     return True
+
 
 # --- Setup logic ---
 need_setup = False
 if not os.path.exists(SETUP_MARKER):
     need_setup = True
 elif not is_env_healthy():
-    print("[SBM] Environment health check failed. Setup will be re-run to fix issues.")
+    logger.warning("Environment health check failed. Setup will be re-run to fix issues.")
     need_setup = True
 
 if need_setup:
-    print("[SBM] Running setup.sh...")
+    logger.info("Running setup.sh...")
     try:
         result = subprocess.run(["bash", SETUP_SCRIPT], check=False, cwd=REPO_ROOT)
         if result.returncode != 0:
-            print("[SBM] setup.sh failed. Please review the output above and fix any issues before retrying.")
+            logger.error(
+                "Setup.sh failed. Please review the output above and fix any issues before retrying."
+            )
             sys.exit(1)
         else:
-            print("[SBM] Setup complete. Continuing with SBM command...")
+            logger.info("Setup complete. Continuing with SBM command...")
     except Exception as e:
-        print(f"[SBM] Failed to run setup.sh: {e}")
+        logger.error(f"Failed to run setup.sh: {type(e).__name__}")
         sys.exit(1)
 
+
 # --- Auto-update: Enhanced git pull with better error handling ---
-def auto_update_repo():
+def auto_update_repo() -> None:
     """
     Automatically pull the latest changes from the auto-sbm repository.
     Runs at the start of every sbm command to ensure users have the latest features.
@@ -104,10 +136,11 @@ def auto_update_repo():
         # Check if we have network connectivity by testing git remote
         connectivity_check = subprocess.run(
             ["git", "ls-remote", "--exit-code", "origin", "HEAD"],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         if connectivity_check.returncode != 0:
@@ -117,10 +150,11 @@ def auto_update_repo():
         # Check current branch and stash any local changes
         current_branch_result = subprocess.run(
             ["git", "branch", "--show-current"],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         if current_branch_result.returncode != 0:
@@ -135,10 +169,11 @@ def auto_update_repo():
         # Check if there are uncommitted changes
         status_result = subprocess.run(
             ["git", "status", "--porcelain"],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         has_changes = bool(status_result.stdout.strip())
@@ -148,26 +183,28 @@ def auto_update_repo():
             # Stash local changes
             stash_result = subprocess.run(
                 ["git", "stash", "push", "-m", "SBM auto-update stash"],
-                check=False, cwd=REPO_ROOT,
+                check=False,
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             stash_created = stash_result.returncode == 0
 
         # Perform git pull
         pull_result = subprocess.run(
             ["git", "pull", "--quiet", "origin", current_branch],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=15
+            timeout=15,
         )
 
         if pull_result.returncode == 0:
             # Check if there were actual updates
             if pull_result.stdout.strip() and "Already up to date" not in pull_result.stdout:
-                print("[SBM] ✅ Auto-updated to latest version.")
+                logger.info("Auto-updated to latest version.")
 
             # Check if we need to run full setup (if >8 hours since last setup)
             _check_and_run_setup_if_needed()
@@ -176,21 +213,23 @@ def auto_update_repo():
             if stash_created:
                 restore_result = subprocess.run(
                     ["git", "stash", "pop"],
-                    check=False, cwd=REPO_ROOT,
+                    check=False,
+                    cwd=REPO_ROOT,
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
                 if restore_result.returncode != 0:
-                    print("[SBM] ⚠️  Warning: Could not restore local changes. Check 'git stash list'.")
+                    logger.warning("Could not restore local changes. Check 'git stash list'.")
         # Pull failed, restore stash if we created one
         elif stash_created:
             subprocess.run(
                 ["git", "stash", "pop"],
-                check=False, cwd=REPO_ROOT,
+                check=False,
+                cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
     except subprocess.TimeoutExpired:
@@ -201,7 +240,7 @@ def auto_update_repo():
         pass
 
 
-def _check_and_run_setup_if_needed():
+def _check_and_run_setup_if_needed() -> None:
     """
     Check if setup needs to be run (if >8 hours since last setup) and run it silently.
     """
@@ -211,6 +250,7 @@ def _check_and_run_setup_if_needed():
         # Check if setup file exists and when it was last modified
         if os.path.exists(setup_complete_file):
             import time
+
             file_mtime = os.path.getmtime(setup_complete_file)
             current_time = time.time()
             hours_since_setup = (current_time - file_mtime) / 3600
@@ -223,13 +263,19 @@ def _check_and_run_setup_if_needed():
             os.remove(setup_complete_file)
 
         # Run pip install requirements silently
-        pip_result = subprocess.run([
-            sys.executable, "-m", "pip", "install", "-r", "requirements.txt"
-        ], check=False, cwd=REPO_ROOT, capture_output=True, text=True, timeout=60)
+        pip_result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            check=False,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
 
         if pip_result.returncode == 0:
             # Create the setup complete marker
             import time
+
             with open(setup_complete_file, "w") as f:
                 f.write(f"Setup completed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
 
@@ -241,13 +287,17 @@ def _check_and_run_setup_if_needed():
 # Run auto-update at CLI initialization
 auto_update_repo()
 
+
 class SBMCommandGroup(click.Group):
     """A custom command group that allows running a default command."""
-    def __init__(self, *args, **kwargs):
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.default_command = kwargs.pop("default_command", None)
         super().__init__(*args, **kwargs)
 
-    def resolve_command(self, ctx, args):
+    def resolve_command(
+        self, ctx: click.Context, args: List[str]
+    ) -> Tuple[str, click.Command, List[str]]:
         try:
             # Try to resolve the command as usual
             return super().resolve_command(ctx, args)
@@ -259,13 +309,18 @@ class SBMCommandGroup(click.Group):
             args.insert(0, self.default_command)
             return super().resolve_command(ctx, args)
 
-@click.group(cls=SBMCommandGroup, default_command="auto", context_settings={"help_option_names": ["-h", "--help"]})
+
+@click.group(
+    cls=SBMCommandGroup,
+    default_command="auto",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.option("--config", "config_path", default="config.json", help="Path to config file.")
 @click.pass_context
-def cli(ctx, verbose, config_path):
+def cli(ctx: click.Context, verbose: bool, config_path: str) -> None:
     """Auto-SBM: Automated Site Builder Migration Tool
-    
+
     The main command for SBM migration with GitHub PR creation support.
     By default, prompts to create PRs with default reviewers (carsdotcom/fe-dev) and labels (fe-dev).
     Use 'sbm pr <theme-name>' for manual PR creation or --no-create-pr to skip.
@@ -294,17 +349,18 @@ def cli(ctx, verbose, config_path):
     ctx.obj["config"] = config
     ctx.obj["logger"] = logger
 
+
 @cli.command()
 @click.argument("theme_name")
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option("--skip-maps", is_flag=True, help="Skip map components migration.")
-def migrate(theme_name, force_reset, skip_maps):
+def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
     """
     Migrate a dealer theme SCSS files to Site Builder format.
-    
+
     This command runs the core migration steps (create files, migrate styles, add predetermined styles,
     migrate maps) followed by manual review and post-migration validation/formatting.
-    
+
     This does NOT include Git operations, Docker container management, or PR creation.
     Use 'sbm auto' for the full automated workflow including Git and PR operations.
     """
@@ -364,7 +420,7 @@ def migrate(theme_name, force_reset, skip_maps):
     logger.info("Created automation snapshot before manual review")
 
     # Manual review phase
-    click.echo("\n" + "="*80)
+    click.echo("\n" + "=" * 80)
     click.echo(f"Manual Review Required for {theme_name}")
     click.echo("Please review the migrated SCSS files in your theme directory:")
     click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-inside.scss")
@@ -373,7 +429,7 @@ def migrate(theme_name, force_reset, skip_maps):
     click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-home.scss")
     click.echo("\nVerify the content and make any necessary manual adjustments.")
     click.echo("Once you are satisfied, proceed to the next step.")
-    click.echo("="*80 + "\n")
+    click.echo("=" * 80 + "\n")
 
     if not click.confirm("Continue with the migration after manual review?"):
         logger.info("Migration stopped by user after manual review.")
@@ -395,23 +451,44 @@ def migrate(theme_name, force_reset, skip_maps):
     click.echo("Files have been validated, issues fixed, and formatted with prettier.")
     click.echo("You can now review the final files and commit them when ready.")
 
+
 @cli.command()
 @click.argument("theme_name")
 @click.option("--skip-just", is_flag=True, help="Skip running the 'just start' command.")
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
-@click.option("--create-pr/--no-create-pr", default=True, help="Create a GitHub Pull Request after successful migration (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
-@click.option("--skip-post-migration", is_flag=True, help="Skip interactive manual review, re-validation, Git operations, and PR creation.")
-@click.option("--verbose-docker", is_flag=True, help="Show verbose Docker output during startup (for debugging).")
+@click.option(
+    "--create-pr/--no-create-pr",
+    default=True,
+    help="Create a GitHub Pull Request after successful migration (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
+)
+@click.option(
+    "--skip-post-migration",
+    is_flag=True,
+    help="Skip interactive manual review, re-validation, Git operations, and PR creation.",
+)
+@click.option(
+    "--verbose-docker",
+    is_flag=True,
+    help="Show verbose Docker output during startup (for debugging).",
+)
 @click.pass_context
-def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration, verbose_docker):
+def auto(
+    ctx: click.Context,
+    theme_name: str,
+    skip_just: bool,
+    force_reset: bool,
+    create_pr: bool,
+    skip_post_migration: bool,
+    verbose_docker: bool,
+) -> None:
     """
     Run the full, automated migration for a given theme.
     This is the recommended command for most migrations.
-    
-    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev) 
-    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation, 
+
+    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev)
+    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation,
     use 'sbm pr <theme-name>' separately.
-    
+
     Use --skip-just to skip running the 'just start' command (if the site is already started).
     """
     # Get configuration and initialize Rich console
@@ -423,14 +500,11 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
         "Skip Just": skip_just,
         "Force Reset": force_reset,
         "Create PR": create_pr,
-        "Skip Post-Migration": skip_post_migration
+        "Skip Post-Migration": skip_post_migration,
     }
 
     start_panel = StatusPanels.create_migration_status_panel(
-        theme_name,
-        "Initialization",
-        "in_progress",
-        config_info
+        theme_name, "Initialization", "in_progress", config_info
     )
     console.console.print(start_panel)
 
@@ -440,7 +514,7 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
             "skip_just": skip_just,
             "force_reset": force_reset,
             "create_pr": create_pr,
-            "skip_post_migration": skip_post_migration
+            "skip_post_migration": skip_post_migration,
         }
 
         if not InteractivePrompts.confirm_migration_start(theme_name, config_dict):
@@ -477,22 +551,23 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
                     force_reset=force_reset,
                     create_pr=create_pr,
                     interactive_review=False,  # Handle interactivity outside progress context
-                    interactive_git=False,    # Handle interactivity outside progress context  
-                    interactive_pr=False,     # Handle interactivity outside progress context
+                    interactive_git=False,  # Handle interactivity outside progress context
+                    interactive_pr=False,  # Handle interactivity outside progress context
                     progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
-                    verbose_docker=verbose_docker
+                    verbose_docker=verbose_docker,
                 )
-            
+
             # Handle interactive prompts AFTER progress context ends
             if success and (interactive_review or interactive_git or interactive_pr):
                 # Import required for post-migration workflow
-                from .core.migration import run_post_migration_workflow
-                
                 # Get branch name - use theme-sbm date format
                 from datetime import datetime
+
+                from .core.migration import run_post_migration_workflow
+
                 date_suffix = datetime.now().strftime("%m%d")
                 branch_name = f"{theme_name}-sbm{date_suffix}"
-                
+
                 success = run_post_migration_workflow(
                     theme_name,
                     branch_name,
@@ -500,9 +575,14 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
                     create_pr=create_pr,
                     interactive_review=interactive_review,
                     interactive_git=interactive_git,
-                    interactive_pr=interactive_pr
+                    interactive_pr=interactive_pr,
                 )
 
+        except KeyboardInterrupt:
+            # Handle user interruption specifically
+            console.print_warning("Migration interrupted by user")
+            logger.info("Migration interrupted by user")
+            sys.exit(1)
         except Exception as e:
             console.print_error(f"Migration failed: {e!s}")
             logger.error(f"Migration error: {e}", exc_info=True)
@@ -515,25 +595,25 @@ def auto(ctx, theme_name, skip_just, force_reset, create_pr, skip_post_migration
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
-    except Exception as migration_error:
-        console.print_error(f"Migration failed with error: {migration_error!s}")
-        logger.exception("Migration failed")
-        sys.exit(1)
 
     except KeyboardInterrupt:
+        # Handle outer-level user interruption
         console.print_warning("Migration interrupted by user")
+        logger.info("Migration interrupted by user")
         sys.exit(1)
-    except Exception as e:
-        console.print_error(f"Migration failed with error: {e!s}")
-        logger.exception("Migration failed")
+    except Exception as migration_error:
+        # Handle any unexpected errors at the top level
+        console.print_error(f"Unexpected migration error: {migration_error!s}")
+        logger.exception("Unexpected migration error")
         sys.exit(1)
+
 
 @cli.command()
 @click.argument("theme_name")
-def reprocess(theme_name):
+def reprocess(theme_name: str) -> None:
     """
     Reprocess Site Builder SCSS files to ensure consistency.
-    
+
     This command applies the same transformations as the initial migration
     to existing Site Builder files, ensuring variables, mixins, and other
     SCSS patterns are properly processed after manual changes.
@@ -550,18 +630,20 @@ def reprocess(theme_name):
         click.echo(f"❌ Reprocessing failed for {theme_name}.", err=True)
         sys.exit(1)
 
+
 @cli.command()
 @click.argument("theme_name")
-def validate(theme_name):
+def validate(theme_name: str) -> None:
     """Validate theme structure and SCSS syntax."""
     validate_scss_files(theme_name)
+
 
 @cli.command()
 @click.argument("theme_name")
 def test_compilation(theme_name):
     """
     Test compilation error handling on an existing theme without doing migration.
-    
+
     This command copies existing SCSS files to the CSS directory, monitors
     Docker Gulp compilation, and tests the error recovery system without
     modifying the original theme files.
@@ -578,17 +660,23 @@ def test_compilation(theme_name):
 @cli.command()
 @click.argument("theme_name")
 @click.option("--skip-git", is_flag=True, help="Skip Git operations (add, commit, push).")
-@click.option("--create-pr/--no-create-pr", default=True, help="Create a GitHub Pull Request after successful post-migration steps (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).")
-@click.option("--skip-review", is_flag=True, help="Skip interactive manual review and re-validation.")
+@click.option(
+    "--create-pr/--no-create-pr",
+    default=True,
+    help="Create a GitHub Pull Request after successful post-migration steps (default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
+)
+@click.option(
+    "--skip-review", is_flag=True, help="Skip interactive manual review and re-validation."
+)
 @click.option("--skip-git-prompt", is_flag=True, help="Skip prompt for Git operations.")
 @click.option("--skip-pr-prompt", is_flag=True, help="Skip prompt for PR creation.")
 def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, skip_pr_prompt):
     """
     Run post-migration steps for a given theme, including manual review, re-validation, Git operations, and PR creation.
     This command assumes the initial migration (up to map components) has already been completed.
-    
-    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev) 
-    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation, 
+
+    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev)
+    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation,
     use 'sbm pr <theme-name>' separately.
     """
     from sbm.utils.path import get_platform_dir  # Import get_platform_dir
@@ -597,10 +685,12 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
 
     # Attempt to get the current branch name for post-migration context
     try:
-        repo = Repo(get_platform_dir()) # Use the platform root for the repo
+        repo = Repo(get_platform_dir())  # Use the platform root for the repo
         branch_name = repo.active_branch.name
     except Exception as e:
-        click.echo(f"Error: Could not determine current Git branch for post-migration: {e}", err=True)
+        click.echo(
+            f"Error: Could not determine current Git branch for post-migration: {e}", err=True
+        )
         click.echo("Please ensure you are in a Git repository and on the correct branch.", err=True)
         sys.exit(1)
 
@@ -615,7 +705,7 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
         create_pr=create_pr,
         interactive_review=interactive_review,
         interactive_git=interactive_git,
-        interactive_pr=interactive_pr
+        interactive_pr=interactive_pr,
     )
 
     if success:
@@ -624,21 +714,32 @@ def post_migrate(theme_name, skip_git, create_pr, skip_review, skip_git_prompt, 
         click.echo(f"Post-migration workflow failed for {theme_name}.", err=True)
         sys.exit(1)
 
+
 @cli.command()
 @click.argument("theme_name")
-@click.option("--title", "-t", help="Title for the Pull Request. (Optional: auto-generated if not provided)")
-@click.option("--body", "-b", help="Body/description for the Pull Request. (Optional: auto-generated if not provided)")
+@click.option(
+    "--title", "-t", help="Title for the Pull Request. (Optional: auto-generated if not provided)"
+)
+@click.option(
+    "--body",
+    "-b",
+    help="Body/description for the Pull Request. (Optional: auto-generated if not provided)",
+)
 @click.option("--base", default="main", help="Base branch for the Pull Request (default: main).")
 @click.option("--head", help="Head branch for the Pull Request (default: current branch).")
-@click.option("--reviewers", "-r", help="Comma-separated list of reviewers (default: carsdotcom/fe-dev).")
+@click.option(
+    "--reviewers", "-r", help="Comma-separated list of reviewers (default: carsdotcom/fe-dev)."
+)
 @click.option("--labels", "-l", help="Comma-separated list of labels (default: fe-dev).")
 @click.option("--draft", "-d", is_flag=True, default=False, help="Create as draft PR.")
-@click.option("--publish", "-p", is_flag=True, default=True, help="Create as published PR (default: true).")
+@click.option(
+    "--publish", "-p", is_flag=True, default=True, help="Create as published PR (default: true)."
+)
 @click.pass_context
 def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publish):
     """
     Create a GitHub Pull Request for a given theme.
-    
+
     By default, creates a published PR with:
     - Reviewers: carsdotcom/fe-dev
     - Labels: fe-dev
@@ -648,6 +749,7 @@ def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publi
     logger = ctx.obj["logger"]
 
     from sbm.core.git import GitOperations
+
     git_ops = GitOperations(config)
 
     # Determine draft status
@@ -674,7 +776,7 @@ def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publi
             head=head,
             reviewers=parsed_reviewers,
             labels=parsed_labels,
-            draft=is_draft
+            draft=is_draft,
         )
 
         if pr_result["success"]:
@@ -693,6 +795,7 @@ def pr(ctx, theme_name, title, body, base, head, reviewers, labels, draft, publi
         logger.error(f"Unexpected error: {e}")
         sys.exit(1)
 
+
 @cli.command()
 def update():
     """
@@ -710,10 +813,11 @@ def update():
         # Check current branch
         current_branch_result = subprocess.run(
             ["git", "branch", "--show-current"],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         if current_branch_result.returncode != 0:
@@ -725,27 +829,27 @@ def update():
         # Stash changes if any
         status_result = subprocess.run(
             ["git", "status", "--porcelain"],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         has_changes = bool(status_result.stdout.strip())
         if has_changes:
             click.echo("Stashing local changes...")
             subprocess.run(
-                ["git", "stash", "push", "-m", "Manual SBM update stash"],
-                cwd=REPO_ROOT,
-                check=True
+                ["git", "stash", "push", "-m", "Manual SBM update stash"], cwd=REPO_ROOT, check=True
             )
 
         # Perform git pull
         click.echo(f"Pulling latest changes from origin/{current_branch}...")
         pull_result = subprocess.run(
             ["git", "pull", "origin", current_branch],
-            check=False, cwd=REPO_ROOT,
+            check=False,
+            cwd=REPO_ROOT,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if pull_result.returncode == 0:
@@ -757,9 +861,11 @@ def update():
                 # Install/update requirements after git pull
                 click.echo("Installing updated requirements...")
                 try:
-                    subprocess.run([
-                        sys.executable, "-m", "pip", "install", "-r", "requirements.txt"
-                    ], cwd=REPO_ROOT, check=True)
+                    subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+                        cwd=REPO_ROOT,
+                        check=True,
+                    )
                     click.echo("✅ Requirements updated successfully.")
                 except subprocess.CalledProcessError as e:
                     click.echo(f"⚠️  Warning: Failed to update requirements: {e}")
@@ -781,21 +887,24 @@ def update():
         click.echo(f"❌ Unexpected error: {e}", err=True)
         sys.exit(1)
 
+
 @cli.command()
 @click.argument("theme_name")
 @click.option("--no-cleanup", is_flag=True, help="Skip cleanup of test files (for debugging).")
 @click.option("--max-iterations", default=3, help="Maximum error recovery iterations (default: 3).")
-@click.option("--timeout", default=45, help="Maximum wait time for compilation in seconds (default: 45).")
+@click.option(
+    "--timeout", default=45, help="Maximum wait time for compilation in seconds (default: 45)."
+)
 def test_compilation(theme_name, no_cleanup, max_iterations, timeout):
     """
     Test SCSS compilation error handling system without running a full migration.
-    
+
     This command:
     1. Copies existing SCSS files from the theme to CSS directory for compilation testing
-    2. Monitors Docker Gulp logs for compilation errors  
+    2. Monitors Docker Gulp logs for compilation errors
     3. Applies the full error recovery pipeline with automated fixes
     4. Reports results and cleans up afterward (unless --no-cleanup is used)
-    
+
     This allows testing the error handling capabilities on themes with known
     compilation issues without modifying the original files or running a full migration.
     """
@@ -841,7 +950,9 @@ def test_compilation(theme_name, no_cleanup, max_iterations, timeout):
                     click.echo(f"  - {sb_file} (missing)")
             sys.exit(1)
 
-        click.echo(f"📁 Found {len(existing_files)} SCSS files to test: {', '.join(existing_files)}")
+        click.echo(
+            f"📁 Found {len(existing_files)} SCSS files to test: {', '.join(existing_files)}"
+        )
 
         # Copy files to CSS directory with test prefix
         test_files = []
@@ -905,18 +1016,21 @@ def test_compilation(theme_name, no_cleanup, max_iterations, timeout):
                 for test_filename, _ in test_files:
                     click.echo(f"  - {test_filename}")
 
-def _test_compilation_with_monitoring(css_dir, test_files, theme_dir, slug, max_iterations, timeout):
+
+def _test_compilation_with_monitoring(
+    css_dir, test_files, theme_dir, slug, max_iterations, timeout
+):
     """
     Enhanced compilation monitoring specifically for testing error handling.
-    
+
     Args:
         css_dir: CSS directory path
-        test_files: List of (test_filename, scss_path) tuples  
+        test_files: List of (test_filename, scss_path) tuples
         theme_dir: Theme directory path
         slug: Theme slug
         max_iterations: Maximum recovery iterations
         timeout: Maximum wait time in seconds
-        
+
     Returns:
         bool: True if compilation succeeds, False if all recovery attempts fail
     """
@@ -937,9 +1051,13 @@ def _test_compilation_with_monitoring(css_dir, test_files, theme_dir, slug, max_
 
         # Check Docker Gulp logs for errors
         try:
-            result = subprocess.run([
-                "docker", "logs", "--tail", "50", "dealerinspire_legacy_assets"
-            ], check=False, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                ["docker", "logs", "--tail", "50", "dealerinspire_legacy_assets"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
 
             if result.returncode == 0 and result.stdout:
                 logs = result.stdout.lower()
@@ -947,14 +1065,21 @@ def _test_compilation_with_monitoring(css_dir, test_files, theme_dir, slug, max_
                 # Look for compilation success indicators
                 if "finished 'sass'" in logs and "finished 'processcss'" in logs:
                     # Check if any errors in recent logs
-                    if not any(error_indicator in logs for error_indicator in [
-                        "error:", "failed", "scss compilation error", "syntax error"
-                    ]):
+                    if not any(
+                        error_indicator in logs
+                        for error_indicator in [
+                            "error:",
+                            "failed",
+                            "scss compilation error",
+                            "syntax error",
+                        ]
+                    ):
                         click.echo("✅ Compilation completed successfully")
                         return True
 
                 # Parse and handle specific errors
                 from .core.migration import _attempt_error_fix, _parse_compilation_errors
+
                 errors_found = _parse_compilation_errors(logs, test_files)
 
                 if errors_found:
@@ -1025,10 +1150,11 @@ def _test_compilation_with_monitoring(css_dir, test_files, theme_dir, slug, max_
 
     return False
 
+
 def _comment_out_problematic_code_for_test(test_files, css_dir):
     """
     Comment out potentially problematic SCSS code in test files.
-    
+
     Args:
         test_files: List of test files
         css_dir: CSS directory path
@@ -1037,9 +1163,9 @@ def _comment_out_problematic_code_for_test(test_files, css_dir):
 
     problematic_patterns = [
         r"@include\s+[^;]+;",  # All mixin includes
-        r"lighten\([^)]+\)",   # lighten functions
-        r"darken\([^)]+\)",    # darken functions
-        r"\$[a-zA-Z_][a-zA-Z0-9_-]*"  # All SCSS variables
+        r"lighten\([^)]+\)",  # lighten functions
+        r"darken\([^)]+\)",  # darken functions
+        r"\$[a-zA-Z_][a-zA-Z0-9_-]*",  # All SCSS variables
     ]
 
     for test_filename, scss_path in test_files:
@@ -1053,6 +1179,7 @@ def _comment_out_problematic_code_for_test(test_files, css_dir):
             for i, line in enumerate(lines):
                 for pattern in problematic_patterns:
                     import re
+
                     if re.search(pattern, line):
                         if not line.strip().startswith("//"):
                             lines[i] = f"// TEST COMMENTED: {line}"
@@ -1068,10 +1195,11 @@ def _comment_out_problematic_code_for_test(test_files, css_dir):
         except Exception as e:
             click.echo(f"  ⚠️  Error processing {test_filename}: {e}")
 
+
 def _cleanup_test_files(css_dir, test_files):
     """
     Clean up test files and wait for Docker Gulp to process the cleanup.
-    
+
     Args:
         css_dir: CSS directory path
         test_files: List of (test_filename, scss_path) tuples
@@ -1102,15 +1230,16 @@ def _cleanup_test_files(css_dir, test_files):
     except Exception as e:
         click.echo(f"⚠️  Error during cleanup: {e}")
 
+
 @cli.command()
 @click.argument("action", type=click.Choice(["enable", "disable", "status"]))
 def auto_update(action):
     """
     Manage auto-update settings for auto-sbm.
-    
+
     Actions:
     - enable: Enable automatic updates (default behavior)
-    - disable: Disable automatic updates 
+    - disable: Disable automatic updates
     - status: Show current auto-update status
     """
     disable_file = os.path.join(REPO_ROOT, ".sbm-no-auto-update")
@@ -1139,6 +1268,7 @@ def auto_update(action):
             click.echo("✅ Auto-updates are ENABLED")
             click.echo("   SBM will automatically update to the latest version at startup")
             click.echo("   Run 'sbm auto-update disable' to disable automatic updates")
+
 
 if __name__ == "__main__":
     cli()

@@ -17,7 +17,7 @@ from ..config import Config
 class SBMConsole:
     """
     Centralized console management for SBM CLI with theming support.
-    
+
     This class provides a consistent interface for all Rich console operations
     throughout the SBM tool, with configuration-aware theming and fallback support.
     """
@@ -25,7 +25,7 @@ class SBMConsole:
     def __init__(self, config: Optional[Config] = None):
         """
         Initialize SBM console with optional configuration.
-        
+
         Args:
             config: Optional Config object for theming and display options
         """
@@ -39,71 +39,80 @@ class SBMConsole:
             theme=self.theme,
             force_terminal=force_terminal,
             width=None,  # Auto-detect terminal width
-            legacy_windows=False
+            legacy_windows=False,
         )
 
     def _create_theme(self) -> Theme:
         """
         Create SBM-specific theme with colorblind-friendly patterns.
-        
+
         Returns:
             Rich Theme object with SBM color scheme
         """
         theme_name = self.config.get_setting("ui", {}).get("theme", "default")
 
         if theme_name == "high-contrast":
-            return Theme({
-                "info": "bright_cyan",
-                "warning": "bright_yellow on black",
-                "error": "bright_red on black",
-                "success": "bright_green on black",
-                "progress": "bright_blue",
-                "step": "bright_cyan bold",
-                "filename": "bright_white bold",
-                "branch": "bright_magenta",
-                "docker": "bright_blue",
-                "aws": "bright_magenta",
-                "git": "bright_green",
-                "sbm.primary": "bright_cyan bold",
-                "sbm.success": "bright_green",
-                "sbm.docker": "bright_blue",
-                "sbm.aws": "bright_magenta"
-            })
+            return Theme(
+                {
+                    "info": "bright_cyan",
+                    "warning": "bright_yellow on black",
+                    "error": "bright_red on black",
+                    "success": "bright_green on black",
+                    "progress": "bright_blue",
+                    "step": "bright_cyan bold",
+                    "filename": "bright_white bold",
+                    "branch": "bright_magenta",
+                    "docker": "bright_blue",
+                    "aws": "bright_magenta",
+                    "git": "bright_green",
+                    "sbm.primary": "bright_cyan bold",
+                    "sbm.success": "bright_green",
+                    "sbm.docker": "bright_blue",
+                    "sbm.aws": "bright_magenta",
+                }
+            )
         # default theme with auto-sbm branding
-        return Theme({
-            "info": "cyan",
-            "warning": "#FFA500",  # Orange for better visibility
-            "error": "bold red",
-            "success": "bold green",
-            "progress": "#0066CC",  # Auto-SBM primary blue
-            "step": "bold #0066CC",  # Auto-SBM blue
-            "filename": "bold white",
-            "branch": "#9A4FE7",  # Purple for Git branches
-            "docker": "#0db7ed",  # Docker blue
-            "aws": "#FF9900",  # AWS orange
-            "git": "#00AA44",  # Git green
-            # Auto-SBM specific styles
-            "sbm.primary": "bold #0066CC",
-            "sbm.success": "bold #00AA44",
-            "sbm.warning": "bold #FFA500",
-            "sbm.error": "bold #DC143C",
-            "sbm.docker": "#0db7ed",
-            "sbm.aws": "#FF9900",
-            "sbm.progress": "#0066CC",
-            "sbm.migration": "bold #0066CC",
-            "sbm.step": "bold cyan"
-        })
+        return Theme(
+            {
+                "info": "cyan",
+                "warning": "#FFA500",  # Orange for better visibility
+                "error": "bold red",
+                "success": "bold green",
+                "progress": "#0066CC",  # Auto-SBM primary blue
+                "step": "bold #0066CC",  # Auto-SBM blue
+                "filename": "bold white",
+                "branch": "#9A4FE7",  # Purple for Git branches
+                "docker": "#0db7ed",  # Docker blue
+                "aws": "#FF9900",  # AWS orange
+                "git": "#00AA44",  # Git green
+                # Auto-SBM specific styles
+                "sbm.primary": "bold #0066CC",
+                "sbm.success": "bold #00AA44",
+                "sbm.warning": "bold #FFA500",
+                "sbm.error": "bold #DC143C",
+                "sbm.docker": "#0db7ed",
+                "sbm.aws": "#FF9900",
+                "sbm.progress": "#0066CC",
+                "sbm.migration": "bold #0066CC",
+                "sbm.step": "bold cyan",
+            }
+        )
 
     def _is_ci_environment(self) -> bool:
         """
         Check if running in CI/CD environment.
-        
+
         Returns:
             True if in CI environment, False otherwise
         """
         ci_indicators = [
-            "CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS",
-            "TRAVIS", "CIRCLECI", "JENKINS_URL", "GITLAB_CI"
+            "CI",
+            "CONTINUOUS_INTEGRATION",
+            "GITHUB_ACTIONS",
+            "TRAVIS",
+            "CIRCLECI",
+            "JENKINS_URL",
+            "GITLAB_CI",
         ]
 
         return any(os.getenv(var) for var in ci_indicators) or os.getenv("TERM") == "dumb"
@@ -111,7 +120,7 @@ class SBMConsole:
     def print_step(self, step_num: int, total_steps: int, description: str):
         """
         Print step header with consistent formatting.
-        
+
         Args:
             step_num: Current step number
             total_steps: Total number of steps
@@ -122,7 +131,7 @@ class SBMConsole:
     def print_status(self, message: str, style: str = "info"):
         """
         Print status message with appropriate styling.
-        
+
         Args:
             message: Status message to display
             style: Rich style to apply (info, warning, error, success)
@@ -132,7 +141,7 @@ class SBMConsole:
     def print_header(self, title: str, subtitle: str = None):
         """
         Print section header with consistent formatting.
-        
+
         Args:
             title: Main title text
             subtitle: Optional subtitle text
@@ -143,11 +152,7 @@ class SBMConsole:
         if subtitle:
             content += f"\n[dim]{subtitle}[/]"
 
-        panel = Panel(
-            content,
-            border_style="cyan",
-            padding=(1, 2)
-        )
+        panel = Panel(content, border_style="cyan", padding=(1, 2))
         self.console.print(panel)
 
     def print_success(self, message: str):
@@ -176,10 +181,7 @@ class SBMConsole:
         content += "[dim]Enhanced progress tracking with real-time Docker monitoring[/]"
 
         panel = Panel(
-            content,
-            title="[sbm.primary]SBM Migration Tool[/]",
-            border_style="blue",
-            padding=(1, 2)
+            content, title="[sbm.primary]SBM Migration Tool[/]", border_style="blue", padding=(1, 2)
         )
         self.console.print(panel)
 
@@ -205,7 +207,7 @@ class SBMConsole:
             content,
             title="[sbm.success]✅ Migration Success[/]",
             border_style="green",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         self.console.print(panel)
 
@@ -213,13 +215,14 @@ class SBMConsole:
 # Global console instance for consistency
 _console_instance = None
 
+
 def get_console(config: Optional[Config] = None) -> SBMConsole:
     """
     Get global console instance with optional configuration.
-    
+
     Args:
         config: Optional Config object for theming
-        
+
     Returns:
         Global SBMConsole instance
     """

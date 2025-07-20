@@ -13,7 +13,7 @@ from ..utils.logger import logger
 class BaseOEMHandler:
     """
     Base class for OEM-specific handling.
-    
+
     All OEM handlers should inherit from this class and implement
     the required methods.
     """
@@ -21,7 +21,7 @@ class BaseOEMHandler:
     def __init__(self, slug):
         """
         Initialize the OEM handler.
-        
+
         Args:
             slug (str): Dealer theme slug
         """
@@ -31,7 +31,7 @@ class BaseOEMHandler:
     def get_map_styles(self):
         """
         Get OEM-specific map styles.
-        
+
         Returns:
             str: CSS/SCSS content for map styles
         """
@@ -40,7 +40,7 @@ class BaseOEMHandler:
     def get_directions_styles(self):
         """
         Get OEM-specific direction box styles.
-        
+
         Returns:
             str: CSS/SCSS content for directions box styles
         """
@@ -49,7 +49,7 @@ class BaseOEMHandler:
     def get_map_partial_patterns(self):
         """
         Get OEM-specific patterns for identifying map partials.
-        
+
         Returns:
             list: Regular expression patterns for finding map partials
         """
@@ -57,13 +57,13 @@ class BaseOEMHandler:
         return [
             r"dealer-groups/([^/]+)/map-row-\d+",
             r"dealer-groups/([^/]+)/directions",
-            r"dealer-groups/([^/]+)/location"
+            r"dealer-groups/([^/]+)/location",
         ]
 
     def get_shortcode_patterns(self):
         """
         Get OEM-specific patterns for identifying map shortcodes.
-        
+
         Returns:
             list: Regular expression patterns for finding map shortcodes
         """
@@ -72,13 +72,13 @@ class BaseOEMHandler:
             r'add_shortcode\s*\(\s*[\'"]full-map[\'"]',
             r'add_shortcode\s*\(\s*[\'"]map[\'"]',
             r'add_shortcode\s*\(\s*[\'"]google-?map[\'"]',
-            r'add_shortcode\s*\(\s*[\'"].*?map.*?[\'"]'
+            r'add_shortcode\s*\(\s*[\'"].*?map.*?[\'"]',
         ]
 
     def get_brand_match_patterns(self):
         """
         Get patterns for identifying if a dealer belongs to this OEM.
-        
+
         Returns:
             list: Regular expression patterns for matching dealer brands
         """
@@ -87,10 +87,10 @@ class BaseOEMHandler:
     def _load_style_file(self, filename):
         """
         Helper method to load style content from a file.
-        
+
         Args:
             filename (str): Name of the style file
-            
+
         Returns:
             str: Content of the style file or empty string if not found
         """

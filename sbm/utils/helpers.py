@@ -11,10 +11,10 @@ from datetime import datetime
 def validate_slug(slug):
     """
     Validate that the slug contains only allowed characters.
-    
+
     Args:
         slug (str): Dealer theme slug to validate
-        
+
     Returns:
         bool: True if valid, False otherwise
     """
@@ -30,10 +30,10 @@ def validate_slug(slug):
 def get_branch_name(slug):
     """
     Generate a standardized branch name for a migration.
-    
+
     Args:
         slug (str): Dealer theme slug
-        
+
     Returns:
         str: Branch name in the format {slug}-sbm{MMYY}
     """
@@ -44,17 +44,16 @@ def get_branch_name(slug):
 def extract_content_between_comments(content, start_marker, end_marker):
     """
     Extract content between specified comment markers.
-    
+
     Args:
         content (str): Content to search in
         start_marker (str): Start marker comment
         end_marker (str): End marker comment
-        
+
     Returns:
         str: Extracted content or empty string if not found
     """
-    pattern = re.compile(f"{re.escape(start_marker)}(.*?){re.escape(end_marker)}",
-                         re.DOTALL)
+    pattern = re.compile(f"{re.escape(start_marker)}(.*?){re.escape(end_marker)}", re.DOTALL)
     match = pattern.search(content)
 
     if match:
@@ -66,11 +65,11 @@ def extract_content_between_comments(content, start_marker, end_marker):
 def extract_nested_rule(content, selector):
     """
     Extract a CSS rule including all nested rules.
-    
+
     Args:
         content (str): CSS content to search in
         selector (str): CSS selector to find
-        
+
     Returns:
         str: Extracted rule content or empty string if not found
     """
@@ -91,10 +90,10 @@ def extract_nested_rule(content, selector):
 def hex_to_rgb(hex_color):
     """
     Convert hex color to RGB tuple.
-    
+
     Args:
         hex_color (str): Hex color string (e.g., "#ff0000" or "ff0000")
-        
+
     Returns:
         tuple: RGB tuple (r, g, b) or None if invalid
     """
@@ -102,7 +101,7 @@ def hex_to_rgb(hex_color):
 
     if len(hex_color) == 3:
         # Expand shorthand (e.g., "f0f" -> "ff00ff")
-        hex_color = "".join([c*2 for c in hex_color])
+        hex_color = "".join([c * 2 for c in hex_color])
 
     if len(hex_color) != 6:
         return None
@@ -119,12 +118,12 @@ def hex_to_rgb(hex_color):
 def rgb_to_hex(r, g, b):
     """
     Convert RGB tuple to hex color string.
-    
+
     Args:
         r (int): Red component (0-255)
         g (int): Green component (0-255)
         b (int): Blue component (0-255)
-        
+
     Returns:
         str: Hex color string (e.g., "#ff0000")
     """
@@ -134,11 +133,11 @@ def rgb_to_hex(r, g, b):
 def lighten_hex(hex_color, percentage):
     """
     Lighten a hex color by a given percentage.
-    
+
     Args:
         hex_color (str): Hex color string (e.g., "#252525")
         percentage (int): Percentage to lighten (0-100)
-        
+
     Returns:
         str: Lightened hex color string or original if invalid
     """
@@ -160,11 +159,11 @@ def lighten_hex(hex_color, percentage):
 def darken_hex(hex_color, percentage):
     """
     Darken a hex color by a given percentage.
-    
+
     Args:
         hex_color (str): Hex color string (e.g., "#00ccfe")
         percentage (int): Percentage to darken (0-100)
-        
+
     Returns:
         str: Darkened hex color string or original if invalid
     """

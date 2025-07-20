@@ -12,17 +12,19 @@ import threading
 logger = logging.getLogger(__name__)
 
 
-def execute_interactive_command(command, error_message="Command failed", cwd=None, suppress_output=False):
+def execute_interactive_command(
+    command, error_message="Command failed", cwd=None, suppress_output=False
+):
     """
     Execute an interactive shell command that may require user input.
     This allows commands like 'just start' to prompt for passwords and receive input.
-    
+
     Args:
         command (str): Command to execute
         error_message (str): Message to display on error
         cwd (str, optional): The working directory for the command. Defaults to None.
         suppress_output (bool): Whether to suppress verbose output (default: False)
-        
+
     Returns:
         bool: True if successful, False otherwise
     """
@@ -38,14 +40,15 @@ def execute_interactive_command(command, error_message="Command failed", cwd=Non
                 cwd=cwd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                text=True
+                text=True,
             )
             result_code = process.wait()
         else:
             # Standard interactive execution with full output
             result = subprocess.run(
                 command,
-                check=False, shell=True,
+                check=False,
+                shell=True,
                 cwd=cwd,
                 # Don't redirect stdin/stdout/stderr - let the command interact directly with terminal
             )
@@ -72,15 +75,15 @@ def execute_command(command, error_message="Command failed", wait_for_completion
     """
     Execute a shell command and handle errors.
     Show real-time output to the user.
-    
+
     Args:
         command (str): Command to execute
         error_message (str): Message to display on error
         wait_for_completion (bool): If True, waits for the command to complete. If False, runs in background.
         cwd (str, optional): The working directory for the command. Defaults to None.
-        
+
     Returns:
-        tuple: (bool, list[str], list[str], subprocess.Popen or None) - 
+        tuple: (bool, list[str], list[str], subprocess.Popen or None) -
                (True if successful, stdout lines, stderr lines, process object if not waiting)
     """
     stdout_output = []
@@ -97,7 +100,7 @@ def execute_command(command, error_message="Command failed", wait_for_completion
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
-            cwd=cwd
+            cwd=cwd,
         )
 
         # Threads to read stdout and stderr
@@ -119,7 +122,9 @@ def execute_command(command, error_message="Command failed", wait_for_completion
             process.wait()
 
             if process.returncode != 0:
-                raise subprocess.CalledProcessError(process.returncode, command, "".join(stdout_output), "".join(stderr_output))
+                raise subprocess.CalledProcessError(
+                    process.returncode, command, "".join(stdout_output), "".join(stderr_output)
+                )
 
             return True, stdout_output, stderr_output, None
         # For background processes, return immediately with the process object
