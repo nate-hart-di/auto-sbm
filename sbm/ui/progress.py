@@ -183,8 +183,11 @@ class MigrationProgress:
         try:
             # Mark task as 100% complete but keep it visible
             if task_id in self.progress.tasks:
-                # Set completed directly to total for 100%
-                self.progress.update(task_id, completed=100, description=f"[green]✅ {step_name.title()} Complete[/]")
+                task = self.progress.tasks[task_id]
+                # Advance by the remaining amount to reach 100%
+                remaining = task.total - task.completed
+                self.progress.update(task_id, advance=remaining)
+                self.progress.update(task_id, description=f"[green]✅ {step_name.title()} Complete[/]")
 
         except Exception as e:
             logger.warning(f"Error completing step {step_name}: {e}")
