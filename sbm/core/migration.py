@@ -183,14 +183,14 @@ def _process_docker_output(output_line: str, progress_tracker) -> None:
         logger.debug(f"Docker: {output_line.strip()}")
 
 
-def run_just_start(slug, suppress_output=True, progress_tracker=None):
+def run_just_start(slug, suppress_output=False, progress_tracker=None):
     """
     Run the 'just start' command for the given slug (automatically chooses dev/prod database).
     Uses interactive execution to allow password prompts and user input.
     
     Args:
         slug (str): Dealer theme slug
-        suppress_output (bool): Whether to suppress verbose Docker output (default: True)
+        suppress_output (bool): Whether to suppress verbose Docker output (default: False)
         progress_tracker: Optional MigrationProgress instance for real-time monitoring
         
     Returns:
@@ -900,7 +900,7 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
 
         just_start_success = run_just_start(
             slug,
-            suppress_output=not verbose_docker,  # Suppress unless verbose requested
+            suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
             progress_tracker=progress_tracker  # Pass progress tracker for enhanced monitoring
         )
         logger.info(f"'just start' returned: {just_start_success}")
