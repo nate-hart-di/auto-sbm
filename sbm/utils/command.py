@@ -32,42 +32,22 @@ def execute_interactive_command(command, error_message="Command failed", cwd=Non
             print(f"Executing interactive command: {command}")
         
         if suppress_output:
-            # Suppressed execution but monitor for AWS authentication prompts
+            # Check if this might need AWS authentication first
+            if 'just start' in command.lower():
+                from ..ui.simple_rich import print_step_warning
+                print_step_warning("Starting Docker environment (output suppressed)")
+                print("Note: If AWS authentication is required, the process may appear to hang.")
+                print("In that case, cancel (Ctrl+C) and run with --verbose-docker flag.")
+            
+            # Simple suppressed execution - will hang if interactive input needed
             process = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=cwd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True
             )
-            
-            # Monitor output for authentication prompts
-            aws_prompt_detected = False
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-                if output:
-                    # Check for AWS authentication prompts
-                    if any(phrase in output.lower() for phrase in [
-                        'enter mfa token', 'enter verification code', 'aws sso login',
-                        'authentication required', 'login required', 'enter code'
-                    ]):
-                        if not aws_prompt_detected:
-                            from ..ui.simple_rich import print_step_warning
-                            print_step_warning("⚠️  AWS Authentication Required!")
-                            print(f"\n{output.strip()}")
-                            aws_prompt_detected = True
-                        else:
-                            print(output.strip())
-                    # For any other interactive prompts, show them too
-                    elif any(phrase in output.lower() for phrase in ['password', 'enter', 'continue']):
-                        print(output.strip())
-            
             result_code = process.wait()
         else:
             # Standard interactive execution with full output

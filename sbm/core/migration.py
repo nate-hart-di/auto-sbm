@@ -119,12 +119,27 @@ def run_just_start(slug, suppress_output=True):
     from ..utils.path import get_platform_dir
     platform_dir = get_platform_dir()
     
-    # Run the 'just start' command with appropriate output handling
+    # Always ensure AWS login first to prevent hanging on authentication
+    from ..ui.simple_rich import print_step, print_step_success, print_step_warning
+    print_step_warning("Ensuring AWS authentication before Docker startup...")
+    
+    aws_login_success = execute_interactive_command(
+        "saml2aws login -a inventory-non-prod-423154430651-developer",
+        "AWS login failed",
+        cwd=platform_dir,
+        suppress_output=False  # Always show AWS login prompts
+    )
+    
+    if not aws_login_success:
+        print_step_warning("AWS login failed - continuing anyway (Docker may fail)")
+    else:
+        print_step_success("AWS authentication completed")
+    
+    # Run the 'just start' command with suppressed output (since AWS is authenticated)
     if suppress_output:
         logger.info(f"Running 'just start {slug} prod' with suppressed output...")
     else:
         logger.info(f"Running 'just start {slug} prod' interactively...")
-        logger.warning("⚠️  You may be prompted for AWS login credentials - please respond as needed")
     
     success = execute_interactive_command(
         f"just start {slug} prod", 
@@ -137,7 +152,15 @@ def run_just_start(slug, suppress_output=True):
         logger.info("'just start' command completed successfully.")
         return True
     else:
+        from ..ui.simple_rich import print_step_error
+        print_step_error("Docker startup failed!")
         logger.error("'just start' command failed.")
+        logger.error("Common causes:")
+        logger.error("  - AWS authentication expired")
+        logger.error("  - Docker daemon not running")
+        logger.error("  - Network connectivity issues")
+        logger.error("  - Theme configuration problems")
+        logger.error("Try running with --verbose-docker flag to see detailed output")
         return False
 
 
