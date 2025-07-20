@@ -5,12 +5,14 @@ This module provides Rich-enhanced status panels for different migration phases,
 including error displays, Docker status, and file review interfaces.
 """
 
-from rich.panel import Panel
-from rich.table import Table
-from rich.syntax import Syntax
-from rich.text import Text
-from typing import List, Dict, Any, Optional
 import os
+from typing import Any, Dict, List, Optional
+
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.text import Text
+
 from ..utils.path import get_dealer_theme_dir
 
 
@@ -21,11 +23,11 @@ class StatusPanels:
     This class provides static methods for creating consistent status displays
     throughout the SBM migration workflow.
     """
-    
+
     @staticmethod
     def create_migration_status_panel(
-        theme_name: str, 
-        step: str, 
+        theme_name: str,
+        step: str,
         status: str,
         additional_info: Optional[Dict[str, Any]] = None
     ) -> Panel:
@@ -49,10 +51,10 @@ class StatusPanels:
             "pending": "⏸️",
             "running": "🔄"
         }
-        
+
         # Truncate long theme names for display
         display_theme = theme_name if len(theme_name) <= 40 else f"{theme_name[:37]}..."
-        
+
         content = Text()
         content.append("Theme: ", style="bold cyan")
         content.append(f"{display_theme}\n", style="filename")
@@ -60,13 +62,13 @@ class StatusPanels:
         content.append(f"{step}\n", style="white")
         content.append("Status: ", style="bold yellow")
         content.append(f"{status_icons.get(status, '❓')} {status.title()}", style="white")
-        
+
         if additional_info:
             content.append("\n")
             for key, value in additional_info.items():
                 content.append(f"\n{key}: ", style="bold")
                 content.append(str(value), style="white")
-        
+
         return Panel(
             content,
             title="Migration Status",
@@ -74,10 +76,10 @@ class StatusPanels:
             width=80,
             padding=(1, 2)
         )
-    
+
     @staticmethod
     def create_docker_status_panel(
-        container_name: str, 
+        container_name: str,
         logs: List[str],
         status: str = "running"
     ) -> Panel:
@@ -99,17 +101,17 @@ class StatusPanels:
             "starting": "🟡",
             "error": "❌"
         }
-        
+
         header = Text()
         header.append("Container: ", style="bold docker")
         header.append(container_name, style="filename")
         header.append(f" {status_icons.get(status, '❓')} {status.title()}", style="docker")
-        
+
         # Create logs table
         table = Table(show_header=True, header_style="bold docker")
         table.add_column("Time", style="dim", width=12)
         table.add_column("Message", style="white")
-        
+
         # Process and display recent logs
         recent_logs = logs[-8:] if len(logs) > 8 else logs
         for log_line in recent_logs:
@@ -121,7 +123,7 @@ class StatusPanels:
             else:
                 timestamp = "N/A"
                 message = log_line.strip()
-            
+
             # Style message based on content
             if "error" in message.lower():
                 message = f"[red]{message}[/]"
@@ -129,14 +131,14 @@ class StatusPanels:
                 message = f"[yellow]{message}[/]"
             elif "success" in message.lower() or "complete" in message.lower():
                 message = f"[green]{message}[/]"
-            
+
             table.add_row(timestamp[-12:], message)
-        
+
         # Combine header and table
         content = Text()
         content.append_text(header)
         content.append("\n\n")
-        
+
         return Panel(
             content,
             title="Docker Container Status",
@@ -144,7 +146,7 @@ class StatusPanels:
             width=120,
             padding=(1, 2)
         )
-    
+
     @staticmethod
     def create_error_panel(
         error_type: str,
@@ -177,7 +179,7 @@ class StatusPanels:
         content.append(f"{line_number}\n", style="white")
         content.append("Message: ", style="bold")
         content.append(f"{message}", style="white")
-        
+
         if code_snippet:
             content.append("\n\nCode Context:\n", style="bold")
             # Add syntax highlighting for SCSS
@@ -193,11 +195,11 @@ class StatusPanels:
             except Exception:
                 # Fallback to plain text if syntax highlighting fails
                 content.append(code_snippet, style="dim")
-        
+
         if suggested_fix:
             content.append("\n\nSuggested Fix:\n", style="bold green")
             content.append(suggested_fix, style="green")
-        
+
         return Panel(
             content,
             title="Compilation Error",
@@ -205,7 +207,7 @@ class StatusPanels:
             width=100,
             padding=(1, 2)
         )
-    
+
     @staticmethod
     def create_file_review_table(theme_name: str, files: List[str]) -> Table:
         """
@@ -224,21 +226,21 @@ class StatusPanels:
         table.add_column("Lines", style="white", width=10)
         table.add_column("Size", style="dim", width=12)
         table.add_column("Modified", style="dim", width=20)
-        
+
         theme_dir = get_dealer_theme_dir(theme_name)
-        
+
         for file_name in files:
             file_path = os.path.join(theme_dir, file_name)
-            
+
             if os.path.exists(file_path):
                 try:
                     # Get file statistics
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, encoding="utf-8") as f:
                         lines = len(f.readlines())
-                    
+
                     stat = os.stat(file_path)
                     size = stat.st_size
-                    
+
                     # Format size
                     if size < 1024:
                         size_str = f"{size} B"
@@ -246,11 +248,11 @@ class StatusPanels:
                         size_str = f"{size/1024:.1f} KB"
                     else:
                         size_str = f"{size/(1024*1024):.1f} MB"
-                    
+
                     # Format modification time
                     from datetime import datetime
                     mod_time = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
-                    
+
                     # Determine status
                     if lines > 0:
                         status = "✅ Ready"
@@ -258,7 +260,7 @@ class StatusPanels:
                     else:
                         status = "⚠️ Empty"
                         status_style = "yellow"
-                    
+
                     table.add_row(
                         file_name,
                         f"[{status_style}]{status}[/]",
@@ -266,7 +268,7 @@ class StatusPanels:
                         size_str,
                         mod_time
                     )
-                
+
                 except Exception as e:
                     table.add_row(
                         file_name,
@@ -283,9 +285,9 @@ class StatusPanels:
                     "0 B",
                     "N/A"
                 )
-        
+
         return table
-    
+
     @staticmethod
     def create_git_status_panel(
         theme_name: str,
@@ -310,16 +312,16 @@ class StatusPanels:
         content.append(f"{theme_name}\n", style="filename")
         content.append("Branch: ", style="bold git")
         content.append(f"{branch_name}\n", style="branch")
-        
+
         if files_changed:
             content.append("Files Changed:\n", style="bold")
             for file_path in files_changed:
                 content.append(f"  • {file_path}\n", style="filename")
-        
+
         if commit_message:
             content.append("\nCommit Message:\n", style="bold")
             content.append(f"{commit_message}", style="dim")
-        
+
         return Panel(
             content,
             title="Git Operations",
@@ -327,7 +329,7 @@ class StatusPanels:
             width=80,
             padding=(1, 2)
         )
-    
+
     @staticmethod
     def create_completion_summary_panel(
         theme_name: str,
@@ -354,10 +356,10 @@ class StatusPanels:
         content = Text()
         content.append("Migration Complete! ", style="bold success")
         content.append("🎉\n\n", style="success")
-        
+
         content.append("Theme: ", style="bold cyan")
         content.append(f"{theme_name}\n", style="filename")
-        
+
         # Format elapsed time
         if elapsed_time < 60:
             time_str = f"{elapsed_time:.1f}s"
@@ -369,25 +371,25 @@ class StatusPanels:
             hours = int(elapsed_time // 3600)
             minutes = int((elapsed_time % 3600) // 60)
             time_str = f"{hours}h {minutes}m"
-        
+
         content.append("Duration: ", style="bold")
         content.append(f"{time_str}\n", style="white")
-        
+
         content.append("Files Processed: ", style="bold")
         content.append(f"{files_processed}\n", style="white")
-        
+
         if warnings > 0:
             content.append("Warnings: ", style="bold yellow")
             content.append(f"{warnings}\n", style="yellow")
-        
+
         if errors > 0:
             content.append("Errors: ", style="bold red")
             content.append(f"{errors}\n", style="red")
-        
+
         if pr_url:
             content.append("\nPull Request: ", style="bold green")
             content.append(f"{pr_url}", style="blue underline")
-        
+
         return Panel(
             content,
             title="Migration Summary",

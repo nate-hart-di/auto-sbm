@@ -1,1 +1,1 @@
-"""Utility functions for the SBM tool.""" 
+"""Utility functions for the SBM tool."""

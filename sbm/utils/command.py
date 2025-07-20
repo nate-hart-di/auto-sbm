@@ -5,10 +5,9 @@ This module provides functions for executing shell commands with proper error ha
 and real-time output.
 """
 
+import logging
 import subprocess
 import threading
-import os
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +29,9 @@ def execute_interactive_command(command, error_message="Command failed", cwd=Non
     try:
         if not suppress_output:
             print(f"Executing interactive command: {command}")
-        
+
         if suppress_output:
-            # Check if this might need AWS authentication first
-            if 'just start' in command.lower():
-                from ..ui.simple_rich import print_step_warning
-                print_step_warning("Starting Docker environment (output suppressed)")
-                print("Note: If AWS authentication is required, the process may appear to hang.")
-                print("In that case, cancel (Ctrl+C) and run with --verbose-docker flag.")
-            
-            # Simple suppressed execution - will hang if interactive input needed
+            # Simple suppressed execution
             process = subprocess.Popen(
                 command,
                 shell=True,
@@ -53,18 +45,18 @@ def execute_interactive_command(command, error_message="Command failed", cwd=Non
             # Standard interactive execution with full output
             result = subprocess.run(
                 command,
-                shell=True,
+                check=False, shell=True,
                 cwd=cwd,
                 # Don't redirect stdin/stdout/stderr - let the command interact directly with terminal
             )
             result_code = result.returncode
-        
+
         if result_code != 0:
             logger.error(f"{error_message} (exit code: {result_code})")
             return False
-            
+
         return True
-        
+
     except KeyboardInterrupt:
         print("\nCommand interrupted by user.")
         return False
@@ -96,7 +88,7 @@ def execute_command(command, error_message="Command failed", wait_for_completion
     process = None
     try:
         print(f"Executing: {command}")
-        
+
         # Use Popen to stream output in real-time
         process = subprocess.Popen(
             command,
@@ -107,33 +99,32 @@ def execute_command(command, error_message="Command failed", wait_for_completion
             bufsize=1,
             cwd=cwd
         )
-        
+
         # Threads to read stdout and stderr
         def read_pipe(pipe, output_list):
-            for line in iter(pipe.readline, ''):
-                print(line, end='')
+            for line in iter(pipe.readline, ""):
+                print(line, end="")
                 output_list.append(line)
             pipe.close()
 
         stdout_thread = threading.Thread(target=read_pipe, args=(process.stdout, stdout_output))
         stderr_thread = threading.Thread(target=read_pipe, args=(process.stderr, stderr_output))
-        
+
         stdout_thread.start()
         stderr_thread.start()
-        
+
         if wait_for_completion:
             stdout_thread.join()
             stderr_thread.join()
             process.wait()
-            
+
             if process.returncode != 0:
                 raise subprocess.CalledProcessError(process.returncode, command, "".join(stdout_output), "".join(stderr_output))
-            
+
             return True, stdout_output, stderr_output, None
-        else:
-            # For background processes, return immediately with the process object
-            return True, stdout_output, stderr_output, process
-        
+        # For background processes, return immediately with the process object
+        return True, stdout_output, stderr_output, process
+
     except subprocess.CalledProcessError as e:
         logger.error(f"Command failed: {command}")
         logger.error(f"Error output:\n{e.stderr}")

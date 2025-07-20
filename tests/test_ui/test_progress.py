@@ -289,3 +289,90 @@ class TestProgressIntegration:
         # Verify output was captured
         output_text = output.getvalue()
         assert len(output_text) > 0  # Some output should be captured
+    
+    def test_subprocess_integration_no_hanging(self):
+        """Test that subprocess integration doesn't hang CLI."""
+        progress = MigrationProgress()
+        
+        with progress.progress_context():
+            # Track a simple command that should complete quickly
+            task_id = progress.track_subprocess(
+                command=["echo", "test"],
+                description="Test subprocess"
+            )
+            
+            # Wait for completion with short timeout
+            success = progress.wait_for_subprocess_completion(timeout=5.0)
+            assert success  # Should complete quickly
+    
+    def test_subprocess_with_callback(self):
+        """Test subprocess tracking with output callback."""
+        progress = MigrationProgress()
+        output_lines = []
+        
+        def capture_output(line):
+            output_lines.append(line)
+        
+        with progress.progress_context():
+            task_id = progress.track_subprocess(
+                command=["echo", "hello world"],
+                description="Test subprocess with callback",
+                progress_callback=capture_output
+            )
+            
+            success = progress.wait_for_subprocess_completion(timeout=5.0)
+            assert success
+            
+        # Give time for output processing
+        time.sleep(0.2)
+        assert len(output_lines) > 0
+        assert "hello world" in str(output_lines)
+    
+    def test_multiple_subprocess_tracking(self):
+        """Test tracking multiple subprocess operations."""
+        progress = MigrationProgress()
+        
+        with progress.progress_context():
+            # Start multiple subprocess operations
+            task1 = progress.track_subprocess(
+                command=["echo", "task1"],
+                description="First task"
+            )
+            task2 = progress.track_subprocess(
+                command=["echo", "task2"], 
+                description="Second task"
+            )
+            
+            # Both should complete successfully
+            success = progress.wait_for_subprocess_completion(timeout=10.0)
+            assert success
+    
+    def test_subprocess_timeout_handling(self):
+        """Test subprocess timeout handling."""
+        progress = MigrationProgress()
+        
+        with progress.progress_context():
+            # Track a command that might take longer
+            task_id = progress.track_subprocess(
+                command=["sleep", "0.1"],
+                description="Test timeout"
+            )
+            
+            # Very short timeout should still work for sleep 0.1
+            success = progress.wait_for_subprocess_completion(timeout=1.0)
+            assert success  # Should complete within 1 second
+    
+    def test_progress_thread_cleanup(self):
+        """Test that background threads are properly cleaned up."""
+        progress = MigrationProgress()
+        
+        with progress.progress_context():
+            task_id = progress.track_subprocess(
+                command=["echo", "cleanup test"],
+                description="Cleanup test"
+            )
+            progress.wait_for_subprocess_completion(timeout=5.0)
+        
+        # After context exit, threads should be cleaned up
+        assert len(progress._subprocess_threads) == 0
+        assert progress._update_thread is None or not progress._update_thread.is_alive()

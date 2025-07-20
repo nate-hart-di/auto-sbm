@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto-sbm"
-version = "2.0.0"
-description = "Automated Site Builder Migration Tool with Rich UI and Type Safety"
+version = "1.0.0"
+description = "Automated Site Builder Migration Tool with Enhanced Rich UI"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
@@ -70,15 +70,15 @@ Repository = "https://github.com/dealerinspire/auto-sbm"
 Issues = "https://github.com/dealerinspire/auto-sbm/issues"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["sbm*"]
 
 [tool.setuptools.package-dir]
-"" = "src"
 
 [tool.ruff]
 line-length = 100
 target-version = "py38"
-src = ["src", "tests"]
+src = ["sbm", "tests"]
 
 [tool.ruff.lint]
 select = [
@@ -132,7 +132,7 @@ ignore = [
 "tests/**/*" = ["S101", "PLR2004", "ANN", "ARG"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["auto_sbm"]
+known-first-party = ["sbm"]
 force-single-line = false
 
 [tool.mypy]
@@ -165,12 +165,12 @@ module = [
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["src", "tests"]
+testpaths = ["sbm", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "--cov=auto_sbm",
+    "--cov=sbm",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-fail-under=80",
@@ -189,7 +189,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["sbm"]
 omit = [
     "*/tests/*",
     "*/test_*",

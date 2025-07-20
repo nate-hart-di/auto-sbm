@@ -9,13 +9,13 @@ This package provides Rich-enhanced user interface components including:
 """
 
 from .console import SBMConsole
-from .progress import MigrationProgress
 from .panels import StatusPanels
+from .progress import MigrationProgress
 from .prompts import InteractivePrompts
 
 __all__ = [
-    'SBMConsole',
-    'MigrationProgress', 
-    'StatusPanels',
-    'InteractivePrompts'
+    "InteractivePrompts",
+    "MigrationProgress",
+    "SBMConsole",
+    "StatusPanels"
 ]

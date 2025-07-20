@@ -7,19 +7,20 @@ import os
 import re
 import subprocess
 import tempfile
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
+from ..utils.helpers import darken_hex, lighten_hex
 from ..utils.logger import logger
-from ..utils.path import get_dealer_theme_dir, get_common_theme_path
-from ..utils.helpers import lighten_hex, darken_hex
+from ..utils.path import get_common_theme_path, get_dealer_theme_dir
 from .mixin_parser import CommonThemeMixinParser
+
 
 class SCSSProcessor:
     """
     Transforms legacy SCSS to modern, Site-Builder-compatible SCSS
     by using an intelligent mixin parser and targeted transformations.
     """
-    
+
     def __init__(self, slug: str):
         self.slug = slug
         self.theme_dir = get_dealer_theme_dir(slug)
@@ -34,18 +35,18 @@ class SCSSProcessor:
         logger.info("Processing SCSS variables into CSS custom properties...")
 
         # Find all root-level SCSS variable declarations (e.g., "$primary: #000;")
-        declarations = re.findall(r'^\s*(\$[\w-]+)\s*:\s*(.*?);', content, flags=re.MULTILINE)
+        declarations = re.findall(r"^\s*(\$[\w-]+)\s*:\s*(.*?);", content, flags=re.MULTILINE)
 
         # Remove the original SCSS variable declaration lines from the main content
-        content = re.sub(r'^\s*\$[\w-]+\s*:.*?;', '', content, flags=re.MULTILINE)
+        content = re.sub(r"^\s*\$[\w-]+\s*:.*?;", "", content, flags=re.MULTILINE)
 
         root_properties = []
         if declarations:
             for var_name, var_value in declarations:
                 # Convert to CSS custom property format (e.g., --primary: #000;)
-                prop_name = var_name.replace('$', '--')
+                prop_name = var_name.replace("$", "--")
                 # Important: Convert any variables used in the value of another variable
-                var_value = re.sub(r'\$([\w-]+)', r'var(--\1)', var_value)
+                var_value = re.sub(r"\$([\w-]+)", r"var(--\1)", var_value)
                 root_properties.append(f"  {prop_name}: {var_value};")
 
             # Assemble the final :root block
@@ -63,72 +64,72 @@ class SCSSProcessor:
         Convert SCSS variables to CSS custom properties, but only in appropriate contexts.
         Excludes SCSS internal logic like mixin parameters, maps, loops, and functions.
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
         inside_mixin = False
         inside_map = False
         brace_depth = 0
-        
+
         for i, line in enumerate(lines):
             stripped = line.strip()
             original_line = line
-            
+
             # Track brace depth for nested structures
-            brace_depth += line.count('{') - line.count('}')
-            
+            brace_depth += line.count("{") - line.count("}")
+
             # Check if we're entering a mixin definition
-            if stripped.startswith('@mixin'):
+            if stripped.startswith("@mixin"):
                 inside_mixin = True
                 continue
-            
+
             # Check if we're exiting a mixin definition
-            elif inside_mixin and stripped == '}' and brace_depth == 0:
+            if inside_mixin and stripped == "}" and brace_depth == 0:
                 inside_mixin = False
                 continue
-            
+
             # Check if we're in a map definition
-            elif ':' in stripped and '(' in stripped and not inside_mixin:
-                if re.match(r'^\s*\$[\w-]+\s*:\s*\(', stripped):
+            if ":" in stripped and "(" in stripped and not inside_mixin:
+                if re.match(r"^\s*\$[\w-]+\s*:\s*\(", stripped):
                     inside_map = True
                     continue
-            
-            # Check if we're exiting a map definition  
-            elif inside_map and stripped.endswith(');'):
+
+            # Check if we're exiting a map definition
+            elif inside_map and stripped.endswith(");"):
                 inside_map = False
                 continue
-            
+
             # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
-            if (inside_mixin or 
-                stripped.startswith('@each') or 
-                stripped.startswith('@for') or 
-                stripped.startswith('@if') or 
-                stripped.startswith('@else') or
-                'map-get(' in stripped or
-                'map-keys(' in stripped or
-                stripped.startswith('%#')):
+            if (inside_mixin or
+                stripped.startswith("@each") or
+                stripped.startswith("@for") or
+                stripped.startswith("@if") or
+                stripped.startswith("@else") or
+                "map-get(" in stripped or
+                "map-keys(" in stripped or
+                stripped.startswith("%#")):
                 continue
-            
+
             # Convert variables inside maps
             if inside_map:
-                lines[i] = re.sub(r'\$([a-zA-Z][\w-]*)', r'var(--\1)', line)
+                lines[i] = re.sub(r"\$([a-zA-Z][\w-]*)", r"var(--\1)", line)
                 continue
-            
+
             # Convert variables in CSS property contexts only
             # Look for patterns like "property: $variable" but exclude SCSS variable assignments and interpolation
-            if (':' in stripped and not stripped.startswith('@') and 
-                not re.match(r'^\s*\$[\w-]+\s*:', stripped)):
-                
+            if (":" in stripped and not stripped.startswith("@") and
+                not re.match(r"^\s*\$[\w-]+\s*:", stripped)):
+
                 # Don't convert variables inside interpolation #{...}
-                if '#{' in line:
+                if "#{" in line:
                     # Split line into parts, only convert variables outside interpolation
-                    parts = re.split(r'(#\{[^}]*\})', line)
+                    parts = re.split(r"(#\{[^}]*\})", line)
                     for j, part in enumerate(parts):
-                        if not part.startswith('#{'):
-                            parts[j] = re.sub(r'\$([\w-]+)', r'var(--\1)', part)
-                    lines[i] = ''.join(parts)
+                        if not part.startswith("#{"):
+                            parts[j] = re.sub(r"\$([\w-]+)", r"var(--\1)", part)
+                    lines[i] = "".join(parts)
                 else:
-                    lines[i] = re.sub(r'\$([\w-]+)', r'var(--\1)', line)
-        
-        return '\n'.join(lines)
+                    lines[i] = re.sub(r"\$([\w-]+)", r"var(--\1)", line)
+
+        return "\n".join(lines)
 
     def _trim_whitespace(self, content: str) -> str:
         """
@@ -136,7 +137,7 @@ class SCSSProcessor:
         """
         logger.info("Trimming whitespace from final output...")
         # Replace multiple blank lines with a single one
-        content = re.sub(r'\n\s*\n', '\n\n', content)
+        content = re.sub(r"\n\s*\n", "\n\n", content)
         # Remove leading/trailing whitespace
         return content.strip()
 
@@ -144,13 +145,12 @@ class SCSSProcessor:
         """
         Validates basic SCSS syntax by checking for balanced braces.
         """
-        opening_braces = content.count('{')
-        closing_braces = content.count('}')
+        opening_braces = content.count("{")
+        closing_braces = content.count("}")
 
         if opening_braces == closing_braces:
             return True, None
-        else:
-            return False, f"Mismatched braces: {opening_braces} opening, {closing_braces} closing"
+        return False, f"Mismatched braces: {opening_braces} opening, {closing_braces} closing"
 
     def _convert_image_paths(self, content: str) -> str:
         """
@@ -167,7 +167,7 @@ class SCSSProcessor:
         )
 
         # A second pass to catch any unquoted, already-absolute paths that were missed
-        unquoted_pattern = re.compile(r'url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)')
+        unquoted_pattern = re.compile(r"url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)")
         content = unquoted_pattern.sub(r'url("\1")', content)
 
         return content
@@ -177,7 +177,7 @@ class SCSSProcessor:
         Removes all @import statements from the SCSS content.
         """
         # Logic to remove all @import lines
-        content = re.sub(r'@import\s+.*?;', '', content)
+        content = re.sub(r"@import\s+.*?;", "", content)
         return content
 
     def _convert_scss_functions(self, content: str) -> str:
@@ -189,19 +189,19 @@ class SCSSProcessor:
         2. SCSS functions with hardcoded colors (e.g., lighten(#252525, 2%))
         """
         logger.info("Converting SCSS functions to CSS-compatible equivalents...")
-        
+
         # Case 1: SCSS functions with CSS variables - convert to CSS-compatible equivalents
         # These appear in raw SCSS content (not from mixins) and need to be handled
-        
+
         # Convert SCSS variables to CSS variables using intelligent conversion
         content = self._convert_scss_variables_intelligently(content)
-        
+
         # Handle SCSS functions that can't work with CSS variables
         # lighten(var(--primary), 20%) -> var(--primary) (remove the function)
-        content = re.sub(r'lighten\(var\(--([^)]+)\),\s*\d+%\)', r'var(--\1)', content)
-        content = re.sub(r'darken\(var\(--([^)]+)\),\s*\d+%\)', r'var(--\1)', content)
-        
-        
+        content = re.sub(r"lighten\(var\(--([^)]+)\),\s*\d+%\)", r"var(--\1)", content)
+        content = re.sub(r"darken\(var\(--([^)]+)\),\s*\d+%\)", r"var(--\1)", content)
+
+
         # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
         # lighten(#252525, 2%) -> #2a2a2a
         def replace_lighten(match):
@@ -209,48 +209,48 @@ class SCSSProcessor:
             percentage = int(match.group(3))
             lightened = lighten_hex(hex_color, percentage)
             return f"{match.group(1)}color: {lightened};"
-        
+
         content = re.sub(
-            r'(\s+)color:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);',
+            r"(\s+)color:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);",
             replace_lighten,
             content
         )
-        
+
         # darken(#00ccfe, 10%) -> #00b8e6
         def replace_darken(match):
             hex_color = match.group(2)
             percentage = int(match.group(3))
             darkened = darken_hex(hex_color, percentage)
             return f"{match.group(1)}{match.group(4)}: {darkened};"
-        
+
         content = re.sub(
-            r'(\s+)(background|background-color):\s*darken\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);',
+            r"(\s+)(background|background-color):\s*darken\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);",
             lambda m: f"{m.group(1)}{m.group(2)}: {darken_hex(m.group(3), int(m.group(4)))};",
             content
         )
-        
+
         # Handle background: lighten() cases
         content = re.sub(
-            r'(\s+)background:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);',
+            r"(\s+)background:\s*lighten\((#[a-fA-F0-9]{3,6}),\s*(\d+)%\);",
             lambda m: f"{m.group(1)}background: {lighten_hex(m.group(2), int(m.group(3)))};",
             content
         )
-        
+
         # Fix malformed property declarations like "font-family: var(--weight): 300;"
         # This separates them into proper CSS declarations
         content = re.sub(
-            r'(\s+)font-family:\s*var\(--([^)]+)\):\s*(\d+);',
-            r'\1font-family: var(--\2);\n\1font-weight: \3;',
+            r"(\s+)font-family:\s*var\(--([^)]+)\):\s*(\d+);",
+            r"\1font-family: var(--\2);\n\1font-weight: \3;",
             content
         )
-        
+
         # Remove any commented-out broken code patterns
         content = re.sub(
-            r'//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);',
-            '',
+            r"//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);",
+            "",
             content
         )
-        
+
         return content
 
     def _verify_scss_compilation(self, content: str) -> bool:
@@ -260,35 +260,35 @@ class SCSSProcessor:
         """
         try:
             # Create a temporary file with the SCSS content
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.scss', delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".scss", delete=False) as temp_file:
                 temp_file.write(content)
                 temp_file_path = temp_file.name
-            
+
             # Try to compile with Dart Sass to a temporary output file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.css', delete=False) as output_file:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".css", delete=False) as output_file:
                 output_file_path = output_file.name
-            
+
             result = subprocess.run(
-                ['sass', '--no-source-map', temp_file_path, output_file_path],
-                capture_output=True,
+                ["sass", "--no-source-map", temp_file_path, output_file_path],
+                check=False, capture_output=True,
                 text=True,
                 timeout=30
             )
-            
+
             # Clean up output file
             if os.path.exists(output_file_path):
                 os.unlink(output_file_path)
-            
+
             # Clean up temporary file
             os.unlink(temp_file_path)
-            
+
             if result.returncode != 0:
                 logger.error(f"SCSS compilation failed: {result.stderr}")
                 return False
-            
+
             logger.info("SCSS compilation verified successfully")
             return True
-            
+
         except subprocess.TimeoutExpired:
             logger.error("SCSS compilation verification timed out")
             return False
@@ -305,21 +305,21 @@ class SCSSProcessor:
         Fallback validation using regex patterns when Sass compiler is unavailable.
         """
         issues = []
-        
+
         # Check for remaining SCSS syntax that would cause compilation failures
-        if re.search(r'@include\s+', content):
+        if re.search(r"@include\s+", content):
             issues.append("@include statements found")
-        if re.search(r'\$[a-zA-Z]', content):
+        if re.search(r"\$[a-zA-Z]", content):
             issues.append("SCSS variables found")
-        if re.search(r'(lighten|darken|mix)\(', content):
+        if re.search(r"(lighten|darken|mix)\(", content):
             issues.append("SCSS functions found")
-        if re.search(r'@mixin\s+', content):
+        if re.search(r"@mixin\s+", content):
             issues.append("@mixin definitions found")
-        
+
         if issues:
             logger.error(f"Fallback validation failed: {', '.join(issues)}")
             return False
-        
+
         logger.info("Fallback validation passed")
         return True
 
@@ -350,15 +350,15 @@ class SCSSProcessor:
                 logger.warning(f"Could not convert {len(unconverted)} mixins.")
                 for mixin in unconverted:
                     logger.debug(f"Unconverted mixin: {mixin}")
-            
+
             # Step 4: Remove imports
             processed_content = self._remove_imports(content)
 
             # Step 5: Trim whitespace for a clean final output
             processed_content = self._trim_whitespace(processed_content)
-            
+
             return processed_content
-            
+
         except Exception as e:
             logger.error(f"An unexpected error occurred during SCSS processing for {self.slug}.", exc_info=True)
             return f"/* SBM: UNEXPECTED ERROR. CHECK LOGS. ERROR: {e} */\n{content}"
@@ -370,12 +370,12 @@ class SCSSProcessor:
         if not os.path.exists(file_path):
             logger.warning(f"File not found, skipping: {file_path}")
             return ""
-            
-        with open(file_path, 'r', encoding='utf-8') as f:
+
+        with open(file_path, encoding="utf-8") as f:
                 content = f.read()
-        
+
         return self.transform_scss_content(content)
-    
+
     def write_files_atomically(self, theme_dir: str, files: Dict[str, str]) -> bool:
         """
         Writes the transformed SCSS files to the theme directory.
@@ -385,9 +385,9 @@ class SCSSProcessor:
                 if not content:
                     logger.info(f"Skipping empty file: {name}")
                     continue
-                
+
                 final_path = os.path.join(theme_dir, name)
-                with open(final_path, 'w', encoding='utf-8') as f:
+                with open(final_path, "w", encoding="utf-8") as f:
                         f.write(content)
                 logger.info(f"Successfully wrote {final_path}")
             return True

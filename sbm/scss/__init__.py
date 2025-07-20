@@ -1,1 +1,1 @@
-"""SCSS processing components for the SBM tool.""" 
+"""SCSS processing components for the SBM tool."""

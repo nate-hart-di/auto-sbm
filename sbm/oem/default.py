@@ -13,7 +13,7 @@ class DefaultHandler(BaseOEMHandler):
     
     Provides generic styles and patterns that work across most dealers.
     """
-    
+
     def get_map_styles(self):
         """
         Get generic map styles.
@@ -74,7 +74,7 @@ class DefaultHandler(BaseOEMHandler):
     }
   }
 }"""
-    
+
     def get_directions_styles(self):
         """
         Get generic direction box styles.
@@ -84,7 +84,7 @@ class DefaultHandler(BaseOEMHandler):
         """
         # Use the same styles as map styles for default handler
         return self.get_map_styles()
-    
+
     def get_brand_match_patterns(self):
         """
         Get patterns for identifying if a dealer belongs to this handler.

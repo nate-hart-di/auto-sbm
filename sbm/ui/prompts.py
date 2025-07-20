@@ -5,14 +5,16 @@ This module provides Rich-enhanced interactive prompts with context panels,
 improving user experience during manual review and decision points.
 """
 
-from rich.prompt import Confirm, Prompt, IntPrompt
+from typing import Any, Dict, List, Optional
+
 from rich.panel import Panel
-from rich.text import Text
+from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
-from typing import Optional, List, Dict, Any
+from rich.text import Text
+
 from ..utils.path import get_dealer_theme_dir
-from .panels import StatusPanels
 from .console import get_console
+from .panels import StatusPanels
 
 
 class InteractivePrompts:
@@ -22,7 +24,7 @@ class InteractivePrompts:
     This class provides consistent, professional prompts throughout the SBM
     migration workflow with contextual information and visual enhancements.
     """
-    
+
     @staticmethod
     def confirm_migration_start(theme_name: str, config: Dict[str, Any]) -> bool:
         """
@@ -36,7 +38,7 @@ class InteractivePrompts:
             True if user confirms, False otherwise
         """
         console = get_console()
-        
+
         # Show configuration panel
         config_panel = Panel(
             Text.assemble(
@@ -44,28 +46,28 @@ class InteractivePrompts:
                 (theme_name, "filename"),
                 "\n",
                 ("Skip Just: ", "bold"),
-                (str(config.get('skip_just', False)), "white"),
+                (str(config.get("skip_just", False)), "white"),
                 "\n",
                 ("Force Reset: ", "bold"),
-                (str(config.get('force_reset', False)), "white"),
+                (str(config.get("force_reset", False)), "white"),
                 "\n",
                 ("Create PR: ", "bold"),
-                (str(config.get('create_pr', True)), "white"),
+                (str(config.get("create_pr", True)), "white"),
                 "\n",
                 ("Skip Post-Migration: ", "bold"),
-                (str(config.get('skip_post_migration', False)), "white")
+                (str(config.get("skip_post_migration", False)), "white")
             ),
             title="Migration Configuration",
             border_style="cyan",
             padding=(1, 2)
         )
         console.console.print(config_panel)
-        
+
         return Confirm.ask(
             "[bold green]Proceed with migration?[/]",
             default=True
         )
-    
+
     @staticmethod
     def manual_review_interface(theme_name: str) -> bool:
         """
@@ -78,11 +80,11 @@ class InteractivePrompts:
             True if user wants to continue, False otherwise
         """
         console = get_console()
-        
+
         # Create file review table
-        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
         file_table = StatusPanels.create_file_review_table(theme_name, sb_files)
-        
+
         # Show review instructions panel
         theme_dir = get_dealer_theme_dir(theme_name)
         review_panel = Panel(
@@ -104,15 +106,15 @@ class InteractivePrompts:
             border_style="yellow",
             padding=(1, 2)
         )
-        
+
         console.console.print(review_panel)
         console.console.print(file_table)
-        
+
         return Confirm.ask(
             "\n[bold cyan]Continue after manual review?[/]",
             default=True
         )
-    
+
     @staticmethod
     def git_operation_prompts(theme_name: str, branch_name: str) -> Dict[str, bool]:
         """
@@ -126,7 +128,7 @@ class InteractivePrompts:
             Dictionary with user choices for Git operations
         """
         console = get_console()
-        
+
         # Show branch information
         branch_panel = Panel(
             Text.assemble(
@@ -144,34 +146,34 @@ class InteractivePrompts:
             padding=(1, 2)
         )
         console.console.print(branch_panel)
-        
+
         # Prompt for each operation
         commit = Confirm.ask(
             "[bold green]Commit all changes?[/]",
             default=True
         )
-        
+
         push = False
         create_pr = False
-        
+
         if commit:
             push = Confirm.ask(
                 f"[bold blue]Push to origin/{branch_name}?[/]",
                 default=True
             )
-            
+
             if push:
                 create_pr = Confirm.ask(
                     "[bold cyan]Create pull request?[/]",
                     default=True
                 )
-        
+
         return {
-            'commit': commit,
-            'push': push,
-            'create_pr': create_pr
+            "commit": commit,
+            "push": push,
+            "create_pr": create_pr
         }
-    
+
     @staticmethod
     def error_recovery_prompt(error_info: Dict[str, Any]) -> str:
         """
@@ -184,18 +186,18 @@ class InteractivePrompts:
             User's choice for error recovery
         """
         console = get_console()
-        
+
         # Show error details
         error_panel = StatusPanels.create_error_panel(
-            error_info.get('type', 'Unknown'),
-            error_info.get('file', 'Unknown'),
-            error_info.get('line', 0),
-            error_info.get('message', 'No details available'),
-            error_info.get('code_snippet'),
-            error_info.get('suggested_fix')
+            error_info.get("type", "Unknown"),
+            error_info.get("file", "Unknown"),
+            error_info.get("line", 0),
+            error_info.get("message", "No details available"),
+            error_info.get("code_snippet"),
+            error_info.get("suggested_fix")
         )
         console.console.print(error_panel)
-        
+
         # Recovery options with descriptions
         options_panel = Panel(
             Text.assemble(
@@ -210,13 +212,13 @@ class InteractivePrompts:
             padding=(1, 2)
         )
         console.console.print(options_panel)
-        
+
         return Prompt.ask(
             "[bold yellow]Choose recovery option[/]",
             choices=["auto", "manual", "skip", "abort"],
             default="auto"
         )
-    
+
     @staticmethod
     def docker_startup_prompt(container_name: str, status: str) -> bool:
         """
@@ -230,14 +232,14 @@ class InteractivePrompts:
             True if user wants to continue, False otherwise
         """
         console = get_console()
-        
+
         status_icons = {
             "running": "🟢",
             "stopped": "🔴",
             "starting": "🟡",
             "error": "❌"
         }
-        
+
         docker_panel = Panel(
             Text.assemble(
                 ("Docker Container Status\n\n", "bold docker"),
@@ -254,20 +256,19 @@ class InteractivePrompts:
             padding=(1, 2)
         )
         console.console.print(docker_panel)
-        
+
         if status == "running":
             return True
-        elif status == "starting":
+        if status == "starting":
             return Confirm.ask(
                 "[bold blue]Container is starting. Continue waiting?[/]",
                 default=True
             )
-        else:
-            return Confirm.ask(
-                f"[bold yellow]Container is {status}. Continue anyway?[/]",
-                default=False
-            )
-    
+        return Confirm.ask(
+            f"[bold yellow]Container is {status}. Continue anyway?[/]",
+            default=False
+        )
+
     @staticmethod
     def select_theme_variant(theme_name: str, variants: List[str]) -> Optional[str]:
         """
@@ -282,18 +283,18 @@ class InteractivePrompts:
         """
         if not variants:
             return None
-        
+
         if len(variants) == 1:
             return variants[0]
-        
+
         console = get_console()
-        
+
         # Create variants table
         table = Table(title=f"Available Variants for {theme_name}")
         table.add_column("Option", style="cyan", width=10)
         table.add_column("Variant", style="filename", width=40)
         table.add_column("Description", style="white", width=30)
-        
+
         for i, variant in enumerate(variants, 1):
             # Generate description based on variant name
             if "mobile" in variant.lower():
@@ -304,29 +305,28 @@ class InteractivePrompts:
                 desc = "Desktop-optimized version"
             else:
                 desc = "Standard variant"
-            
+
             table.add_row(str(i), variant, desc)
-        
+
         console.console.print(table)
-        
+
         try:
             choice = IntPrompt.ask(
                 f"[bold cyan]Select variant (1-{len(variants)}) or 0 to cancel[/]",
                 default=1
             )
-            
+
             if choice == 0:
                 return None
-            elif 1 <= choice <= len(variants):
+            if 1 <= choice <= len(variants):
                 return variants[choice - 1]
-            else:
-                console.print_warning(f"Invalid choice: {choice}")
-                return None
-        
+            console.print_warning(f"Invalid choice: {choice}")
+            return None
+
         except KeyboardInterrupt:
             console.print_info("Selection cancelled by user")
             return None
-    
+
     @staticmethod
     def compilation_retry_prompt(attempt: int, max_attempts: int, error_count: int) -> bool:
         """
@@ -341,7 +341,7 @@ class InteractivePrompts:
             True if user wants to retry, False otherwise
         """
         console = get_console()
-        
+
         retry_panel = Panel(
             Text.assemble(
                 ("Compilation Attempt ", "bold yellow"),
@@ -360,18 +360,17 @@ class InteractivePrompts:
             padding=(1, 2)
         )
         console.console.print(retry_panel)
-        
+
         if attempt >= max_attempts:
             return Confirm.ask(
                 "[bold red]Maximum attempts reached. Proceed anyway?[/]",
                 default=False
             )
-        else:
-            return Confirm.ask(
-                f"[bold yellow]Retry compilation? ({max_attempts - attempt} attempts remaining)[/]",
-                default=True
-            )
-    
+        return Confirm.ask(
+            f"[bold yellow]Retry compilation? ({max_attempts - attempt} attempts remaining)[/]",
+            default=True
+        )
+
     @staticmethod
     def pr_configuration_prompt(theme_name: str, branch_name: str) -> Dict[str, Any]:
         """
@@ -385,7 +384,7 @@ class InteractivePrompts:
             Dictionary with PR configuration
         """
         console = get_console()
-        
+
         pr_panel = Panel(
             Text.assemble(
                 ("Pull Request Configuration\n\n", "bold cyan"),
@@ -402,27 +401,27 @@ class InteractivePrompts:
             padding=(1, 2)
         )
         console.console.print(pr_panel)
-        
+
         # Get PR configuration
         title = Prompt.ask(
             "[bold green]PR Title[/]",
             default=f"SBM: Migrate {theme_name} to Site Builder format"
         )
-        
+
         draft = Confirm.ask(
             "[bold blue]Create as draft PR?[/]",
             default=False
         )
-        
+
         add_reviewers = Confirm.ask(
             "[bold cyan]Add default reviewers (carsdotcom/fe-dev)?[/]",
             default=True
         )
-        
+
         return {
-            'title': title,
-            'draft': draft,
-            'add_reviewers': add_reviewers,
-            'reviewers': ['carsdotcom/fe-dev'] if add_reviewers else [],
-            'labels': ['fe-dev']
+            "title": title,
+            "draft": draft,
+            "add_reviewers": add_reviewers,
+            "reviewers": ["carsdotcom/fe-dev"] if add_reviewers else [],
+            "labels": ["fe-dev"]
         }

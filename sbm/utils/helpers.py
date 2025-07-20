@@ -20,10 +20,10 @@ def validate_slug(slug):
     """
     if not slug:
         return False
-    
-    if re.search(r'[^a-zA-Z0-9/_-]', slug):
+
+    if re.search(r"[^a-zA-Z0-9/_-]", slug):
         return False
-    
+
     return True
 
 
@@ -53,13 +53,13 @@ def extract_content_between_comments(content, start_marker, end_marker):
     Returns:
         str: Extracted content or empty string if not found
     """
-    pattern = re.compile(f"{re.escape(start_marker)}(.*?){re.escape(end_marker)}", 
+    pattern = re.compile(f"{re.escape(start_marker)}(.*?){re.escape(end_marker)}",
                          re.DOTALL)
     match = pattern.search(content)
-    
+
     if match:
         return match.group(1).strip()
-    
+
     return ""
 
 
@@ -76,15 +76,15 @@ def extract_nested_rule(content, selector):
     """
     # Escape special characters in the selector for regex
     escaped_selector = re.escape(selector)
-    
+
     # Pattern to match the selector and its content block
     pattern = re.compile(f"{escaped_selector}\\s*{{([^}}]*(?:{{[^}}]*}}[^}}]*)*)}}", re.DOTALL)
     match = pattern.search(content)
-    
+
     if match:
         # Return the full match including selector and braces
         return match.group(0)
-    
+
     return ""
 
 
@@ -98,15 +98,15 @@ def hex_to_rgb(hex_color):
     Returns:
         tuple: RGB tuple (r, g, b) or None if invalid
     """
-    hex_color = hex_color.lstrip('#')
-    
+    hex_color = hex_color.lstrip("#")
+
     if len(hex_color) == 3:
         # Expand shorthand (e.g., "f0f" -> "ff00ff")
-        hex_color = ''.join([c*2 for c in hex_color])
-    
+        hex_color = "".join([c*2 for c in hex_color])
+
     if len(hex_color) != 6:
         return None
-    
+
     try:
         r = int(hex_color[0:2], 16)
         g = int(hex_color[2:4], 16)
@@ -145,15 +145,15 @@ def lighten_hex(hex_color, percentage):
     rgb = hex_to_rgb(hex_color)
     if not rgb:
         return hex_color
-    
+
     r, g, b = rgb
     factor = percentage / 100.0
-    
+
     # Lighten by moving closer to white (255)
     r = min(255, int(r + (255 - r) * factor))
     g = min(255, int(g + (255 - g) * factor))
     b = min(255, int(b + (255 - b) * factor))
-    
+
     return rgb_to_hex(r, g, b)
 
 
@@ -171,13 +171,13 @@ def darken_hex(hex_color, percentage):
     rgb = hex_to_rgb(hex_color)
     if not rgb:
         return hex_color
-    
+
     r, g, b = rgb
     factor = percentage / 100.0
-    
+
     # Darken by moving closer to black (0)
     r = max(0, int(r * (1 - factor)))
     g = max(0, int(g * (1 - factor)))
     b = max(0, int(b * (1 - factor)))
-    
+
     return rgb_to_hex(r, g, b)

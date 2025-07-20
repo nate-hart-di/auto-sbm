@@ -1,1 +1,1 @@
-"""Core migration components for the SBM tool.""" 
+"""Core migration components for the SBM tool."""

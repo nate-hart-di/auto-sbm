@@ -26,19 +26,19 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
     """
     # Create logger name if not provided
     if name is None:
-        name = 'sbm'
-    
+        name = "sbm"
+
     # Create logger
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
     # Handlers should only be attached to the main 'sbm' logger.
     # Child loggers will propagate messages to the main logger.
-    main_logger = logging.getLogger('sbm')
-    if name == 'sbm' and not main_logger.handlers:
+    main_logger = logging.getLogger("sbm")
+    if name == "sbm" and not main_logger.handlers:
         # Create formatter for file handler
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
         # Create console handler (Rich or standard based on use_rich parameter)
         if use_rich and not _is_ci_environment():
             try:
@@ -49,8 +49,8 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
                     show_path=False,
                     show_time=False,  # Rich handles time display
                     tracebacks_suppress=[
-                        'click',  # Suppress Click framework tracebacks
-                        'rich'    # Suppress Rich internal tracebacks
+                        "click",  # Suppress Click framework tracebacks
+                        "rich"    # Suppress Rich internal tracebacks
                     ]
                 )
             except ImportError:
@@ -61,23 +61,23 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
             # Use standard console handler for CI environments or when Rich is disabled
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setFormatter(formatter)
-        
+
         main_logger.addHandler(console_handler)
-        
+
         # Create file handler if a log file is specified or use default
         if log_file is None:
             # Create logs directory if it doesn't exist
-            log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
+            log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
             os.makedirs(log_dir, exist_ok=True)
-            
+
             # Default log file name with timestamp
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            log_file = os.path.join(log_dir, f'sbm_{timestamp}.log')
-        
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file = os.path.join(log_dir, f"sbm_{timestamp}.log")
+
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(formatter)
         main_logger.addHandler(file_handler)
-    
+
     return logger
 
 
@@ -89,11 +89,11 @@ def _is_ci_environment() -> bool:
         True if in CI environment, False otherwise
     """
     ci_indicators = [
-        'CI', 'CONTINUOUS_INTEGRATION', 'GITHUB_ACTIONS',
-        'TRAVIS', 'CIRCLECI', 'JENKINS_URL', 'GITLAB_CI'
+        "CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS",
+        "TRAVIS", "CIRCLECI", "JENKINS_URL", "GITLAB_CI"
     ]
-    
-    return any(os.getenv(var) for var in ci_indicators) or os.getenv('TERM') == 'dumb'
+
+    return any(os.getenv(var) for var in ci_indicators) or os.getenv("TERM") == "dumb"
 
 
 def get_rich_logger(name: Optional[str] = None, config=None) -> logging.Logger:
@@ -109,10 +109,10 @@ def get_rich_logger(name: Optional[str] = None, config=None) -> logging.Logger:
     """
     use_rich = True
     if config:
-        use_rich = config.get_setting('ui', {}).get('use_rich', True)
-    
+        use_rich = config.get_setting("ui", {}).get("use_rich", True)
+
     return setup_logger(name=name, use_rich=use_rich)
 
 
 # Create a default logger for the entire package
-logger = setup_logger() 
+logger = setup_logger()

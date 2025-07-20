@@ -7,9 +7,9 @@ This module handles loading and accessing configuration settings.
 import json
 from pathlib import Path
 
+
 class ConfigurationError(Exception):
     """Custom exception for configuration-related errors."""
-    pass
 
 class Config:
     """
@@ -28,7 +28,7 @@ class Config:
             return self._settings[name]
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-def get_config(config_path: str = 'config.json') -> Config:
+def get_config(config_path: str = "config.json") -> Config:
     """
     Loads configuration from a JSON file.
 
@@ -46,7 +46,7 @@ def get_config(config_path: str = 'config.json') -> Config:
         raise ConfigurationError(f"Configuration file not found: {config_path}")
 
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
+        with open(config_file, encoding="utf-8") as f:
             settings = json.load(f)
         return Config(settings)
     except json.JSONDecodeError as e:
