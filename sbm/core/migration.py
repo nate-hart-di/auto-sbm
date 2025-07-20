@@ -223,8 +223,8 @@ def run_just_start(slug, suppress_output=True, progress_tracker=None):
             progress_callback=lambda line: _process_aws_output(line, console)
         )
 
-        # Wait for AWS authentication completion
-        aws_login_success = progress_tracker.wait_for_subprocess_completion(timeout=120)  # 2 minutes timeout
+        # Wait for AWS authentication completion with extended timeout
+        aws_login_success = progress_tracker.wait_for_subprocess_completion(timeout=180)  # 3 minutes timeout for AWS
 
     else:
         # Fallback to simple Rich UI
@@ -266,8 +266,8 @@ def run_just_start(slug, suppress_output=True, progress_tracker=None):
             progress_callback=lambda line: _process_docker_output(line, progress_tracker)
         )
 
-        # Wait for Docker startup completion
-        success = progress_tracker.wait_for_subprocess_completion(timeout=300)  # 5 minutes timeout
+        # Wait for Docker startup completion with extended timeout
+        success = progress_tracker.wait_for_subprocess_completion(timeout=600)  # 10 minutes timeout for Docker startup
 
     else:
         # Fallback to traditional execution
@@ -925,6 +925,8 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     # Perform Git operations if not skipped
     if not skip_git:
         print_step(1, 6, "Setting up Git branch and repository", slug)
+        if progress_tracker:
+            progress_tracker.add_step_task("git", "Setting up Git branch and repository", 100)
 
         success, branch_name = git_operations(slug)
         if not success:
@@ -933,14 +935,19 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
 
         print_step_success(f"Git operations completed: branch {branch_name}")
         logger.info(f"Git operations completed successfully, branch: {branch_name}")
+        if progress_tracker:
+            progress_tracker.complete_step("git")
 
     # Run 'just start' if not skipped
     if not skip_just:
         print_step(2, 6, "Starting Docker environment (just start)", slug)
+        if progress_tracker:
+            progress_tracker.add_step_task("docker", "Starting Docker environment", 100)
 
         just_start_success = run_just_start(
             slug,
-            suppress_output=not verbose_docker  # Suppress unless verbose requested
+            suppress_output=not verbose_docker,  # Suppress unless verbose requested
+            progress_tracker=progress_tracker  # Pass progress tracker for enhanced monitoring
         )
         logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
@@ -949,37 +956,53 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
 
         print_step_success("Docker environment started successfully")
         logger.info(f"Site started successfully for {slug}")
+        if progress_tracker:
+            progress_tracker.complete_step("docker")
 
     # Create Site Builder files
     print_step(3, 6, "Creating Site Builder SCSS files", slug)
+    if progress_tracker:
+        progress_tracker.add_step_task("files", "Creating Site Builder SCSS files", 100)
 
     if not create_sb_files(slug, force_reset):
         logger.error(f"Failed to create Site Builder files for {slug}")
         return False
 
     print_step_success("Site Builder files created successfully")
+    if progress_tracker:
+        progress_tracker.complete_step("files")
 
     # Migrate styles
     print_step(4, 6, "Migrating SCSS styles and transforming syntax", slug)
+    if progress_tracker:
+        progress_tracker.add_step_task("scss", "Migrating SCSS styles and transforming syntax", 100)
 
     if not migrate_styles(slug):
         logger.error(f"Failed to migrate styles for {slug}")
         return False
 
     print_step_success("SCSS styles migrated and transformed successfully")
+    if progress_tracker:
+        progress_tracker.complete_step("scss")
 
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
     print_step(5, 6, "Adding predetermined OEM-specific styles", slug)
+    if progress_tracker:
+        progress_tracker.add_step_task("styles", "Adding predetermined OEM-specific styles", 100)
 
     if not add_predetermined_styles(slug, oem_handler):
         logger.warning(f"Could not add all predetermined styles for {slug}")
 
     print_step_success("Predetermined styles added successfully")
+    if progress_tracker:
+        progress_tracker.complete_step("styles")
 
     # Migrate map components if not skipped
     if not skip_maps:
         print_step(6, 6, "Migrating map components and PHP partials", slug)
+        if progress_tracker:
+            progress_tracker.add_step_task("maps", "Migrating map components and PHP partials", 100)
 
         if not migrate_map_components(slug, oem_handler, interactive=False):
             logger.error(f"Failed to migrate map components for {slug}")
@@ -987,9 +1010,15 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
 
         print_step_success("Map components migrated successfully")
         logger.info(f"Map components migrated successfully for {slug}")
+        if progress_tracker:
+            progress_tracker.complete_step("maps")
     else:
         print_step(6, 6, "Skipping map components migration", slug)
+        if progress_tracker:
+            progress_tracker.add_step_task("maps", "Skipping map components migration", 100)
         print_step_success("Map components skipped")
+        if progress_tracker:
+            progress_tracker.complete_step("maps")
 
     logger.info(f"Migration completed successfully for {slug}")
 

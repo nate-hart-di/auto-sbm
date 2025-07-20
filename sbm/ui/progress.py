@@ -500,21 +500,27 @@ class MigrationProgress:
             True if all completed successfully, False if timeout or error
         """
         start_time = time.time()
+        completed_successfully = True
 
-        for thread in self._subprocess_threads:
+        for i, thread in enumerate(self._subprocess_threads):
             if thread.is_alive():
                 remaining_time = None
                 if timeout:
                     elapsed = time.time() - start_time
                     remaining_time = max(0, timeout - elapsed)
                     if remaining_time <= 0:
+                        logger.warning(f"Timeout reached ({timeout}s): Subprocess thread {i} still running")
                         return False
 
                 thread.join(timeout=remaining_time)
                 if thread.is_alive():
-                    return False
+                    logger.warning(f"Subprocess thread {i} failed to complete within timeout")
+                    completed_successfully = False
 
-        return True
+        # Process any remaining updates from completed threads
+        self._process_remaining_updates()
+        
+        return completed_successfully
 
     def _cleanup_all_tasks(self):
         """
@@ -552,11 +558,27 @@ class MigrationProgress:
         self._subprocess_threads.clear()
         self._stop_updates.clear()
         self._update_thread = None
-
-        # Clear any remaining updates in queue
-        while not self._subprocess_queue.empty():
+    
+    def _process_remaining_updates(self):
+        """
+        Process any remaining updates from completed subprocess threads.
+        """
+        processed_count = 0
+        while not self._subprocess_queue.empty() and processed_count < 50:  # Safety limit
             try:
-                self._subprocess_queue.get_nowait()
+                update = self._subprocess_queue.get_nowait()
+                
+                # Log final status or errors
+                if update.completed:
+                    if update.error:
+                        logger.error(f"Subprocess completed with error: {update.error}")
+                    else:
+                        logger.debug(f"Subprocess completed successfully: {update.message}")
+                        
                 self._subprocess_queue.task_done()
+                processed_count += 1
             except queue.Empty:
                 break
+
+        # Clear any remaining updates in queue
+        self._process_remaining_updates()
