@@ -895,14 +895,24 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
     # Run 'just start' if not skipped
     if not skip_just:
         print_step(2, 6, "Starting Docker environment (just start)", slug)
+        
+        # Temporarily pause progress tracking during Docker startup to avoid output interference
         if progress_tracker:
-            progress_tracker.add_step_task("docker", "Starting Docker environment", 100)
-
+            # Stop progress display to avoid mixing with Docker output
+            progress_tracker.progress.stop()
+            
         just_start_success = run_just_start(
             slug,
             suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
-            progress_tracker=progress_tracker  # Pass progress tracker for enhanced monitoring
+            progress_tracker=None  # Disable progress tracking during Docker startup
         )
+        
+        # Resume progress tracking after Docker startup
+        if progress_tracker:
+            progress_tracker.progress.start()
+            progress_tracker.add_step_task("docker", "Starting Docker environment", 100)
+            progress_tracker.complete_step("docker")
+            
         logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
             logger.error(f"Failed to start site for {slug}")
@@ -910,8 +920,6 @@ def migrate_dealer_theme(slug, skip_just=False, force_reset=False, skip_git=Fals
 
         print_step_success("Docker environment started successfully")
         logger.info(f"Site started successfully for {slug}")
-        if progress_tracker:
-            progress_tracker.complete_step("docker")
 
     # Create Site Builder files
     print_step(3, 6, "Creating Site Builder SCSS files", slug)
