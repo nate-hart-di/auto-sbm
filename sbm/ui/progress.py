@@ -181,20 +181,17 @@ class MigrationProgress:
         task_id = self.step_tasks[step_name]
 
         try:
-            # Safely complete task
+            # Mark task as 100% complete but keep it visible
             if task_id in self.progress.tasks:
-                task = self.progress.tasks[task_id]
-                self.progress.update(task_id, completed=task.total)
-
-            # Always clean up our tracking regardless of Rich's state
-            if task_id in self.progress.tasks:
-                self.progress.remove_task(task_id)
+                # Set completed directly to total for 100%
+                self.progress.update(task_id, completed=100, description=f"[green]✅ {step_name.title()} Complete[/]")
 
         except Exception as e:
             logger.warning(f"Error completing step {step_name}: {e}")
         finally:
-            # Always clean up our dictionary
-            del self.step_tasks[step_name]
+            # Keep task visible but mark as completed in our tracking
+            # Don't remove from step_tasks so we can see 100% progress
+            pass
 
             # Advance overall migration
             self._advance_migration_progress()
