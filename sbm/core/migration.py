@@ -1046,7 +1046,7 @@ def migrate_dealer_theme(
     if progress_tracker:
         from ..ui.console import get_console
         console = get_console()
-        console.print(f"[green]⏱️  Total Migration Time: {total_migration_time:.1f}s[/green]")
+        console.print_success(f"Total Migration Time: {total_migration_time:.1f}s")
 
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)

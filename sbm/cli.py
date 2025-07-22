@@ -639,7 +639,7 @@ def validate(theme_name: str, check_exclusions: bool) -> None:
     console = get_console()
     
     if check_exclusions:
-        console.print("[yellow]🔍 Checking for excluded header/footer/nav styles...[/yellow]")
+        console.print_info("Checking for excluded header/footer/nav styles...")
         theme_dir = get_dealer_theme_dir(theme_name)
         sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
         
@@ -660,16 +660,29 @@ def validate(theme_name: str, check_exclusions: bool) -> None:
                 
                 for pattern in excluded_patterns:
                     import re
-                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    # Check each line and ignore comments
+                    lines = content.split('\n')
+                    matches = []
+                    for line_num, line in enumerate(lines, 1):
+                        stripped = line.strip()
+                        # Skip comments
+                        if stripped.startswith('//') or stripped.startswith('/*'):
+                            continue
+                        # Check for pattern in non-comment lines
+                        if re.search(pattern, line, re.IGNORECASE):
+                            matches.append((line_num, line.strip()))
+                    
                     if matches:
-                        console.print(f"[red]❌ VIOLATION: {sb_file} contains excluded pattern: {pattern}[/red]")
-                        console.print(f"   Found {len(matches)} match(es): {matches[:3]}...")
+                        console.print_error(f"VIOLATION: {sb_file} contains excluded pattern: {pattern}")
+                        console.print_error(f"   Found {len(matches)} match(es) in non-comment lines:")
+                        for line_num, match_line in matches[:3]:
+                            console.print_error(f"     Line {line_num}: {match_line}")
                         violations_found = True
         
         if not violations_found:
-            console.print("[green]✅ All header/footer/nav styles properly excluded[/green]")
+            console.print_success("All header/footer/nav styles properly excluded")
         else:
-            console.print("[red]❌ Style exclusion violations found. Migration may have conflicts.[/red]")
+            console.print_error("Style exclusion violations found. Migration may have conflicts.")
             sys.exit(1)
     
     # Continue with existing validation

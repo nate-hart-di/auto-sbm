@@ -89,58 +89,89 @@ class StyleClassifier:
         filtered_lines = []
         exclusions = []
         
-        current_rule = []
-        brace_depth = 0
+        current_rule_lines = []
         in_excluded_rule = False
-        current_selector = ""
+        current_selector_parts = []
         rule_start_line = 0
         
-        for line_num, line in enumerate(lines, 1):
+        i = 0
+        while i < len(lines):
+            line = lines[i]
             stripped = line.strip()
             
             # Skip empty lines and comments
             if not stripped or stripped.startswith('//') or stripped.startswith('/*'):
                 if not in_excluded_rule:
                     filtered_lines.append(line)
+                i += 1
                 continue
             
-            # Track brace depth
-            open_braces = line.count('{')
-            close_braces = line.count('}')
+            # Check if this line contains selectors (ends with comma or has opening brace)
+            has_opening_brace = '{' in line
+            ends_with_comma = stripped.endswith(',')
             
-            if open_braces > 0 and not in_excluded_rule:
-                # Potential start of CSS rule
-                current_selector = self._extract_selector(line)
-                should_exclude, reason = self.should_exclude_selector(current_selector)
+            if not in_excluded_rule:
+                # Start collecting selector parts if this looks like a selector
+                if ends_with_comma or has_opening_brace:
+                    if not current_selector_parts:  # Starting new rule
+                        rule_start_line = i + 1
+                    
+                    # Extract selector from this line
+                    if has_opening_brace:
+                        selector_part = line.split('{')[0].strip()
+                    else:
+                        selector_part = stripped.rstrip(',').strip()
+                    
+                    current_selector_parts.append(selector_part)
+                    
+                    # If we hit an opening brace, we have the complete selector
+                    if has_opening_brace:
+                        full_selector = ' '.join(current_selector_parts)
+                        should_exclude, reason = self.should_exclude_selector(full_selector)
+                        
+                        if should_exclude:
+                            in_excluded_rule = True
+                            current_rule_lines = []
+                            
+                            # Add all selector lines to excluded rule
+                            for j in range(rule_start_line - 1, i + 1):
+                                current_rule_lines.append(lines[j])
+                            
+                            exclusions.append(ExclusionMatch(
+                                pattern=reason,
+                                selector=full_selector,
+                                rule_content=full_selector,
+                                line_number=rule_start_line
+                            ))
+                            logger.debug(f"Excluding rule: {full_selector} at lines {rule_start_line}-{i+1}")
+                        else:
+                            # Not excluded, add all selector lines to output
+                            for j in range(rule_start_line - 1, i + 1):
+                                filtered_lines.append(lines[j])
+                        
+                        # Reset selector collection
+                        current_selector_parts = []
+                    
+                else:
+                    # Not a selector line, just add it if we're not collecting selectors
+                    if not current_selector_parts:
+                        filtered_lines.append(line)
+            
+            else:  # in_excluded_rule
+                current_rule_lines.append(line)
                 
-                if should_exclude:
-                    in_excluded_rule = True
-                    rule_start_line = line_num
-                    current_rule = [line]
-                    exclusions.append(ExclusionMatch(
-                        pattern=reason,
-                        selector=current_selector,
-                        rule_content=line,
-                        line_number=line_num
-                    ))
-                    brace_depth = open_braces - close_braces
-                    logger.debug(f"Excluding rule: {current_selector} at line {line_num}")
-                    continue
+                # Count braces to find end of rule
+                if '}' in line:
+                    close_braces = line.count('}')
+                    open_braces = line.count('{')
+                    
+                    # Simple heuristic: if we see closing brace, rule might be ending
+                    if close_braces > 0:
+                        in_excluded_rule = False
+                        logger.debug(f"Excluded rule complete: {len(current_rule_lines)} lines")
+                        current_rule_lines = []
             
-            if in_excluded_rule:
-                current_rule.append(line)
-                brace_depth += open_braces - close_braces
-                
-                if brace_depth <= 0:
-                    # End of excluded rule
-                    logger.debug(f"Excluded rule complete: {current_selector} ({len(current_rule)} lines)")
-                    in_excluded_rule = False
-                    current_rule = []
-                    current_selector = ""
-                continue
-            
-            # Keep non-excluded lines
-            filtered_lines.append(line)
+            i += 1
         
         self._update_stats(exclusions)
         
