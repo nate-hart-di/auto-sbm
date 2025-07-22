@@ -919,6 +919,18 @@ def update() -> None:
                 except subprocess.CalledProcessError as e:
                     click.echo(f"⚠️  Warning: Failed to update requirements: {e}")
 
+                # Reinstall auto-sbm package to reflect code changes
+                click.echo("Reinstalling auto-sbm package...")
+                try:
+                    subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "-e", "."],
+                        cwd=REPO_ROOT,
+                        check=True,
+                    )
+                    click.echo("✅ Auto-sbm package reinstalled successfully.")
+                except subprocess.CalledProcessError as e:
+                    click.echo(f"⚠️  Warning: Failed to reinstall auto-sbm package: {e}")
+
             # Restore stashed changes
             if has_changes:
                 click.echo("Restoring local changes...")
