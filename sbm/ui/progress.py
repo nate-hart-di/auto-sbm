@@ -134,78 +134,69 @@ class MigrationProgress:
         self.step_tasks[step_name] = task_id
         return task_id
 
-    def update_step_progress(self, step_name: str, advance: int = 1, description: str = None):
+    def update_step_progress(self, step_name: str, completed: int, description: str = None) -> None:
         """
-        Update step progress and optionally advance overall migration.
+        Update progress for a specific step.
 
         Args:
             step_name: Name of the step to update
-            advance: Amount to advance progress
+            completed: Amount of completed work
             description: Optional new description
         """
         if step_name not in self.step_tasks:
-            logger.debug(f"Step {step_name} not found in active steps")
+            logger.warning(f"Task {step_name} for step {step_name} no longer exists")
             return
-
+            
         task_id = self.step_tasks[step_name]
-
-        # Validate task still exists
-        if task_id not in self.progress.tasks:
-            logger.warning(f"Task {task_id} for step {step_name} no longer exists")
-            # Clean up stale reference
-            del self.step_tasks[step_name]
-            return
-
+        
         try:
+            # Update progress
+            self.progress.update(task_id, completed=completed)
+            
+            # Update description if provided
             if description:
                 self.progress.update(task_id, description=f"[progress]{description}[/]")
-            self.progress.update(task_id, advance=advance)
-        except Exception as e:
-            logger.warning(f"Error updating progress for {step_name}: {e}")
+                
+        except (KeyError, IndexError):
+            logger.warning(f"Task {task_id} for step {step_name} no longer exists")
 
-    def complete_step(self, step_name: str):
+    def complete_step(self, step_name: str) -> None:
         """
-        Mark a step as complete and advance overall migration.
+        Complete a migration step and advance migration progress.
 
         Args:
             step_name: Name of the step to complete
         """
         if step_name not in self.step_tasks:
-            logger.warning(f"Task {step_name} not found in step_tasks")
+            logger.warning(f"Step {step_name} not found in step_tasks")
             return
 
         task_id = self.step_tasks[step_name]
 
-        # CRITICAL: Get current task state atomically
-        with self._lock:  # Thread safety
-            try:
-                # Rich Progress API: access task directly by task_id
-                if task_id in self.progress.tasks:
-                    task = self.progress.tasks[task_id]
+        try:
+            # Rich Progress tasks is a list, TaskID is the index
+            # Check if task_id is valid index and task exists
+            if 0 <= task_id < len(self.progress.tasks):
+                task = self.progress.tasks[task_id]
+                
+                # Mark task as complete and hide it (don't remove to preserve IDs)
+                self.progress.update(task_id, completed=task.total, visible=False)
 
-                    # GOTCHA: Calculate remaining correctly (handle edge cases)
-                    remaining = max(0, task.total - task.completed)
-                    if remaining > 0:
-                        self.progress.update(task_id, advance=remaining)
+                # Remove from our tracking
+                del self.step_tasks[step_name]
 
-                    # PATTERN: Update description with completion indicator
-                    self.progress.update(
-                        task_id, description=f"[green]✅ {step_name.title()} Complete[/]"
-                    )
+                # Advance migration progress  
+                if "migration" in self.tasks:
+                    migration_task_id = self.tasks["migration"]
+                    if 0 <= migration_task_id < len(self.progress.tasks):
+                        self.progress.update(migration_task_id, advance=1)
 
-                    logger.debug(
-                        f"Step '{step_name}' completed successfully (progress: {task.completed + remaining}/{task.total})"
-                    )
-                else:
-                    logger.error(f"Task {task_id} not found in progress tracker")
-                    return
+                logger.debug(f"Step '{step_name}' completed successfully")
+            else:
+                logger.error(f"Task {task_id} not found in progress tracker")
 
-            except Exception as e:
-                logger.error(f"Error completing step {step_name}: {e}")
-                return
-
-        # Advance overall migration (outside lock to prevent deadlock)
-        self._advance_migration_progress()
+        except (KeyError, IndexError) as e:
+            logger.error(f"Error completing task {task_id}: {e}")
 
     def add_file_processing_task(self, file_count: int) -> int:
         """
