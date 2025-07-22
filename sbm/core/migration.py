@@ -319,7 +319,7 @@ def migrate_styles(slug: str) -> bool:
             logger.error(f"Source SCSS directory not found: {source_scss_dir}")
             return False
 
-        processor = SCSSProcessor(slug)
+        processor = SCSSProcessor(slug, exclude_nav_styles=True)
 
         # Define source files - include style.scss, inside.scss, and _support-requests.scss for sb-inside
         inside_sources = [
@@ -685,7 +685,7 @@ def reprocess_manual_changes(slug):
 
     try:
         theme_dir = get_dealer_theme_dir(slug)
-        processor = SCSSProcessor(slug)
+        processor = SCSSProcessor(slug, exclude_nav_styles=True)
 
         # List of Site Builder files to reprocess
         sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]

@@ -31,7 +31,7 @@ def validate_scss_files(slug: str) -> bool:
         logger.error(f"Error: {e}")
         return False
 
-    processor = SCSSProcessor(slug)
+    processor = SCSSProcessor(slug, exclude_nav_styles=True)
 
     # Check for generated SCSS files
     sb_scss_files = [

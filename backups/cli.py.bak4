@@ -5,7 +5,7 @@ This module provides the command-line interface for the SBM tool with
 Rich-enhanced progress tracking, status displays, and interactive elements.
 """
 
-from __future__ import annotations
+from __future__ import annotations  # CRITICAL: Must be first import for forward references
 
 import logging
 import re
@@ -15,6 +15,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import click
 from git import Repo
@@ -300,7 +301,7 @@ auto_update_repo()
 class SBMCommandGroup(click.Group):
     """A custom command group that allows running a default command."""
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
         self.default_command = kwargs.pop("default_command", None)
         super().__init__(*args, **kwargs)
 
@@ -587,10 +588,9 @@ def auto(
             success = False
 
         if success:
-            # Enhanced completion with elapsed time tracking and timing breakdown
+            # Enhanced completion with elapsed time tracking
             elapsed_time = progress_tracker.get_elapsed_time() if progress_tracker else 0.0
-            timing_summary = progress_tracker.get_timing_summary() if progress_tracker else None
-            console.print_migration_complete(theme_name, elapsed_time, timing_summary)
+            console.print_migration_complete(theme_name, elapsed_time)
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
@@ -630,63 +630,9 @@ def reprocess(theme_name: str) -> None:
 
 @cli.command()
 @click.argument("theme_name")
-@click.option("--check-exclusions", is_flag=True, help="Check for header/footer/navigation styles that should be excluded.")
-@click.option("--show-excluded", is_flag=True, help="Show excluded rules (use with --check-exclusions).")
-def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> None:
+def validate(theme_name: str) -> None:
     """Validate theme structure and SCSS syntax."""
     validate_scss_files(theme_name)
-    
-    # Style exclusion validation
-    if check_exclusions:
-        from .scss.classifiers import StyleClassifier
-        from .utils.path import get_dealer_theme_dir
-        from pathlib import Path
-        
-        theme_dir = get_dealer_theme_dir(theme_name)
-        classifier = StyleClassifier(strict_mode=True)
-        
-        sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
-        total_excluded = 0
-        total_checked = 0
-        
-        click.echo(f"\n🔍 Checking style exclusions for {theme_name}...")
-        click.echo("=" * 60)
-        
-        for sb_file in sb_files:
-            file_path = Path(theme_dir) / sb_file
-            if file_path.exists():
-                result = classifier.analyze_file(file_path)
-                total_excluded += result.excluded_count
-                total_checked += 1
-                
-                if result.excluded_count > 0:
-                    click.echo(f"📄 {sb_file}:")
-                    click.echo(f"  ⚠️  Found {result.excluded_count} excluded rules")
-                    for category, count in result.patterns_matched.items():
-                        click.echo(f"    - {category}: {count} rules")
-                    
-                    if show_excluded and result.excluded_rules:
-                        click.echo("  📝 Excluded rules:")
-                        for i, rule in enumerate(result.excluded_rules[:3], 1):  # Show first 3
-                            rule_preview = rule.split('\n')[0][:50]
-                            click.echo(f"    {i}. {rule_preview}...")
-                        if len(result.excluded_rules) > 3:
-                            click.echo(f"    ... and {len(result.excluded_rules) - 3} more")
-                else:
-                    click.echo(f"✅ {sb_file}: No excluded styles found")
-            else:
-                click.echo(f"⚪ {sb_file}: File not found")
-        
-        click.echo("=" * 60)
-        if total_excluded > 0:
-            click.echo(f"⚠️  SUMMARY: Found {total_excluded} header/footer/nav rules that should be excluded")
-            click.echo("💡 These styles may conflict with Site Builder components")
-            if not show_excluded:
-                click.echo("   Use --show-excluded to see the specific rules")
-        else:
-            click.echo("✅ SUMMARY: No problematic header/footer/navigation styles found")
-        
-        click.echo(f"📊 Checked {total_checked} Site Builder files")
 
 
 @cli.command()
@@ -1210,6 +1156,48 @@ def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> No
     except Exception as e:
         click.echo(f"⚠️  Error during cleanup: {e}")
 
+
+def _comment_out_problematic_code_for_test(
+    test_files: list[tuple[str, Path]]
+) -> None:
+    """
+    Comment out potentially problematic SCSS code in test files.
+
+    Args:
+        test_files: List of test files
+        css_dir: CSS directory path
+    """
+    click.echo("� Commenting out potentially problematic SCSS code...")
+    problematic_patterns = [
+        r"@include\s+[^;]+;",  # All mixin includes
+        r"lighten\([^)]+\)",  # lighten functions
+        r"darken\([^)]+\)",  # darken functions
+        r"\$[a-zA-Z_][a-zA-Z0-9_-]*",  # All SCSS variables
+    ]
+
+    for test_filename, scss_path in test_files:
+        try:
+            with scss_path.open() as f:
+                content = f.read()
+
+            lines = content.split("\n")
+            modified = False
+
+            for i, line in enumerate(lines):
+                for pattern in problematic_patterns:
+                    if re.search(pattern, line) and not line.strip().startswith("//"):
+                        lines[i] = f"// TEST COMMENTED: {line}"
+                        modified = True
+                        break
+
+            if modified:
+                with scss_path.open("w") as f:
+                    f.write("\n".join(lines))
+
+                click.echo(f"  ✅ Commented problematic code in {test_filename}")
+
+        except Exception as e:
+            click.echo(f"  ⚠️  Error processing {test_filename}: {e}")
 
 
 def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> None:

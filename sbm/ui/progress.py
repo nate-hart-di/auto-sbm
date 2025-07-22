@@ -68,7 +68,13 @@ class MigrationProgress:
         self.progress = Progress(*columns, expand=True)
         self.tasks: Dict[str, Any] = {}
         self.step_tasks: Dict[str, Any] = {}
+        
+        # Enhanced timing tracking
         self._start_time = None
+        self._step_times: Dict[str, Dict[str, float]] = {}
+        self._current_step = None
+        self._migration_completed = False
+        self._total_migration_time = None
 
         # Non-blocking subprocess integration
         self._subprocess_queue: queue.Queue = queue.Queue()
@@ -86,6 +92,8 @@ class MigrationProgress:
             Self instance for method chaining
         """
         self._start_time = time.time()
+        logger.debug("Migration progress tracking started")
+        
         try:
             # Start background update thread for subprocess communication
             self._start_update_thread()
@@ -94,8 +102,15 @@ class MigrationProgress:
         except Exception:
             # Clean up all active tasks on error
             self._cleanup_all_tasks()
+            logger.error("Migration progress interrupted due to error")
             raise
         finally:
+            # Complete migration timing
+            if self._start_time and not self._migration_completed:
+                self._total_migration_time = time.time() - self._start_time
+                self._migration_completed = True
+                logger.debug(f"Migration progress completed in {self._total_migration_time:.2f}s")
+            
             # Stop background threads first
             self._stop_update_thread()
             # Force cleanup all tasks before exit
@@ -290,6 +305,115 @@ class MigrationProgress:
         if self._start_time:
             return time.time() - self._start_time
         return 0.0
+
+    def start_step_timing(self, step_name: str) -> None:
+        """
+        Start timing for a migration step.
+        
+        Args:
+            step_name: Name of the step to track
+        """
+        current_time = time.time()
+        if step_name not in self._step_times:
+            self._step_times[step_name] = {}
+        
+        self._step_times[step_name]['start'] = current_time
+        self._current_step = step_name
+        logger.debug(f"Started timing for step: {step_name}")
+
+    def complete_step_timing(self, step_name: str) -> float:
+        """
+        Complete timing for a migration step.
+        
+        Args:
+            step_name: Name of the step to complete
+            
+        Returns:
+            Duration of the step in seconds
+        """
+        current_time = time.time()
+        
+        if step_name in self._step_times and 'start' in self._step_times[step_name]:
+            start_time = self._step_times[step_name]['start']
+            duration = current_time - start_time
+            self._step_times[step_name]['end'] = current_time
+            self._step_times[step_name]['duration'] = duration
+            
+            logger.debug(f"Completed step '{step_name}' in {duration:.2f}s")
+            return duration
+        else:
+            logger.warning(f"No start time found for step: {step_name}")
+            return 0.0
+
+    def get_step_duration(self, step_name: str) -> float:
+        """
+        Get duration of a completed step.
+        
+        Args:
+            step_name: Name of the step
+            
+        Returns:
+            Duration in seconds, or 0.0 if step not found/completed
+        """
+        if step_name in self._step_times and 'duration' in self._step_times[step_name]:
+            return self._step_times[step_name]['duration']
+        return 0.0
+
+    def get_total_migration_time(self) -> float:
+        """
+        Get total migration time.
+        
+        Returns:
+            Total migration time in seconds, or current elapsed time if not completed
+        """
+        if self._total_migration_time is not None:
+            return self._total_migration_time
+        return self.get_elapsed_time()
+
+    def get_timing_summary(self) -> Dict[str, float]:
+        """
+        Get comprehensive timing summary.
+        
+        Returns:
+            Dictionary with timing information for all steps and total time
+        """
+        summary = {
+            'total_time': self.get_total_migration_time(),
+            'elapsed_time': self.get_elapsed_time(),
+            'steps': {}
+        }
+        
+        for step_name, timing_data in self._step_times.items():
+            if 'duration' in timing_data:
+                summary['steps'][step_name] = timing_data['duration']
+            elif 'start' in timing_data:
+                # Step in progress
+                current_duration = time.time() - timing_data['start']
+                summary['steps'][step_name] = current_duration
+                
+        return summary
+
+    def format_duration(self, seconds: float) -> str:
+        """
+        Format duration for display.
+        
+        Args:
+            seconds: Duration in seconds
+            
+        Returns:
+            Formatted duration string
+        """
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        elif seconds < 3600:
+            minutes = int(seconds // 60)
+            secs = seconds % 60
+            return f"{minutes}m {secs:.1f}s"
+        else:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            secs = seconds % 60
+            return f"{hours}h {minutes}m {secs:.1f}s"
 
     def get_task_progress(self, task_id: int) -> float:
         """

@@ -14,6 +14,7 @@ from ..utils.helpers import darken_hex, lighten_hex
 from ..utils.logger import logger
 from ..utils.path import get_common_theme_path, get_dealer_theme_dir
 from .mixin_parser import CommonThemeMixinParser
+from .classifiers import StyleClassifier
 
 
 class SCSSProcessor:
@@ -22,12 +23,18 @@ class SCSSProcessor:
     by using an intelligent mixin parser and targeted transformations.
     """
 
-    def __init__(self, slug: str):
+    def __init__(self, slug: str, exclude_nav_styles: bool = True):
         self.slug = slug
         self.theme_dir = get_dealer_theme_dir(slug)
         self.common_theme_path = get_common_theme_path()
+        self.exclude_nav_styles = exclude_nav_styles
         logger.info(f"SCSS Processor initialized for dealer: {self.slug}")
         self.mixin_parser = CommonThemeMixinParser()
+        
+        # Initialize style classifier for header/footer/nav exclusion
+        if self.exclude_nav_styles:
+            self.style_classifier = StyleClassifier(strict_mode=True)
+            logger.info("Style exclusion enabled for header/footer/navigation components")
 
     def _process_scss_variables(self, content: str) -> str:
         """
@@ -331,6 +338,18 @@ class SCSSProcessor:
         logger.info(f"Performing SCSS transformation for {self.slug}...")
 
         try:
+            # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
+            if self.exclude_nav_styles:
+                logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
+                content, exclusion_result = self.style_classifier.filter_scss_content(content)
+                
+                if exclusion_result.excluded_count > 0:
+                    logger.info(f"Excluded {exclusion_result.excluded_count} header/footer/nav rules from migration")
+                    for category, count in exclusion_result.patterns_matched.items():
+                        logger.info(f"  - {category}: {count} rules")
+                else:
+                    logger.info("No header/footer/navigation styles found to exclude")
+
             # Step 1: Process SCSS variables into a :root block and convert usage
             content = self._process_scss_variables(content)
 

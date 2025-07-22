@@ -62,6 +62,7 @@ class GitSettings(BaseSettings):
     @classmethod
     def validate_github_token(cls, v: Optional[str]) -> Optional[str]:
         """Validate GitHub token format and content."""
+        # Allow None/empty for commands that don't require GitHub operations
         if v is None or v == "":
             return v
             

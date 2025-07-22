@@ -1,4 +1,4 @@
-sbm/cli.py:248:5: S110 `try`-`except`-`pass` detected, consider logging the exception
+``sbm/cli.py:248:5: S110 `try`-`except`-`pass` detected, consider logging the exception
     |
 246 |           # Network timeout, skip silently
 247 |           pass

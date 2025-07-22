@@ -193,15 +193,50 @@ class SBMConsole:
         """Print AWS-related status with AWS styling."""
         self.console.print(f"[sbm.aws]☁️  {message}[/]")
 
-    def print_migration_complete(self, theme_name: str, elapsed_time: float):
-        """Print migration completion with enhanced styling."""
+    def print_migration_complete(self, theme_name: str, elapsed_time: float, timing_summary: Optional[dict] = None):
+        """
+        Print migration completion with enhanced styling and timing details.
+        
+        Args:
+            theme_name: Name of the migrated theme
+            elapsed_time: Total elapsed time
+            timing_summary: Optional detailed timing breakdown from MigrationProgress
+        """
         from rich.panel import Panel
 
         content = "[sbm.success]🎉 Migration Complete![/]\n\n"
         content += f"[bold]Theme:[/] [sbm.migration]{theme_name}[/]\n"
         content += "[bold]Status:[/] [sbm.success]All steps completed successfully[/]\n"
-        content += f"[bold]Elapsed:[/] {elapsed_time:.1f} seconds\n"
-        content += "[bold]Next:[/] Review changes and create pull request"
+        
+        # Enhanced timing display
+        if elapsed_time < 60:
+            time_display = f"{elapsed_time:.1f}s"
+        elif elapsed_time < 3600:
+            minutes = int(elapsed_time // 60)
+            seconds = elapsed_time % 60
+            time_display = f"{minutes}m {seconds:.1f}s"
+        else:
+            hours = int(elapsed_time // 3600)
+            minutes = int((elapsed_time % 3600) // 60)
+            seconds = elapsed_time % 60
+            time_display = f"{hours}h {minutes}m {seconds:.1f}s"
+            
+        content += f"[bold]Total Time:[/] [sbm.info]{time_display}[/]\n"
+        
+        # Add step timing breakdown if available
+        if timing_summary and 'steps' in timing_summary and timing_summary['steps']:
+            content += "\n[bold]Step Breakdown:[/]\n"
+            for step_name, step_time in timing_summary['steps'].items():
+                if step_time > 0:
+                    if step_time < 60:
+                        step_display = f"{step_time:.1f}s"
+                    else:
+                        step_mins = int(step_time // 60)
+                        step_secs = step_time % 60
+                        step_display = f"{step_mins}m {step_secs:.1f}s"
+                    content += f"  • {step_name}: [sbm.info]{step_display}[/]\n"
+        
+        content += "\n[bold]Next:[/] Review changes and create pull request"
 
         panel = Panel(
             content,
