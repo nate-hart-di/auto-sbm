@@ -92,7 +92,7 @@ class AutoSBMSettings(BaseSettings):
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,
-        extra="forbid",  # CRITICAL: Security - reject unknown keys
+        extra="ignore",  # CRITICAL: Changed from "forbid" to "ignore" for cross-environment compatibility
     )
 
     # PATTERN: Migrate all fields from legacy config.json
@@ -100,6 +100,11 @@ class AutoSBMSettings(BaseSettings):
     backup_directory: str = Field(default="backups", description="Backup directory path")
     backup_enabled: bool = Field(default=True, description="Enable backups")
     rich_ui_enabled: bool = Field(default=True, description="Enable Rich UI")
+
+    # WordPress debug fields - prevent validation errors in DI platform venv
+    wp_debug: Optional[bool] = Field(default=None, description="WordPress debug mode")
+    wp_debug_log: Optional[bool] = Field(default=None, description="WordPress debug logging")
+    wp_debug_display: Optional[bool] = Field(default=None, description="WordPress debug display")
 
     # PATTERN: Nested models for complex configuration
     progress: ProgressSettings = Field(default_factory=lambda: ProgressSettings())

@@ -633,8 +633,46 @@ def reprocess(theme_name: str) -> None:
 
 @cli.command()
 @click.argument("theme_name")
-def validate(theme_name: str) -> None:
-    """Validate theme structure and SCSS syntax."""
+@click.option("--check-exclusions", is_flag=True, help="Verify header/footer/nav styles are excluded")
+def validate(theme_name: str, check_exclusions: bool) -> None:
+    """Validate theme structure, SCSS syntax, and style exclusions."""
+    console = get_console()
+    
+    if check_exclusions:
+        console.print("[yellow]🔍 Checking for excluded header/footer/nav styles...[/yellow]")
+        theme_dir = get_dealer_theme_dir(theme_name)
+        sb_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        
+        violations_found = False
+        for sb_file in sb_files:
+            file_path = os.path.join(theme_dir, sb_file)
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                
+                # Check for excluded patterns
+                excluded_patterns = [
+                    r'\.header\b', r'#header\b', r'\.main-header\b',
+                    r'\.footer\b', r'#footer\b', r'\.main-footer\b', 
+                    r'\.nav\b', r'\.navigation\b', r'\.navbar\b',
+                    r'\.menu\b', r'\.primary-menu\b'
+                ]
+                
+                for pattern in excluded_patterns:
+                    import re
+                    matches = re.findall(pattern, content, re.IGNORECASE)
+                    if matches:
+                        console.print(f"[red]❌ VIOLATION: {sb_file} contains excluded pattern: {pattern}[/red]")
+                        console.print(f"   Found {len(matches)} match(es): {matches[:3]}...")
+                        violations_found = True
+        
+        if not violations_found:
+            console.print("[green]✅ All header/footer/nav styles properly excluded[/green]")
+        else:
+            console.print("[red]❌ Style exclusion violations found. Migration may have conflicts.[/red]")
+            sys.exit(1)
+    
+    # Continue with existing validation
     validate_scss_files(theme_name)
 
 

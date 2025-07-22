@@ -14,6 +14,7 @@ from ..utils.helpers import darken_hex, lighten_hex
 from ..utils.logger import logger
 from ..utils.path import get_common_theme_path, get_dealer_theme_dir
 from .mixin_parser import CommonThemeMixinParser
+from .classifiers import StyleClassifier
 
 
 class SCSSProcessor:
@@ -28,6 +29,7 @@ class SCSSProcessor:
         self.common_theme_path = get_common_theme_path()
         logger.info(f"SCSS Processor initialized for dealer: {self.slug}")
         self.mixin_parser = CommonThemeMixinParser()
+        self.style_classifier = StyleClassifier()
 
     def _process_scss_variables(self, content: str) -> str:
         """
@@ -331,6 +333,15 @@ class SCSSProcessor:
         logger.info(f"Performing SCSS transformation for {self.slug}...")
 
         try:
+            # Step 0: CRITICAL - Filter excluded header/footer/nav styles FIRST
+            content, exclusions = self.style_classifier.filter_scss_content(content, self.slug)
+            
+            if exclusions:
+                logger.info(f"Excluded {len(exclusions)} header/footer/nav styles from migration")
+                logger.info(f"Exclusion summary: {self.style_classifier.get_exclusion_summary()}")
+                for exclusion in exclusions[:5]:  # Log first 5 for verification
+                    logger.debug(f"Excluded: {exclusion.selector} - {exclusion.pattern}")
+            
             # Step 1: Process SCSS variables into a :root block and convert usage
             content = self._process_scss_variables(content)
 

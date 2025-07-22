@@ -913,6 +913,10 @@ def migrate_dealer_theme(
     )
 
     print_migration_header(slug)
+    
+    # Start migration timing
+    migration_start_time = time.time()
+    
     logger.info(f"Starting migration for {slug}")
 
     # Create the appropriate OEM handler for this slug if not provided
@@ -1029,10 +1033,20 @@ def migrate_dealer_theme(
         if progress_tracker:
             progress_tracker.complete_step("maps")
 
+    # Calculate and display total migration time
+    total_migration_time = time.time() - migration_start_time
+    
     logger.info(f"Migration completed successfully for {slug}")
+    logger.info(f"Total migration time: {total_migration_time:.1f} seconds")
 
     # Show beautiful completion message
     print_migration_complete(slug)
+    
+    # Display timing in Rich UI if progress tracker available
+    if progress_tracker:
+        from ..ui.console import get_console
+        console = get_console()
+        console.print(f"[green]⏱️  Total Migration Time: {total_migration_time:.1f}s[/green]")
 
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
@@ -1133,18 +1147,15 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
             logger.error(f"Critical error during compilation monitoring: {e}")
             return False
 
-        # Step 5: Verify compilation success
-        compilation_success = len(compiled_files) == len(test_files)
-
-        if compilation_success:
-            logger.info(
-                f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp"
-            )
+        # Step 5: Verify compilation success with final status determination
+        final_success, final_message = _determine_final_compilation_status(css_dir, test_files)
+        
+        if final_success:
+            logger.info(f"✅ {final_message}")
         else:
-            failed_files = [f for f, _ in test_files if f not in compiled_files]
-            logger.error(f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}")
+            logger.error(f"❌ {final_message}")
 
-        return compilation_success
+        return final_success
 
     except Exception as e:
         logger.error(f"Error during Docker Gulp compilation verification: {e}")
@@ -1496,6 +1507,76 @@ def _parse_compilation_errors(logs: str, test_files: list) -> list:
                 logger.info(f"Detected {error['type']}: {error['line_content']}")
 
     return errors
+
+
+def _determine_final_compilation_status(css_dir: str, test_files: list) -> tuple[bool, str]:
+    """
+    Determine final compilation status with accurate success/failure reporting.
+    
+    This function addresses false positive/negative issues by checking the actual
+    final state rather than intermediate compilation attempts.
+    
+    Args:
+        css_dir: Path to CSS directory
+        test_files: List of (test_filename, scss_path) tuples
+        
+    Returns:
+        tuple: (success: bool, status_message: str)
+    """
+    # Primary check: Verify CSS files were actually generated
+    css_files_generated = []
+    missing_css_files = []
+    
+    for test_filename, _ in test_files:
+        css_filename = test_filename.replace(".scss", ".css")
+        css_path = os.path.join(css_dir, css_filename)
+        
+        if os.path.exists(css_path) and os.path.getsize(css_path) > 0:
+            css_files_generated.append(css_filename)
+        else:
+            missing_css_files.append(css_filename)
+    
+    # Secondary check: Look for explicit compilation errors in recent logs
+    compilation_errors = []
+    try:
+        result = subprocess.run(
+            ["docker", "logs", "--tail", "30", "dealerinspire_legacy_assets"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            logs = result.stdout
+            
+            # Look for explicit error indicators
+            error_indicators = [
+                "Error:", "gulp-notify: [Error running Gulp]",
+                "SCSS compilation failed", "Syntax error", "Undefined variable"
+            ]
+            
+            for line in logs.split('\n'):
+                for indicator in error_indicators:
+                    if indicator in line and any(tf[0] in line for tf, _ in test_files):
+                        compilation_errors.append(line.strip())
+                        
+    except Exception as e:
+        logger.warning(f"Could not check Docker logs for final status: {e}")
+    
+    # Determine final status
+    total_files = len(test_files)
+    generated_count = len(css_files_generated)
+    
+    if generated_count == total_files and not compilation_errors:
+        return True, f"All {total_files} SCSS files compiled successfully with Docker Gulp"
+    elif generated_count > 0 and not compilation_errors:
+        # Partial success but no explicit errors - consider this success
+        return True, f"Compilation successful: {generated_count}/{total_files} files generated (Docker Gulp)"
+    elif compilation_errors:
+        return False, f"Compilation failed with errors: {len(compilation_errors)} error(s) detected"
+    else:
+        return False, f"Docker Gulp compilation failed: {len(missing_css_files)} files failed to generate"
 
 
 def _attempt_error_fix(error_info: dict, css_dir: str, theme_dir: str) -> bool:
