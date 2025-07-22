@@ -1123,26 +1123,35 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
                 time.sleep(0.2)  # Check every 200ms
 
         # Step 4: Monitor compilation with iterative error handling
+        compilation_success = False
         try:
             # Attempt compilation with error handling loop
             if not _handle_compilation_with_error_recovery(css_dir, test_files, theme_dir, slug):
                 logger.error("❌ SCSS compilation failed after error recovery attempts")
                 return False
 
+            # Step 5: Re-verify compilation success after error recovery
+            # Check again for CSS files after error recovery completed - MUST be done BEFORE cleanup
+            final_compiled_files = []
+            for test_filename, scss_path in test_files:
+                css_filename = test_filename.replace(".scss", ".css")
+                css_path = os.path.join(css_dir, css_filename)
+                if os.path.exists(css_path):
+                    final_compiled_files.append(test_filename)
+
+            compilation_success = len(final_compiled_files) == len(test_files)
+
+            if compilation_success:
+                logger.info(
+                    f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp"
+                )
+            else:
+                failed_files = [f for f, _ in test_files if f not in final_compiled_files]
+                logger.error(f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}")
+
         except Exception as e:
             logger.error(f"Critical error during compilation monitoring: {e}")
             return False
-
-        # Step 5: Verify compilation success
-        compilation_success = len(compiled_files) == len(test_files)
-
-        if compilation_success:
-            logger.info(
-                f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp"
-            )
-        else:
-            failed_files = [f for f, _ in test_files if f not in compiled_files]
-            logger.error(f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}")
 
         return compilation_success
 
@@ -1534,7 +1543,7 @@ def _attempt_error_fix(error_info: dict, css_dir: str, theme_dir: str) -> bool:
 
 
 def _fix_undefined_variable(error_info: dict, css_dir: str) -> bool:
-    """Fix undefined SCSS variables by replacing with CSS variables or commenting out."""
+    """Fix undefined SCSS variables by uncommenting them in _variables.scss or replacing with CSS variables."""
     variable_name = error_info["match_groups"][0] if error_info["match_groups"] else None
 
     if not variable_name:
@@ -1542,7 +1551,38 @@ def _fix_undefined_variable(error_info: dict, css_dir: str) -> bool:
 
     logger.info(f"Attempting to fix undefined variable: ${variable_name}")
 
-    # Find test files in CSS directory and apply fix
+    # First, try to uncomment the variable in _variables.scss
+    variables_file = os.path.join(css_dir, "_variables.scss")
+    if os.path.exists(variables_file):
+        try:
+            with open(variables_file) as f:
+                content = f.read()
+
+            lines = content.splitlines()
+            modified = False
+
+            for i, line in enumerate(lines):
+                # Look for commented variable definition
+                if (f"${variable_name}:" in line and 
+                    line.strip().startswith("//") and 
+                    not line.strip().startswith("// SCSS CONVERTED:")):
+                    # Uncomment the line
+                    uncommented_line = line.lstrip("/ ").strip()
+                    if uncommented_line.startswith("$"):
+                        lines[i] = uncommented_line
+                        modified = True
+                        logger.info(f"Uncommented variable definition: ${variable_name}")
+                        break
+
+            if modified:
+                with open(variables_file, "w") as f:
+                    f.write("\n".join(lines))
+                return True
+
+        except Exception as e:
+            logger.warning(f"Error fixing variable in _variables.scss: {e}")
+
+    # Fallback: Replace undefined variable with CSS variable equivalent in test files
     for file_name in os.listdir(css_dir):
         if file_name.startswith("test-") and file_name.endswith(".scss"):
             file_path = os.path.join(css_dir, file_name)

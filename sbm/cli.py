@@ -962,7 +962,7 @@ def test_compilation(
     click.echo(f"🧪 Testing SCSS compilation error handling for {theme_name}...")
     click.echo(f"Max iterations: {max_iterations}, Timeout: {timeout}s")
 
-    theme_dir = get_dealer_theme_dir(theme_name)
+    theme_dir = Path(get_dealer_theme_dir(theme_name))
     css_dir = theme_dir / "css"
     test_files: list[tuple[str, Path]] = []
     success = False
