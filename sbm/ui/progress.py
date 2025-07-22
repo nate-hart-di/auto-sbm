@@ -68,7 +68,7 @@ class MigrationProgress:
         self.progress = Progress(*columns, expand=True)
         self.tasks: Dict[str, Any] = {}
         self.step_tasks: Dict[str, Any] = {}
-        
+
         # Enhanced timing tracking
         self._start_time = None
         self._step_times: Dict[str, Dict[str, float]] = {}
@@ -93,7 +93,7 @@ class MigrationProgress:
         """
         self._start_time = time.time()
         logger.debug("Migration progress tracking started")
-        
+
         try:
             # Start background update thread for subprocess communication
             self._start_update_thread()
@@ -110,7 +110,7 @@ class MigrationProgress:
                 self._total_migration_time = time.time() - self._start_time
                 self._migration_completed = True
                 logger.debug(f"Migration progress completed in {self._total_migration_time:.2f}s")
-            
+
             # Stop background threads first
             self._stop_update_thread()
             # Force cleanup all tasks before exit
@@ -161,17 +161,17 @@ class MigrationProgress:
         if step_name not in self.step_tasks:
             logger.warning(f"Task {step_name} for step {step_name} no longer exists")
             return
-            
+
         task_id = self.step_tasks[step_name]
-        
+
         try:
             # Update progress
             self.progress.update(task_id, completed=completed)
-            
+
             # Update description if provided
             if description:
                 self.progress.update(task_id, description=f"[progress]{description}[/]")
-                
+
         except (KeyError, IndexError):
             logger.warning(f"Task {task_id} for step {step_name} no longer exists")
 
@@ -193,14 +193,14 @@ class MigrationProgress:
             # Check if task_id is valid index and task exists
             if 0 <= task_id < len(self.progress.tasks):
                 task = self.progress.tasks[task_id]
-                
+
                 # Mark task as complete and hide it (don't remove to preserve IDs)
                 self.progress.update(task_id, completed=task.total, visible=False)
 
                 # Remove from our tracking
                 del self.step_tasks[step_name]
 
-                # Advance migration progress  
+                # Advance migration progress
                 if "migration" in self.tasks:
                     migration_task_id = self.tasks["migration"]
                     if 0 <= migration_task_id < len(self.progress.tasks):
@@ -316,8 +316,8 @@ class MigrationProgress:
         current_time = time.time()
         if step_name not in self._step_times:
             self._step_times[step_name] = {}
-        
-        self._step_times[step_name]['start'] = current_time
+
+        self._step_times[step_name]["start"] = current_time
         self._current_step = step_name
         logger.debug(f"Started timing for step: {step_name}")
 
@@ -332,18 +332,17 @@ class MigrationProgress:
             Duration of the step in seconds
         """
         current_time = time.time()
-        
-        if step_name in self._step_times and 'start' in self._step_times[step_name]:
-            start_time = self._step_times[step_name]['start']
+
+        if step_name in self._step_times and "start" in self._step_times[step_name]:
+            start_time = self._step_times[step_name]["start"]
             duration = current_time - start_time
-            self._step_times[step_name]['end'] = current_time
-            self._step_times[step_name]['duration'] = duration
-            
+            self._step_times[step_name]["end"] = current_time
+            self._step_times[step_name]["duration"] = duration
+
             logger.debug(f"Completed step '{step_name}' in {duration:.2f}s")
             return duration
-        else:
-            logger.warning(f"No start time found for step: {step_name}")
-            return 0.0
+        logger.warning(f"No start time found for step: {step_name}")
+        return 0.0
 
     def get_step_duration(self, step_name: str) -> float:
         """
@@ -355,8 +354,8 @@ class MigrationProgress:
         Returns:
             Duration in seconds, or 0.0 if step not found/completed
         """
-        if step_name in self._step_times and 'duration' in self._step_times[step_name]:
-            return self._step_times[step_name]['duration']
+        if step_name in self._step_times and "duration" in self._step_times[step_name]:
+            return self._step_times[step_name]["duration"]
         return 0.0
 
     def get_total_migration_time(self) -> float:
@@ -378,19 +377,19 @@ class MigrationProgress:
             Dictionary with timing information for all steps and total time
         """
         summary = {
-            'total_time': self.get_total_migration_time(),
-            'elapsed_time': self.get_elapsed_time(),
-            'steps': {}
+            "total_time": self.get_total_migration_time(),
+            "elapsed_time": self.get_elapsed_time(),
+            "steps": {}
         }
-        
+
         for step_name, timing_data in self._step_times.items():
-            if 'duration' in timing_data:
-                summary['steps'][step_name] = timing_data['duration']
-            elif 'start' in timing_data:
+            if "duration" in timing_data:
+                summary["steps"][step_name] = timing_data["duration"]
+            elif "start" in timing_data:
                 # Step in progress
-                current_duration = time.time() - timing_data['start']
-                summary['steps'][step_name] = current_duration
-                
+                current_duration = time.time() - timing_data["start"]
+                summary["steps"][step_name] = current_duration
+
         return summary
 
     def format_duration(self, seconds: float) -> str:
@@ -405,15 +404,14 @@ class MigrationProgress:
         """
         if seconds < 60:
             return f"{seconds:.1f}s"
-        elif seconds < 3600:
+        if seconds < 3600:
             minutes = int(seconds // 60)
             secs = seconds % 60
             return f"{minutes}m {secs:.1f}s"
-        else:
-            hours = int(seconds // 3600)
-            minutes = int((seconds % 3600) // 60)
-            secs = seconds % 60
-            return f"{hours}h {minutes}m {secs:.1f}s"
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        return f"{hours}h {minutes}m {secs:.1f}s"
 
     def get_task_progress(self, task_id: int) -> float:
         """

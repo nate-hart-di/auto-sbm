@@ -9,8 +9,8 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ..utils.logger import logger
 
@@ -59,9 +59,9 @@ class CompilationValidator:
         logger.debug("Started compilation status tracking")
 
     def track_compilation_attempt(
-        self, 
-        attempt: int, 
-        status: CompilationStatus, 
+        self,
+        attempt: int,
+        status: CompilationStatus,
         errors: List[str] = None,
         warnings: List[str] = None,
         error_types: List[str] = None
@@ -78,7 +78,7 @@ class CompilationValidator:
         """
         current_time = time.time()
         duration = None
-        
+
         if self._compilation_history:
             # Calculate duration since last attempt
             last_attempt = self._compilation_history[-1]
@@ -137,11 +137,11 @@ class CompilationValidator:
         """
         if not self._compilation_history:
             return {
-                'status': 'not_started',
-                'attempts': 0,
-                'retries': 0,
-                'duration': 0.0,
-                'final_status': None
+                "status": "not_started",
+                "attempts": 0,
+                "retries": 0,
+                "duration": 0.0,
+                "final_status": None
             }
 
         total_duration = 0.0
@@ -160,15 +160,15 @@ class CompilationValidator:
             total_warnings += len(attempt.warnings)
 
         return {
-            'status': self._final_state.value if self._final_state else 'in_progress',
-            'attempts': len(self._compilation_history),
-            'retries': self.get_retry_count(),
-            'duration': total_duration,
-            'final_status': self._final_state,
-            'total_errors': total_errors,
-            'total_warnings': total_warnings,
-            'error_types': list(all_error_types),
-            'success': self.is_compilation_successful()
+            "status": self._final_state.value if self._final_state else "in_progress",
+            "attempts": len(self._compilation_history),
+            "retries": self.get_retry_count(),
+            "duration": total_duration,
+            "final_status": self._final_state,
+            "total_errors": total_errors,
+            "total_warnings": total_warnings,
+            "error_types": list(all_error_types),
+            "success": self.is_compilation_successful()
         }
 
     def get_last_attempt(self) -> Optional[CompilationAttempt]:

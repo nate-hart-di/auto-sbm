@@ -10,7 +10,6 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional, Tuple
 
 import click  # Import click for interactive prompts
 
@@ -1563,8 +1562,8 @@ def _fix_undefined_variable(error_info: dict, css_dir: str) -> bool:
 
             for i, line in enumerate(lines):
                 # Look for commented variable definition
-                if (f"${variable_name}:" in line and 
-                    line.strip().startswith("//") and 
+                if (f"${variable_name}:" in line and
+                    line.strip().startswith("//") and
                     not line.strip().startswith("// SCSS CONVERTED:")):
                     # Uncomment the line
                     uncommented_line = line.lstrip("/ ").strip()

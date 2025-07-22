@@ -21,7 +21,7 @@ class ConfigurationError(Exception):
 
 class ProgressSettings(BaseSettings):
     """Progress tracking configuration."""
-    
+
     model_config = SettingsConfigDict(extra="ignore")
 
     update_interval: float = Field(
@@ -35,7 +35,7 @@ class ProgressSettings(BaseSettings):
 
 class LoggingSettings(BaseSettings):
     """Logging configuration."""
-    
+
     model_config = SettingsConfigDict(extra="ignore")
 
     use_rich: bool = Field(default=True, description="Use Rich logging")
@@ -47,7 +47,7 @@ class LoggingSettings(BaseSettings):
 
 class GitSettings(BaseSettings):
     """Git-specific configuration."""
-    
+
     model_config = SettingsConfigDict(extra="ignore")
 
     github_token: Optional[str] = Field(default=None, description="GitHub personal access token")
@@ -65,19 +65,19 @@ class GitSettings(BaseSettings):
         # Allow None/empty for commands that don't require GitHub operations
         if v is None or v == "":
             return v
-            
+
         # Check for placeholder value
         if v == "your_github_personal_access_token_here":
             raise ValueError("GitHub token must be set and cannot be the placeholder value")
-        
+
         # More relaxed validation - check basic format patterns
         if len(v) < 10:
             raise ValueError("GitHub token appears too short to be valid")
-        
+
         # Check if it looks like a proper token (starts with known prefixes or has reasonable length)
         if not (v.startswith(("ghp_", "gho_", "ghu_", "ghs_", "ghr_")) or len(v) >= 20):
             raise ValueError("GitHub token format appears invalid")
-            
+
         return v
 
 
@@ -108,7 +108,7 @@ class AutoSBMSettings(BaseSettings):
     backup_directory: str = Field(default="backups", description="Backup directory path")
     backup_enabled: bool = Field(default=True, description="Enable backups")
     rich_ui_enabled: bool = Field(default=True, description="Enable Rich UI")
-    
+
     # Add WordPress debug fields to handle di-websites-platform environment variables
     wp_debug: Optional[bool] = Field(None, exclude=True, description="WordPress debug setting (ignored)")
     wp_debug_log: Optional[bool] = Field(None, exclude=True, description="WordPress debug log setting (ignored)")
@@ -132,16 +132,15 @@ class AutoSBMSettings(BaseSettings):
             except OSError as e:
                 # In test/CI environments or when permissions don't allow, just warn
                 if any(os.getenv(indicator) for indicator in [
-                    "CI", "CONTINUOUS_INTEGRATION", "BUILD_NUMBER", 
+                    "CI", "CONTINUOUS_INTEGRATION", "BUILD_NUMBER",
                     "GITHUB_ACTIONS", "JENKINS_URL", "TRAVIS", "PYTEST_CURRENT_TEST"
                 ]):
                     # In test environments, allow it through
                     import logging
                     logging.getLogger(__name__).warning(f"Cannot create directory {v} in test environment: {e}")
                     return v
-                else:
-                    # In production, this is still an error
-                    raise ValueError(f"Cannot create directory {v}: {e}")
+                # In production, this is still an error
+                raise ValueError(f"Cannot create directory {v}: {e}")
         return v
 
     def is_ci_environment(self) -> bool:

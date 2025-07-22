@@ -6,9 +6,9 @@ header, footer, and navigation styles that should not be migrated to
 Site Builder to prevent conflicts.
 """
 
-import pytest
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+
 from sbm.scss.classifiers import StyleClassifier, filter_scss_for_site_builder
 
 
@@ -20,12 +20,12 @@ class TestStyleClassifier:
         classifier = StyleClassifier(strict_mode=True)
         assert classifier.strict_mode is True
         assert len(classifier.excluded_patterns) > 0
-        assert classifier.get_exclusion_stats()['total_processed'] == 0
+        assert classifier.get_exclusion_stats()["total_processed"] == 0
 
     def test_header_pattern_exclusion(self):
         """Test that header styles are correctly identified for exclusion."""
         classifier = StyleClassifier()
-        
+
         # Test cases for header styles that should be excluded
         header_test_cases = [
             ".header { color: red; }",
@@ -37,7 +37,7 @@ class TestStyleClassifier:
             ".masthead { height: 100px; }",
             ".banner { width: 100%; }"
         ]
-        
+
         for css_rule in header_test_cases:
             should_exclude, reason = classifier.should_exclude_rule(css_rule)
             assert should_exclude is True, f"Header rule should be excluded: {css_rule}"
@@ -46,7 +46,7 @@ class TestStyleClassifier:
     def test_navigation_pattern_exclusion(self):
         """Test that navigation styles are correctly identified for exclusion."""
         classifier = StyleClassifier()
-        
+
         nav_test_cases = [
             ".nav { display: flex; }",
             ".navigation ul { list-style: none; }",
@@ -59,7 +59,7 @@ class TestStyleClassifier:
             ".nav-menu { margin: 0; }",
             ".breadcrumb { font-size: 0.8em; }"
         ]
-        
+
         for css_rule in nav_test_cases:
             should_exclude, reason = classifier.should_exclude_rule(css_rule)
             assert should_exclude is True, f"Navigation rule should be excluded: {css_rule}"
@@ -68,7 +68,7 @@ class TestStyleClassifier:
     def test_footer_pattern_exclusion(self):
         """Test that footer styles are correctly identified for exclusion."""
         classifier = StyleClassifier()
-        
+
         footer_test_cases = [
             ".footer { background: #000; }",
             "#footer { color: white; }",
@@ -78,7 +78,7 @@ class TestStyleClassifier:
             ".bottom-footer { border-top: 1px solid; }",
             ".footer-content { max-width: 1200px; }"
         ]
-        
+
         for css_rule in footer_test_cases:
             should_exclude, reason = classifier.should_exclude_rule(css_rule)
             assert should_exclude is True, f"Footer rule should be excluded: {css_rule}"
@@ -87,7 +87,7 @@ class TestStyleClassifier:
     def test_content_styles_included(self):
         """Test that content styles are NOT excluded."""
         classifier = StyleClassifier()
-        
+
         # These should NOT be excluded - they're content styles
         content_test_cases = [
             ".content { padding: 20px; }",
@@ -101,7 +101,7 @@ class TestStyleClassifier:
             ".dealer-info { background: white; }",
             ".contact-form { width: 100%; }"
         ]
-        
+
         for css_rule in content_test_cases:
             should_exclude, reason = classifier.should_exclude_rule(css_rule)
             assert should_exclude is False, f"Content rule should NOT be excluded: {css_rule}"
@@ -156,21 +156,21 @@ $secondary-color: #6c757d;
     padding: 40px 0;
 }
 """
-        
+
         classifier = StyleClassifier()
         filtered_content, result = classifier.filter_scss_content(scss_content)
-        
+
         # Check that exclusions were made
         assert result.excluded_count > 0, "Should have excluded some rules"
-        assert result.patterns_matched.get('header', 0) > 0, "Should have excluded header styles"
-        assert result.patterns_matched.get('navigation', 0) > 0, "Should have excluded navigation styles"
-        assert result.patterns_matched.get('footer', 0) > 0, "Should have excluded footer styles"
-        
+        assert result.patterns_matched.get("header", 0) > 0, "Should have excluded header styles"
+        assert result.patterns_matched.get("navigation", 0) > 0, "Should have excluded navigation styles"
+        assert result.patterns_matched.get("footer", 0) > 0, "Should have excluded footer styles"
+
         # Check that content styles remain
         assert ".content" in filtered_content, "Content styles should remain"
         assert ".vehicle-card" in filtered_content, "Vehicle card styles should remain"
         assert "$primary-color" in filtered_content, "Variables should remain"
-        
+
         # Check that excluded styles are commented
         assert "EXCLUDED HEADER RULE" in filtered_content, "Should have exclusion comments"
         assert "EXCLUDED FOOTER RULE" in filtered_content, "Should have exclusion comments"
@@ -182,13 +182,13 @@ $secondary-color: #6c757d;
 .content { padding: 20px; }
 .footer { background: black; }
 """
-        
+
         filtered_content, result = filter_scss_for_site_builder(scss_content)
-        
+
         assert result.excluded_count == 2, "Should exclude header and footer"
         assert ".content" in filtered_content, "Should keep content styles"
-        assert result.patterns_matched.get('header', 0) == 1, "Should match one header rule"
-        assert result.patterns_matched.get('footer', 0) == 1, "Should match one footer rule"
+        assert result.patterns_matched.get("header", 0) == 1, "Should match one header rule"
+        assert result.patterns_matched.get("footer", 0) == 1, "Should match one footer rule"
 
     def test_file_analysis(self):
         """Test analyzing an actual SCSS file."""
@@ -198,29 +198,29 @@ $secondary-color: #6c757d;
 .content { padding: 20px; }
 .footer { background: #000; }
 """
-        
+
         # Create a temporary file
-        with NamedTemporaryFile(mode='w', suffix='.scss', delete=False) as temp_file:
+        with NamedTemporaryFile(mode="w", suffix=".scss", delete=False) as temp_file:
             temp_file.write(scss_content)
             temp_file.flush()
-            
+
             classifier = StyleClassifier()
             result = classifier.analyze_file(Path(temp_file.name))
-            
+
             assert result.excluded_count == 3, "Should find 3 excluded rules (header, nav, footer)"
-            assert result.patterns_matched.get('header', 0) == 1
-            assert result.patterns_matched.get('navigation', 0) == 1
-            assert result.patterns_matched.get('footer', 0) == 1
+            assert result.patterns_matched.get("header", 0) == 1
+            assert result.patterns_matched.get("navigation", 0) == 1
+            assert result.patterns_matched.get("footer", 0) == 1
 
     def test_empty_content_handling(self):
         """Test handling of empty or whitespace-only content."""
         classifier = StyleClassifier()
-        
+
         # Test empty content
         filtered, result = classifier.filter_scss_content("")
         assert filtered == ""
         assert result.excluded_count == 0
-        
+
         # Test whitespace-only content
         filtered, result = classifier.filter_scss_content("   \n  \n   ")
         assert result.excluded_count == 0
@@ -228,28 +228,28 @@ $secondary-color: #6c757d;
     def test_stats_tracking(self):
         """Test that exclusion statistics are tracked correctly."""
         classifier = StyleClassifier()
-        
+
         # Process some content
         scss_content = """
 .header { color: red; }
 .nav { display: flex; }
 .content { padding: 20px; }
 """
-        
+
         classifier.filter_scss_content(scss_content)
         stats = classifier.get_exclusion_stats()
-        
-        assert stats['header'] == 1
-        assert stats['navigation'] == 1
-        assert stats['footer'] == 0
-        assert stats['total_excluded'] == 2
-        assert stats['total_processed'] == 1
-        
+
+        assert stats["header"] == 1
+        assert stats["navigation"] == 1
+        assert stats["footer"] == 0
+        assert stats["total_excluded"] == 2
+        assert stats["total_processed"] == 1
+
         # Reset stats
         classifier.reset_stats()
         stats_after_reset = classifier.get_exclusion_stats()
-        assert stats_after_reset['total_excluded'] == 0
-        assert stats_after_reset['total_processed'] == 0
+        assert stats_after_reset["total_excluded"] == 0
+        assert stats_after_reset["total_processed"] == 0
 
     def test_complex_nested_rules(self):
         """Test handling of complex nested SCSS rules."""
@@ -288,10 +288,10 @@ $secondary-color: #6c757d;
     }
 }
 """
-        
+
         classifier = StyleClassifier()
         filtered_content, result = classifier.filter_scss_content(scss_content)
-        
+
         # The entire .header block should be excluded
         assert result.excluded_count > 0, "Should exclude header rules"
         assert ".content" in filtered_content, "Should keep content styles"
@@ -478,22 +478,22 @@ class TestStyleExclusionIntegration:
     }
 }
 """
-        
+
         classifier = StyleClassifier()
         filtered_content, result = classifier.filter_scss_content(realistic_scss)
-        
+
         # Should exclude header and footer sections
         assert result.excluded_count >= 2, "Should exclude header and footer rules"
-        
+
         # Should keep vehicle inventory styles
         assert ".vehicle-inventory" in filtered_content
         assert ".vehicle-grid" in filtered_content
         assert ".vehicle-card" in filtered_content
-        
+
         # Should have excluded header and footer
-        assert result.patterns_matched.get('header', 0) > 0
-        assert result.patterns_matched.get('footer', 0) > 0
-        
+        assert result.patterns_matched.get("header", 0) > 0
+        assert result.patterns_matched.get("footer", 0) > 0
+
         # Check exclusion comments are added
         assert "EXCLUDED HEADER RULE" in filtered_content
         assert "EXCLUDED FOOTER RULE" in filtered_content

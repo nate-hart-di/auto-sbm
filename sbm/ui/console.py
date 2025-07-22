@@ -207,7 +207,7 @@ class SBMConsole:
         content = "[sbm.success]🎉 Migration Complete![/]\n\n"
         content += f"[bold]Theme:[/] [sbm.migration]{theme_name}[/]\n"
         content += "[bold]Status:[/] [sbm.success]All steps completed successfully[/]\n"
-        
+
         # Enhanced timing display
         if elapsed_time < 60:
             time_display = f"{elapsed_time:.1f}s"
@@ -220,13 +220,13 @@ class SBMConsole:
             minutes = int((elapsed_time % 3600) // 60)
             seconds = elapsed_time % 60
             time_display = f"{hours}h {minutes}m {seconds:.1f}s"
-            
+
         content += f"[bold]Total Time:[/] [sbm.info]{time_display}[/]\n"
-        
+
         # Add step timing breakdown if available
-        if timing_summary and 'steps' in timing_summary and timing_summary['steps']:
+        if timing_summary and "steps" in timing_summary and timing_summary["steps"]:
             content += "\n[bold]Step Breakdown:[/]\n"
-            for step_name, step_time in timing_summary['steps'].items():
+            for step_name, step_time in timing_summary["steps"].items():
                 if step_time > 0:
                     if step_time < 60:
                         step_display = f"{step_time:.1f}s"
@@ -235,7 +235,7 @@ class SBMConsole:
                         step_secs = step_time % 60
                         step_display = f"{step_mins}m {step_secs:.1f}s"
                     content += f"  • {step_name}: [sbm.info]{step_display}[/]\n"
-        
+
         content += "\n[bold]Next:[/] Review changes and create pull request"
 
         panel = Panel(

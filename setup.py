@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
-with open("README.md", "r") as fh:
+with open("README.md") as fh:
     long_description = fh.read()
 
 setup(
     name="sbm",
-    version="1.0.0",
+    version="2.0.0",
     author="Nathan Hart",
     author_email="nhart@dealerinspire.com",
     description="Site Builder Migration Tool - Automate dealer website migrations to the Site Builder platform",
@@ -20,10 +20,10 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     entry_points={
         "console_scripts": [
             "sbm=sbm.cli:cli",
         ],
     },
-) 
+)

@@ -146,7 +146,7 @@ def run_model(
                             file=sys.stderr,
                         )
                     elif message.get("type") == "result":
-                        print(f"\nFinal result:", file=sys.stderr)
+                        print("\nFinal result:", file=sys.stderr)
                         print(
                             f"  Success: {message.get('subtype') == 'success'}",
                             file=sys.stderr,
@@ -189,7 +189,7 @@ def run_model(
 
         elif output_format == "json":
             # Handle complete JSON output
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True)
             if result.returncode != 0:
                 print(
                     f"Claude Code failed with exit code {result.returncode}",
@@ -205,7 +205,7 @@ def run_model(
             # Print summary to stderr for user visibility
             if isinstance(json_data, dict):
                 if json_data.get("type") == "result":
-                    print(f"\nSummary:", file=sys.stderr)
+                    print("\nSummary:", file=sys.stderr)
                     print(
                         f"  Success: {not json_data.get('is_error', False)}",
                         file=sys.stderr,

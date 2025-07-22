@@ -71,7 +71,7 @@ fi
 # --- Python Virtual Environment ---
 if [ ! -d ".venv" ]; then
   log "Creating Python virtual environment (.venv)"
-  python3 -m venv .venv
+  python3 -m venv .venv --prompt auto-sbm
 fi
 source .venv/bin/activate
 

@@ -1,1 +1,0 @@
-"""Feature slices for Auto-SBM vertical slice architecture"""

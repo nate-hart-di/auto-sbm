@@ -24,7 +24,7 @@
 
 ### Prerequisites
 
-- **Python 3.8+**
+- **Python 3.9+**
 - **Git** with SSH access to GitHub
 - **GitHub CLI (`gh`)** for PR automation  
 - **just** for starting dealer sites

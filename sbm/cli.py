@@ -635,40 +635,41 @@ def reprocess(theme_name: str) -> None:
 def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> None:
     """Validate theme structure and SCSS syntax."""
     validate_scss_files(theme_name)
-    
+
     # Style exclusion validation
     if check_exclusions:
+        from pathlib import Path
+
         from .scss.classifiers import StyleClassifier
         from .utils.path import get_dealer_theme_dir
-        from pathlib import Path
-        
+
         theme_dir = get_dealer_theme_dir(theme_name)
         classifier = StyleClassifier(strict_mode=True)
-        
+
         sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
         total_excluded = 0
         total_checked = 0
-        
+
         click.echo(f"\n🔍 Checking style exclusions for {theme_name}...")
         click.echo("=" * 60)
-        
+
         for sb_file in sb_files:
             file_path = Path(theme_dir) / sb_file
             if file_path.exists():
                 result = classifier.analyze_file(file_path)
                 total_excluded += result.excluded_count
                 total_checked += 1
-                
+
                 if result.excluded_count > 0:
                     click.echo(f"📄 {sb_file}:")
                     click.echo(f"  ⚠️  Found {result.excluded_count} excluded rules")
                     for category, count in result.patterns_matched.items():
                         click.echo(f"    - {category}: {count} rules")
-                    
+
                     if show_excluded and result.excluded_rules:
                         click.echo("  📝 Excluded rules:")
                         for i, rule in enumerate(result.excluded_rules[:3], 1):  # Show first 3
-                            rule_preview = rule.split('\n')[0][:50]
+                            rule_preview = rule.split("\n")[0][:50]
                             click.echo(f"    {i}. {rule_preview}...")
                         if len(result.excluded_rules) > 3:
                             click.echo(f"    ... and {len(result.excluded_rules) - 3} more")
@@ -676,7 +677,7 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
                     click.echo(f"✅ {sb_file}: No excluded styles found")
             else:
                 click.echo(f"⚪ {sb_file}: File not found")
-        
+
         click.echo("=" * 60)
         if total_excluded > 0:
             click.echo(f"⚠️  SUMMARY: Found {total_excluded} header/footer/nav rules that should be excluded")
@@ -685,7 +686,7 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
                 click.echo("   Use --show-excluded to see the specific rules")
         else:
             click.echo("✅ SUMMARY: No problematic header/footer/navigation styles found")
-        
+
         click.echo(f"📊 Checked {total_checked} Site Builder files")
 
 
@@ -1255,6 +1256,13 @@ def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> No
 
     except Exception as e:
         click.echo(f"⚠️  Error during cleanup: {e}")
+
+
+@cli.command()
+def version() -> None:
+    """Display version information."""
+    click.echo("auto-sbm version 2.0.0")
+    click.echo("Site Builder Migration Tool")
 
 
 @cli.command()

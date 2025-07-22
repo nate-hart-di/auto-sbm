@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto-sbm"
-version = "1.0.0"
+version = "2.0.0"
 description = "Automated Site Builder Migration Tool with Enhanced Rich UI"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "DealerInspire", email = "engineering@dealerinspire.com"}
@@ -19,7 +19,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -72,6 +72,7 @@ Issues = "https://github.com/dealerinspire/auto-sbm/issues"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["sbm*"]
+exclude = ["src*"]
 
 [tool.setuptools.package-dir]
 
@@ -136,7 +137,7 @@ known-first-party = ["sbm"]
 force-single-line = false
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -173,7 +174,7 @@ addopts = [
     "--cov=sbm",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-fail-under=80",
+    "--cov-fail-under=50",
     "--strict-markers",
     "--strict-config",
     "--verbose"

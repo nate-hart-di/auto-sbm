@@ -13,8 +13,8 @@ from typing import Dict, Optional
 from ..utils.helpers import darken_hex, lighten_hex
 from ..utils.logger import logger
 from ..utils.path import get_common_theme_path, get_dealer_theme_dir
-from .mixin_parser import CommonThemeMixinParser
 from .classifiers import StyleClassifier
+from .mixin_parser import CommonThemeMixinParser
 
 
 class SCSSProcessor:
@@ -30,7 +30,7 @@ class SCSSProcessor:
         self.exclude_nav_styles = exclude_nav_styles
         logger.info(f"SCSS Processor initialized for dealer: {self.slug}")
         self.mixin_parser = CommonThemeMixinParser()
-        
+
         # Initialize style classifier for header/footer/nav exclusion
         if self.exclude_nav_styles:
             self.style_classifier = StyleClassifier(strict_mode=True)
@@ -342,7 +342,7 @@ class SCSSProcessor:
             if self.exclude_nav_styles:
                 logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
                 content, exclusion_result = self.style_classifier.filter_scss_content(content)
-                
+
                 if exclusion_result.excluded_count > 0:
                     logger.info(f"Excluded {exclusion_result.excluded_count} header/footer/nav rules from migration")
                     for category, count in exclusion_result.patterns_matched.items():

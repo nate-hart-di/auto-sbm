@@ -9,9 +9,9 @@ conflicts with Site Builder's own header, footer, and navigation components.
 from __future__ import annotations
 
 import re
-from typing import List, Set, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, List
 
 from ..utils.logger import logger
 
@@ -31,37 +31,37 @@ class StyleClassifier:
     # Patterns for styles that MUST NOT be migrated to Site Builder
     # These conflict with Site Builder's own components
     HEADER_PATTERNS = [
-        r'\.header\b',
-        r'#header\b', 
-        r'\.main-header\b',
-        r'\.site-header\b',
-        r'\.page-header\b',
-        r'\.top-header\b',
-        r'\.masthead\b',
-        r'\.banner\b'
+        r"\.header\b",
+        r"#header\b",
+        r"\.main-header\b",
+        r"\.site-header\b",
+        r"\.page-header\b",
+        r"\.top-header\b",
+        r"\.masthead\b",
+        r"\.banner\b"
     ]
 
     NAVIGATION_PATTERNS = [
-        r'\.nav\b',
-        r'\.navigation\b',
-        r'\.main-nav\b',
-        r'\.navbar\b',
-        r'\.menu\b',
-        r'\.primary-menu\b',
-        r'\.main-menu\b',
-        r'\.site-nav\b',
-        r'\.nav-menu\b',
-        r'\.breadcrumb\b'
+        r"\.nav\b",
+        r"\.navigation\b",
+        r"\.main-nav\b",
+        r"\.navbar\b",
+        r"\.menu\b",
+        r"\.primary-menu\b",
+        r"\.main-menu\b",
+        r"\.site-nav\b",
+        r"\.nav-menu\b",
+        r"\.breadcrumb\b"
     ]
 
     FOOTER_PATTERNS = [
-        r'\.footer\b',
-        r'#footer\b',
-        r'\.main-footer\b',
-        r'\.site-footer\b',
-        r'\.page-footer\b',
-        r'\.bottom-footer\b',
-        r'\.footer-content\b'
+        r"\.footer\b",
+        r"#footer\b",
+        r"\.main-footer\b",
+        r"\.site-footer\b",
+        r"\.page-footer\b",
+        r"\.bottom-footer\b",
+        r"\.footer-content\b"
     ]
 
     def __init__(self, strict_mode: bool = True):
@@ -74,21 +74,21 @@ class StyleClassifier:
         self.strict_mode = strict_mode
         self.excluded_patterns = self._compile_patterns()
         self._exclusion_stats = {
-            'header': 0,
-            'navigation': 0,
-            'footer': 0,
-            'total_excluded': 0,
-            'total_processed': 0
+            "header": 0,
+            "navigation": 0,
+            "footer": 0,
+            "total_excluded": 0,
+            "total_processed": 0
         }
 
     def _compile_patterns(self) -> List[re.Pattern]:
         """Compile all exclusion patterns into regex objects."""
         all_patterns = (
-            self.HEADER_PATTERNS + 
-            self.NAVIGATION_PATTERNS + 
+            self.HEADER_PATTERNS +
+            self.NAVIGATION_PATTERNS +
             self.FOOTER_PATTERNS
         )
-        
+
         compiled_patterns = []
         for pattern in all_patterns:
             try:
@@ -97,7 +97,7 @@ class StyleClassifier:
             except re.error as e:
                 logger.warning(f"Invalid regex pattern '{pattern}': {e}")
                 continue
-                
+
         return compiled_patterns
 
     def should_exclude_rule(self, css_rule: str) -> tuple[bool, str | None]:
@@ -113,7 +113,7 @@ class StyleClassifier:
         # Skip empty rules
         if not css_rule.strip():
             return False, None
-            
+
         # Check each exclusion pattern
         for pattern in self.excluded_patterns:
             if pattern.search(css_rule):
@@ -126,9 +126,9 @@ class StyleClassifier:
                     reason = "footer"
                 else:
                     reason = "unknown"
-                    
+
                 return True, reason
-                
+
         return False, None
 
     def filter_scss_content(self, content: str) -> tuple[str, ExclusionResult]:
@@ -144,22 +144,22 @@ class StyleClassifier:
         if not content.strip():
             return content, ExclusionResult(0, 0, [], {})
 
-        lines = content.split('\n')
+        lines = content.split("\n")
         filtered_lines = []
         excluded_rules = []
         patterns_matched = {}
-        
+
         # Track current rule context
         current_rule = []
         brace_depth = 0
         in_rule = False
-        
+
         for line_num, line in enumerate(lines, 1):
             # Count braces to track rule boundaries
-            brace_depth += line.count('{') - line.count('}')
-            
+            brace_depth += line.count("{") - line.count("}")
+
             # If we're starting a new rule
-            if '{' in line and not in_rule:
+            if "{" in line and not in_rule:
                 in_rule = True
                 current_rule = [line]
             elif in_rule:
@@ -168,47 +168,47 @@ class StyleClassifier:
                 # Not in a rule, include the line (comments, variables, etc.)
                 filtered_lines.append(line)
                 continue
-            
+
             # If we've completed a rule (brace_depth returns to 0)
             if in_rule and brace_depth == 0:
-                rule_content = '\n'.join(current_rule)
+                rule_content = "\n".join(current_rule)
                 should_exclude, reason = self.should_exclude_rule(rule_content)
-                
+
                 if should_exclude:
                     # Log the exclusion
                     logger.debug(f"Excluding {reason} rule at line {line_num}: {current_rule[0].strip()}")
                     excluded_rules.append(rule_content)
                     patterns_matched[reason] = patterns_matched.get(reason, 0) + 1
                     self._exclusion_stats[reason] += 1
-                    
+
                     # Add a comment about the exclusion
                     filtered_lines.append(f"/* EXCLUDED {reason.upper()} RULE: {current_rule[0].strip()} */")
                 else:
                     # Include the rule
                     filtered_lines.extend(current_rule)
-                
+
                 # Reset for next rule
                 current_rule = []
                 in_rule = False
-        
+
         # Handle incomplete rules (shouldn't happen with valid SCSS)
         if current_rule and in_rule:
             logger.warning("Incomplete SCSS rule found at end of file")
             filtered_lines.extend(current_rule)
-        
+
         # Update stats
-        self._exclusion_stats['total_excluded'] = len(excluded_rules)
-        self._exclusion_stats['total_processed'] += 1
-        
-        filtered_content = '\n'.join(filtered_lines)
-        
+        self._exclusion_stats["total_excluded"] = len(excluded_rules)
+        self._exclusion_stats["total_processed"] += 1
+
+        filtered_content = "\n".join(filtered_lines)
+
         result = ExclusionResult(
             excluded_count=len(excluded_rules),
             included_count=len(lines) - len(excluded_rules),
             excluded_rules=excluded_rules,
             patterns_matched=patterns_matched
         )
-        
+
         return filtered_content, result
 
     def analyze_file(self, file_path: Path) -> ExclusionResult:
@@ -222,7 +222,7 @@ class StyleClassifier:
             ExclusionResult with analysis information
         """
         try:
-            content = file_path.read_text(encoding='utf-8')
+            content = file_path.read_text(encoding="utf-8")
             _, result = self.filter_scss_content(content)
             return result
         except Exception as e:
@@ -236,11 +236,11 @@ class StyleClassifier:
     def reset_stats(self) -> None:
         """Reset exclusion statistics."""
         self._exclusion_stats = {
-            'header': 0,
-            'navigation': 0,
-            'footer': 0,
-            'total_excluded': 0,
-            'total_processed': 0
+            "header": 0,
+            "navigation": 0,
+            "footer": 0,
+            "total_excluded": 0,
+            "total_processed": 0
         }
 
 
