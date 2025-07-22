@@ -12,9 +12,9 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Any, List, Tuple  # Add typing imports for Click functions
 
 import click
-from typing import Any, Dict, List, Optional, Tuple  # Add typing imports for Click functions
 from git import Repo  # Import Repo for post_migrate command
 
 from .config import Config, ConfigurationError, get_config
