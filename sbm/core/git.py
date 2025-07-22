@@ -24,7 +24,7 @@ from sbm.utils.path import get_dealer_theme_dir, get_platform_dir
 class CommentIntelligence:
     """Intelligent comment analysis to understand change intent."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.intent_keywords = {
             "testing": ["testing", "test", "experiment", "trying", "trial"],
             "integration": ["adding", "integrating", "including", "importing", "merging"],
@@ -172,7 +172,7 @@ class CommentIntelligence:
 class CSSIntelligence:
     """Intelligent CSS analysis to understand what selectors and properties do."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.selector_types = {
             # Page-specific selectors
             "#results-page": "Vehicle Results Page (VRP)",
@@ -274,7 +274,7 @@ class CSSIntelligence:
 class GitOperations:
     """Handles Git operations for SBM migrations."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
         """Initialize GitOperations with configuration."""
         self.config = config
 
@@ -512,7 +512,8 @@ class GitOperations:
             error_output = e.stderr if e.stderr else str(e)
             if self._is_pr_exists_error(error_output):
                 return self._handle_existing_pr(error_output, head)
-            raise Exception(f"GitHub CLI error: {error_output}")
+            msg = f"GitHub CLI error: {error_output}"
+            raise Exception(msg)
 
     def _is_pr_exists_error(self, error_output: str) -> bool:
         """Checks if the error output indicates that a PR already exists."""
@@ -555,7 +556,8 @@ class GitOperations:
                 return pr_data[0]["url"]
         except Exception as list_e:
             logger.warning(f"Could not list existing PRs: {list_e}")
-        raise Exception(f"PR already exists but could not retrieve URL: {error_output}")
+        msg = f"PR already exists but could not retrieve URL: {error_output}"
+        raise Exception(msg)
 
     def _analyze_migration_changes(self) -> List[str]:
         """Analyze Git changes to determine what was actually migrated."""
@@ -853,7 +855,7 @@ class GitOperations:
 
         return manual_changes
 
-    def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]):
+    def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]) -> None:
         """Analyze the types of changes made in the added lines."""
         change_patterns = {
             "custom_comments": r"\/\*.*(?:custom|manual|added|fix|tweak|adjust).*\*\/",
@@ -972,7 +974,7 @@ just start {slug}
 
         return {"title": title, "body": body, "what_section": what_section}
 
-    def _open_pr_in_browser(self, pr_url: str):
+    def _open_pr_in_browser(self, pr_url: str) -> None:
         """Open PR URL in browser."""
         try:
             subprocess.run(["open", pr_url], check=True)
@@ -980,7 +982,7 @@ just start {slug}
         except subprocess.CalledProcessError:
             logger.warning(f"Could not open PR in browser. URL: {pr_url}")
 
-    def _copy_salesforce_message_to_clipboard(self, what_section: str, pr_url: str):
+    def _copy_salesforce_message_to_clipboard(self, what_section: str, pr_url: str) -> None:
         """Copy Salesforce message to clipboard."""
         try:
             salesforce_message = f"""FED Site Builder Migration Complete:
@@ -1027,18 +1029,21 @@ PR: {pr_url}"""
         try:
             # Check if we're in a Git repository
             if not self._is_git_repo():
-                raise Exception("Not in a Git repository")
+                msg = "Not in a Git repository"
+                raise Exception(msg)
 
             # Check GitHub CLI availability and auth
             if not self._check_gh_cli():
-                raise Exception("GitHub CLI not available or not authenticated")
+                msg = "GitHub CLI not available or not authenticated"
+                raise Exception(msg)
 
             # Get repository info and determine current branch
             repo_info = self._get_repo_info()
             current_branch = head or repo_info.get("current_branch") or branch_name
 
             if not current_branch:
-                raise Exception("Could not determine branch for PR")
+                msg = "Could not determine branch for PR"
+                raise Exception(msg)
 
             # Use provided values or generate defaults using stellantis template
             pr_content = self._build_stellantis_pr_content(slug, current_branch, repo_info)
@@ -1182,7 +1187,7 @@ def git_operations(slug):
 
 def create_pr(slug, branch_name=None, **kwargs):
     """Legacy wrapper for create_pr."""
-    from ..config import Config
+    from sbm.config import Config
 
     # Initialize config with safe defaults
     config_dict = {

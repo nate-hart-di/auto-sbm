@@ -9,17 +9,18 @@ import os
 import re
 import shutil
 from glob import glob
+from typing import Optional
 
 import click
 
-from ..utils.logger import logger
-from ..utils.path import get_dealer_theme_dir
+from sbm.utils.logger import logger
+from sbm.utils.path import get_dealer_theme_dir
 
 # CommonTheme directory path
 COMMON_THEME_DIR = "/Users/nathanhart/di-websites-platform/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme"
 
 
-def migrate_map_components(slug, oem_handler=None, interactive=False):
+def migrate_map_components(slug, oem_handler=None, interactive=False) -> Optional[bool]:
     """
     Enhanced map components migration that scans for CommonTheme @import statements
     and migrates both SCSS content and PHP partials.
@@ -139,7 +140,7 @@ def find_commontheme_map_imports(style_scss_path):
         return []
 
 
-def migrate_map_scss_content(slug, map_imports):
+def migrate_map_scss_content(slug, map_imports) -> Optional[bool]:
     """
     Migrate SCSS content from CommonTheme map files to sb-inside.scss and sb-home.scss.
 
@@ -355,7 +356,7 @@ def guess_partial_paths_from_scss(map_imports):
     return partial_paths
 
 
-def copy_partial_to_dealer_theme(slug, partial_info, interactive=False):
+def copy_partial_to_dealer_theme(slug, partial_info, interactive=False) -> Optional[bool]:
     """
     Copy a PHP partial from CommonTheme to DealerTheme with proper directory structure.
 
@@ -394,9 +395,7 @@ def copy_partial_to_dealer_theme(slug, partial_info, interactive=False):
                         for similar_file in similar_files[:3]:  # Show top 3
                             click.echo(f"  - {similar_file}")
 
-                    if not click.confirm("Skip this partial?", default=True):
-                        return False
-                    return True
+                    return click.confirm("Skip this partial?", default=True)
                 # In non-interactive mode, automatically skip missing guessed partials
                 logger.warning(f"Skipping missing guessed partial: {commontheme_partial_path}.php")
                 return True
@@ -455,7 +454,7 @@ def find_similar_partials(partial_path):
         similar_files = []
 
         # Walk through CommonTheme partials
-        for root, dirs, files in os.walk(search_base):
+        for root, _dirs, files in os.walk(search_base):
             for file in files:
                 if file.endswith(".php"):
                     relative_path = os.path.relpath(os.path.join(root, file), search_base)
@@ -484,13 +483,13 @@ def identify_map_partials(slug, oem_handler=None):
     return []
 
 
-def copy_map_partials(slug, map_partials):
+def copy_map_partials(slug, map_partials) -> bool:
     """Legacy function - kept for backward compatibility."""
     logger.info("Using legacy map partial copying")
     return True
 
 
-def migrate_map_styles(slug, oem_handler=None):
+def migrate_map_styles(slug, oem_handler=None) -> bool:
     """Legacy function - kept for backward compatibility."""
     logger.info("Using legacy map styles migration")
     return True

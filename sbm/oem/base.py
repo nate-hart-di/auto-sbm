@@ -6,8 +6,9 @@ for all OEM-specific implementations.
 """
 
 from pathlib import Path
+from typing import NoReturn
 
-from ..utils.logger import logger
+from sbm.utils.logger import logger
 
 
 class BaseOEMHandler:
@@ -18,7 +19,7 @@ class BaseOEMHandler:
     the required methods.
     """
 
-    def __init__(self, slug):
+    def __init__(self, slug) -> None:
         """
         Initialize the OEM handler.
 
@@ -28,23 +29,25 @@ class BaseOEMHandler:
         self.slug = slug
         self.name = self.__class__.__name__.replace("Handler", "")
 
-    def get_map_styles(self):
+    def get_map_styles(self) -> NoReturn:
         """
         Get OEM-specific map styles.
 
         Returns:
             str: CSS/SCSS content for map styles
         """
-        raise NotImplementedError(f"{self.name} handler must implement get_map_styles()")
+        msg = f"{self.name} handler must implement get_map_styles()"
+        raise NotImplementedError(msg)
 
-    def get_directions_styles(self):
+    def get_directions_styles(self) -> NoReturn:
         """
         Get OEM-specific direction box styles.
 
         Returns:
             str: CSS/SCSS content for directions box styles
         """
-        raise NotImplementedError(f"{self.name} handler must implement get_directions_styles()")
+        msg = f"{self.name} handler must implement get_directions_styles()"
+        raise NotImplementedError(msg)
 
     def get_map_partial_patterns(self):
         """
@@ -75,14 +78,15 @@ class BaseOEMHandler:
             r'add_shortcode\s*\(\s*[\'"].*?map.*?[\'"]',
         ]
 
-    def get_brand_match_patterns(self):
+    def get_brand_match_patterns(self) -> NoReturn:
         """
         Get patterns for identifying if a dealer belongs to this OEM.
 
         Returns:
             list: Regular expression patterns for matching dealer brands
         """
-        raise NotImplementedError(f"{self.name} handler must implement get_brand_match_patterns()")
+        msg = f"{self.name} handler must implement get_brand_match_patterns()"
+        raise NotImplementedError(msg)
 
     def _load_style_file(self, filename):
         """
@@ -109,5 +113,5 @@ class BaseOEMHandler:
         logger.warning(f"Style file {filename} not found for {self.name}")
         return ""
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name}Handler({self.slug})"

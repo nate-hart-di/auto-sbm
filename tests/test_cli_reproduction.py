@@ -12,14 +12,13 @@ sys.path.insert(0, os.path.abspath("."))
 
 def test_exact_cli_workflow():
     """Test the exact same workflow as 'sbm auto magmaserati'."""
-    print("🧪 Testing EXACT CLI workflow...")
 
     # Import exactly like the CLI does
     from sbm.core.migration import migrate_dealer_theme
     from sbm.ui.console import get_console
     from sbm.ui.progress import MigrationProgress
 
-    console = get_console()
+    get_console()
 
     # Simulate exact CLI parameters
     theme_name = "magmaserati"
@@ -34,16 +33,13 @@ def test_exact_cli_workflow():
     # Create progress tracker exactly like CLI
     progress = MigrationProgress()
 
-    print("Starting migration with progress context...")
 
     try:
         with progress.progress_context():
             # Add overall migration task exactly like CLI
-            migration_task = progress.add_migration_task(theme_name)
-            print(f"Created migration task: {migration_task}")
+            progress.add_migration_task(theme_name)
 
             try:
-                print("Calling migrate_dealer_theme...")
 
                 # Call with exact same parameters as CLI
                 success = migrate_dealer_theme(
@@ -58,7 +54,6 @@ def test_exact_cli_workflow():
                     verbose_docker=verbose_docker
                 )
 
-                print(f"migrate_dealer_theme returned: {success}")
 
                 if success:
                     # Complete migration task exactly like CLI
@@ -67,40 +62,28 @@ def test_exact_cli_workflow():
                         if migration_task_id in progress.progress.tasks:
                             task = progress.progress.tasks[migration_task_id]
                             progress.progress.update(migration_task_id, completed=task.total)
-                            print("Completed overall migration task")
 
-                    print("✅ CLI workflow completed successfully!")
                 else:
-                    print("❌ Migration failed")
+                    pass
 
-            except Exception as migration_error:
-                print(f"❌ Migration error: {migration_error}")
+            except Exception:
                 import traceback
                 traceback.print_exc()
                 raise
 
-    except Exception as context_error:
-        print(f"❌ Progress context error: {context_error}")
+    except Exception:
         import traceback
         traceback.print_exc()
         raise
 
 def main():
     """Test exact CLI reproduction."""
-    print("🚀 Testing EXACT CLI Reproduction")
-    print("This should hang at map migration just like the real CLI")
-    print("=" * 60)
 
     try:
         test_exact_cli_workflow()
 
-        print("=" * 60)
-        print("🎉 No hanging detected - workflow completed!")
 
-    except Exception as e:
-        print("=" * 60)
-        print(f"❌ HANG/ERROR DETECTED: {e}")
-        print("This is the exact issue causing the CLI to hang!")
+    except Exception:
         sys.exit(1)
 
 if __name__ == "__main__":

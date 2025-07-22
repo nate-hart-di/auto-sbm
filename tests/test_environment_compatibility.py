@@ -215,7 +215,7 @@ class TestFullEnvironmentWorkflow:
         from sbm.ui.progress import MigrationProgress
 
         # Initialize components
-        settings = get_settings()
+        get_settings()
         progress = MigrationProgress()
         validator = CompilationValidator()
 

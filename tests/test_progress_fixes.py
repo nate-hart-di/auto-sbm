@@ -16,13 +16,12 @@ from sbm.ui.progress import MigrationProgress
 
 def test_basic_progress_lifecycle():
     """Test basic progress lifecycle without errors."""
-    print("🧪 Testing basic progress lifecycle...")
 
     progress = MigrationProgress()
 
     with progress.progress_context():
         # Add migration task
-        migration_task = progress.add_migration_task("test_theme")
+        progress.add_migration_task("test_theme")
 
         # Add and complete step tasks
         steps = [
@@ -35,7 +34,7 @@ def test_basic_progress_lifecycle():
         ]
 
         for step_name, description in steps:
-            step_task = progress.add_step_task(step_name, description, 100)
+            progress.add_step_task(step_name, description, 100)
 
             # Simulate progress updates
             for i in range(0, 101, 25):
@@ -46,41 +45,37 @@ def test_basic_progress_lifecycle():
             progress.complete_step(step_name)
             time.sleep(0.1)
 
-    print("✅ Basic progress lifecycle test passed")
 
 
 def test_error_handling():
     """Test progress tracking with simulated errors."""
-    print("🧪 Testing error handling...")
 
     progress = MigrationProgress()
 
     try:
         with progress.progress_context():
             # Add migration task
-            migration_task = progress.add_migration_task("test_theme_error")
+            progress.add_migration_task("test_theme_error")
 
             # Add step task
-            step_task = progress.add_step_task("git_ops", "Setting up Git branch", 100)
+            progress.add_step_task("git_ops", "Setting up Git branch", 100)
 
             # Simulate error during step
-            raise ValueError("Simulated migration error")
+            msg = "Simulated migration error"
+            raise ValueError(msg)
 
-    except ValueError as e:
-        print(f"🎯 Caught expected error: {e}")
+    except ValueError:
+        pass
 
     # Verify cleanup occurred
     if not progress.tasks and not progress.step_tasks:
-        print("✅ Error handling and cleanup test passed")
+        pass
     else:
-        print("❌ Error handling test failed - tasks not cleaned up")
-        print(f"   Remaining tasks: {progress.tasks}")
-        print(f"   Remaining step tasks: {progress.step_tasks}")
+        pass
 
 
 def test_indeterminate_tasks():
     """Test indeterminate task lifecycle."""
-    print("🧪 Testing indeterminate tasks...")
 
     progress = MigrationProgress()
 
@@ -97,12 +92,10 @@ def test_indeterminate_tasks():
         progress.complete_indeterminate_task(docker_task, "Docker environment started")
         time.sleep(0.5)
 
-    print("✅ Indeterminate tasks test passed")
 
 
 def test_stale_task_handling():
     """Test handling of stale task references."""
-    print("🧪 Testing stale task handling...")
 
     progress = MigrationProgress()
 
@@ -120,12 +113,10 @@ def test_stale_task_handling():
         # Try to complete the removed task - should handle gracefully
         progress.complete_step("test_step")
 
-    print("✅ Stale task handling test passed")
 
 
 def test_concurrent_operations():
     """Test concurrent-like operations that might cause race conditions."""
-    print("🧪 Testing concurrent-like operations...")
 
     progress = MigrationProgress()
 
@@ -133,7 +124,7 @@ def test_concurrent_operations():
         # Add multiple tasks quickly
         tasks = []
         for i in range(5):
-            task_id = progress.add_step_task(f"step_{i}", f"Step {i}", 100)
+            progress.add_step_task(f"step_{i}", f"Step {i}", 100)
             tasks.append(f"step_{i}")
 
         # Update all tasks
@@ -144,13 +135,10 @@ def test_concurrent_operations():
         for step_name in tasks:
             progress.complete_step(step_name)
 
-    print("✅ Concurrent-like operations test passed")
 
 
 def main():
     """Run all progress tracking tests."""
-    print("🚀 Starting Rich UI Progress Tracking Tests")
-    print("=" * 50)
 
     try:
         test_basic_progress_lifecycle()
@@ -159,13 +147,8 @@ def main():
         test_stale_task_handling()
         test_concurrent_operations()
 
-        print("=" * 50)
-        print("🎉 All progress tracking tests passed!")
-        print("✅ Rich UI progress tracking fixes are working correctly")
 
-    except Exception as e:
-        print("=" * 50)
-        print(f"❌ Test failed with error: {e}")
+    except Exception:
         import traceback
         traceback.print_exc()
         sys.exit(1)

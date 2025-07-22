@@ -11,7 +11,7 @@ from typing import Optional
 from rich.console import Console
 from rich.theme import Theme
 
-from ..config import Config
+from sbm.config import Config
 
 
 class SBMConsole:
@@ -22,7 +22,7 @@ class SBMConsole:
     throughout the SBM tool, with configuration-aware theming and fallback support.
     """
 
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Optional[Config] = None) -> None:
         """
         Initialize SBM console with optional configuration.
 
@@ -117,7 +117,7 @@ class SBMConsole:
 
         return any(os.getenv(var) for var in ci_indicators) or os.getenv("TERM") == "dumb"
 
-    def print_step(self, step_num: int, total_steps: int, description: str):
+    def print_step(self, step_num: int, total_steps: int, description: str) -> None:
         """
         Print step header with consistent formatting.
 
@@ -128,7 +128,7 @@ class SBMConsole:
         """
         self.console.print(f"\n[step]Step {step_num}/{total_steps}:[/] {description}")
 
-    def print_status(self, message: str, style: str = "info"):
+    def print_status(self, message: str, style: str = "info") -> None:
         """
         Print status message with appropriate styling.
 
@@ -138,7 +138,7 @@ class SBMConsole:
         """
         self.console.print(f"[{style}]{message}[/{style}]")
 
-    def print_header(self, title: str, subtitle: str = None):
+    def print_header(self, title: str, subtitle: Optional[str] = None) -> None:
         """
         Print section header with consistent formatting.
 
@@ -155,23 +155,23 @@ class SBMConsole:
         panel = Panel(content, border_style="cyan", padding=(1, 2))
         self.console.print(panel)
 
-    def print_success(self, message: str):
+    def print_success(self, message: str) -> None:
         """Print success message with checkmark."""
         self.console.print(f"[success]✅ {message}[/]")
 
-    def print_warning(self, message: str):
+    def print_warning(self, message: str) -> None:
         """Print warning message with warning icon."""
         self.console.print(f"[warning]⚠️  {message}[/]")
 
-    def print_error(self, message: str):
+    def print_error(self, message: str) -> None:
         """Print error message with error icon."""
         self.console.print(f"[error]❌ {message}[/]")
 
-    def print_info(self, message: str):
+    def print_info(self, message: str) -> None:
         """Print info message with info icon."""
         self.console.print(f"[info]ℹ️  {message}[/]")
 
-    def print_migration_header(self, theme_name: str):
+    def print_migration_header(self, theme_name: str) -> None:
         """Print migration header with SBM branding."""
         from rich.panel import Panel
 
@@ -185,18 +185,18 @@ class SBMConsole:
         )
         self.console.print(panel)
 
-    def print_docker_status(self, message: str):
+    def print_docker_status(self, message: str) -> None:
         """Print Docker-related status with Docker styling."""
         self.console.print(f"[sbm.docker]🐳 {message}[/]")
 
-    def print_aws_status(self, message: str):
+    def print_aws_status(self, message: str) -> None:
         """Print AWS-related status with AWS styling."""
         self.console.print(f"[sbm.aws]☁️  {message}[/]")
 
-    def print_migration_complete(self, theme_name: str, elapsed_time: float, timing_summary: Optional[dict] = None):
+    def print_migration_complete(self, theme_name: str, elapsed_time: float, timing_summary: Optional[dict] = None) -> None:
         """
         Print migration completion with enhanced styling and timing details.
-        
+
         Args:
             theme_name: Name of the migrated theme
             elapsed_time: Total elapsed time

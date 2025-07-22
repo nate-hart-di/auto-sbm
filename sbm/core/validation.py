@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from ..utils.logger import logger
+from sbm.utils.logger import logger
 
 
 class CompilationStatus(Enum):
@@ -39,12 +39,12 @@ class CompilationAttempt:
 class CompilationValidator:
     """
     Track and validate compilation attempts for accurate status reporting.
-    
+
     This class separates retry attempts from final compilation status,
     ensuring we only report the true final outcome of compilation processes.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize compilation validator."""
         self._compilation_history: List[CompilationAttempt] = []
         self._final_state: Optional[CompilationStatus] = None
@@ -62,9 +62,9 @@ class CompilationValidator:
         self,
         attempt: int,
         status: CompilationStatus,
-        errors: List[str] = None,
-        warnings: List[str] = None,
-        error_types: List[str] = None
+        errors: Optional[List[str]] = None,
+        warnings: Optional[List[str]] = None,
+        error_types: Optional[List[str]] = None
     ) -> None:
         """
         Track a single compilation attempt.
@@ -73,7 +73,7 @@ class CompilationValidator:
             attempt: Attempt number (1-based)
             status: Current compilation status
             errors: List of error messages
-            warnings: List of warning messages  
+            warnings: List of warning messages
             error_types: List of error types for categorization
         """
         current_time = time.time()
@@ -105,7 +105,7 @@ class CompilationValidator:
     def get_final_status(self) -> Optional[CompilationStatus]:
         """
         Get the true final compilation status.
-        
+
         Returns:
             Final compilation status or None if still in progress
         """
@@ -114,7 +114,7 @@ class CompilationValidator:
     def is_compilation_successful(self) -> bool:
         """
         Check if compilation ultimately succeeded.
-        
+
         Returns:
             True if final status is success, False otherwise
         """
@@ -131,7 +131,7 @@ class CompilationValidator:
     def get_compilation_summary(self) -> Dict[str, Any]:
         """
         Get comprehensive compilation summary.
-        
+
         Returns:
             Dictionary with compilation statistics and history
         """
@@ -269,35 +269,31 @@ def validate_theme_files(slug, theme_dir):
 
     # Validate functions.php if it exists
     functions_php = os.path.join(theme_dir, "functions.php")
-    if os.path.exists(functions_php):
-        if not validate_php_syntax(functions_php):
-            logger.error(f"functions.php validation failed for {slug}")
-            success = False
+    if os.path.exists(functions_php) and not validate_php_syntax(functions_php):
+        logger.error(f"functions.php validation failed for {slug}")
+        success = False
 
     # Validate header.php if it exists
     header_php = os.path.join(theme_dir, "header.php")
-    if os.path.exists(header_php):
-        if not validate_php_syntax(header_php):
-            logger.error(f"header.php validation failed for {slug}")
-            success = False
+    if os.path.exists(header_php) and not validate_php_syntax(header_php):
+        logger.error(f"header.php validation failed for {slug}")
+        success = False
 
     # Validate footer.php if it exists
     footer_php = os.path.join(theme_dir, "footer.php")
-    if os.path.exists(footer_php):
-        if not validate_php_syntax(footer_php):
-            logger.error(f"footer.php validation failed for {slug}")
-            success = False
+    if os.path.exists(footer_php) and not validate_php_syntax(footer_php):
+        logger.error(f"footer.php validation failed for {slug}")
+        success = False
 
     # Validate Site Builder files
     sb_files = ["sb-inside.scss", "sb-home.scss", "sb-vdp.scss", "sb-vrp.scss"]
 
-    from ..scss.validator import validate_scss_syntax
+    from sbm.scss.validator import validate_scss_syntax
 
     for file in sb_files:
         file_path = os.path.join(theme_dir, file)
-        if os.path.exists(file_path):
-            if not validate_scss_syntax(file_path):
-                logger.error(f"{file} validation failed for {slug}")
-                success = False
+        if os.path.exists(file_path) and not validate_scss_syntax(file_path):
+            logger.error(f"{file} validation failed for {slug}")
+            success = False
 
     return success

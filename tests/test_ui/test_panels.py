@@ -27,7 +27,7 @@ class TestStatusPanels:
         assert isinstance(panel, Panel)
         # Test panel was created successfully
         assert panel is not None
-        assert hasattr(panel, 'renderable')
+        assert hasattr(panel, "renderable")
 
     def test_migration_status_panel_with_additional_info(self):
         """Test migration status panel with additional information."""

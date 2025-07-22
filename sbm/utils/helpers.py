@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 
 
-def validate_slug(slug):
+def validate_slug(slug: str) -> bool:
     """
     Validate that the slug contains only allowed characters.
 
@@ -21,13 +21,10 @@ def validate_slug(slug):
     if not slug:
         return False
 
-    if re.search(r"[^a-zA-Z0-9/_-]", slug):
-        return False
-
-    return True
+    return not re.search(r"[^a-zA-Z0-9/_-]", slug)
 
 
-def get_branch_name(slug):
+def get_branch_name(slug: str) -> str:
     """
     Generate a standardized branch name for a migration.
 
@@ -41,7 +38,7 @@ def get_branch_name(slug):
     return f"{slug}-sbm{current_date}"
 
 
-def extract_content_between_comments(content, start_marker, end_marker):
+def extract_content_between_comments(content: str, start_marker: str, end_marker: str) -> str:
     """
     Extract content between specified comment markers.
 
@@ -62,7 +59,7 @@ def extract_content_between_comments(content, start_marker, end_marker):
     return ""
 
 
-def extract_nested_rule(content, selector):
+def extract_nested_rule(content: str, selector: str) -> str:
     """
     Extract a CSS rule including all nested rules.
 
@@ -87,7 +84,7 @@ def extract_nested_rule(content, selector):
     return ""
 
 
-def hex_to_rgb(hex_color):
+def hex_to_rgb(hex_color: str) -> tuple[int, int, int] | None:
     """
     Convert hex color to RGB tuple.
 
@@ -115,7 +112,7 @@ def hex_to_rgb(hex_color):
         return None
 
 
-def rgb_to_hex(r, g, b):
+def rgb_to_hex(r, g, b) -> str:
     """
     Convert RGB tuple to hex color string.
 
@@ -130,7 +127,7 @@ def rgb_to_hex(r, g, b):
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def lighten_hex(hex_color, percentage):
+def lighten_hex(hex_color: str, percentage: int) -> str:
     """
     Lighten a hex color by a given percentage.
 
@@ -156,7 +153,7 @@ def lighten_hex(hex_color, percentage):
     return rgb_to_hex(r, g, b)
 
 
-def darken_hex(hex_color, percentage):
+def darken_hex(hex_color: str, percentage: int) -> str:
     """
     Darken a hex color by a given percentage.
 

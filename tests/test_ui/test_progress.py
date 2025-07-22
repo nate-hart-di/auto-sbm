@@ -56,7 +56,7 @@ class TestMigrationProgress:
         """Test step progress updates work correctly."""
         progress = MigrationProgress()
         with progress.progress_context():
-            migration_task = progress.add_migration_task("test-theme")
+            progress.add_migration_task("test-theme")
             step_task = progress.add_step_task("test_step", "Test step", 100)
 
             # Update step progress
@@ -235,10 +235,10 @@ class TestProgressIntegration:
 
             for step_name, description in steps:
                 # Add step
-                step_task = progress.add_step_task(step_name, description, 100)
+                progress.add_step_task(step_name, description, 100)
 
                 # Simulate progress within step
-                for i in range(0, 101, 25):
+                for _i in range(0, 101, 25):
                     progress.update_step_progress(step_name, 25)
                     time.sleep(0.01)  # Brief pause
 
@@ -258,12 +258,12 @@ class TestProgressIntegration:
             migration_task = progress.add_migration_task("test-theme", 3)
 
             # Complete first step successfully
-            step1 = progress.add_step_task("step1", "Step 1", 100)
+            progress.add_step_task("step1", "Step 1", 100)
             progress.update_step_progress("step1", 100)
             progress.complete_step("step1")
 
             # Simulate error in step 2 (incomplete)
-            step2 = progress.add_step_task("step2", "Step 2 (with error)", 100)
+            progress.add_step_task("step2", "Step 2 (with error)", 100)
             progress.update_step_progress("step2", 50)
             # Don't complete step2 to simulate error
 
@@ -282,8 +282,8 @@ class TestProgressIntegration:
         progress.progress.console = console
 
         with progress.progress_context():
-            task_id = progress.add_migration_task("test-theme")
-            step_task = progress.add_step_task("test_step", "Test step", 100)
+            progress.add_migration_task("test-theme")
+            progress.add_step_task("test_step", "Test step", 100)
             progress.update_step_progress("test_step", 50)
             progress.complete_step("test_step")
 
@@ -297,7 +297,7 @@ class TestProgressIntegration:
 
         with progress.progress_context():
             # Track a simple command that should complete quickly
-            task_id = progress.track_subprocess(
+            progress.track_subprocess(
                 command=["echo", "test"],
                 description="Test subprocess"
             )
@@ -315,7 +315,7 @@ class TestProgressIntegration:
             output_lines.append(line)
 
         with progress.progress_context():
-            task_id = progress.track_subprocess(
+            progress.track_subprocess(
                 command=["echo", "hello world"],
                 description="Test subprocess with callback",
                 progress_callback=capture_output
@@ -335,11 +335,11 @@ class TestProgressIntegration:
 
         with progress.progress_context():
             # Start multiple subprocess operations
-            task1 = progress.track_subprocess(
+            progress.track_subprocess(
                 command=["echo", "task1"],
                 description="First task"
             )
-            task2 = progress.track_subprocess(
+            progress.track_subprocess(
                 command=["echo", "task2"],
                 description="Second task"
             )
@@ -354,7 +354,7 @@ class TestProgressIntegration:
 
         with progress.progress_context():
             # Track a command that might take longer
-            task_id = progress.track_subprocess(
+            progress.track_subprocess(
                 command=["sleep", "0.1"],
                 description="Test timeout"
             )
@@ -368,7 +368,7 @@ class TestProgressIntegration:
         progress = MigrationProgress()
 
         with progress.progress_context():
-            task_id = progress.track_subprocess(
+            progress.track_subprocess(
                 command=["echo", "cleanup test"],
                 description="Cleanup test"
             )

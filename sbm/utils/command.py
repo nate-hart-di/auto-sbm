@@ -8,13 +8,14 @@ and real-time output.
 import logging
 import subprocess
 import threading
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def execute_interactive_command(
     command, error_message="Command failed", cwd=None, suppress_output=False
-):
+) -> Optional[bool]:
     """
     Execute an interactive shell command that may require user input.
     This allows commands like 'just start' to prompt for passwords and receive input.
@@ -30,7 +31,7 @@ def execute_interactive_command(
     """
     try:
         if not suppress_output:
-            print(f"Executing interactive command: {command}")
+            pass
 
         if suppress_output:
             # Simple suppressed execution
@@ -61,13 +62,12 @@ def execute_interactive_command(
         return True
 
     except KeyboardInterrupt:
-        print("\nCommand interrupted by user.")
         return False
     except FileNotFoundError:
-        logger.error(f"Command not found: {command.split()[0]}")
+        logger.exception(f"Command not found: {command.split()[0]}")
         return False
     except Exception as e:
-        logger.error(f"Command execution failed: {e}")
+        logger.exception(f"Command execution failed: {e}")
         return False
 
 
@@ -90,7 +90,6 @@ def execute_command(command, error_message="Command failed", wait_for_completion
     stderr_output = []
     process = None
     try:
-        print(f"Executing: {command}")
 
         # Use Popen to stream output in real-time
         process = subprocess.Popen(
@@ -104,9 +103,8 @@ def execute_command(command, error_message="Command failed", wait_for_completion
         )
 
         # Threads to read stdout and stderr
-        def read_pipe(pipe, output_list):
+        def read_pipe(pipe, output_list) -> None:
             for line in iter(pipe.readline, ""):
-                print(line, end="")
                 output_list.append(line)
             pipe.close()
 
@@ -131,15 +129,14 @@ def execute_command(command, error_message="Command failed", wait_for_completion
         return True, stdout_output, stderr_output, process
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"Command failed: {command}")
-        logger.error(f"Error output:\n{e.stderr}")
+        logger.exception(f"Command failed: {command}")
+        logger.exception(f"Error output:\n{e.stderr}")
         return False, stdout_output, stderr_output, None
     except KeyboardInterrupt:
-        print("\nCommand interrupted by user.")
         if process:
             process.terminate()
             process.wait()
         return False, stdout_output, stderr_output, None
     except FileNotFoundError:
-        logger.error(f"Command not found: {command.split()[0]}")
+        logger.exception(f"Command not found: {command.split()[0]}")
         return False, stdout_output, stderr_output, None

@@ -13,7 +13,6 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -35,6 +34,7 @@ from .core.migration import (
     run_post_migration_workflow,
 )
 from .oem.factory import OEMFactory
+from .scss.classifiers import StyleClassifier
 from .scss.validator import validate_scss_files
 
 # Rich UI imports
@@ -42,6 +42,7 @@ from .ui.console import get_console
 from .ui.panels import StatusPanels
 from .ui.progress import MigrationProgress
 from .ui.prompts import InteractivePrompts
+from .utils.helpers import get_branch_name
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
 
@@ -562,9 +563,8 @@ def auto(
 
             # Handle interactive prompts AFTER progress context ends
             if success and (interactive_review or interactive_git or interactive_pr):
-                # Get branch name - use theme-sbm date format
-                date_suffix = datetime.now(timezone.utc).strftime("%m%d")
-                branch_name = f"{theme_name}-sbm{date_suffix}"
+                # Get branch name - use centralized helper function
+                branch_name = get_branch_name(theme_name)
 
                 success = run_post_migration_workflow(
                     theme_name,
@@ -630,18 +630,29 @@ def reprocess(theme_name: str) -> None:
 
 @cli.command()
 @click.argument("theme_name")
-@click.option("--check-exclusions", is_flag=True, help="Check for header/footer/navigation styles that should be excluded.")
-@click.option("--show-excluded", is_flag=True, help="Show excluded rules (use with --check-exclusions).")
+@click.option(
+    "--check-exclusions",
+    is_flag=True,
+    help="Check for header/footer/navigation styles that should be excluded.",
+)
+@click.option(
+    "--show-excluded",
+    is_flag=True,
+    help="Show excluded rules (use with --check-exclusions).",
+)
 def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> None:
-    """Validate theme structure and SCSS syntax."""
+    """
+    Validate theme structure and SCSS syntax.
+
+    Args:
+        theme_name: Name of the dealer theme to validate
+        check_exclusions: Whether to check for header/footer/navigation styles
+        show_excluded: Whether to display excluded rules (requires check_exclusions)
+    """
     validate_scss_files(theme_name)
 
     # Style exclusion validation
     if check_exclusions:
-        from pathlib import Path
-
-        from .scss.classifiers import StyleClassifier
-        from .utils.path import get_dealer_theme_dir
 
         theme_dir = get_dealer_theme_dir(theme_name)
         classifier = StyleClassifier(strict_mode=True)
@@ -680,7 +691,10 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
 
         click.echo("=" * 60)
         if total_excluded > 0:
-            click.echo(f"⚠️  SUMMARY: Found {total_excluded} header/footer/nav rules that should be excluded")
+            click.echo(
+                f"⚠️  SUMMARY: Found {total_excluded} header/footer/nav rules "
+                "that should be excluded"
+            )
             click.echo("💡 These styles may conflict with Site Builder components")
             if not show_excluded:
                 click.echo("   Use --show-excluded to see the specific rules")
@@ -846,51 +860,96 @@ def pr(
         sys.exit(1)
 
 
+def _validate_git_repository() -> None:
+    """Validate we're in a git repository."""
+    git_dir = REPO_ROOT / ".git"
+    if not git_dir.exists():
+        click.echo("❌ Not in a git repository. Cannot update.", err=True)
+        sys.exit(1)
+
+
+def _get_current_branch() -> str:
+    """Get the current git branch name."""
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+
+    if result.returncode != 0:
+        click.echo("❌ Could not determine current branch.", err=True)
+        sys.exit(1)
+
+    return result.stdout.strip()
+
+
+def _stash_changes_if_needed() -> bool:
+    """Stash local changes if any exist. Returns True if changes were stashed."""
+    status_result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        check=False,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    has_changes = bool(status_result.stdout.strip())
+    if has_changes:
+        click.echo("Stashing local changes...")
+        subprocess.run(
+            ["git", "stash", "push", "-m", "Manual SBM update stash"],
+            cwd=REPO_ROOT,
+            check=True
+        )
+
+    return has_changes
+
+
+def _update_dependencies() -> None:
+    """Update requirements and reinstall package."""
+    # Install/update requirements after git pull
+    click.echo("Installing updated requirements...")
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+        click.echo("✅ Requirements updated successfully.")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"⚠️  Warning: Failed to update requirements: {e}")
+
+    # Reinstall auto-sbm package to reflect code changes
+    click.echo("Reinstalling auto-sbm package...")
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-e", "."],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+        click.echo("✅ Auto-sbm package reinstalled successfully.")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"⚠️  Warning: Failed to reinstall auto-sbm package: {e}")
+
+
+def _restore_stashed_changes() -> None:
+    """Restore previously stashed changes."""
+    click.echo("Restoring local changes...")
+    subprocess.run(["git", "stash", "pop"], cwd=REPO_ROOT, check=True)
+
+
 @cli.command()
 def update() -> None:
-    """
-    Manually update auto-sbm to the latest version.
-    """
+    """Manually update auto-sbm to the latest version."""
     click.echo("Manually updating auto-sbm...")
 
     try:
-        # Force update regardless of disable file
-        git_dir = REPO_ROOT / ".git"
-        if not git_dir.exists():
-            click.echo("❌ Not in a git repository. Cannot update.", err=True)
-            sys.exit(1)
-
-        # Check current branch
-        current_branch_result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            check=False,
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        if current_branch_result.returncode != 0:
-            click.echo("❌ Could not determine current branch.", err=True)
-            sys.exit(1)
-
-        current_branch = current_branch_result.stdout.strip()
-
-        # Stash changes if any
-        status_result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            check=False,
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-        has_changes = bool(status_result.stdout.strip())
-        if has_changes:
-            click.echo("Stashing local changes...")
-            subprocess.run(
-                ["git", "stash", "push", "-m", "Manual SBM update stash"], cwd=REPO_ROOT, check=True
-            )
+        _validate_git_repository()
+        current_branch = _get_current_branch()
+        has_changes = _stash_changes_if_needed()
 
         # Perform git pull
         click.echo(f"Pulling latest changes from origin/{current_branch}...")
@@ -907,35 +966,11 @@ def update() -> None:
                 click.echo("✅ Already up to date.")
             else:
                 click.echo("✅ Successfully updated to latest version.")
-
-                # Install/update requirements after git pull
-                click.echo("Installing updated requirements...")
-                try:
-                    subprocess.run(
-                        [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
-                        cwd=REPO_ROOT,
-                        check=True,
-                    )
-                    click.echo("✅ Requirements updated successfully.")
-                except subprocess.CalledProcessError as e:
-                    click.echo(f"⚠️  Warning: Failed to update requirements: {e}")
-
-                # Reinstall auto-sbm package to reflect code changes
-                click.echo("Reinstalling auto-sbm package...")
-                try:
-                    subprocess.run(
-                        [sys.executable, "-m", "pip", "install", "-e", "."],
-                        cwd=REPO_ROOT,
-                        check=True,
-                    )
-                    click.echo("✅ Auto-sbm package reinstalled successfully.")
-                except subprocess.CalledProcessError as e:
-                    click.echo(f"⚠️  Warning: Failed to reinstall auto-sbm package: {e}")
+                _update_dependencies()
 
             # Restore stashed changes
             if has_changes:
-                click.echo("Restoring local changes...")
-                subprocess.run(["git", "stash", "pop"], cwd=REPO_ROOT, check=True)
+                _restore_stashed_changes()
         else:
             click.echo(f"❌ Update failed: {pull_result.stderr}", err=True)
             if has_changes:
@@ -1225,37 +1260,6 @@ def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> No
 
 
 
-def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> None:
-    """
-    Clean up test files and wait for Docker Gulp to process the cleanup.
-
-    Args:
-        css_dir: CSS directory path
-        test_files: List of (test_filename, scss_path) tuples
-    """
-    try:
-        # Remove test files
-        for test_filename, scss_path in test_files:
-            try:
-                # Remove test SCSS file
-                if scss_path.exists():
-                    scss_path.unlink()
-
-                # Remove generated CSS file
-                css_filename = test_filename.replace(".scss", ".css")
-                css_path = css_dir / css_filename
-                if css_path.exists():
-                    css_path.unlink()
-
-            except Exception as e:
-                click.echo(f"  ⚠️  Error removing {test_filename}: {e}")
-
-        # Wait for Gulp cleanup cycle
-        time.sleep(3)
-        click.echo("✅ Test files cleaned up successfully")
-
-    except Exception as e:
-        click.echo(f"⚠️  Error during cleanup: {e}")
 
 
 @cli.command()

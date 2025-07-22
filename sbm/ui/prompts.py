@@ -12,7 +12,8 @@ from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 from rich.text import Text
 
-from ..utils.path import get_dealer_theme_dir
+from sbm.utils.path import get_dealer_theme_dir
+
 from .console import get_console
 from .panels import StatusPanels
 

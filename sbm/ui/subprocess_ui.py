@@ -36,7 +36,7 @@ class SubprocessTracker:
     with real-time progress tracking and Rich UI feedback.
     """
 
-    def __init__(self, progress_tracker: Optional[MigrationProgress] = None):
+    def __init__(self, progress_tracker: Optional[MigrationProgress] = None) -> None:
         """
         Initialize subprocess tracker.
 
@@ -107,7 +107,7 @@ class SubprocessTracker:
             SubprocessResult with Docker startup details
         """
 
-        def docker_output_processor(line: str):
+        def docker_output_processor(line: str) -> None:
             """Process Docker output for meaningful progress updates."""
             line_lower = line.strip().lower()
 
@@ -143,7 +143,7 @@ class SubprocessTracker:
             SubprocessResult with AWS authentication details
         """
 
-        def aws_output_processor(line: str):
+        def aws_output_processor(line: str) -> None:
             """Process AWS output for meaningful progress updates."""
             line_lower = line.strip().lower()
 
@@ -180,7 +180,7 @@ class SubprocessTracker:
             SubprocessResult with Git operation details
         """
 
-        def git_output_processor(line: str):
+        def git_output_processor(line: str) -> None:
             """Process Git output for meaningful progress updates."""
             line_lower = line.strip().lower()
 

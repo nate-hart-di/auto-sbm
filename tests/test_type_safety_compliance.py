@@ -3,7 +3,7 @@ Test cases for type safety compliance to verify mypy strict mode requirements.
 
 This test module verifies:
 - Type hint coverage in critical modules
-- MyPy strict mode compliance 
+- MyPy strict mode compliance
 - Function signature type correctness
 - Import and module structure validation
 """
@@ -105,7 +105,7 @@ class TestFutureAnnotationsUsage:
         first_import_line = None
         for i, line in enumerate(lines):
             stripped = line.strip()
-            if stripped.startswith("import ") or stripped.startswith("from "):
+            if stripped.startswith(("import ", "from ")):
                 first_import_line = i
                 break
 
@@ -132,11 +132,10 @@ class TestClickCommandTypeHints:
 
     def test_click_context_typing(self):
         """Test that Click context parameters are properly typed."""
-        import click
 
         from sbm.cli import auto
 
-        sig = inspect.signature(auto)
+        inspect.signature(auto)
 
         # Click decorators modify function signatures, so we'll just check that
         # the function exists and is callable
@@ -200,7 +199,7 @@ class TestImportStructure:
                 for line in content.split("\n")
             )
             has_future_annotations = "from __future__ import annotations" in content
-            
+
             assert has_typing_import or has_future_annotations, \
                 f"Module {module.__name__} should import typing constructs or use __future__ annotations"
 

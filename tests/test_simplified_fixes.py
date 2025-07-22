@@ -15,13 +15,12 @@ from sbm.ui.progress import MigrationProgress
 
 def test_simplified_progress():
     """Test the simplified progress tracking approach."""
-    print("🧪 Testing simplified progress approach...")
 
     progress = MigrationProgress()
 
     with progress.progress_context():
         # Add migration task (6 steps)
-        migration_task = progress.add_migration_task("test_theme", 6)
+        progress.add_migration_task("test_theme", 6)
 
         # Simulate the 6 migration steps
         steps = [
@@ -33,8 +32,7 @@ def test_simplified_progress():
             ("map_components", "Migrating map components")
         ]
 
-        for i, (step_name, description) in enumerate(steps, 1):
-            print(f"  Step {i}/6: {description}")
+        for _i, (step_name, description) in enumerate(steps, 1):
 
             # Add step task
             progress.add_step_task(step_name, description, 100)
@@ -56,42 +54,30 @@ def test_simplified_progress():
                 task = progress.progress.tasks[migration_task_id]
                 progress.progress.update(migration_task_id, completed=task.total)
 
-    print("✅ Simplified progress test completed successfully!")
 
 def test_command_execution():
     """Test the simplified command execution."""
-    print("🧪 Testing simplified command execution...")
 
     from sbm.utils.command import execute_interactive_command
 
     # Test with suppressed output
-    print("  Testing suppressed execution...")
     success = execute_interactive_command("echo 'test suppressed'", suppress_output=True)
     assert success, "Suppressed command should succeed"
 
     # Test with full output
-    print("  Testing full output execution...")
     success = execute_interactive_command("echo 'test visible'", suppress_output=False)
     assert success, "Full output command should succeed"
 
-    print("✅ Command execution test completed successfully!")
 
 def main():
     """Run simplified tests."""
-    print("🚀 Testing Simplified Rich UI Fixes")
-    print("=" * 40)
 
     try:
         test_simplified_progress()
         test_command_execution()
 
-        print("=" * 40)
-        print("🎉 All simplified tests passed!")
-        print("✅ Ready for real-world testing")
 
-    except Exception as e:
-        print("=" * 40)
-        print(f"❌ Test failed: {e}")
+    except Exception:
         import traceback
         traceback.print_exc()
         sys.exit(1)

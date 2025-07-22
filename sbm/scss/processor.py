@@ -10,9 +10,10 @@ import subprocess
 import tempfile
 from typing import Dict, Optional
 
-from ..utils.helpers import darken_hex, lighten_hex
-from ..utils.logger import logger
-from ..utils.path import get_common_theme_path, get_dealer_theme_dir
+from sbm.utils.helpers import darken_hex, lighten_hex
+from sbm.utils.logger import logger
+from sbm.utils.path import get_common_theme_path, get_dealer_theme_dir
+
 from .classifiers import StyleClassifier
 from .mixin_parser import CommonThemeMixinParser
 
@@ -23,7 +24,7 @@ class SCSSProcessor:
     by using an intelligent mixin parser and targeted transformations.
     """
 
-    def __init__(self, slug: str, exclude_nav_styles: bool = True):
+    def __init__(self, slug: str, exclude_nav_styles: bool = True) -> None:
         self.slug = slug
         self.theme_dir = get_dealer_theme_dir(slug)
         self.common_theme_path = get_common_theme_path()
@@ -64,8 +65,7 @@ class SCSSProcessor:
 
         # Finally, convert SCSS variable usages to CSS custom properties
         # BUT exclude SCSS internal logic (mixins, maps, loops, functions)
-        content = self._convert_scss_variables_intelligently(content)
-        return content
+        return self._convert_scss_variables_intelligently(content)
 
     def _convert_scss_variables_intelligently(self, content: str) -> str:
         """
@@ -79,7 +79,6 @@ class SCSSProcessor:
 
         for i, line in enumerate(lines):
             stripped = line.strip()
-            original_line = line
 
             # Track brace depth for nested structures
             brace_depth += line.count("{") - line.count("}")
@@ -107,14 +106,7 @@ class SCSSProcessor:
 
             # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
             if (
-                inside_mixin
-                or stripped.startswith("@each")
-                or stripped.startswith("@for")
-                or stripped.startswith("@if")
-                or stripped.startswith("@else")
-                or "map-get(" in stripped
-                or "map-keys(" in stripped
-                or stripped.startswith("%#")
+                inside_mixin or stripped.startswith(("@each", "@for", "@if", "@else", "%#")) or "map-get(" in stripped or "map-keys(" in stripped
             ):
                 continue
 
@@ -182,17 +174,15 @@ class SCSSProcessor:
         unquoted_pattern = re.compile(
             r"url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)"
         )
-        content = unquoted_pattern.sub(r'url("\1")', content)
+        return unquoted_pattern.sub(r'url("\1")', content)
 
-        return content
 
     def _remove_imports(self, content: str) -> str:
         """
         Removes all @import statements from the SCSS content.
         """
         # Logic to remove all @import lines
-        content = re.sub(r"@import\s+.*?;", "", content)
-        return content
+        return re.sub(r"@import\s+.*?;", "", content)
 
     def _convert_scss_functions(self, content: str) -> str:
         """
@@ -217,7 +207,7 @@ class SCSSProcessor:
 
         # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
         # lighten(#252525, 2%) -> #2a2a2a
-        def replace_lighten(match):
+        def replace_lighten(match) -> str:
             hex_color = match.group(2)
             percentage = int(match.group(3))
             lightened = lighten_hex(hex_color, percentage)
@@ -228,7 +218,7 @@ class SCSSProcessor:
         )
 
         # darken(#00ccfe, 10%) -> #00b8e6
-        def replace_darken(match):
+        def replace_darken(match) -> str:
             hex_color = match.group(2)
             percentage = int(match.group(3))
             darkened = darken_hex(hex_color, percentage)
@@ -256,9 +246,8 @@ class SCSSProcessor:
         )
 
         # Remove any commented-out broken code patterns
-        content = re.sub(r"//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);", "", content)
+        return re.sub(r"//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);", "", content)
 
-        return content
 
     def _verify_scss_compilation(self, content: str) -> bool:
         """
@@ -375,9 +364,8 @@ class SCSSProcessor:
             processed_content = self._remove_imports(content)
 
             # Step 5: Trim whitespace for a clean final output
-            processed_content = self._trim_whitespace(processed_content)
+            return self._trim_whitespace(processed_content)
 
-            return processed_content
 
         except Exception as e:
             logger.error(

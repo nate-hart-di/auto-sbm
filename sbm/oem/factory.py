@@ -9,7 +9,8 @@ import os
 import re
 from pathlib import Path
 
-from ..utils.logger import logger
+from sbm.utils.logger import logger
+
 from .default import DefaultHandler
 from .stellantis import StellantisHandler
 

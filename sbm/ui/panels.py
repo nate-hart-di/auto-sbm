@@ -13,7 +13,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from ..utils.path import get_dealer_theme_dir
+from sbm.utils.path import get_dealer_theme_dir
 
 
 class StatusPanels:

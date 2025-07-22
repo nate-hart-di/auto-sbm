@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -50,17 +50,17 @@ class GitSettings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="ignore")
 
-    github_token: Optional[str] = Field(default=None, description="GitHub personal access token")
+    github_token: str | None = Field(default=None, description="GitHub personal access token")
     github_org: str = Field(default="dealerinspire", description="GitHub organization")
     default_branch: str = Field(default="main", description="Default git branch")
-    default_labels: List[str] = Field(default=["fe-dev"], description="Default PR labels")
-    default_reviewers: List[str] = Field(
+    default_labels: list[str] = Field(default=["fe-dev"], description="Default PR labels")
+    default_reviewers: list[str] = Field(
         default=["carsdotcom/fe-dev"], description="Default PR reviewers"
     )
 
     @field_validator("github_token")
     @classmethod
-    def validate_github_token(cls, v: Optional[str]) -> Optional[str]:
+    def validate_github_token(cls, v: str | None) -> str | None:
         """Validate GitHub token format and content."""
         # Allow None/empty for commands that don't require GitHub operations
         if v is None or v == "":
@@ -68,15 +68,18 @@ class GitSettings(BaseSettings):
 
         # Check for placeholder value
         if v == "your_github_personal_access_token_here":
-            raise ValueError("GitHub token must be set and cannot be the placeholder value")
+            msg = "GitHub token must be set and cannot be the placeholder value"
+            raise ValueError(msg)
 
         # More relaxed validation - check basic format patterns
         if len(v) < 10:
-            raise ValueError("GitHub token appears too short to be valid")
+            msg = "GitHub token appears too short to be valid"
+            raise ValueError(msg)
 
         # Check if it looks like a proper token (starts with known prefixes or has reasonable length)
         if not (v.startswith(("ghp_", "gho_", "ghu_", "ghs_", "ghr_")) or len(v) >= 20):
-            raise ValueError("GitHub token format appears invalid")
+            msg = "GitHub token format appears invalid"
+            raise ValueError(msg)
 
         return v
 
@@ -110,9 +113,9 @@ class AutoSBMSettings(BaseSettings):
     rich_ui_enabled: bool = Field(default=True, description="Enable Rich UI")
 
     # Add WordPress debug fields to handle di-websites-platform environment variables
-    wp_debug: Optional[bool] = Field(None, exclude=True, description="WordPress debug setting (ignored)")
-    wp_debug_log: Optional[bool] = Field(None, exclude=True, description="WordPress debug log setting (ignored)")
-    wp_debug_display: Optional[bool] = Field(None, exclude=True, description="WordPress debug display setting (ignored)")
+    wp_debug: bool | None = Field(None, exclude=True, description="WordPress debug setting (ignored)")
+    wp_debug_log: bool | None = Field(None, exclude=True, description="WordPress debug log setting (ignored)")
+    wp_debug_display: bool | None = Field(None, exclude=True, description="WordPress debug display setting (ignored)")
 
     # PATTERN: Nested models for complex configuration
     progress: ProgressSettings = Field(default_factory=lambda: ProgressSettings())
@@ -140,7 +143,8 @@ class AutoSBMSettings(BaseSettings):
                     logging.getLogger(__name__).warning(f"Cannot create directory {v} in test environment: {e}")
                     return v
                 # In production, this is still an error
-                raise ValueError(f"Cannot create directory {v}: {e}")
+                msg = f"Cannot create directory {v}: {e}"
+                raise ValueError(msg)
         return v
 
     def is_ci_environment(self) -> bool:
@@ -157,7 +161,7 @@ class AutoSBMSettings(BaseSettings):
 
 
 # Global settings instance - lazy loaded
-_settings: Optional[AutoSBMSettings] = None
+_settings: AutoSBMSettings | None = None
 
 
 def get_settings() -> AutoSBMSettings:
@@ -176,7 +180,7 @@ class Config:
     delegating to the new Pydantic BaseSettings underneath.
     """
 
-    def __init__(self, settings: Optional[Dict[str, Any]] = None):
+    def __init__(self, settings: dict[str, Any] | None = None) -> None:
         """Initialize with backward compatibility."""
         # Get the new Pydantic settings
         self._pydantic_settings = get_settings()
@@ -210,7 +214,8 @@ class Config:
         if hasattr(self._pydantic_settings, name):
             return getattr(self._pydantic_settings, name)
 
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        msg = f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        raise AttributeError(msg)
 
 
 def get_config(config_path: str = "config.json") -> Config:

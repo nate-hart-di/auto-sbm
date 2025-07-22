@@ -14,7 +14,7 @@ class DefaultHandler(BaseOEMHandler):
     Provides generic styles and patterns that work across most dealers.
     """
 
-    def get_map_styles(self):
+    def get_map_styles(self) -> str:
         """
         Get generic map styles.
 

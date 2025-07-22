@@ -45,7 +45,7 @@ class MigrationProgress:
     with support for both determinate and indeterminate progress indicators.
     """
 
-    def __init__(self, show_speed: bool = False):
+    def __init__(self, show_speed: bool = False) -> None:
         """
         Initialize migration progress tracker.
 
@@ -102,7 +102,7 @@ class MigrationProgress:
         except Exception:
             # Clean up all active tasks on error
             self._cleanup_all_tasks()
-            logger.error("Migration progress interrupted due to error")
+            logger.exception("Migration progress interrupted due to error")
             raise
         finally:
             # Complete migration timing
@@ -149,7 +149,7 @@ class MigrationProgress:
         self.step_tasks[step_name] = task_id
         return task_id
 
-    def update_step_progress(self, step_name: str, completed: int, description: str = None) -> None:
+    def update_step_progress(self, step_name: str, completed: int, description: Optional[str] = None) -> None:
         """
         Update progress for a specific step.
 
@@ -211,7 +211,7 @@ class MigrationProgress:
                 logger.error(f"Task {task_id} not found in progress tracker")
 
         except (KeyError, IndexError) as e:
-            logger.error(f"Error completing task {task_id}: {e}")
+            logger.exception(f"Error completing task {task_id}: {e}")
 
     def add_file_processing_task(self, file_count: int) -> int:
         """
@@ -227,7 +227,7 @@ class MigrationProgress:
         self.tasks["file_processing"] = task_id
         return task_id
 
-    def update_file_progress(self, filename: str, advance: int = 1):
+    def update_file_progress(self, filename: str, advance: int = 1) -> None:
         """
         Update file processing progress.
 
@@ -241,7 +241,7 @@ class MigrationProgress:
                 task_id, description=f"[progress]Processing {filename}...[/]", advance=advance
             )
 
-    def complete_file_processing(self):
+    def complete_file_processing(self) -> None:
         """Complete file processing task."""
         if "file_processing" in self.tasks:
             task_id = self.tasks["file_processing"]
@@ -261,13 +261,12 @@ class MigrationProgress:
         Returns:
             Task ID for indeterminate task
         """
-        task_id = self.progress.add_task(
+        return self.progress.add_task(
             f"[progress]{description}[/]",
             total=None,  # Indeterminate
         )
-        return task_id
 
-    def update_indeterminate_task(self, task_id: int, description: str):
+    def update_indeterminate_task(self, task_id: int, description: str) -> None:
         """
         Update indeterminate task description.
 
@@ -277,7 +276,7 @@ class MigrationProgress:
         """
         self.progress.update(task_id, description=f"[progress]{description}[/]")
 
-    def complete_indeterminate_task(self, task_id: int, final_message: str):
+    def complete_indeterminate_task(self, task_id: int, final_message: str) -> None:
         """
         Complete indeterminate task with final message.
 
@@ -309,7 +308,7 @@ class MigrationProgress:
     def start_step_timing(self, step_name: str) -> None:
         """
         Start timing for a migration step.
-        
+
         Args:
             step_name: Name of the step to track
         """
@@ -324,10 +323,10 @@ class MigrationProgress:
     def complete_step_timing(self, step_name: str) -> float:
         """
         Complete timing for a migration step.
-        
+
         Args:
             step_name: Name of the step to complete
-            
+
         Returns:
             Duration of the step in seconds
         """
@@ -347,10 +346,10 @@ class MigrationProgress:
     def get_step_duration(self, step_name: str) -> float:
         """
         Get duration of a completed step.
-        
+
         Args:
             step_name: Name of the step
-            
+
         Returns:
             Duration in seconds, or 0.0 if step not found/completed
         """
@@ -361,7 +360,7 @@ class MigrationProgress:
     def get_total_migration_time(self) -> float:
         """
         Get total migration time.
-        
+
         Returns:
             Total migration time in seconds, or current elapsed time if not completed
         """
@@ -372,7 +371,7 @@ class MigrationProgress:
     def get_timing_summary(self) -> Dict[str, float]:
         """
         Get comprehensive timing summary.
-        
+
         Returns:
             Dictionary with timing information for all steps and total time
         """
@@ -395,10 +394,10 @@ class MigrationProgress:
     def format_duration(self, seconds: float) -> str:
         """
         Format duration for display.
-        
+
         Args:
             seconds: Duration in seconds
-            
+
         Returns:
             Formatted duration string
         """
@@ -429,7 +428,7 @@ class MigrationProgress:
                 return (task.completed / task.total) * 100
         return 0.0
 
-    def _advance_migration_progress(self):
+    def _advance_migration_progress(self) -> None:
         """
         Advance overall migration progress by one step.
         """
@@ -484,7 +483,7 @@ class MigrationProgress:
         description: str,
         cwd: Optional[str],
         progress_callback: Optional[Callable[[str], None]],
-    ):
+    ) -> None:
         """
         Run subprocess in background thread and send updates via queue.
         """
@@ -559,7 +558,7 @@ class MigrationProgress:
                 )
             )
 
-    def _start_update_thread(self):
+    def _start_update_thread(self) -> None:
         """Start background thread to process subprocess updates."""
         if self._update_thread is None or not self._update_thread.is_alive():
             self._stop_updates.clear()
@@ -568,7 +567,7 @@ class MigrationProgress:
             )
             self._update_thread.start()
 
-    def _stop_update_thread(self):
+    def _stop_update_thread(self) -> None:
         """Stop background update thread."""
         self._stop_updates.set()
 
@@ -610,7 +609,7 @@ class MigrationProgress:
 
         return cleanup_success
 
-    def _process_subprocess_updates(self):
+    def _process_subprocess_updates(self) -> None:
         """Process subprocess updates from queue in background thread."""
         while not self._stop_updates.is_set():
             try:
@@ -694,7 +693,7 @@ class MigrationProgress:
 
         return completed_successfully
 
-    def _cleanup_all_tasks(self):
+    def _cleanup_all_tasks(self) -> None:
         """
         Clean up all active tasks on error.
         """
@@ -718,7 +717,7 @@ class MigrationProgress:
         self.tasks.clear()
         self.step_tasks.clear()
 
-    def _reset_state(self):
+    def _reset_state(self) -> None:
         """
         Reset progress tracker to clean state.
         """
@@ -731,7 +730,7 @@ class MigrationProgress:
         self._stop_updates.clear()
         self._update_thread = None
 
-    def _process_remaining_updates(self):
+    def _process_remaining_updates(self) -> None:
         """
         Process any remaining updates from completed subprocess threads.
         """

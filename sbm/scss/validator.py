@@ -8,8 +8,9 @@ from pathlib import Path
 
 import click  # Import click for echo
 
-from ..utils.logger import logger
-from ..utils.path import get_dealer_theme_dir
+from sbm.utils.logger import logger
+from sbm.utils.path import get_dealer_theme_dir
+
 from .processor import SCSSProcessor  # Import SCSSProcessor for validate_scss_syntax
 
 

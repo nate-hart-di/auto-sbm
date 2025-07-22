@@ -10,18 +10,22 @@ import os
 import shutil
 import subprocess
 import time
+from typing import TYPE_CHECKING
 
 import click  # Import click for interactive prompts
 
-from ..oem.factory import OEMFactory
-from ..scss.processor import SCSSProcessor
-from ..ui.console import SBMConsole
-from ..utils.command import execute_command, execute_interactive_command
-from ..utils.logger import logger
-from ..utils.path import get_dealer_theme_dir
+from sbm.oem.factory import OEMFactory
+from sbm.scss.processor import SCSSProcessor
+from sbm.utils.command import execute_command, execute_interactive_command
+from sbm.utils.logger import logger
+from sbm.utils.path import get_dealer_theme_dir
+
 from .git import commit_changes, git_operations, push_changes  # Import git functions
 from .git import create_pr as git_create_pr  # Import with alias to avoid naming conflicts
 from .maps import migrate_map_components
+
+if TYPE_CHECKING:
+    from sbm.ui.console import SBMConsole
 
 
 def _cleanup_snapshot_files(slug: str) -> None:
@@ -189,7 +193,7 @@ def _process_docker_output(output_line: str, progress_tracker) -> None:
         logger.debug(f"Docker: {output_line.strip()}")
 
 
-def run_just_start(slug, suppress_output=False, progress_tracker=None):
+def run_just_start(slug, suppress_output=False, progress_tracker=None) -> bool:
     """
     Run the 'just start' command for the given slug (automatically chooses dev/prod database).
     Uses interactive execution to allow password prompts and user input.
@@ -211,12 +215,12 @@ def run_just_start(slug, suppress_output=False, progress_tracker=None):
         return False
 
     # Get the platform directory for running the command
-    from ..utils.path import get_platform_dir
+    from sbm.utils.path import get_platform_dir
 
     platform_dir = get_platform_dir()
 
     # AWS authentication (simplified to avoid subprocess tracking issues)
-    from ..ui.simple_rich import print_step_success, print_step_warning
+    from sbm.ui.simple_rich import print_step_success, print_step_warning
 
     print_step_warning("Ensuring AWS authentication before Docker startup...")
 
@@ -248,7 +252,7 @@ def run_just_start(slug, suppress_output=False, progress_tracker=None):
     if success:
         logger.info("'just start' command completed successfully.")
         return True
-    from ..ui.simple_rich import print_step_error
+    from sbm.ui.simple_rich import print_step_error
 
     print_step_error("Docker startup failed!")
     logger.error("'just start' command failed.")
@@ -261,7 +265,7 @@ def run_just_start(slug, suppress_output=False, progress_tracker=None):
     return False
 
 
-def create_sb_files(slug, force_reset=False):
+def create_sb_files(slug, force_reset=False) -> bool | None:
     """
     Create necessary Site Builder SCSS files if they don't exist.
 
@@ -367,7 +371,7 @@ def migrate_styles(slug: str) -> bool:
         return False
 
 
-def add_predetermined_styles(slug, oem_handler=None):
+def add_predetermined_styles(slug, oem_handler=None) -> bool | None:
     """
     Add predetermined styles for cookie disclaimer and directions row.
 
@@ -401,7 +405,7 @@ def add_predetermined_styles(slug, oem_handler=None):
             logger.info(f"Using {oem_handler} for {slug}")
 
         # Only add Stellantis styles for Stellantis dealers
-        from ..oem.stellantis import StellantisHandler
+        from sbm.oem.stellantis import StellantisHandler
 
         if not isinstance(oem_handler, StellantisHandler):
             logger.info(f"Skipping Stellantis-specific styles for non-Stellantis dealer: {slug}")
@@ -473,7 +477,7 @@ def add_predetermined_styles(slug, oem_handler=None):
         return False
 
 
-def _check_prettier_available():
+def _check_prettier_available() -> bool | None:
     """
     Check if prettier is available on the system.
 
@@ -499,7 +503,7 @@ def _check_prettier_available():
         return False
 
 
-def _format_scss_with_prettier(file_path):
+def _format_scss_with_prettier(file_path) -> bool | None:
     """
     Format an SCSS file with prettier if available.
 
@@ -532,7 +536,7 @@ def _format_scss_with_prettier(file_path):
         return False
 
 
-def _format_all_scss_with_prettier(slug):
+def _format_all_scss_with_prettier(slug) -> bool | None:
     """
     Format all SCSS files in the theme directory with prettier using glob pattern.
 
@@ -569,7 +573,7 @@ def _format_all_scss_with_prettier(slug):
         else:
             logger.info(f"Prettier: Using venv prettier at {prettier_path}")
 
-        command = [prettier_path, "--write"] + files
+        command = [prettier_path, "--write", *files]
         logger.info(f"Prettier: Running command: {' '.join(command)}")
 
         result = subprocess.run(
@@ -666,7 +670,7 @@ def test_compilation_recovery(slug):
         return False
 
 
-def reprocess_manual_changes(slug):
+def reprocess_manual_changes(slug) -> bool | None:
     """
     Reprocess Site Builder SCSS files after manual review to ensure consistency.
 
@@ -748,8 +752,9 @@ def reprocess_manual_changes(slug):
 
         # MANDATORY: Verify SCSS compilation using Docker Gulp
         if not _verify_scss_compilation_with_docker(theme_dir, slug, sb_files):
+            msg = "SCSS compilation verification failed - files do not compile with Docker Gulp"
             raise Exception(
-                "SCSS compilation verification failed - files do not compile with Docker Gulp"
+                msg
             )
 
         logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
@@ -769,7 +774,7 @@ def run_post_migration_workflow(
     interactive_git=True,
     interactive_pr=True,
     skip_reprocessing=False,
-):
+) -> bool:
     """
     Run the post-migration workflow including manual review, git operations, and PR creation.
 
@@ -904,7 +909,7 @@ def migrate_dealer_theme(
         bool: True if all steps are successful, False otherwise.
     """
     # Use simple Rich UI for beautiful output
-    from ..ui.simple_rich import (
+    from sbm.ui.simple_rich import (
         print_migration_complete,
         print_migration_header,
         print_step,
@@ -1346,7 +1351,7 @@ def _handle_compilation_with_error_recovery(
 
         if result.returncode == 0 and result.stdout:
             logs = result.stdout
-            errors = _parse_compilation_errors(logs, test_files)
+            _parse_compilation_errors(logs, test_files)
 
             click.echo("\n❌ SCSS Compilation Error")
             click.echo("=" * 50)

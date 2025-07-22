@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List
+from typing import TYPE_CHECKING
 
-from ..utils.logger import logger
+from sbm.utils.logger import logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass
@@ -21,8 +23,8 @@ class ExclusionResult:
     """Result of style exclusion analysis."""
     excluded_count: int
     included_count: int
-    excluded_rules: List[str]
-    patterns_matched: Dict[str, int]
+    excluded_rules: list[str]
+    patterns_matched: dict[str, int]
 
 
 class StyleClassifier:
@@ -64,10 +66,10 @@ class StyleClassifier:
         r"\.footer-content\b"
     ]
 
-    def __init__(self, strict_mode: bool = True):
+    def __init__(self, strict_mode: bool = True) -> None:
         """
         Initialize the style classifier.
-        
+
         Args:
             strict_mode: If True, use strict exclusion patterns. If False, use relaxed patterns.
         """
@@ -81,7 +83,7 @@ class StyleClassifier:
             "total_processed": 0
         }
 
-    def _compile_patterns(self) -> List[re.Pattern]:
+    def _compile_patterns(self) -> list[re.Pattern]:
         """Compile all exclusion patterns into regex objects."""
         all_patterns = (
             self.HEADER_PATTERNS +
@@ -103,10 +105,10 @@ class StyleClassifier:
     def should_exclude_rule(self, css_rule: str) -> tuple[bool, str | None]:
         """
         Determine if a CSS rule should be excluded from migration.
-        
+
         Args:
             css_rule: The CSS rule content to analyze
-            
+
         Returns:
             Tuple of (should_exclude, reason)
         """
@@ -134,10 +136,10 @@ class StyleClassifier:
     def filter_scss_content(self, content: str) -> tuple[str, ExclusionResult]:
         """
         Remove excluded styles from SCSS content.
-        
+
         Args:
             content: The original SCSS content
-            
+
         Returns:
             Tuple of (filtered_content, exclusion_result)
         """
@@ -214,10 +216,10 @@ class StyleClassifier:
     def analyze_file(self, file_path: Path) -> ExclusionResult:
         """
         Analyze a SCSS file and return exclusion information without modifying it.
-        
+
         Args:
             file_path: Path to the SCSS file to analyze
-            
+
         Returns:
             ExclusionResult with analysis information
         """
@@ -229,7 +231,7 @@ class StyleClassifier:
             logger.error(f"Error analyzing file {file_path}: {e}")
             return ExclusionResult(0, 0, [], {})
 
-    def get_exclusion_stats(self) -> Dict[str, int]:
+    def get_exclusion_stats(self) -> dict[str, int]:
         """Get current exclusion statistics."""
         return self._exclusion_stats.copy()
 
@@ -248,11 +250,11 @@ class StyleClassifier:
 def filter_scss_for_site_builder(content: str, strict_mode: bool = True) -> tuple[str, ExclusionResult]:
     """
     Filter SCSS content to exclude header/footer/nav styles for Site Builder.
-    
+
     Args:
         content: The SCSS content to filter
         strict_mode: Use strict exclusion patterns
-        
+
     Returns:
         Tuple of (filtered_content, exclusion_result)
     """

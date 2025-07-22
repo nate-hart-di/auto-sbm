@@ -27,7 +27,8 @@ def get_platform_dir():
     platform_dir = os.path.join(home_dir, "di-websites-platform")
 
     if not os.path.isdir(platform_dir):
-        raise ValueError(f"DI Websites Platform directory not found at: {platform_dir}")
+        msg = f"DI Websites Platform directory not found at: {platform_dir}"
+        raise ValueError(msg)
 
     return platform_dir
 
@@ -46,9 +47,8 @@ def get_dealer_theme_dir(slug):
         ValueError: If the platform directory is not set
     """
     platform_dir = get_platform_dir()
-    theme_dir = os.path.join(platform_dir, "dealer-themes", slug)
+    return os.path.join(platform_dir, "dealer-themes", slug)
 
-    return theme_dir
 
 
 def normalize_path(path):

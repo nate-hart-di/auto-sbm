@@ -19,12 +19,13 @@ Arguments:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import Any, Iterator
 
 ROOT = Path(__file__).resolve().parent.parent  # project root
 
@@ -68,24 +69,20 @@ def build_prompt(prp_path: Path) -> str:
     return META_HEADER + prp_path.read_text()
 
 
-def stream_json_output(process: subprocess.Popen) -> Iterator[Dict[str, Any]]:
+def stream_json_output(process: subprocess.Popen) -> Iterator[dict[str, Any]]:
     """Parse streaming JSON output line by line."""
     for line in process.stdout:
         line = line.strip()
         if line:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 yield json.loads(line)
-            except json.JSONDecodeError as e:
-                print(f"Warning: Failed to parse JSON line: {e}", file=sys.stderr)
-                print(f"Line content: {line}", file=sys.stderr)
 
 
-def handle_json_output(output: str) -> Dict[str, Any]:
+def handle_json_output(output: str) -> dict[str, Any]:
     """Parse the JSON output from Claude Code."""
     try:
         return json.loads(output)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON output: {e}", file=sys.stderr)
+    except json.JSONDecodeError:
         return {"error": "Failed to parse JSON output", "raw": output}
 
 
@@ -135,92 +132,36 @@ def run_model(
                     if (
                         message.get("type") == "system"
                         and message.get("subtype") == "init"
-                    ):
-                        print(
-                            f"Session started: {message.get('session_id')}",
-                            file=sys.stderr,
-                        )
-                    elif message.get("type") == "assistant":
-                        print(
-                            f"Assistant: {message.get('message', {}).get('content', '')[:100]}...",
-                            file=sys.stderr,
-                        )
+                    ) or message.get("type") == "assistant":
+                        pass
                     elif message.get("type") == "result":
-                        print("\nFinal result:", file=sys.stderr)
-                        print(
-                            f"  Success: {message.get('subtype') == 'success'}",
-                            file=sys.stderr,
-                        )
-                        print(
-                            f"  Cost: ${message.get('cost_usd', 0):.4f}",
-                            file=sys.stderr,
-                        )
-                        print(
-                            f"  Duration: {message.get('duration_ms', 0)}ms",
-                            file=sys.stderr,
-                        )
-                        print(
-                            f"  Turns: {message.get('num_turns', 0)}", file=sys.stderr
-                        )
                         if message.get("result"):
-                            print(
-                                f"\nResult text:\n{message.get('result')}",
-                                file=sys.stderr,
-                            )
+                            pass
 
                     # Print the full message for downstream processing
-                    print(json.dumps(message))
 
                 # Wait for process to complete
                 process.wait()
                 if process.returncode != 0:
-                    stderr = process.stderr.read()
-                    print(
-                        f"Claude Code failed with exit code {process.returncode}",
-                        file=sys.stderr,
-                    )
-                    print(f"Error: {stderr}", file=sys.stderr)
+                    process.stderr.read()
                     sys.exit(process.returncode)
 
             except KeyboardInterrupt:
                 process.terminate()
-                print("\nInterrupted by user", file=sys.stderr)
                 sys.exit(1)
 
         elif output_format == "json":
             # Handle complete JSON output
             result = subprocess.run(cmd, check=False, capture_output=True, text=True)
             if result.returncode != 0:
-                print(
-                    f"Claude Code failed with exit code {result.returncode}",
-                    file=sys.stderr,
-                )
-                print(f"Error: {result.stderr}", file=sys.stderr)
                 sys.exit(result.returncode)
 
             # Parse and pretty print the JSON
             json_data = handle_json_output(result.stdout)
-            print(json.dumps(json_data, indent=2))
 
             # Print summary to stderr for user visibility
-            if isinstance(json_data, dict):
-                if json_data.get("type") == "result":
-                    print("\nSummary:", file=sys.stderr)
-                    print(
-                        f"  Success: {not json_data.get('is_error', False)}",
-                        file=sys.stderr,
-                    )
-                    print(
-                        f"  Cost: ${json_data.get('cost_usd', 0):.4f}", file=sys.stderr
-                    )
-                    print(
-                        f"  Duration: {json_data.get('duration_ms', 0)}ms",
-                        file=sys.stderr,
-                    )
-                    print(
-                        f"  Session: {json_data.get('session_id', 'unknown')}",
-                        file=sys.stderr,
-                    )
+            if isinstance(json_data, dict) and json_data.get("type") == "result":
+                pass
 
         else:
             # Default text output

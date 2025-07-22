@@ -118,7 +118,7 @@ $secondary-color: #6c757d;
 .header {
     background: $primary-color;
     padding: 20px;
-    
+
     .logo {
         font-size: 2em;
         color: white;
@@ -129,7 +129,7 @@ $secondary-color: #6c757d;
 .nav {
     display: flex;
     list-style: none;
-    
+
     li {
         margin-right: 20px;
     }
@@ -256,21 +256,21 @@ $secondary-color: #6c757d;
         scss_content = """
 .header {
     background: blue;
-    
+
     .logo {
         font-size: 2em;
-        
+
         img {
             height: 40px;
         }
     }
-    
+
     .nav {
         display: flex;
-        
+
         ul {
             list-style: none;
-            
+
             li {
                 display: inline;
             }
@@ -281,7 +281,7 @@ $secondary-color: #6c757d;
 .content {
     .vehicle-list {
         display: grid;
-        
+
         .vehicle-card {
             border: 1px solid #ddd;
         }
@@ -308,41 +308,41 @@ class TestStyleExclusionIntegration:
 .site-header {
     position: relative;
     z-index: 1000;
-    
+
     .header-top {
         background: #f8f9fa;
         padding: 10px 0;
-        
+
         .contact-info {
             font-size: 0.9em;
         }
     }
-    
+
     .header-main {
         background: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        
+
         .logo {
             max-height: 60px;
         }
-        
+
         .primary-menu {
             display: flex;
             align-items: center;
-            
+
             li {
                 margin: 0 15px;
-                
+
                 a {
                     color: #333;
                     text-decoration: none;
                     font-weight: 500;
-                    
+
                     &:hover {
                         color: #007bff;
                     }
                 }
-                
+
                 .dropdown-menu {
                     position: absolute;
                     top: 100%;
@@ -361,10 +361,10 @@ class TestStyleExclusionIntegration:
         background: #f8f9fa;
         padding: 20px;
         margin-bottom: 30px;
-        
+
         .filter-group {
             margin-bottom: 15px;
-            
+
             label {
                 font-weight: 600;
                 margin-bottom: 5px;
@@ -372,56 +372,56 @@ class TestStyleExclusionIntegration:
             }
         }
     }
-    
+
     .vehicle-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
         gap: 20px;
-        
+
         .vehicle-card {
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             overflow: hidden;
             transition: transform 0.2s ease;
-            
+
             &:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             }
-            
+
             .vehicle-image {
                 position: relative;
                 height: 200px;
                 overflow: hidden;
-                
+
                 img {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
                 }
             }
-            
+
             .vehicle-info {
                 padding: 15px;
-                
+
                 .vehicle-title {
                     font-size: 1.2em;
                     font-weight: 600;
                     margin-bottom: 8px;
                     color: #333;
                 }
-                
+
                 .vehicle-price {
                     font-size: 1.5em;
                     font-weight: 700;
                     color: #007bff;
                     margin-bottom: 10px;
                 }
-                
+
                 .vehicle-details {
                     font-size: 0.9em;
                     color: #666;
-                    
+
                     .detail-item {
                         margin-bottom: 4px;
                     }
@@ -436,26 +436,26 @@ class TestStyleExclusionIntegration:
     background: #333;
     color: white;
     margin-top: 60px;
-    
+
     .footer-main {
         padding: 40px 0;
-        
+
         .footer-column {
             h4 {
                 color: #fff;
                 margin-bottom: 15px;
             }
-            
+
             ul {
                 list-style: none;
-                
+
                 li {
                     margin-bottom: 8px;
-                    
+
                     a {
                         color: #ccc;
                         text-decoration: none;
-                        
+
                         &:hover {
                             color: white;
                         }
@@ -464,13 +464,13 @@ class TestStyleExclusionIntegration:
             }
         }
     }
-    
+
     .footer-bottom {
         background: #222;
         padding: 20px 0;
         text-align: center;
         border-top: 1px solid #444;
-        
+
         .copyright {
             font-size: 0.9em;
             color: #999;
