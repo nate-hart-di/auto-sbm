@@ -99,6 +99,7 @@ def run_model(
         # Chat mode: feed prompt via STDIN, no -p flag so the user can continue the session.
         cmd = [
             model,
+            "--dangerously-skip-permissions",
             "--allowedTools",
             "Edit,Bash,Write,MultiEdit,NotebookEdit,WebFetch,Agent,LS,Grep,Read,NotebookRead,TodoRead,TodoWrite,WebSearch",
         ]
@@ -109,6 +110,7 @@ def run_model(
             model,
             "-p",  # This is the --print flag for non-interactive mode
             prompt,
+            "--dangerously-skip-permissions",
             "--allowedTools",
             "Edit,Bash,Write,MultiEdit,NotebookEdit,WebFetch,Agent,LS,Grep,Read,NotebookRead,TodoRead,TodoWrite,WebSearch",
             # "--max-turns",

@@ -17,6 +17,7 @@ __pycache__/
 .pytest_cache/
 **pycache**/
 *.pyc
+.coverage*
 
 # Python build artifacts
 build/
