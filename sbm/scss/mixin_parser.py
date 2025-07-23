@@ -370,17 +370,17 @@ def _handle_placeholder_color(_mixin_name: str, args: list[str], _content: str) 
 
 def _handle_absolute(_mixin_name: str, args: list[str], _content: str) -> str:
     """Handle @include absolute($directions) - absolute positioning with direction parameters"""
-    return _handle_positioning("absolute", args, content)
+    return _handle_positioning("absolute", args, _content)
 
 
 def _handle_relative(_mixin_name: str, _args: list[str], _content: str) -> str:
     """Handle @include relative($directions) - relative positioning with direction parameters"""
-    return _handle_positioning("relative", args, content)
+    return _handle_positioning("relative", _args, _content)
 
 
 def _handle_fixed(_mixin_name: str, _args: list[str], _content: str) -> str:
     """Handle @include fixed($directions) - fixed positioning with direction parameters"""
-    return _handle_positioning("fixed", args, content)
+    return _handle_positioning("fixed", _args, _content)
 
 
 def _handle_positioning(position_type: str, args: list[str], _content: str) -> str:
@@ -411,9 +411,9 @@ def _handle_positioning(position_type: str, args: list[str], _content: str) -> s
 
 def _handle_centering(_mixin_name: str, _args: list[str], _content: str) -> str:
     """Handle @include centering($from, $amount, $sides) - matches actual CommonTheme mixin"""
-    from_param = args[0] if args else "top"
-    amount = args[1] if len(args) > 1 else "50%"
-    args[2] if len(args) > 2 else "undefined"
+    from_param = _args[0] if _args else "top"
+    amount = _args[1] if len(_args) > 1 else "50%"
+    _args[2] if len(_args) > 2 else "undefined"
 
     # Handle the different centering modes based on the actual mixin logic
     result = "position: absolute;"
@@ -475,11 +475,11 @@ transform: translate(-{amount}, -{amount});
 
 def _handle_pz_font_defaults(_mixin_name: str, _args: list[str], _content: str) -> str:
     """Handle @include pz-font-defaults() - personalizer font defaults (FIXED)"""
-    font_family = args[0] if args else "$heading-font"
-    color = args[1] if len(args) > 1 else "#fff"
-    weight = args[2] if len(args) > 2 else "bold"
-    line_height = args[3] if len(args) > 3 else "normal"
-    align = args[4] if len(args) > 4 else "center"
+    font_family = _args[0] if _args else "$heading-font"
+    color = _args[1] if len(_args) > 1 else "#fff"
+    weight = _args[2] if len(_args) > 2 else "bold"
+    line_height = _args[3] if len(_args) > 3 else "normal"
+    align = _args[4] if len(_args) > 4 else "center"
 
     base_styles = f""".personalizer-wrap {{
   color: {color};
@@ -510,8 +510,8 @@ def _handle_pz_font_defaults(_mixin_name: str, _args: list[str], _content: str) 
     }}
   }}"""
 
-    if content:
-        base_styles += f"\n{content.strip()}"
+    if _content:
+        base_styles += f"\n{_content.strip()}"
 
     base_styles += "\n}"
 
@@ -618,8 +618,8 @@ def _handle_content_block_mixin(_mixin_name: str, _args: list[str], _content: st
     Generic handler for mixins that simply wrap a content block.
     This effectively "unwraps" the content by removing the @include.
     """
-    if content:
-        return content.strip()
+    if _content:
+        return _content.strip()
     return ""
 
 
@@ -1202,9 +1202,9 @@ a.{name}-color:hover {{
 
 def _handle_scrollbars(_mixin_name: str, _args: list[str], _content: str) -> str:
     """Handle @include scrollbars($size, $foreground-color, $background-color)"""
-    size = args[0] if len(args) > 0 else "auto"
-    fg = args[1] if len(args) > 1 else "null"
-    bg = args[2] if len(args) > 2 else "null"
+    size = _args[0] if len(_args) > 0 else "auto"
+    fg = _args[1] if len(_args) > 1 else "null"
+    bg = _args[2] if len(_args) > 2 else "null"
 
     result = ""
 
@@ -1235,10 +1235,10 @@ def _handle_scrollbars(_mixin_name: str, _args: list[str], _content: str) -> str
 
 def _handle_site_builder(_mixin_name: str, _args: list[str], _content: str) -> str:
     """Handle @include site-builder($brand) - complex brand-specific styling (FIXED)"""
-    if not args:
+    if not _args:
         return ""
 
-    brand = args[0].strip("\"'")
+    brand = _args[0].strip("\"'")
 
     # This is a simplified conversion - the actual mixin sets global variables
     # and applies complex styling. For SBM, we'll just output a comment.

@@ -60,7 +60,7 @@ def migrate_map_components(
         scss_success = migrate_map_scss_content(slug, map_imports)
 
         # Step 3: Find and migrate corresponding PHP partials
-        partials_success = migrate_map_partials(slug, map_imports, interactive=interactive)
+        partials_success = migrate_map_partials(slug, map_imports, interactive=_interactive)
 
         if scss_success and partials_success:
             logger.info(f"✅ Enhanced map migration completed successfully for {slug}")
