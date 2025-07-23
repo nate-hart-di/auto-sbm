@@ -1020,7 +1020,7 @@ def migrate_dealer_theme(
         if progress_tracker:
             progress_tracker.add_step_task("maps", "Migrating map components and PHP partials", 100)
 
-        if not migrate_map_components(slug, oem_handler, interactive=False):
+        if not migrate_map_components(slug, oem_handler):
             logger.error(f"Failed to migrate map components for {slug}")
             return False
 
