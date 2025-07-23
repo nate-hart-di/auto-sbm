@@ -8,12 +8,12 @@ using the GitPython library for safer and more robust interactions.
 import json
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from git import GitCommandError, Repo
-
 from sbm.config import Config
 from sbm.utils.command import execute_command
 from sbm.utils.helpers import get_branch_name
@@ -46,14 +46,14 @@ class CommentIntelligence:
             "results-page": "Search Results Page",
         }
 
-    def analyze_comment(self, comment_text: str) -> Dict[str, Any]:
+    def analyze_comment(self, comment_text: str) -> dict[str, Any]:
         """Analyze a comment to extract intent, action, and target."""
         comment_lower = comment_text.lower().strip()
 
         # Remove comment markers
         comment_clean = re.sub(r"^//\s*|^/\*\s*|\s*\*/$", "", comment_lower).strip()
 
-        analysis: Dict[str, Any] = {
+        analysis: dict[str, Any] = {
             "raw_text": comment_text,
             "clean_text": comment_clean,
             "intent": None,
@@ -113,7 +113,7 @@ class CommentIntelligence:
 
         return analysis
 
-    def _calculate_confidence(self, analysis: Dict[str, Any]) -> float:
+    def _calculate_confidence(self, analysis: dict[str, Any]) -> float:
         """Calculate confidence score for the analysis."""
         confidence = 0.0
 
@@ -135,7 +135,7 @@ class CommentIntelligence:
 
         return min(confidence, 1.0)
 
-    def _generate_description(self, analysis: Dict[str, Any]) -> str:
+    def _generate_description(self, analysis: dict[str, Any]) -> str:
         """Generate human-readable description from analysis."""
         parts = []
 
@@ -206,9 +206,9 @@ class CSSIntelligence:
             "overflow-y": "content overflow handling",
         }
 
-    def analyze_css_block(self, css_lines: List[str]) -> Dict[str, Any]:
+    def analyze_css_block(self, css_lines: list[str]) -> dict[str, Any]:
         """Analyze a block of CSS changes."""
-        analysis: Dict[str, Any] = {
+        analysis: dict[str, Any] = {
             "selectors": [],
             "properties": [],
             "purposes": [],
@@ -255,7 +255,7 @@ class CSSIntelligence:
 
         return analysis
 
-    def _calculate_css_confidence(self, analysis: Dict[str, Any]) -> float:
+    def _calculate_css_confidence(self, analysis: dict[str, Any]) -> float:
         """Calculate confidence for CSS analysis."""
         confidence = 0.0
 
@@ -300,7 +300,7 @@ class GitOperations:
         except (subprocess.CalledProcessError, FileNotFoundError):
             return False
 
-    def _get_repo_info(self) -> Dict[str, str]:
+    def _get_repo_info(self) -> dict[str, str]:
         """Get current repository information."""
         try:
             repo = self._get_repo()
@@ -355,7 +355,8 @@ class GitOperations:
             # If branch already exists, delete it
             if branch_name in repo.heads:
                 logger.warning(
-                    f"Branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
+                    f"Branch '{branch_name}' already exists. Deleting and re-creating it "
+                    f"to ensure a clean state."
                 )
                 repo.delete_head(branch_name, force=True)
 
@@ -390,10 +391,8 @@ class GitOperations:
             theme_path = os.path.relpath(get_dealer_theme_dir(slug), get_platform_dir())
 
             # Clean up any snapshot files that might have been created after the initial cleanup
-            snapshot_dir = os.path.join(get_dealer_theme_dir(slug), ".sbm-snapshots")
-            if os.path.exists(snapshot_dir):
-                import shutil
-
+            snapshot_dir = Path(get_dealer_theme_dir(slug)) / ".sbm-snapshots"
+            if snapshot_dir.exists():
                 shutil.rmtree(snapshot_dir)
                 logger.info(f"Cleaned up snapshot directory before commit: {snapshot_dir}")
 
@@ -405,8 +404,8 @@ class GitOperations:
             files_added = False
 
             for scss_file in scss_files:
-                file_path = os.path.join(theme_path, scss_file)
-                if os.path.exists(os.path.join(get_platform_dir(), file_path)):
+                file_path = Path(theme_path) / scss_file
+                if (Path(get_platform_dir()) / file_path).exists():
                     add_command = f"git add {file_path}"
                     add_success, _, _, _ = execute_command(
                         add_command, f"Failed to add {scss_file}", cwd=get_platform_dir()
@@ -461,8 +460,8 @@ class GitOperations:
         base: str,
         head: str,
         draft: bool,
-        reviewers: List[str],
-        labels: List[str],
+        reviewers: list[str],
+        labels: list[str],
     ) -> str:
         """
         Creates GitHub PR using gh CLI with advanced error handling
@@ -559,7 +558,7 @@ class GitOperations:
         msg = f"PR already exists but could not retrieve URL: {error_output}"
         raise Exception(msg)
 
-    def _analyze_migration_changes(self) -> List[str]:
+    def _analyze_migration_changes(self) -> list[str]:
         """Analyze Git changes to determine what was actually migrated."""
         what_items = []
 
@@ -640,7 +639,8 @@ class GitOperations:
                 what_items.append("- Created sb-home.scss for home page styles")
 
             logger.debug(
-                f"Analyzed {len(css_files)} CSS file changes, generated {len(what_items)} what items"
+                f"Analyzed {len(css_files)} CSS file changes, "
+                f"generated {len(what_items)} what items"
             )
 
         except subprocess.CalledProcessError as e:
@@ -650,7 +650,7 @@ class GitOperations:
 
         return what_items
 
-    def _detect_manual_changes(self) -> Dict[str, Any]:
+    def _detect_manual_changes(self) -> dict[str, Any]:
         """
         Detect manual changes by comparing current files with automation snapshots.
         """
@@ -709,11 +709,13 @@ class GitOperations:
                             if isinstance(change_descriptions, list):
                                 if line_diff > 0:
                                     change_descriptions.append(
-                                        f"Manual changes to {sb_file} ({line_diff} lines added) - please add details if needed"
+                                        f"Manual changes to {sb_file} ({line_diff} lines added) - "
+                            f"please add details if needed"
                                     )
                                 else:
                                     change_descriptions.append(
-                                        f"Manual changes to {sb_file} ({abs(line_diff)} lines removed) - please add details if needed"
+                                        f"Manual changes to {sb_file} "
+                            f"({abs(line_diff)} lines removed) - please add details if needed"
                                     )
 
             # Calculate total manual lines
@@ -731,7 +733,7 @@ class GitOperations:
 
         return manual_changes
 
-    def _detect_manual_changes_fallback(self) -> Dict[str, Any]:
+    def _detect_manual_changes_fallback(self) -> dict[str, Any]:
         """
         Simple, honest detection of manual changes - just count lines and let user explain.
         """
@@ -801,7 +803,8 @@ class GitOperations:
             # New files created by migration (sb-*.scss) should not be counted as manual
             migration_files = {"sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"}
 
-            # Count manual lines per file - only for modified existing files or new non-migration files
+            # Count manual lines per file - only for modified existing files
+            # or new non-migration files
             current_file = None
             for line in lines:
                 # Track which file we're in
@@ -838,7 +841,8 @@ class GitOperations:
                     for filename, line_count in file_line_counts.items():
                         if line_count > 0:
                             change_descriptions.append(
-                                f"Manual changes to {filename} ({line_count} lines) - please add details if needed"
+                                f"Manual changes to {filename} ({line_count} lines) - "
+                                f"please add details if needed"
                             )
 
             # Only include modified files in the list, excluding ALL migration files
@@ -855,7 +859,7 @@ class GitOperations:
 
         return manual_changes
 
-    def _analyze_change_types(self, added_lines: List[str], manual_changes: Dict[str, Any]) -> None:
+    def _analyze_change_types(self, added_lines: list[str], manual_changes: dict[str, Any]) -> None:
         """Analyze the types of changes made in the added lines."""
         change_patterns = {
             "custom_comments": r"\/\*.*(?:custom|manual|added|fix|tweak|adjust).*\*\/",
@@ -876,8 +880,11 @@ class GitOperations:
                     if change_type not in manual_changes["change_types"]:
                         manual_changes["change_types"].append(change_type)
 
-    def _generate_change_descriptions(self, manual_changes: Dict[str, Any]) -> List[str]:
-        """Generate human-readable descriptions of the changes - ONLY for clear, specific changes."""
+    def _generate_change_descriptions(self, manual_changes: dict[str, Any]) -> list[str]:
+        """
+        Generate human-readable descriptions of the changes -
+        ONLY for clear, specific changes.
+        """
         type_descriptions = {
             "custom_comments": "Added explanatory comments for custom modifications",
             "custom_classes": "Created custom CSS classes for specific styling needs",
@@ -900,9 +907,12 @@ class GitOperations:
         return descriptions
 
     def _build_stellantis_pr_content(
-        self, slug: str, branch: str, repo_info: Dict[str, str]
-    ) -> Dict[str, str]:
-        """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
+        self, slug: str, branch: str, repo_info: dict[str, str]
+    ) -> dict[str, str]:
+        """
+        Build PR content using Stellantis template with dynamic What section
+        based on actual Git changes.
+        """
         title = f"{slug} - SBM FE Audit"
 
         # Get automated migration changes
@@ -920,7 +930,8 @@ class GitOperations:
         else:
             # Fallback if no changes detected
             what_items.append(
-                "- Migrated interior page styles from style.scss, inside.scss, and _support-requests.scss to sb-inside.scss"
+                "- Migrated interior page styles from style.scss, inside.scss, "
+                "and _support-requests.scss to sb-inside.scss"
             )
 
         # Add manual changes ONLY if they exist - with intelligent analysis
@@ -1005,10 +1016,10 @@ PR: {pr_url}"""
         body: Optional[str] = None,
         base: Optional[str] = None,
         head: Optional[str] = None,
-        reviewers: Optional[List[str]] = None,
-        labels: Optional[List[str]] = None,
+        reviewers: Optional[list[str]] = None,
+        labels: Optional[list[str]] = None,
         draft: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create a GitHub Pull Request for a given theme. This is the primary method for PR creation.
 
@@ -1155,40 +1166,38 @@ def _get_repo() -> Repo:
     return Repo(platform_dir)
 
 
-def checkout_main_and_pull():
+def checkout_main_and_pull() -> bool:
     """Legacy wrapper for checkout_main_and_pull."""
     git_ops = GitOperations(Config({}))
     return git_ops.checkout_main_and_pull()
 
 
-def create_branch(slug):
+def create_branch(slug: str) -> tuple:
     """Legacy wrapper for create_branch."""
     git_ops = GitOperations(Config({}))
     return git_ops.create_branch(slug)
 
 
-def commit_changes(slug, message=None):
+def commit_changes(slug: str, message: Optional[str] = None) -> bool:
     """Legacy wrapper for commit_changes."""
     git_ops = GitOperations(Config({}))
     return git_ops.commit_changes(slug, message)
 
 
-def push_changes(branch_name):
+def push_changes(branch_name: str) -> bool:
     """Legacy wrapper for push_changes."""
     git_ops = GitOperations(Config({}))
     return git_ops.push_changes(branch_name)
 
 
-def git_operations(slug):
+def git_operations(slug: str) -> tuple:
     """Legacy wrapper for git_operations."""
     git_ops = GitOperations(Config({}))
     return git_ops.git_operations(slug)
 
 
-def create_pr(slug, branch_name=None, **kwargs):
+def create_pr(slug: str, branch_name: Optional[str] = None, **kwargs: Any) -> dict[str, Any]:
     """Legacy wrapper for create_pr."""
-    from sbm.config import Config
-
     # Initialize config with safe defaults
     config_dict = {
         "default_branch": "main",

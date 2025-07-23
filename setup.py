@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
 from setuptools import find_packages, setup
 
-with open("README.md") as fh:
+with Path("README.md").open() as fh:
     long_description = fh.read()
 
 setup(

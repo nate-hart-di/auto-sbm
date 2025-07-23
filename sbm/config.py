@@ -7,6 +7,7 @@ replacing the legacy JSON-based configuration system.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -76,7 +77,8 @@ class GitSettings(BaseSettings):
             msg = "GitHub token appears too short to be valid"
             raise ValueError(msg)
 
-        # Check if it looks like a proper token (starts with known prefixes or has reasonable length)
+        # Check if it looks like a proper token (starts with known prefixes
+        # or has reasonable length)
         if not (v.startswith(("ghp_", "gho_", "ghu_", "ghs_", "ghr_")) or len(v) >= 20):
             msg = "GitHub token format appears invalid"
             raise ValueError(msg)
@@ -113,9 +115,15 @@ class AutoSBMSettings(BaseSettings):
     rich_ui_enabled: bool = Field(default=True, description="Enable Rich UI")
 
     # Add WordPress debug fields to handle di-websites-platform environment variables
-    wp_debug: bool | None = Field(None, exclude=True, description="WordPress debug setting (ignored)")
-    wp_debug_log: bool | None = Field(None, exclude=True, description="WordPress debug log setting (ignored)")
-    wp_debug_display: bool | None = Field(None, exclude=True, description="WordPress debug display setting (ignored)")
+    wp_debug: bool | None = Field(
+        None, exclude=True, description="WordPress debug setting (ignored)"
+    )
+    wp_debug_log: bool | None = Field(
+        None, exclude=True, description="WordPress debug log setting (ignored)"
+    )
+    wp_debug_display: bool | None = Field(
+        None, exclude=True, description="WordPress debug display setting (ignored)"
+    )
 
     # PATTERN: Nested models for complex configuration
     progress: ProgressSettings = Field(default_factory=lambda: ProgressSettings())
@@ -139,8 +147,9 @@ class AutoSBMSettings(BaseSettings):
                     "GITHUB_ACTIONS", "JENKINS_URL", "TRAVIS", "PYTEST_CURRENT_TEST"
                 ]):
                     # In test environments, allow it through
-                    import logging
-                    logging.getLogger(__name__).warning(f"Cannot create directory {v} in test environment: {e}")
+                    logging.getLogger(__name__).warning(
+                        "Cannot create directory %s in test environment: %s", v, e
+                    )
                     return v
                 # In production, this is still an error
                 msg = f"Cannot create directory {v}: {e}"
@@ -218,16 +227,16 @@ class Config:
         raise AttributeError(msg)
 
 
-def get_config(config_path: str = "config.json") -> Config:
+def get_config(_config_path: str = "config.json") -> Config:
     """
     Backward compatibility function for legacy code.
 
     Args:
-        config_path: Legacy parameter, ignored in new implementation
+        _config_path: Legacy parameter, ignored in new implementation
 
     Returns:
         Config: Backward compatible config object
     """
-    # Note: config_path is ignored in new implementation
+    # Note: _config_path is ignored in new implementation
     # All configuration now comes from environment variables and defaults
     return Config()

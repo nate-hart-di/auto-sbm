@@ -112,8 +112,9 @@ class TestPydanticConfiguration:
     def test_directory_validation(self):
         """Test directory validation and creation."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            test_themes_dir = os.path.join(temp_dir, "test_themes")
-            test_backup_dir = os.path.join(temp_dir, "test_backups")
+            temp_path = Path(temp_dir)
+            test_themes_dir = str(temp_path / "test_themes")
+            test_backup_dir = str(temp_path / "test_backups")
 
             test_env = {
                 "GITHUB_TOKEN": "ghp_test_token_12345",

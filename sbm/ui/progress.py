@@ -12,7 +12,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from rich.progress import (
     BarColumn,
@@ -66,19 +66,19 @@ class MigrationProgress:
             columns.insert(-1, MofNCompleteColumn())
 
         self.progress = Progress(*columns, expand=True)
-        self.tasks: Dict[str, Any] = {}
-        self.step_tasks: Dict[str, Any] = {}
+        self.tasks: dict[str, Any] = {}
+        self.step_tasks: dict[str, Any] = {}
 
         # Enhanced timing tracking
         self._start_time = None
-        self._step_times: Dict[str, Dict[str, float]] = {}
+        self._step_times: dict[str, dict[str, float]] = {}
         self._current_step = None
         self._migration_completed = False
         self._total_migration_time = None
 
         # Non-blocking subprocess integration
         self._subprocess_queue: queue.Queue = queue.Queue()
-        self._subprocess_threads: List[threading.Thread] = []
+        self._subprocess_threads: list[threading.Thread] = []
         self._update_thread: Optional[threading.Thread] = None
         self._stop_updates = threading.Event()
         self._lock = threading.Lock()
@@ -109,7 +109,7 @@ class MigrationProgress:
             if self._start_time and not self._migration_completed:
                 self._total_migration_time = time.time() - self._start_time
                 self._migration_completed = True
-                logger.debug(f"Migration progress completed in {self._total_migration_time:.2f}s")
+                logger.debug("Migration progress completed in %.2fs", self._total_migration_time)
 
             # Stop background threads first
             self._stop_update_thread()
@@ -149,7 +149,9 @@ class MigrationProgress:
         self.step_tasks[step_name] = task_id
         return task_id
 
-    def update_step_progress(self, step_name: str, completed: int, description: Optional[str] = None) -> None:
+    def update_step_progress(
+        self, step_name: str, completed: int, description: Optional[str] = None
+    ) -> None:
         """
         Update progress for a specific step.
 
@@ -159,7 +161,7 @@ class MigrationProgress:
             description: Optional new description
         """
         if step_name not in self.step_tasks:
-            logger.warning(f"Task {step_name} for step {step_name} no longer exists")
+            logger.warning("Task %s for step %s no longer exists", step_name, step_name)
             return
 
         task_id = self.step_tasks[step_name]
@@ -173,7 +175,7 @@ class MigrationProgress:
                 self.progress.update(task_id, description=f"[progress]{description}[/]")
 
         except (KeyError, IndexError):
-            logger.warning(f"Task {task_id} for step {step_name} no longer exists")
+            logger.warning("Task %s for step %s no longer exists", task_id, step_name)
 
     def complete_step(self, step_name: str) -> None:
         """
@@ -183,7 +185,7 @@ class MigrationProgress:
             step_name: Name of the step to complete
         """
         if step_name not in self.step_tasks:
-            logger.warning(f"Step {step_name} not found in step_tasks")
+            logger.warning("Step %s not found in step_tasks", step_name)
             return
 
         task_id = self.step_tasks[step_name]
@@ -206,12 +208,12 @@ class MigrationProgress:
                     if 0 <= migration_task_id < len(self.progress.tasks):
                         self.progress.update(migration_task_id, advance=1)
 
-                logger.debug(f"Step '{step_name}' completed successfully")
+                logger.debug("Step '%s' completed successfully", step_name)
             else:
-                logger.error(f"Task {task_id} not found in progress tracker")
+                logger.error("Task %s not found in progress tracker", task_id)
 
         except (KeyError, IndexError) as e:
-            logger.exception(f"Error completing task {task_id}: {e}")
+            logger.exception("Error completing task %s: %s", task_id, e)
 
     def add_file_processing_task(self, file_count: int) -> int:
         """
@@ -292,7 +294,7 @@ class MigrationProgress:
             # Remove immediately without timing dependency
             self.progress.remove_task(task_id)
         except Exception as e:
-            logger.warning(f"Error completing indeterminate task {task_id}: {e}")
+            logger.warning("Error completing indeterminate task %s: %s", task_id, e)
 
     def get_elapsed_time(self) -> float:
         """
@@ -318,7 +320,7 @@ class MigrationProgress:
 
         self._step_times[step_name]["start"] = current_time
         self._current_step = step_name
-        logger.debug(f"Started timing for step: {step_name}")
+        logger.debug("Started timing for step: %s", step_name)
 
     def complete_step_timing(self, step_name: str) -> float:
         """
@@ -338,9 +340,9 @@ class MigrationProgress:
             self._step_times[step_name]["end"] = current_time
             self._step_times[step_name]["duration"] = duration
 
-            logger.debug(f"Completed step '{step_name}' in {duration:.2f}s")
+            logger.debug("Completed step '%s' in %.2fs", step_name, duration)
             return duration
-        logger.warning(f"No start time found for step: {step_name}")
+        logger.warning("No start time found for step: %s", step_name)
         return 0.0
 
     def get_step_duration(self, step_name: str) -> float:
@@ -368,7 +370,7 @@ class MigrationProgress:
             return self._total_migration_time
         return self.get_elapsed_time()
 
-    def get_timing_summary(self) -> Dict[str, float]:
+    def get_timing_summary(self) -> dict[str, float]:
         """
         Get comprehensive timing summary.
 
@@ -438,11 +440,11 @@ class MigrationProgress:
                 if migration_task_id in self.progress.tasks:
                     self.progress.update(migration_task_id, advance=1)
         except Exception as e:
-            logger.warning(f"Error advancing migration progress: {e}")
+            logger.warning("Error advancing migration progress: %s", e)
 
     def track_subprocess(
         self,
-        command: List[str],
+        command: list[str],
         description: str,
         cwd: Optional[str] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
@@ -479,7 +481,7 @@ class MigrationProgress:
     def _run_subprocess_background(
         self,
         task_id: int,
-        command: List[str],
+        command: list[str],
         description: str,
         cwd: Optional[str],
         progress_callback: Optional[Callable[[str], None]],
@@ -592,7 +594,7 @@ class MigrationProgress:
                 # CRITICAL: Configurable timeout, not hardcoded
                 thread.join(timeout=5.0)  # Reasonable timeout for cleanup
                 if thread.is_alive():
-                    logger.warning(f"Thread {thread.name} failed to cleanup within timeout")
+                    logger.warning("Thread %s failed to cleanup within timeout", thread.name)
                     cleanup_success = False
                 else:
                     # PATTERN: Remove completed threads immediately (thread-safe)
@@ -604,7 +606,7 @@ class MigrationProgress:
         with self._lock:
             remaining_count = len(self._subprocess_threads)
             if remaining_count > 0:
-                logger.warning(f"Forcibly clearing {remaining_count} unresponsive threads")
+                logger.warning("Forcibly clearing %s unresponsive threads", remaining_count)
                 self._subprocess_threads.clear()
 
         return cleanup_success
@@ -631,7 +633,7 @@ class MigrationProgress:
 
                         # Log errors
                         if update.error:
-                            logger.error(f"Subprocess error: {update.error}")
+                            logger.error("Subprocess error: %s", update.error)
 
                 self._subprocess_queue.task_done()
 
@@ -639,7 +641,7 @@ class MigrationProgress:
                 # Timeout - continue checking for stop signal
                 continue
             except Exception as e:
-                logger.warning(f"Error processing subprocess update: {e}")
+                logger.warning("Error processing subprocess update: %s", e)
 
     def wait_for_subprocess_completion(self, timeout: Optional[float] = None) -> bool:
         """
@@ -665,7 +667,7 @@ class MigrationProgress:
                     remaining_time = max(0, timeout - elapsed)
                     if remaining_time <= 0:
                         logger.warning(
-                            f"Timeout reached ({timeout}s): Subprocess thread {i} still running"
+                            "Timeout reached (%ss): Subprocess thread %s still running", timeout, i
                         )
                         completed_successfully = False
                         break
@@ -678,7 +680,8 @@ class MigrationProgress:
 
                 if thread.is_alive():
                     logger.warning(
-                        f"Subprocess thread {i} ({thread.name}) failed to complete within {thread_timeout}s timeout"
+                        "Subprocess thread %s (%s) failed to complete within %ss timeout",
+                        i, thread.name, thread_timeout
                     )
                     completed_successfully = False
                 else:
@@ -686,7 +689,7 @@ class MigrationProgress:
                     with self._lock:
                         if thread in self._subprocess_threads:
                             self._subprocess_threads.remove(thread)
-                    logger.debug(f"Subprocess thread {i} ({thread.name}) completed successfully")
+                    logger.debug("Subprocess thread %s (%s) completed successfully", i, thread.name)
 
         # Process any remaining updates from completed threads
         self._process_remaining_updates()
@@ -703,7 +706,7 @@ class MigrationProgress:
                 if task_id in self.progress.tasks:
                     self.progress.remove_task(task_id)
             except Exception as e:
-                logger.debug(f"Error removing task {task_name}: {e}")
+                logger.debug("Error removing task %s: %s", task_name, e)
 
         # Clean up step tasks
         for step_name, task_id in list(self.step_tasks.items()):
@@ -711,7 +714,7 @@ class MigrationProgress:
                 if task_id in self.progress.tasks:
                     self.progress.remove_task(task_id)
             except Exception as e:
-                logger.debug(f"Error removing step task {step_name}: {e}")
+                logger.debug("Error removing step task %s: %s", step_name, e)
 
         # Clear dictionaries
         self.tasks.clear()
@@ -742,9 +745,9 @@ class MigrationProgress:
                 # Log final status or errors
                 if update.completed:
                     if update.error:
-                        logger.error(f"Subprocess completed with error: {update.error}")
+                        logger.error("Subprocess completed with error: %s", update.error)
                     else:
-                        logger.debug(f"Subprocess completed successfully: {update.message}")
+                        logger.debug("Subprocess completed successfully: %s", update.message)
 
                 self._subprocess_queue.task_done()
                 processed_count += 1

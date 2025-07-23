@@ -95,7 +95,7 @@ class TestFutureAnnotationsUsage:
         """Test that CLI module uses __future__ annotations."""
         cli_path = Path(__file__).parent.parent / "sbm" / "cli.py"
 
-        with open(cli_path) as f:
+        with cli_path.open() as f:
             content = f.read()
 
         # Should have __future__ import as first import
@@ -120,7 +120,7 @@ class TestFutureAnnotationsUsage:
         """Test that config module uses __future__ annotations."""
         config_path = Path(__file__).parent.parent / "sbm" / "config.py"
 
-        with open(config_path) as f:
+        with config_path.open() as f:
             content = f.read()
 
         assert "from __future__ import annotations" in content, \
@@ -190,7 +190,7 @@ class TestImportStructure:
         for module in modules_with_typing:
             module_file = inspect.getfile(module)
 
-            with open(module_file) as f:
+            with Path(module_file).open() as f:
                 content = f.read()
 
             # Should have typing imports OR use __future__ annotations
@@ -209,7 +209,7 @@ class TestImportStructure:
 
         config_file = inspect.getfile(config)
 
-        with open(config_file) as f:
+        with Path(config_file).open() as f:
             content = f.read()
 
         # Should have correct Pydantic v2 imports
