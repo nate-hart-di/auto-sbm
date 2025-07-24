@@ -6,7 +6,6 @@ This module provides miscellaneous helper functions for the SBM tool.
 
 import re
 from datetime import datetime
-from typing import Union
 
 
 def validate_slug(slug: str) -> bool:
@@ -85,7 +84,7 @@ def extract_nested_rule(content: str, selector: str) -> str:
     return ""
 
 
-def hex_to_rgb(hex_color: str) -> Union[tuple[int, int, int], None]:
+def hex_to_rgb(hex_color: str) -> tuple[int, int, int] | None:
     """
     Convert hex color to RGB tuple.
 
@@ -113,7 +112,7 @@ def hex_to_rgb(hex_color: str) -> Union[tuple[int, int, int], None]:
         return None
 
 
-def rgb_to_hex(r: int, g: int, b: int) -> str:
+def rgb_to_hex(r, g, b) -> str:
     """
     Convert RGB tuple to hex color string.
 

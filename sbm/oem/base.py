@@ -19,7 +19,7 @@ class BaseOEMHandler:
     the required methods.
     """
 
-    def __init__(self, slug: str) -> None:
+    def __init__(self, slug) -> None:
         """
         Initialize the OEM handler.
 
@@ -49,7 +49,7 @@ class BaseOEMHandler:
         msg = f"{self.name} handler must implement get_directions_styles()"
         raise NotImplementedError(msg)
 
-    def get_map_partial_patterns(self) -> list[str]:
+    def get_map_partial_patterns(self):
         """
         Get OEM-specific patterns for identifying map partials.
 
@@ -63,7 +63,7 @@ class BaseOEMHandler:
             r"dealer-groups/([^/]+)/location",
         ]
 
-    def get_shortcode_patterns(self) -> list[str]:
+    def get_shortcode_patterns(self):
         """
         Get OEM-specific patterns for identifying map shortcodes.
 
@@ -88,7 +88,7 @@ class BaseOEMHandler:
         msg = f"{self.name} handler must implement get_brand_match_patterns()"
         raise NotImplementedError(msg)
 
-    def _load_style_file(self, filename: str) -> str:
+    def _load_style_file(self, filename):
         """
         Helper method to load style content from a file.
 
@@ -107,7 +107,7 @@ class BaseOEMHandler:
         for path in possible_paths:
             if path.exists():
                 logger.info(f"Loading style file: {path}")
-                with path.open() as f:
+                with open(path) as f:
                     return f.read()
 
         logger.warning(f"Style file {filename} not found for {self.name}")

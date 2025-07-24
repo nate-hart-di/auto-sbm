@@ -47,7 +47,7 @@ def validate_scss_files(slug: str) -> bool:
     for scss_file in sb_scss_files:
         if scss_file.exists():
             try:
-                with scss_file.open(encoding="utf-8") as f:
+                with open(scss_file, encoding="utf-8") as f:
                     content = f.read()
 
                 is_valid, error = processor.validate_scss_syntax(content)

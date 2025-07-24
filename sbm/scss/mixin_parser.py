@@ -85,9 +85,10 @@ vendor prefixes for maximum compatibility.
 
 import logging
 import re
+from typing import Dict, List, Tuple
 
 
-def _parse_mixin_arguments(raw_args: str) -> list[str]:
+def _parse_mixin_arguments(raw_args: str) -> List[str]:
     """
     Intelligently parse mixin arguments, handling nested parentheses and quoted strings.
     This fixes the major parameter parsing bug.
@@ -148,23 +149,19 @@ def _parse_mixin_arguments(raw_args: str) -> list[str]:
     return cleaned_args
 
 
-def _handle_appearance(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_appearance(mixin_name: str, args: list[str], content: str) -> str:
     """Handle @include appearance($appearance)"""
     appearance = args[0] if args else "none"
-    return (
-        f"-webkit-appearance: {appearance};\n"
-        f"-moz-appearance: {appearance};\n"
-        f"appearance: {appearance};"
-    )
+    return f"-webkit-appearance: {appearance};\n-moz-appearance: {appearance};\nappearance: {appearance};"
 
 
-def _handle_border_radius(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_border_radius(mixin_name: str, args: list[str], content: str) -> str:
     """Handle @include border-radius($radii)"""
     radius = args[0] if args else "5px"
     return f"border-radius: {radius};\nbackground-clip: padding-box;"
 
 
-def _handle_breakpoint(_mixin_name: str, args: list[str], content: str) -> str:
+def _handle_breakpoint(mixin_name: str, args: list[str], content: str) -> str:
     """Handle @include breakpoint($point) { content }"""
     if not args or not content:
         return ""
@@ -186,29 +183,17 @@ def _handle_breakpoint(_mixin_name: str, args: list[str], content: str) -> str:
     return f"@media ({media_query}) {{\n{content.strip()}\n}}"
 
 
-def _handle_flexbox(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_flexbox(mixin_name, args, content) -> str:
     """Handle @include flexbox"""
-    return (
-        "display: -webkit-box;\n"
-        "display: -webkit-flex;\n"
-        "display: -moz-flex;\n"
-        "display: -ms-flexbox;\n"
-        "display: flex;"
-    )
+    return "display: -webkit-box;\ndisplay: -webkit-flex;\ndisplay: -moz-flex;\ndisplay: -ms-flexbox;\ndisplay: flex;"
 
 
-def _handle_inline_flex(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_inline_flex(mixin_name, args, content) -> str:
     """Handle @include inline-flex"""
-    return (
-        "display: -webkit-inline-box;\n"
-        "display: -webkit-inline-flex;\n"
-        "display: -moz-inline-flex;\n"
-        "display: -ms-inline-flexbox;\n"
-        "display: inline-flex;"
-    )
+    return "display: -webkit-inline-box;\ndisplay: -webkit-inline-flex;\ndisplay: -moz-inline-flex;\ndisplay: -ms-inline-flexbox;\ndisplay: inline-flex;"
 
 
-def _handle_flex_direction(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex_direction(mixin_name, args, content) -> str:
     """Handle @include flex-direction($value)"""
     if not args:
         return ""
@@ -225,15 +210,10 @@ def _handle_flex_direction(_mixin_name: str, args: list[str], _content: str) -> 
     else:  # row
         webkit_box_props = "-webkit-box-direction: normal;\n-webkit-box-orient: horizontal;\n"
 
-    return (
-        f"{webkit_box_props}-webkit-flex-direction: {value};\n"
-        f"-moz-flex-direction: {value};\n"
-        f"-ms-flex-direction: {value};\n"
-        f"flex-direction: {value};"
-    )
+    return f"{webkit_box_props}-webkit-flex-direction: {value};\n-moz-flex-direction: {value};\n-ms-flex-direction: {value};\nflex-direction: {value};"
 
 
-def _handle_flex_wrap(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex_wrap(mixin_name, args, content) -> str:
     """Handle @include flex-wrap($value)"""
     if not args:
         return ""
@@ -241,15 +221,10 @@ def _handle_flex_wrap(_mixin_name: str, args: list[str], _content: str) -> str:
     value = args[0]
     ms_value = "none" if value == "nowrap" else value
 
-    return (
-        f"-webkit-flex-wrap: {value};\n"
-        f"-moz-flex-wrap: {value};\n"
-        f"-ms-flex-wrap: {ms_value};\n"
-        f"flex-wrap: {value};"
-    )
+    return f"-webkit-flex-wrap: {value};\n-moz-flex-wrap: {value};\n-ms-flex-wrap: {ms_value};\nflex-wrap: {value};"
 
 
-def _handle_justify_content(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_justify_content(mixin_name, args, content) -> str:
     """Handle @include justify-content($value)"""
     if not args:
         return ""
@@ -273,14 +248,10 @@ def _handle_justify_content(_mixin_name: str, args: list[str], _content: str) ->
         webkit_box = f"-webkit-box-pack: {value};\n"
         ms_flex = f"-ms-flex-pack: {value};\n"
 
-    return (
-        f"{webkit_box}{ms_flex}-webkit-justify-content: {value};\n"
-        f"-moz-justify-content: {value};\n"
-        f"justify-content: {value};"
-    )
+    return f"{webkit_box}{ms_flex}-webkit-justify-content: {value};\n-moz-justify-content: {value};\njustify-content: {value};"
 
 
-def _handle_align_items(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_align_items(mixin_name, args, content) -> str:
     """Handle @include align-items($value)"""
     if not args:
         return ""
@@ -299,20 +270,16 @@ def _handle_align_items(_mixin_name: str, args: list[str], _content: str) -> str
         webkit_box = f"-webkit-box-align: {value};\n"
         ms_flex = f"-ms-flex-align: {value};\n"
 
-    return (
-        f"{webkit_box}{ms_flex}-webkit-align-items: {value};\n"
-        f"-moz-align-items: {value};\n"
-        f"align-items: {value};"
-    )
+    return f"{webkit_box}{ms_flex}-webkit-align-items: {value};\n-moz-align-items: {value};\nalign-items: {value};"
 
 
-def _handle_font_size_mixin(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_font_size_mixin(mixin_name, args, content) -> str:
     """Handle @include font_size($property, $sizeValue, $lineHeightValue)"""
     # This is a complex mixin that generates utility classes
     return "/* font_size mixin converted - generates utility classes */"
 
 
-def _handle_fluid_font(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_fluid_font(mixin_name, args, content) -> str:
     """Handle @include fluid-font($min-vw, $max-vw, $min-font-size, $max-font-size)"""
     if len(args) < 4:
         return ""
@@ -327,7 +294,7 @@ def _handle_fluid_font(_mixin_name: str, args: list[str], _content: str) -> str:
 }}"""
 
 
-def _handle_responsive_font(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_responsive_font(mixin_name, args, content) -> str:
     """Handle @include responsive-font($responsive, $min, $max, $fallback)"""
     if len(args) < 1:
         return ""
@@ -342,7 +309,7 @@ font-size: {responsive};
 font-size: clamp({min_size}, {responsive}, {max_size});"""
 
 
-def _handle_placeholder_color(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_placeholder_color(mixin_name, args, content) -> str:
     """Handle @include placeholder-color($color, $opacity)"""
     if not args:
         return ""
@@ -368,22 +335,22 @@ def _handle_placeholder_color(_mixin_name: str, args: list[str], _content: str) 
 }}"""
 
 
-def _handle_absolute(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_absolute(mixin_name, args, content):
     """Handle @include absolute($directions) - absolute positioning with direction parameters"""
-    return _handle_positioning("absolute", args, _content)
+    return _handle_positioning("absolute", args, content)
 
 
-def _handle_relative(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_relative(mixin_name, args, content):
     """Handle @include relative($directions) - relative positioning with direction parameters"""
-    return _handle_positioning("relative", _args, _content)
+    return _handle_positioning("relative", args, content)
 
 
-def _handle_fixed(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_fixed(mixin_name, args, content):
     """Handle @include fixed($directions) - fixed positioning with direction parameters"""
-    return _handle_positioning("fixed", _args, _content)
+    return _handle_positioning("fixed", args, content)
 
 
-def _handle_positioning(position_type: str, args: list[str], _content: str) -> str:
+def _handle_positioning(position_type, args, content):
     """Handle positioning mixins with direction parameters like (top: 10px, left: 20px)"""
     result = f"position: {position_type};"
 
@@ -409,11 +376,11 @@ def _handle_positioning(position_type: str, args: list[str], _content: str) -> s
     return result
 
 
-def _handle_centering(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_centering(mixin_name, args, content):
     """Handle @include centering($from, $amount, $sides) - matches actual CommonTheme mixin"""
-    from_param = _args[0] if _args else "top"
-    amount = _args[1] if len(_args) > 1 else "50%"
-    _args[2] if len(_args) > 2 else "undefined"
+    from_param = args[0] if args else "top"
+    amount = args[1] if len(args) > 1 else "50%"
+    args[2] if len(args) > 2 else "undefined"
 
     # Handle the different centering modes based on the actual mixin logic
     result = "position: absolute;"
@@ -473,13 +440,13 @@ transform: translate(-{amount}, -{amount});
     return result
 
 
-def _handle_pz_font_defaults(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_pz_font_defaults(mixin_name, args, content):
     """Handle @include pz-font-defaults() - personalizer font defaults (FIXED)"""
-    font_family = _args[0] if _args else "$heading-font"
-    color = _args[1] if len(_args) > 1 else "#fff"
-    weight = _args[2] if len(_args) > 2 else "bold"
-    line_height = _args[3] if len(_args) > 3 else "normal"
-    align = _args[4] if len(_args) > 4 else "center"
+    font_family = args[0] if args else "$heading-font"
+    color = args[1] if len(args) > 1 else "#fff"
+    weight = args[2] if len(args) > 2 else "bold"
+    line_height = args[3] if len(args) > 3 else "normal"
+    align = args[4] if len(args) > 4 else "center"
 
     base_styles = f""".personalizer-wrap {{
   color: {color};
@@ -510,15 +477,15 @@ def _handle_pz_font_defaults(_mixin_name: str, _args: list[str], _content: str) 
     }}
   }}"""
 
-    if _content:
-        base_styles += f"\n{_content.strip()}"
+    if content:
+        base_styles += f"\n{content.strip()}"
 
     base_styles += "\n}"
 
     return base_styles
 
 
-def _handle_transform(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_transform(mixin_name, args, content) -> str:
     """Handle @include transform($transform) (FIXED)"""
     if not args:
         return ""
@@ -529,7 +496,7 @@ def _handle_transform(_mixin_name: str, args: list[str], _content: str) -> str:
 transform: {transform_val};"""
 
 
-def _handle_transition(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_transition(mixin_name, args, content) -> str:
     """Handle @include transition($transition)"""
     if not args:
         return ""
@@ -539,7 +506,7 @@ def _handle_transition(_mixin_name: str, args: list[str], _content: str) -> str:
 transition: {transition_val};"""
 
 
-def _handle_transition_2(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_transition_2(mixin_name, args, content) -> str:
     """Handle @include transition-2($transition, $transition-2)"""
     if len(args) < 2:
         return ""
@@ -549,7 +516,7 @@ def _handle_transition_2(_mixin_name: str, args: list[str], _content: str) -> st
 transition: {transition1}, {transition2};"""
 
 
-def _handle_fade_transition(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_fade_transition(mixin_name, args, content) -> str:
     """Handle @include fade-transition($element)"""
     if not args:
         return ""
@@ -575,7 +542,7 @@ def _handle_fade_transition(_mixin_name: str, args: list[str], _content: str) ->
 transition: {transition_value} 0.15s ease-in-out;"""
 
 
-def _handle_z_index(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_z_index(mixin_name, args, content) -> str:
     """Handle @include z-index($layer, $plus)"""
     if not args:
         return ""
@@ -613,18 +580,18 @@ def _handle_z_index(_mixin_name: str, args: list[str], _content: str) -> str:
     return f"z-index: {layer};"
 
 
-def _handle_content_block_mixin(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_content_block_mixin(mixin_name, args, content):
     """
     Generic handler for mixins that simply wrap a content block.
     This effectively "unwraps" the content by removing the @include.
     """
-    if _content:
-        return _content.strip()
+    if content:
+        return content.strip()
     return ""
 
 
 # Additional flexbox mixins
-def _handle_flex(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex(mixin_name, args, content) -> str:
     """Handle @include flex($fg, $fs, $fb)"""
     if not args:
         return ""
@@ -648,7 +615,7 @@ def _handle_flex(_mixin_name: str, args: list[str], _content: str) -> str:
 flex: {flex_value};"""
 
 
-def _handle_order(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_order(mixin_name, args, content) -> str:
     """Handle @include order($int)"""
     if not args:
         return ""
@@ -663,7 +630,7 @@ def _handle_order(_mixin_name: str, args: list[str], _content: str) -> str:
 order: {order_val};"""
 
 
-def _handle_flex_grow(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex_grow(mixin_name, args, content) -> str:
     """Handle @include flex-grow($int)"""
     if not args:
         return ""
@@ -676,7 +643,7 @@ def _handle_flex_grow(_mixin_name: str, args: list[str], _content: str) -> str:
 flex-grow: {grow_val};"""
 
 
-def _handle_flex_shrink(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex_shrink(mixin_name, args, content) -> str:
     """Handle @include flex-shrink($int)"""
     if not args:
         return ""
@@ -688,7 +655,7 @@ def _handle_flex_shrink(_mixin_name: str, args: list[str], _content: str) -> str
 flex-shrink: {shrink_val};"""
 
 
-def _handle_flex_basis(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex_basis(mixin_name, args, content) -> str:
     """Handle @include flex-basis($value)"""
     if not args:
         return ""
@@ -700,7 +667,7 @@ def _handle_flex_basis(_mixin_name: str, args: list[str], _content: str) -> str:
 flex-basis: {basis_val};"""
 
 
-def _handle_flex_flow(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_flex_flow(mixin_name, args, content) -> str:
     """Handle @include flex-flow($values)"""
     if not args:
         return ""
@@ -712,7 +679,7 @@ def _handle_flex_flow(_mixin_name: str, args: list[str], _content: str) -> str:
 flex-flow: {flow_val};"""
 
 
-def _handle_align_self(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_align_self(mixin_name, args, content) -> str:
     """Handle @include align-self($value)"""
     if not args:
         return ""
@@ -732,7 +699,7 @@ def _handle_align_self(_mixin_name: str, args: list[str], _content: str) -> str:
 {ms_flex}align-self: {value};"""
 
 
-def _handle_align_content(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_align_content(mixin_name, args, content) -> str:
     """Handle @include align-content($value)"""
     if not args:
         return ""
@@ -756,7 +723,7 @@ def _handle_align_content(_mixin_name: str, args: list[str], _content: str) -> s
 {ms_flex}align-content: {value};"""
 
 
-def _handle_trans(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_trans(mixin_name, args, content) -> str:
     """Handle @include trans($color, $opacity) - transparent background"""
     if len(args) < 2:
         return ""
@@ -767,7 +734,7 @@ background: none;
 background: rgba({color}, {opacity});"""
 
 
-def _handle_vertical_align(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_vertical_align(mixin_name, args, content) -> str:
     """Handle @include vertical-align"""
     return """position: relative;
 top: 50%;
@@ -776,7 +743,7 @@ top: 50%;
 transform: translateY(-50%);"""
 
 
-def _handle_translatez(_mixin_name: str, args: list[str], _content: str) -> str:
+def _handle_translatez(mixin_name, args, content) -> str:
     """Handle @include translatez() or @include translateZ()"""
     return """-webkit-transform: translatez(0);
 -moz-transform: translatez(0);
@@ -795,7 +762,7 @@ def _handle_box_shadow(mixin_name: str, args: list[str], content: str) -> str:
 -moz-box-shadow: {shadow_value};"""
 
 
-def _handle_box_shadow_2(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_box_shadow_2(mixin_name, args, content) -> str:
     """Handle @include box-shadow-2($args1, $args2) (FIXED)"""
     if len(args) < 2:
         return ""
@@ -826,7 +793,7 @@ def _handle_clearfix(mixin_name: str, args: list[str], content: str) -> str:
 }"""
 
 
-def _handle_list_padding(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_list_padding(mixin_name, args, content) -> str:
     """Handle @include list-padding($position, $value)"""
     if len(args) < 2:
         return ""
@@ -838,7 +805,7 @@ def _handle_list_padding(mixin_name: str, args: list[str], content: str) -> str:
 -o-padding-{position}: {value};"""
 
 
-def _handle_filter(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_filter(mixin_name, args, content) -> str:
     """Handle @include filter($filter-type, $filter-amount)"""
     if len(args) < 2:
         return ""
@@ -851,7 +818,7 @@ def _handle_filter(mixin_name: str, args: list[str], content: str) -> str:
 filter: {filter_type}({filter_amount});"""
 
 
-def _handle_rotate(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_rotate(mixin_name, args, content) -> str:
     """Handle @include rotate($degrees)"""
     if not args:
         return ""
@@ -860,18 +827,12 @@ def _handle_rotate(mixin_name: str, args: list[str], content: str) -> str:
     return f"""-moz-transform: rotate({degrees});
 -webkit-transform: rotate({degrees});
 transform: rotate({degrees});
-filter: progid:DXImageTransform.Microsoft.Matrix(
-    sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}},
-    M21=#{{{degrees}}}, M22=#{{{degrees}}}
-);
--ms-filter: "progid:DXImageTransform.Microsoft.Matrix(
-    sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}},
-    M21=#{{{degrees}}}, M22=#{{{degrees}}}
-)";
+filter: progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}}, M21=#{{{degrees}}}, M22=#{{{degrees}}});
+-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(sizingMethod='auto expand', M11=#{{{degrees}}}, M12=-#{{{degrees}}}, M21=#{{{degrees}}}, M22=#{{{degrees}}})";
 zoom: 1;"""
 
 
-def _handle_gradient(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_gradient(mixin_name, args, content) -> str:
     """Handle @include gradient($top, $bottom) - vertical gradient"""
     if len(args) < 2:
         return ""
@@ -880,16 +841,14 @@ def _handle_gradient(mixin_name: str, args: list[str], content: str) -> str:
     return f"""background-color: {top};
 background-repeat: repeat-x;
 background: -moz-linear-gradient(top, {top} 0%, {bottom} 100%);
-background: -webkit-gradient(
-    linear, left top, left bottom, color-stop(0%,{top}), color-stop(100%,{bottom})
-);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,{top}), color-stop(100%,{bottom}));
 background: -webkit-linear-gradient(top, {top} 0%, {bottom} 100%);
 background: -o-linear-gradient(top, {top}, {bottom});
 background: -ms-linear-gradient(top, {top} 0%, {bottom} 100%);
 background: linear-gradient(to bottom, {top}, {bottom});"""
 
 
-def _handle_gradient_left_right(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_gradient_left_right(mixin_name, args, content) -> str:
     """Handle @include gradient-left-right($left, $right) - horizontal gradient"""
     if len(args) < 2:
         return ""
@@ -898,141 +857,74 @@ def _handle_gradient_left_right(mixin_name: str, args: list[str], content: str) 
     return f"""background-color: {left};
 background-repeat: repeat-x;
 background: -moz-linear-gradient(left, {left} 0%, {right} 100%);
-background: -webkit-gradient(
-    linear, left top, right top, color-stop(0%,{left}), color-stop(100%,{right})
-);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,{left}), color-stop(100%,{right}));
 background: -webkit-linear-gradient(left, {left} 0%, {right} 100%);
 background: -o-linear-gradient(left, {left}, {right});
 background: -ms-linear-gradient(left, {left} 0%, {right} 100%);
 background: linear-gradient(to right, {left}, {right});"""
 
 
-def _handle_horgradient(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_horgradient(mixin_name, args, content) -> str:
     """Handle @include horgradient($color, $opacity) - horizontal gradient with transparent sides"""
     if len(args) < 2:
         return ""
 
     color, opacity = args[:2]
     return f"""background-color: rgba({color}, {opacity});
-background: -moz-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%,
-    rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%
-);
-background: -webkit-gradient(
-    linear, left top, right top,
-    color-stop(0%,rgba({color}, 0)), color-stop(30%,rgba({color}, {opacity})),
-    color-stop(70%,rgba({color}, {opacity})), color-stop(100%,rgba({color}, 0))
-);
-background: -webkit-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%,
-    rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%
-);
-background: -o-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%,
-    rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%
-);
-background: -ms-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%,
-    rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%
-);
-background: linear-gradient(
-    to right, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%,
-    rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%
-);"""
+background: -moz-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba({color}, 0)), color-stop(30%,rgba({color}, {opacity})), color-stop(70%,rgba({color}, {opacity})), color-stop(100%,rgba({color}, 0)));
+background: -webkit-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: -o-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: -ms-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);
+background: linear-gradient(to right, rgba({color}, 0) 0%, rgba({color}, {opacity}) 30%, rgba({color}, {opacity}) 70%, rgba({color}, 0) 100%);"""
 
 
-def _handle_horgradientright(mixin_name: str, args: list[str], content: str) -> str:
-    """
-    Handle @include horgradientright($color, $opacity) - horizontal gradient transparent on right
-    """
+def _handle_horgradientright(mixin_name, args, content) -> str:
+    """Handle @include horgradientright($color, $opacity) - horizontal gradient transparent on right"""
     if len(args) < 2:
         return ""
 
     color, opacity = args[:2]
     return f"""background-color: rgba({color}, {opacity});
-background: -moz-linear-gradient(
-    left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%
-);
-background: -webkit-gradient(
-    linear, left top, right top,
-    color-stop(0%,rgba({color}, {opacity})), color-stop(0%,rgba({color}, {opacity})),
-    color-stop(100%,rgba({color}, 0))
-);
-background: -webkit-linear-gradient(
-    left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%
-);
-background: -o-linear-gradient(
-    left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%
-);
-background: -ms-linear-gradient(
-    left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%
-);
-background: linear-gradient(
-    to right, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%
-);"""
+background: -moz-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba({color}, {opacity})), color-stop(0%,rgba({color}, {opacity})), color-stop(100%,rgba({color}, 0)));
+background: -webkit-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: -o-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: -ms-linear-gradient(left, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);
+background: linear-gradient(to right, rgba({color}, {opacity}) 0%, rgba({color}, {opacity}) 0%, rgba({color}, 0) 100%);"""
 
 
-def _handle_horgradientleft(mixin_name: str, args: list[str], content: str) -> str:
-    """
-    Handle @include horgradientleft($color, $opacity) - horizontal gradient transparent on left
-    """
+def _handle_horgradientleft(mixin_name, args, content) -> str:
+    """Handle @include horgradientleft($color, $opacity) - horizontal gradient transparent on left"""
     if len(args) < 2:
         return ""
 
     color, opacity = args[:2]
     return f"""background-color: rgba({color}, {opacity});
-background: -moz-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: -webkit-gradient(
-    linear, left top, right top,
-    color-stop(0%,rgba({color}, 0)), color-stop(0%,rgba({color}, 0)),
-    color-stop(100%,rgba({color}, {opacity}))
-);
-background: -webkit-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: -o-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: -ms-linear-gradient(
-    left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: linear-gradient(
-    to right, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);"""
+background: -moz-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba({color}, 0)), color-stop(0%,rgba({color}, 0)), color-stop(100%,rgba({color}, {opacity})));
+background: -webkit-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -o-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -ms-linear-gradient(left, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: linear-gradient(to right, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);"""
 
 
-def _handle_horgradienttop(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_horgradienttop(mixin_name, args, content) -> str:
     """Handle @include horgradienttop($color, $opacity) - vertical gradient transparent on top"""
     if len(args) < 2:
         return ""
 
     color, opacity = args[:2]
     return f"""background-color: rgba({color}, {opacity});
-background: -moz-linear-gradient(
-    top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: -webkit-gradient(
-    linear, left top, left bottom,
-    color-stop(0%,rgba({color}, 0)), color-stop(0%,rgba({color}, 0)),
-    color-stop(100%,rgba({color}, {opacity}))
-);
-background: -webkit-linear-gradient(
-    top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: -o-linear-gradient(
-    top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: -ms-linear-gradient(
-    top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);
-background: linear-gradient(
-    to bottom, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%
-);"""
+background: -moz-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba({color}, 0)), color-stop(0%,rgba({color}, 0)), color-stop(100%,rgba({color}, {opacity})));
+background: -webkit-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -o-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: -ms-linear-gradient(top, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);
+background: linear-gradient(to bottom, rgba({color}, 0) 0%, rgba({color}, 0) 0%, rgba({color}, {opacity}) 100%);"""
 
 
-def _handle_diagonal_top_bottom(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_diagonal_top_bottom(mixin_name, args, content) -> str:
     """Handle @include diagonal-top-bottom($top, $bottom, $top-percent, $bottom-percent)"""
     if len(args) < 2:
         return ""
@@ -1045,47 +937,25 @@ def _handle_diagonal_top_bottom(mixin_name: str, args: list[str], content: str) 
     return f"""background-color: {top};
 background-repeat: repeat-x;
 background: -moz-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
-background: -webkit-gradient(
-    -45deg, left top, left bottom,
-    color-stop({top_percent},{top}), color-stop({bottom_percent},{bottom})
-);
+background: -webkit-gradient(-45deg, left top, left bottom, color-stop({top_percent},{top}), color-stop({bottom_percent},{bottom}));
 background: -webkit-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
 background: -o-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
 background: -ms-linear-gradient(-45deg, {top} {top_percent}, {bottom} {bottom_percent});
 background: linear-gradient(135deg, {top} {top_percent}, {bottom} {bottom_percent});"""
 
 
-def _handle_metalgradient(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_metalgradient(mixin_name, args, content) -> str:
     """Handle @include metalgradient() - metal look gradient"""
     return """background: rgb(187,187,187);
-background: -moz-linear-gradient(
-    top, rgba(187,187,187,1) 0%, rgba(187,187,187,1) 47%,
-    rgba(103,103,103,1) 53%, rgba(103,103,103,1) 100%
-);
-background: -webkit-gradient(
-    linear, left top, left bottom,
-    color-stop(0%,rgba(187,187,187,1)), color-stop(47%,rgba(187,187,187,1)),
-    color-stop(53%,rgba(103,103,103,1)), color-stop(100%,rgba(103,103,103,1))
-);
-background: -webkit-linear-gradient(
-    top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,
-    rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%
-);
-background: -o-linear-gradient(
-    top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,
-    rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%
-);
-background: -ms-linear-gradient(
-    top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,
-    rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%
-);
-background: linear-gradient(
-    to bottom, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,
-    rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%
-);"""
+background: -moz-linear-gradient(top, rgba(187,187,187,1) 0%, rgba(187,187,187,1) 47%, rgba(103,103,103,1) 53%, rgba(103,103,103,1) 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(187,187,187,1)), color-stop(47%,rgba(187,187,187,1)), color-stop(53%,rgba(103,103,103,1)), color-stop(100%,rgba(103,103,103,1)));
+background: -webkit-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+background: -o-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+background: -ms-linear-gradient(top, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);
+background: linear-gradient(to bottom, rgba(187,187,187,1) 0%,rgba(187,187,187,1) 47%,rgba(103,103,103,1) 53%,rgba(103,103,103,1) 100%);"""
 
 
-def _handle_backgroundGradientWithImage(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_backgroundGradientWithImage(mixin_name, args, content) -> str:
     """Handle @include backgroundGradientWithImage($top, $bottom, $imagePath)"""
     if len(args) < 3:
         return ""
@@ -1095,16 +965,14 @@ def _handle_backgroundGradientWithImage(mixin_name: str, args: list[str], conten
 background-image: url({image_path});
 background-repeat: repeat-x;
 background: url({image_path}), -moz-linear-gradient(top, {top} 0%, {bottom} 100%);
-background: url({image_path}), -webkit-gradient(
-    linear, left top, left bottom, color-stop(0%,{top}), color-stop(100%,{bottom})
-);
+background: url({image_path}), -webkit-gradient(linear, left top, left bottom, color-stop(0%,{top}), color-stop(100%,{bottom}));
 background: url({image_path}), -webkit-linear-gradient(top, {top} 0%, {bottom} 100%);
 background: url({image_path}), -o-linear-gradient(top, {top}, {bottom});
 background: url({image_path}), -ms-linear-gradient(top, {top} 0%, {bottom} 100%);
 background: url({image_path}), linear-gradient(to bottom, {top}, {bottom});"""
 
 
-def _handle_stroke(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_stroke(mixin_name, args, content) -> str:
     """Handle @include stroke($stroke, $color)"""
     if len(args) < 2:
         return ""
@@ -1117,7 +985,7 @@ def _handle_stroke(mixin_name: str, args: list[str], content: str) -> str:
   {stroke}px {stroke}px 0 {color};"""
 
 
-def _handle_opacity(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_opacity(mixin_name, args, content) -> str:
     """Handle @include opacity($opacity)"""
     if not args:
         return ""
@@ -1128,7 +996,7 @@ def _handle_opacity(mixin_name: str, args: list[str], content: str) -> str:
 filter: alpha(opacity={filter_value});"""
 
 
-def _handle_user_select(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_user_select(mixin_name, args, content) -> str:
     """Handle @include user-select($value)"""
     value = args[0] if args else "none"
     return f"""-webkit-user-select: {value};
@@ -1137,7 +1005,7 @@ def _handle_user_select(mixin_name: str, args: list[str], content: str) -> str:
 user-select: {value};"""
 
 
-def _handle_animation_commontheme(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_animation_commontheme(mixin_name, args, content) -> str:
     """Handle @include animation($animations...)"""
     if not args:
         return ""
@@ -1149,7 +1017,7 @@ def _handle_animation_commontheme(mixin_name: str, args: list[str], content: str
 animation: {animations};"""
 
 
-def _handle_calc(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_calc(mixin_name, args, content) -> str:
     """Handle @include calc($property, $value)"""
     if len(args) < 2:
         return ""
@@ -1160,14 +1028,14 @@ def _handle_calc(mixin_name: str, args: list[str], content: str) -> str:
 {property_name}: calc({value});"""
 
 
-def _handle_iframehack(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_iframehack(mixin_name, args, content) -> str:
     """Handle @include iframehack() - responsive iframe hack"""
     return """width: 1px;
 min-width: 100%;
 *width: 100%;"""
 
 
-def _handle_color_classes(mixin_name: str, args: list[str], content: str) -> str:
+def _handle_color_classes(mixin_name, args, content) -> str:
     """Handle @include color-classes($name, $hex) - generates color utility classes (FIXED)"""
     if len(args) < 2:
         return ""
@@ -1179,8 +1047,7 @@ def _handle_color_classes(mixin_name: str, args: list[str], content: str) -> str
         # For CSS variables, use the -lighten variant as per the original mixin
         hover_color = f"var(--{name}-lighten)"
     else:
-        # For actual hex colors, pre-calculate lightened color to avoid
-        # SCSS function compilation issues
+        # For actual hex colors, pre-calculate lightened color to avoid SCSS function compilation issues
         from sbm.utils.helpers import lighten_hex
 
         hover_color = lighten_hex(hex_color, 10)
@@ -1200,11 +1067,11 @@ a.{name}-color:hover {{
 }}"""
 
 
-def _handle_scrollbars(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_scrollbars(mixin_name, args, content):
     """Handle @include scrollbars($size, $foreground-color, $background-color)"""
-    size = _args[0] if len(_args) > 0 else "auto"
-    fg = _args[1] if len(_args) > 1 else "null"
-    bg = _args[2] if len(_args) > 2 else "null"
+    size = args[0] if len(args) > 0 else "auto"
+    fg = args[1] if len(args) > 1 else "null"
+    bg = args[2] if len(args) > 2 else "null"
 
     result = ""
 
@@ -1233,19 +1100,19 @@ def _handle_scrollbars(_mixin_name: str, _args: list[str], _content: str) -> str
     return result
 
 
-def _handle_site_builder(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_site_builder(mixin_name, args, content) -> str:
     """Handle @include site-builder($brand) - complex brand-specific styling (FIXED)"""
-    if not _args:
+    if not args:
         return ""
 
-    brand = _args[0].strip("\"'")
+    brand = args[0].strip("\"'")
 
     # This is a simplified conversion - the actual mixin sets global variables
     # and applies complex styling. For SBM, we'll just output a comment.
     return f"/* site-builder mixin for {brand} brand - complex styling applied */"
 
 
-def _handle_position(_mixin_name: str, args: list[str], content: str) -> str:
+def _handle_position(mixin_name, args, content):
     """Handle @include position($directions) mixin."""
     if not args:
         return ""
@@ -1264,7 +1131,7 @@ def _handle_position(_mixin_name: str, args: list[str], content: str) -> str:
     return "\n".join(css_props)
 
 
-def _handle_save_compare_tab_base(_mixin_name: str, _args: list[str], _content: str) -> str:
+def _handle_save_compare_tab_base(mixin_name, args, content) -> str:
     """Handle @include save-compare-tab-base() mixin."""
     return """display: inline-block;
 position: fixed;
@@ -1299,7 +1166,7 @@ top: 50%;
 }"""
 
 
-def _handle_keyframes(_mixin_name: str, args: list[str], content: str) -> str:
+def _handle_keyframes(mixin_name, args, content) -> str:
     """Handle @include keyframes($name) with content block"""
     if not args or not content:
         return ""
@@ -1439,7 +1306,7 @@ class CommonThemeMixinParser:
         self.converted_mixins = []
         self.unconverted_mixins = []
 
-    def _load_commontheme_mixins(self) -> dict[str, str]:
+    def _load_commontheme_mixins(self) -> Dict[str, str]:
         """
         Load basic CommonTheme mixin definitions for fallback.
 
@@ -1449,25 +1316,12 @@ class CommonThemeMixinParser:
         return {
             # Simple fallback templates for mixins not handled by functions
             "clearfix": '&::after { content: ""; display: table; clear: both; }',
-            "visually-hidden": (
-                "position: absolute !important; width: 1px !important; "
-                "height: 1px !important; padding: 0 !important; "
-                "margin: -1px !important; overflow: hidden !important; "
-                "clip: rect(0, 0, 0, 0) !important; border: 0 !important;"
-            ),
-            "sr-only": (
-                "position: absolute !important; width: 1px !important; "
-                "height: 1px !important; padding: 0 !important; "
-                "margin: -1px !important; overflow: hidden !important; "
-                "clip: rect(0, 0, 0, 0) !important; border: 0 !important;"
-            ),
+            "visually-hidden": "position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;",
+            "sr-only": "position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; border: 0 !important;",
         }
 
-    def parse_and_convert_mixins(self, content: str) -> tuple[str, list[str], list[str]]:
-        """
-        Main method to parse and convert all mixins in SCSS content
-        with multiple passes for complete conversion.
-        """
+    def parse_and_convert_mixins(self, content: str) -> Tuple[str, List[str], List[str]]:
+        """Main method to parse and convert all mixins in SCSS content with multiple passes for complete conversion."""
 
         self.converted_mixins = []
         self.unconverted_mixins = []
@@ -1490,12 +1344,12 @@ class CommonThemeMixinParser:
 
         if pass_count >= max_passes:
             self.logger.warning(
-                "Maximum passes (%s) reached. Some deeply nested mixins may remain.", max_passes
+                f"Maximum passes ({max_passes}) reached. Some deeply nested mixins may remain."
             )
 
         return current_content, self.converted_mixins, self.unconverted_mixins
 
-    def _find_mixin_with_args(self, content: str, start: int = 0) -> tuple[int, str, str, str]:
+    def _find_mixin_with_args(self, content: str, start: int = 0) -> Tuple[int, str, str, str]:
         """
         Find the next mixin call with proper nested parentheses handling.
         Returns: (start_index, mixin_name, args_string, content_block)
@@ -1557,10 +1411,7 @@ class CommonThemeMixinParser:
         return abs_start, mixin_name, args_string, content_block
 
     def _find_and_replace_mixins(self, content: str) -> str:
-        """
-        Recursively finds and replaces mixins in the content
-        with proper nested parentheses handling.
-        """
+        """Recursively finds and replaces mixins in the content with proper nested parentheses handling."""
 
         output = ""
         last_index = 0
@@ -1606,7 +1457,7 @@ class CommonThemeMixinParser:
                 original_text = self._reconstruct_mixin_call(
                     mixin_name, args_string, processed_content_block
                 )
-                self.logger.warning("Unknown mixin: %s", original_text)
+                self.logger.warning(f"Unknown mixin: {original_text}")
                 self.unconverted_mixins.append(original_text)
                 replacement = original_text
 
@@ -1675,7 +1526,7 @@ class CommonThemeMixinParser:
 
         return i
 
-    def _find_closing_brace(self, text: str, start_index: int) -> tuple[int, str]:
+    def _find_closing_brace(self, text: str, start_index: int) -> Tuple[int, str]:
         """Finds the matching closing brace for a block starting at start_index."""
         brace_level = 1
         for i in range(start_index, len(text)):
@@ -1688,7 +1539,7 @@ class CommonThemeMixinParser:
                     return i + 1, text[start_index:i]
         return -1, ""  # Not found
 
-    def validate_conversion(self, content: str) -> dict[str, list[str]]:
+    def validate_conversion(self, content: str) -> Dict[str, List[str]]:
         """
         Validate that all SCSS has been properly converted.
 

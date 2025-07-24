@@ -120,20 +120,11 @@ class StyleClassifier:
         for pattern in self.excluded_patterns:
             if pattern.search(css_rule):
                 # Determine which category matched
-                if any(
-                    p.search(css_rule)
-                    for p in [re.compile(p, re.IGNORECASE) for p in self.HEADER_PATTERNS]
-                ):
+                if any(p.search(css_rule) for p in [re.compile(p, re.IGNORECASE) for p in self.HEADER_PATTERNS]):
                     reason = "header"
-                elif any(
-                    p.search(css_rule)
-                    for p in [re.compile(p, re.IGNORECASE) for p in self.NAVIGATION_PATTERNS]
-                ):
+                elif any(p.search(css_rule) for p in [re.compile(p, re.IGNORECASE) for p in self.NAVIGATION_PATTERNS]):
                     reason = "navigation"
-                elif any(
-                    p.search(css_rule)
-                    for p in [re.compile(p, re.IGNORECASE) for p in self.FOOTER_PATTERNS]
-                ):
+                elif any(p.search(css_rule) for p in [re.compile(p, re.IGNORECASE) for p in self.FOOTER_PATTERNS]):
                     reason = "footer"
                 else:
                     reason = "unknown"
@@ -187,17 +178,13 @@ class StyleClassifier:
 
                 if should_exclude:
                     # Log the exclusion
-                    logger.debug(
-                        f"Excluding {reason} rule at line {line_num}: {current_rule[0].strip()}"
-                    )
+                    logger.debug(f"Excluding {reason} rule at line {line_num}: {current_rule[0].strip()}")
                     excluded_rules.append(rule_content)
                     patterns_matched[reason] = patterns_matched.get(reason, 0) + 1
                     self._exclusion_stats[reason] += 1
 
                     # Add a comment about the exclusion
-                    filtered_lines.append(
-                        f"/* EXCLUDED {reason.upper()} RULE: {current_rule[0].strip()} */"
-                    )
+                    filtered_lines.append(f"/* EXCLUDED {reason.upper()} RULE: {current_rule[0].strip()} */")
                 else:
                     # Include the rule
                     filtered_lines.extend(current_rule)
@@ -260,9 +247,7 @@ class StyleClassifier:
 
 
 # Convenience function for quick style filtering
-def filter_scss_for_site_builder(
-    content: str, strict_mode: bool = True
-) -> tuple[str, ExclusionResult]:
+def filter_scss_for_site_builder(content: str, strict_mode: bool = True) -> tuple[str, ExclusionResult]:
     """
     Filter SCSS content to exclude header/footer/nav styles for Site Builder.
 

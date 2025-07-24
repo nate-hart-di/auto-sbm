@@ -10,8 +10,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from sbm.utils.logger import logger
 
@@ -31,10 +30,10 @@ class CompilationAttempt:
     attempt_number: int
     timestamp: float
     status: CompilationStatus
-    errors: list[str]
-    warnings: list[str]
+    errors: List[str]
+    warnings: List[str]
     duration: Optional[float] = None
-    error_types: Optional[list[str]] = None
+    error_types: Optional[List[str]] = None
 
 
 class CompilationValidator:
@@ -47,7 +46,7 @@ class CompilationValidator:
 
     def __init__(self) -> None:
         """Initialize compilation validator."""
-        self._compilation_history: list[CompilationAttempt] = []
+        self._compilation_history: List[CompilationAttempt] = []
         self._final_state: Optional[CompilationStatus] = None
         self._start_time: Optional[float] = None
         self._end_time: Optional[float] = None
@@ -63,9 +62,9 @@ class CompilationValidator:
         self,
         attempt: int,
         status: CompilationStatus,
-        errors: Optional[list[str]] = None,
-        warnings: Optional[list[str]] = None,
-        error_types: Optional[list[str]] = None
+        errors: Optional[List[str]] = None,
+        warnings: Optional[List[str]] = None,
+        error_types: Optional[List[str]] = None
     ) -> None:
         """
         Track a single compilation attempt.
@@ -129,7 +128,7 @@ class CompilationValidator:
         """Get number of retry attempts (excluding first attempt)."""
         return max(0, len(self._compilation_history) - 1)
 
-    def get_compilation_summary(self) -> dict[str, Any]:
+    def get_compilation_summary(self) -> Dict[str, Any]:
         """
         Get comprehensive compilation summary.
 
@@ -184,7 +183,7 @@ class CompilationValidator:
         self._end_time = None
 
 
-def validate_php_syntax(file_path: str) -> bool:
+def validate_php_syntax(file_path):
     """
     Validate PHP syntax in a file.
 
@@ -194,15 +193,14 @@ def validate_php_syntax(file_path: str) -> bool:
     Returns:
         bool: True if syntax is valid, False otherwise
     """
-    file_path_obj = Path(file_path)
-    logger.info(f"Validating PHP syntax for {file_path_obj.name}")
+    logger.info(f"Validating PHP syntax for {os.path.basename(file_path)}")
 
-    if not file_path_obj.exists():
+    if not os.path.exists(file_path):
         logger.error(f"File not found: {file_path}")
         return False
 
     # First check brace count
-    with file_path_obj.open(encoding="utf-8", errors="ignore") as f:
+    with open(file_path, encoding="utf-8", errors="ignore") as f:
         content = f.read()
 
     # Count braces
@@ -223,12 +221,11 @@ def validate_php_syntax(file_path: str) -> bool:
             logger.info(f"Adding {missing} missing closing braces")
 
             # Create a backup
-            backup_path = Path(f"{file_path}.bak")
-            with backup_path.open("w") as f:
+            with open(f"{file_path}.bak", "w") as f:
                 f.write(content)
 
             # Add missing closing braces
-            with file_path_obj.open("w") as f:
+            with open(file_path, "w") as f:
                 f.write(content + "\n" + "}" * missing + "\n?>")
 
             logger.info(f"Fixed PHP file by adding {missing} closing braces")
@@ -255,7 +252,7 @@ def validate_php_syntax(file_path: str) -> bool:
         return opening_count == closing_count or opening_count > closing_count
 
 
-def validate_theme_files(slug: str, theme_dir: str) -> bool:
+def validate_theme_files(slug, theme_dir):
     """
     Validate important files in a dealer theme.
 
@@ -270,23 +267,21 @@ def validate_theme_files(slug: str, theme_dir: str) -> bool:
 
     success = True
 
-    theme_dir_path = Path(theme_dir)
-    
     # Validate functions.php if it exists
-    functions_php = theme_dir_path / "functions.php"
-    if functions_php.exists() and not validate_php_syntax(str(functions_php)):
+    functions_php = os.path.join(theme_dir, "functions.php")
+    if os.path.exists(functions_php) and not validate_php_syntax(functions_php):
         logger.error(f"functions.php validation failed for {slug}")
         success = False
 
     # Validate header.php if it exists
-    header_php = theme_dir_path / "header.php"
-    if header_php.exists() and not validate_php_syntax(str(header_php)):
+    header_php = os.path.join(theme_dir, "header.php")
+    if os.path.exists(header_php) and not validate_php_syntax(header_php):
         logger.error(f"header.php validation failed for {slug}")
         success = False
 
     # Validate footer.php if it exists
-    footer_php = theme_dir_path / "footer.php"
-    if footer_php.exists() and not validate_php_syntax(str(footer_php)):
+    footer_php = os.path.join(theme_dir, "footer.php")
+    if os.path.exists(footer_php) and not validate_php_syntax(footer_php):
         logger.error(f"footer.php validation failed for {slug}")
         success = False
 
@@ -296,8 +291,8 @@ def validate_theme_files(slug: str, theme_dir: str) -> bool:
     from sbm.scss.validator import validate_scss_syntax
 
     for file in sb_files:
-        file_path = theme_dir_path / file
-        if file_path.exists() and not validate_scss_syntax(str(file_path)):
+        file_path = os.path.join(theme_dir, file)
+        if os.path.exists(file_path) and not validate_scss_syntax(file_path):
             logger.error(f"{file} validation failed for {slug}")
             success = False
 

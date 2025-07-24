@@ -8,16 +8,13 @@ and real-time output.
 import logging
 import subprocess
 import threading
-from typing import Optional, TextIO
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def execute_interactive_command(
-    command: str,
-    error_message: str = "Command failed",
-    cwd: Optional[str] = None,
-    suppress_output: bool = False,
+    command, error_message="Command failed", cwd=None, suppress_output=False
 ) -> Optional[bool]:
     """
     Execute an interactive shell command that may require user input.
@@ -54,13 +51,12 @@ def execute_interactive_command(
                 check=False,
                 shell=True,
                 cwd=cwd,
-                # Don't redirect stdin/stdout/stderr - let the command interact
-                # directly with terminal
+                # Don't redirect stdin/stdout/stderr - let the command interact directly with terminal
             )
             result_code = result.returncode
 
         if result_code != 0:
-            logger.error("%s (exit code: %s)", error_message, result_code)
+            logger.error(f"{error_message} (exit code: {result_code})")
             return False
 
         return True
@@ -68,19 +64,14 @@ def execute_interactive_command(
     except KeyboardInterrupt:
         return False
     except FileNotFoundError:
-        logger.exception("Command not found: %s", command.split()[0])
+        logger.exception(f"Command not found: {command.split()[0]}")
         return False
     except Exception as e:
-        logger.exception("Command execution failed: %s", e)
+        logger.exception(f"Command execution failed: {e}")
         return False
 
 
-def execute_command(
-    command: str,
-    _error_message: str = "Command failed",
-    wait_for_completion: bool = True,
-    cwd: Optional[str] = None,
-) -> tuple[bool, list[str], list[str], Optional[subprocess.Popen[str]]]:
+def execute_command(command, error_message="Command failed", wait_for_completion=True, cwd=None):
     """
     Execute a shell command and handle errors.
     Show real-time output to the user.
@@ -88,8 +79,7 @@ def execute_command(
     Args:
         command (str): Command to execute
         error_message (str): Message to display on error
-        wait_for_completion (bool): If True, waits for the command to complete.
-            If False, runs in background.
+        wait_for_completion (bool): If True, waits for the command to complete. If False, runs in background.
         cwd (str, optional): The working directory for the command. Defaults to None.
 
     Returns:
@@ -113,7 +103,7 @@ def execute_command(
         )
 
         # Threads to read stdout and stderr
-        def read_pipe(pipe: TextIO, output_list: list[str]) -> None:
+        def read_pipe(pipe, output_list) -> None:
             for line in iter(pipe.readline, ""):
                 output_list.append(line)
             pipe.close()
@@ -139,8 +129,8 @@ def execute_command(
         return True, stdout_output, stderr_output, process
 
     except subprocess.CalledProcessError as e:
-        logger.exception("Command failed: %s", command)
-        logger.exception("Error output:\n%s", e.stderr)
+        logger.exception(f"Command failed: {command}")
+        logger.exception(f"Error output:\n{e.stderr}")
         return False, stdout_output, stderr_output, None
     except KeyboardInterrupt:
         if process:
@@ -148,5 +138,5 @@ def execute_command(
             process.wait()
         return False, stdout_output, stderr_output, None
     except FileNotFoundError:
-        logger.exception("Command not found: %s", command.split()[0])
+        logger.exception(f"Command not found: {command.split()[0]}")
         return False, stdout_output, stderr_output, None

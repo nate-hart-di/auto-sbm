@@ -8,7 +8,7 @@ with Rich UI integration, building on the enhanced MigrationProgress class.
 import logging
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Dict, List, Optional
 
 from .console import get_console
 from .progress import MigrationProgress
@@ -23,8 +23,8 @@ class SubprocessResult:
     success: bool
     returncode: int
     duration: float
-    stdout_lines: list[str]
-    stderr_lines: list[str]
+    stdout_lines: List[str]
+    stderr_lines: List[str]
     task_id: Optional[int] = None
 
 
@@ -45,11 +45,11 @@ class SubprocessTracker:
         """
         self.progress_tracker = progress_tracker
         self.console = get_console()
-        self.active_tasks: dict[str, int] = {}
+        self.active_tasks: Dict[str, int] = {}
 
     def track_command(
         self,
-        command: list[str],
+        command: List[str],
         description: str,
         cwd: Optional[str] = None,
         timeout: Optional[float] = None,
@@ -166,7 +166,7 @@ class SubprocessTracker:
         )
 
     def track_git_operation(
-        self, git_command: list[str], description: str, timeout: float = 60.0
+        self, git_command: List[str], description: str, timeout: float = 60.0
     ) -> SubprocessResult:
         """
         Track Git operations with specialized progress monitoring.
@@ -202,7 +202,7 @@ class SubprocessTracker:
 
     def _execute_direct(
         self,
-        command: list[str],
+        command: List[str],
         description: str,
         cwd: Optional[str],
         timeout: Optional[float],
