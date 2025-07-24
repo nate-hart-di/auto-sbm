@@ -54,11 +54,14 @@ class FullautoMode:
             
             # Handle special cases where we should still prompt
             if self._should_still_prompt(text):
-                return self._original_confirm(
-                    text, default, abort, prompt_suffix, show_default, err
-                )
+                # Use timer pause for critical prompts that still need user input
+                from ..utils.timer import timer_pause
+                with timer_pause("Critical user confirmation"):
+                    return self._original_confirm(
+                        text, default, abort, prompt_suffix, show_default, err
+                    )
             
-            # Auto-respond with default value
+            # Auto-respond with default value (no timer pause needed)
             return default
         
         click.confirm = fullauto_confirm

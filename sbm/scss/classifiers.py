@@ -182,9 +182,9 @@ class StyleClassifier:
                     excluded_rules.append(rule_content)
                     patterns_matched[reason] = patterns_matched.get(reason, 0) + 1
                     self._exclusion_stats[reason] += 1
-
-                    # Add a comment about the exclusion
-                    filtered_lines.append(f"/* EXCLUDED {reason.upper()} RULE: {current_rule[0].strip()} */")
+                    
+                    # CRITICAL FIX: Do NOT add comments to SCSS - they can break compilation
+                    # Just skip the rule entirely and log the exclusion
                 else:
                     # Include the rule
                     filtered_lines.extend(current_rule)
@@ -210,6 +210,11 @@ class StyleClassifier:
             excluded_rules=excluded_rules,
             patterns_matched=patterns_matched
         )
+        
+        # Log exclusion summary instead of adding dangerous comments
+        if excluded_rules:
+            exclusion_summary = ", ".join([f"{k}: {v}" for k, v in patterns_matched.items()])
+            logger.info(f"Excluded {len(excluded_rules)} rules from SCSS compilation: {exclusion_summary}")
 
         return filtered_content, result
 

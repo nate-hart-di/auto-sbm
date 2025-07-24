@@ -933,7 +933,9 @@ def migrate_dealer_theme(
         if progress_tracker:
             progress_tracker.add_step_task("git", "Setting up Git branch and repository", 100)
 
-        success, branch_name = git_operations(slug)
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Git Operations"):
+            success, branch_name = git_operations(slug)
         if not success:
             logger.error(f"Git operations failed for {slug}")
             return False
@@ -952,11 +954,13 @@ def migrate_dealer_theme(
             # Stop progress display to avoid mixing with Docker output
             progress_tracker.progress.stop()
 
-        just_start_success = run_just_start(
-            slug,
-            suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
-            progress_tracker=None,  # Disable progress tracking during Docker startup
-        )
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Docker Startup"):
+            just_start_success = run_just_start(
+                slug,
+                suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
+                progress_tracker=None,  # Disable progress tracking during Docker startup
+            )
 
         # Resume progress tracking after Docker startup
         if progress_tracker:
@@ -977,9 +981,11 @@ def migrate_dealer_theme(
     if progress_tracker:
         progress_tracker.add_step_task("files", "Creating Site Builder SCSS files", 100)
 
-    if not create_sb_files(slug, force_reset):
-        logger.error(f"Failed to create Site Builder files for {slug}")
-        return False
+    from sbm.utils.timer import timer_segment
+    with timer_segment("Site Builder File Creation"):
+        if not create_sb_files(slug, force_reset):
+            logger.error(f"Failed to create Site Builder files for {slug}")
+            return False
 
     print_step_success("Site Builder files created successfully")
     if progress_tracker:
@@ -990,9 +996,11 @@ def migrate_dealer_theme(
     if progress_tracker:
         progress_tracker.add_step_task("scss", "Migrating SCSS styles and transforming syntax", 100)
 
-    if not migrate_styles(slug):
-        logger.error(f"Failed to migrate styles for {slug}")
-        return False
+    from sbm.utils.timer import timer_segment
+    with timer_segment("SCSS Migration"):
+        if not migrate_styles(slug):
+            logger.error(f"Failed to migrate styles for {slug}")
+            return False
 
     print_step_success("SCSS styles migrated and transformed successfully")
     if progress_tracker:
@@ -1004,8 +1012,10 @@ def migrate_dealer_theme(
     if progress_tracker:
         progress_tracker.add_step_task("styles", "Adding predetermined OEM-specific styles", 100)
 
-    if not add_predetermined_styles(slug, oem_handler):
-        logger.warning(f"Could not add all predetermined styles for {slug}")
+    from sbm.utils.timer import timer_segment
+    with timer_segment("Predetermined Styles"):
+        if not add_predetermined_styles(slug, oem_handler):
+            logger.warning(f"Could not add all predetermined styles for {slug}")
 
     print_step_success("Predetermined styles added successfully")
     if progress_tracker:
@@ -1017,9 +1027,11 @@ def migrate_dealer_theme(
         if progress_tracker:
             progress_tracker.add_step_task("maps", "Migrating map components and PHP partials", 100)
 
-        if not migrate_map_components(slug, oem_handler, interactive=False):
-            logger.error(f"Failed to migrate map components for {slug}")
-            return False
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Map Components Migration"):
+            if not migrate_map_components(slug, oem_handler, interactive=False):
+                logger.error(f"Failed to migrate map components for {slug}")
+                return False
 
         print_step_success("Map components migrated successfully")
         logger.info(f"Map components migrated successfully for {slug}")
@@ -1041,19 +1053,17 @@ def migrate_dealer_theme(
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
 
-    # Conditionally run post-migration workflow
-    if interactive_review or interactive_git or interactive_pr:
-        return run_post_migration_workflow(
-            slug,
-            branch_name,
-            skip_git=skip_git,
-            create_pr=create_pr,
-            interactive_review=interactive_review,
-            interactive_git=interactive_git,
-            interactive_pr=interactive_pr,
-        )
-
-    return True
+    # Always run post-migration workflow (git operations, PR creation)
+    # Interactive flags control prompting behavior, not whether operations run
+    return run_post_migration_workflow(
+        slug,
+        branch_name,
+        skip_git=skip_git,
+        create_pr=create_pr,
+        interactive_review=interactive_review,
+        interactive_git=interactive_git,
+        interactive_pr=interactive_pr,
+    )
 
 
 def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: list) -> bool:

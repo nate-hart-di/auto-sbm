@@ -565,6 +565,15 @@ def auto(
         interactive_git = not skip_post_migration
         interactive_pr = not skip_post_migration
 
+    # Start migration timer and patch click.confirm for timing 
+    from .utils.timer import start_migration_timer, timer_segment, patch_click_confirm_for_timing
+    migration_timer = start_migration_timer(theme_name)
+    
+    # Patch click.confirm to pause timer during user interactions (unless in fullauto mode)
+    original_confirm = None
+    if not fullauto_active:
+        original_confirm = patch_click_confirm_for_timing()
+    
     # Use Rich UI for beautiful output WITHOUT progress bars
     try:
         # Beautiful startup panel
@@ -577,17 +586,18 @@ def auto(
         # Run migration with enhanced progress tracking
         try:
             with progress_tracker.progress_context():
-                success = migrate_dealer_theme(
-                    theme_name,
-                    skip_just=skip_just,
-                    force_reset=force_reset,
-                    create_pr=create_pr,
-                    interactive_review=False,  # Handle interactivity outside progress context
-                    interactive_git=False,  # Handle interactivity outside progress context
-                    interactive_pr=False,  # Handle interactivity outside progress context
-                    progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
-                    verbose_docker=verbose_docker,
-                )
+                with timer_segment("Complete Migration Process"):
+                    success = migrate_dealer_theme(
+                        theme_name,
+                        skip_just=skip_just,
+                        force_reset=force_reset,
+                        create_pr=create_pr,
+                        interactive_review=interactive_review,
+                        interactive_git=interactive_git,
+                        interactive_pr=interactive_pr,
+                        progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
+                        verbose_docker=verbose_docker,
+                    )
 
             # Handle interactive prompts AFTER progress context ends
             if success and (interactive_review or interactive_git or interactive_pr):
@@ -633,6 +643,15 @@ def auto(
         console.print_error(f"Unexpected migration error: {migration_error!s}")
         logger.exception("Unexpected migration error")
         sys.exit(1)
+    finally:
+        # Restore original click.confirm if we patched it
+        if original_confirm and not fullauto_active:
+            from .utils.timer import restore_click_confirm
+            restore_click_confirm(original_confirm)
+        
+        # Always finish the timer
+        from .utils.timer import finish_migration_timer
+        finish_migration_timer()
 
 
 @cli.command()
