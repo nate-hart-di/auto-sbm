@@ -536,8 +536,12 @@ def auto(
     )
     console.console.print(start_panel)
 
-    # Confirm migration start if not in non-interactive mode
-    if not skip_post_migration:
+    # Check if we're in fullauto mode
+    from .features.fullauto_mode import is_fullauto_active
+    fullauto_active = is_fullauto_active()
+    
+    # Confirm migration start if not in non-interactive mode and not in fullauto mode
+    if not skip_post_migration and not fullauto_active:
         config_dict = {
             "skip_just": skip_just,
             "force_reset": force_reset,
@@ -550,10 +554,16 @@ def auto(
             return
 
     console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
-
-    interactive_review = not skip_post_migration
-    interactive_git = not skip_post_migration
-    interactive_pr = not skip_post_migration
+    
+    if fullauto_active:
+        logger.info("Fullauto mode detected - disabling all interactive prompts")
+        interactive_review = False
+        interactive_git = False
+        interactive_pr = False
+    else:
+        interactive_review = not skip_post_migration
+        interactive_git = not skip_post_migration
+        interactive_pr = not skip_post_migration
 
     # Use Rich UI for beautiful output WITHOUT progress bars
     try:
@@ -623,6 +633,34 @@ def auto(
         console.print_error(f"Unexpected migration error: {migration_error!s}")
         logger.exception("Unexpected migration error")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("theme_name")
+def fullauto(theme_name: str) -> None:
+    """
+    Run full automated migration with zero user prompts (except errors).
+    
+    This command runs the complete migration workflow from start to PR creation
+    without any user interaction, except for compilation errors that require 
+    manual intervention.
+    
+    Equivalent to: sbm auto <theme-name> with all interactive flags disabled.
+    """
+    from .features.fullauto_mode import create_fullauto_context
+    
+    # Use fullauto context to manage prompt bypassing
+    with create_fullauto_context(enabled=True):
+        ctx = click.get_current_context()
+        ctx.invoke(
+            auto, 
+            theme_name=theme_name, 
+            skip_just=False, 
+            force_reset=False,
+            create_pr=True, 
+            skip_post_migration=False, 
+            verbose_docker=False
+        )
 
 
 @cli.command()
