@@ -1044,19 +1044,17 @@ def migrate_dealer_theme(
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
 
-    # Conditionally run post-migration workflow
-    if interactive_review or interactive_git or interactive_pr:
-        return run_post_migration_workflow(
-            slug,
-            branch_name,
-            skip_git=skip_git,
-            create_pr=create_pr,
-            interactive_review=interactive_review,
-            interactive_git=interactive_git,
-            interactive_pr=interactive_pr,
-        )
-
-    return True
+    # Run post-migration workflow (git operations, PR creation)
+    # Even in fullauto mode, we want these operations to happen, just without prompts
+    return run_post_migration_workflow(
+        slug,
+        branch_name,
+        skip_git=skip_git,
+        create_pr=create_pr,
+        interactive_review=interactive_review,
+        interactive_git=interactive_git,
+        interactive_pr=interactive_pr,
+    )
 
 
 def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: list[str]) -> bool:
