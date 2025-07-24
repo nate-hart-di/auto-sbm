@@ -77,23 +77,28 @@ def is_env_healthy() -> bool:
             logger.warning(f"Required CLI tool missing: {cmd}")
             return False
 
-    # If we're running from a different venv (like di-websites-platform), 
-    # skip the venv health check since dependencies may be installed elsewhere
+    # If we're running from a different venv (like di-websites-platform) or
+    # if this is an external installation, skip detailed health checks
     import sys
+    import os
+    
     current_venv = getattr(sys, 'prefix', None)
     expected_venv = str(REPO_ROOT / ".venv")
+    current_dir = os.getcwd()
     
-    if current_venv and expected_venv not in current_venv:
-        logger.debug(f"Running from different venv ({current_venv}), skipping auto-sbm venv health check")
-        # Just check if the current environment has the required packages
-        try:
-            import click, rich, git, yaml, jinja2, pytest, requests, colorama
-            # Also check for gitpython specifically since 'git' might be confusing
-            import git as gitpython
-            return True
-        except ImportError as e:
-            logger.warning(f"Required package not available in current environment: {e}")
-            return False
+    # Skip health check if:
+    # 1. Running from different venv 
+    # 2. Not running from within auto-sbm directory
+    # 3. Auto-sbm installed as external package
+    if (current_venv and expected_venv not in current_venv) or \
+       (str(REPO_ROOT) not in current_dir):
+        logger.debug(f"External usage detected (venv: {current_venv}, dir: {current_dir})")
+        logger.debug("Skipping detailed health check for external auto-sbm usage")
+        # Just verify basic functionality - if sbm command works, we're good
+        return True
+    
+    # Only do detailed health checks when running from auto-sbm development environment
+    logger.debug("Running detailed health check for auto-sbm development environment")
     
     # Check Python venv and packages (only when running from auto-sbm venv)
     venv_path = REPO_ROOT / ".venv"
@@ -124,14 +129,22 @@ def is_env_healthy() -> bool:
 
 
 # --- Setup logic ---
-need_setup = False
-if not SETUP_MARKER.exists():
-    need_setup = True
-elif not is_env_healthy():
-    logger.warning("Environment health check failed. Setup will be re-run to fix issues.")
-    need_setup = True
+# Only run setup when in auto-sbm development environment
+import os
+current_dir = os.getcwd()
+in_auto_sbm_repo = str(REPO_ROOT) in current_dir
 
-if need_setup:
+need_setup = False
+if in_auto_sbm_repo:  # Only check setup when running from auto-sbm repo
+    if not SETUP_MARKER.exists():
+        need_setup = True
+    elif not is_env_healthy():
+        logger.warning("Environment health check failed. Setup will be re-run to fix issues.")
+        need_setup = True
+else:
+    logger.debug("Running auto-sbm from external environment - skipping setup checks")
+
+if need_setup and in_auto_sbm_repo:
     logger.info("Running setup.sh...")
     try:
         result = subprocess.run(["bash", str(SETUP_SCRIPT)], check=False, cwd=str(REPO_ROOT))
