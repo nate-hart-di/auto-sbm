@@ -28,6 +28,71 @@ if TYPE_CHECKING:
     from sbm.ui.console import SBMConsole
 
 
+def _cleanup_exclusion_comments(slug: str) -> None:
+    """
+    Remove any existing EXCLUDED RULE comments from SCSS files to prevent compilation errors.
+    
+    Args:
+        slug (str): Dealer theme slug
+    """
+    try:
+        theme_dir = get_dealer_theme_dir(slug)
+        scss_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        
+        total_cleaned = 0
+        for scss_file in scss_files:
+            file_path = os.path.join(theme_dir, scss_file)
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                
+                # Remove EXCLUDED RULE comments and fix dangling commas
+                lines = content.split('\n')
+                cleaned_lines = []
+                i = 0
+                while i < len(lines):
+                    line = lines[i]
+                    
+                    # Check for dangling comma followed by EXCLUDED comment
+                    if (
+                        line.strip().endswith(',') and 
+                        i + 1 < len(lines) and 
+                        'EXCLUDED' in lines[i + 1] and 
+                        'RULE:' in lines[i + 1]
+                    ):
+                        # Remove comma and add cleaned line
+                        cleaned_line = line.strip().rstrip(',')
+                        if cleaned_line:  # Only add if not empty
+                            cleaned_lines.append(f"// CLEANED: {cleaned_line}")
+                        # Skip the EXCLUDED comment line
+                        i += 2
+                        total_cleaned += 1
+                        continue
+                    
+                    # Remove standalone EXCLUDED comments
+                    elif 'EXCLUDED' in line and 'RULE:' in line:
+                        # Skip this line entirely
+                        i += 1
+                        total_cleaned += 1
+                        continue
+                    
+                    # Keep regular lines
+                    cleaned_lines.append(line)
+                    i += 1
+                
+                # Write back if changes were made
+                if total_cleaned > 0:
+                    with open(file_path, 'w') as f:
+                        f.write('\n'.join(cleaned_lines))
+                    logger.info(f"Cleaned {total_cleaned} exclusion comments from {scss_file}")
+        
+        if total_cleaned > 0:
+            logger.info(f"Total cleaned exclusion comments from {slug}: {total_cleaned}")
+    
+    except Exception as e:
+        logger.warning(f"Error cleaning exclusion comments for {slug}: {e}")
+
+
 def _cleanup_snapshot_files(slug: str) -> None:
     """
     Remove any .sbm-snapshots directories and files before committing.
@@ -1005,6 +1070,10 @@ def migrate_dealer_theme(
     print_step_success("SCSS styles migrated and transformed successfully")
     if progress_tracker:
         progress_tracker.complete_step("scss")
+    
+    # Clean up any existing EXCLUDED RULE comments that could break compilation
+    logger.info(f"Cleaning up exclusion comments for {slug}...")
+    _cleanup_exclusion_comments(slug)
 
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
@@ -1715,6 +1784,10 @@ def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
     """Fix invalid CSS syntax errors."""
     error_message = error_info.get("message", "")
 
+    # Handle dangling comma selectors (like .navbar .navbar-inner ul.nav li a,)
+    if "expected 1 selector or at-rule" in error_message and (".navbar" in error_message or "navbar-inn" in error_message):
+        return _fix_dangling_comma_selector(error_info, css_dir)
+
     # Handle specific mixin parameter syntax errors
     if "fade-transition(" in error_message and "var(--element))" in error_message:
         return _fix_mixin_parameter_syntax(error_info, css_dir)
@@ -1725,6 +1798,43 @@ def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
 
     # Fall back to commenting out the line
     return _comment_out_error_line(error_info, css_dir)
+
+
+def _fix_dangling_comma_selector(error_info: dict, css_dir: str) -> bool:
+    """Fix dangling comma selectors followed by comments that break SCSS compilation."""
+    for file_name in os.listdir(css_dir):
+        if file_name.startswith("test-") and file_name.endswith(".scss"):
+            file_path = os.path.join(css_dir, file_name)
+            
+            try:
+                with open(file_path) as f:
+                    lines = f.readlines()
+                
+                modified = False
+                for i, line in enumerate(lines):
+                    # Look for lines ending with comma followed by EXCLUDED comments
+                    if (
+                        line.strip().endswith(',') and 
+                        i + 1 < len(lines) and 
+                        'EXCLUDED' in lines[i + 1] and 
+                        'RULE:' in lines[i + 1]
+                    ):
+                        # Remove the comma and comment out the problematic line
+                        lines[i] = f"// FIXED DANGLING COMMA: {line.strip().rstrip(',')}"
+                        # Also comment out the EXCLUDED comment line
+                        lines[i + 1] = f"// REMOVED EXCLUSION COMMENT: {lines[i + 1].strip()}\n"
+                        modified = True
+                        logger.info(f"Fixed dangling comma selector in {file_name} at line {i + 1}")
+                
+                if modified:
+                    with open(file_path, 'w') as f:
+                        f.writelines(lines)
+                    return True
+                        
+            except Exception as e:
+                logger.warning(f"Error fixing dangling comma in {file_name}: {e}")
+    
+    return False
 
 
 def _fix_mixin_parameter_syntax(error_info: dict, css_dir: str) -> bool:
