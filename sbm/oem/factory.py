@@ -8,6 +8,7 @@ based on dealer information.
 import os
 import re
 from pathlib import Path
+from typing import Optional, Any
 
 from sbm.utils.logger import logger
 
@@ -27,20 +28,20 @@ class OEMFactory:
     ]
 
     @classmethod
-    def create_handler(cls, slug, dealer_info=None):
+    def create_handler(cls, slug: str, _dealer_info: Optional[dict[str, Any]] = None):
         """
         Create the appropriate OEM handler based on dealer information.
 
         Args:
             slug (str): Dealer theme slug
-            dealer_info (dict, optional): Additional dealer information
+            _dealer_info (dict, optional): Additional dealer information
 
         Returns:
             BaseOEMHandler: An instance of the appropriate OEM handler
         """
-        # If dealer_info is provided and has a 'brand' key, use it for matching
-        if dealer_info and "brand" in dealer_info:
-            brand = dealer_info["brand"].lower()
+        # If _dealer_info is provided and has a 'brand' key, use it for matching
+        if _dealer_info and "brand" in _dealer_info:
+            brand = _dealer_info["brand"].lower()
 
             # Try to match the brand to a handler
             for handler_class in cls._handlers:
@@ -50,11 +51,12 @@ class OEMFactory:
                 for pattern in patterns:
                     if re.search(pattern, brand, re.IGNORECASE):
                         logger.info(
-                            f"Matched {slug} to {handler.__class__.__name__} based on brand: {brand}"
+                            f"Matched {slug} to {handler.__class__.__name__} "
+                            f"based on brand: {brand}"
                         )
                         return handler
 
-        # If no dealer_info is provided or no match was found, try to infer from the slug
+        # If no _dealer_info is provided or no match was found, try to infer from the slug
         for handler_class in cls._handlers:
             handler = handler_class(slug)
             patterns = handler.get_brand_match_patterns()
@@ -69,24 +71,24 @@ class OEMFactory:
         return DefaultHandler(slug)
 
     @classmethod
-    def detect_from_theme(cls, slug, platform_dir=None):
+    def detect_from_theme(cls, slug: str, _platform_dir: Optional[str] = None):
         """
         Detect the OEM from the theme directory structure and content.
 
         Args:
             slug (str): Dealer theme slug
-            platform_dir (str, optional): Path to the platform directory
+            _platform_dir (str, optional): Path to the platform directory
 
         Returns:
             BaseOEMHandler: An instance of the appropriate OEM handler
         """
-        if not platform_dir:
-            platform_dir = os.environ.get("DI_WEBSITES_PLATFORM_DIR", "")
-            if not platform_dir:
+        if not _platform_dir:
+            _platform_dir = os.environ.get("DI_WEBSITES_PLATFORM_DIR", "")
+            if not _platform_dir:
                 logger.warning("Platform directory not set, unable to detect OEM from theme")
                 return cls.create_handler(slug)
 
-        theme_dir = Path(platform_dir) / "dealer-themes" / slug
+        theme_dir = Path(_platform_dir) / "dealer-themes" / slug
 
         # Check if the theme directory exists
         if not theme_dir.exists():
@@ -101,7 +103,7 @@ class OEMFactory:
         # Check functions.php for OEM-specific code
         functions_file = theme_dir / "functions.php"
         if functions_file.exists():
-            with open(functions_file, encoding="utf-8", errors="ignore") as f:
+            with functions_file.open(encoding="utf-8", errors="ignore") as f:
                 content = f.read().lower()
 
                 # Check for each handler's patterns

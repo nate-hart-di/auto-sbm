@@ -8,10 +8,16 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Any
 
 
-def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
+def setup_logger(
+    name: Optional[str] = None,
+    log_file: Optional[str] = None,
+    level: int = logging.INFO,
+    use_rich: bool = True
+) -> logging.Logger:
     """
     Set up and configure a logger instance with Rich support.
 
@@ -68,14 +74,12 @@ def setup_logger(name=None, log_file=None, level=logging.INFO, use_rich=True):
         # Create file handler if a log file is specified or use default
         if log_file is None:
             # Create logs directory if it doesn't exist
-            log_dir = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs"
-            )
-            os.makedirs(log_dir, exist_ok=True)
+            log_dir = Path(__file__).parent.parent.parent / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
 
             # Default log file name with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            log_file = os.path.join(log_dir, f"sbm_{timestamp}.log")
+            log_file = str(log_dir / f"sbm_{timestamp}.log")
 
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(formatter)
@@ -104,7 +108,7 @@ def _is_ci_environment() -> bool:
     return any(os.getenv(var) for var in ci_indicators) or os.getenv("TERM") == "dumb"
 
 
-def get_rich_logger(name: Optional[str] = None, config=None) -> logging.Logger:
+def get_rich_logger(name: Optional[str] = None, config: Optional[Any] = None) -> logging.Logger:
     """
     Get a Rich-enhanced logger with configuration support.
 

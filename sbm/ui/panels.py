@@ -6,7 +6,8 @@ including error displays, Docker status, and file review interfaces.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Optional
 
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -26,7 +27,7 @@ class StatusPanels:
 
     @staticmethod
     def create_migration_status_panel(
-        theme_name: str, step: str, status: str, additional_info: Optional[Dict[str, Any]] = None
+        theme_name: str, step: str, status: str, additional_info: Optional[dict[str, Any]] = None
     ) -> Panel:
         """
         Create migration status panel with theme information.
@@ -72,7 +73,7 @@ class StatusPanels:
 
     @staticmethod
     def create_docker_status_panel(
-        container_name: str, logs: List[str], status: str = "running"
+        container_name: str, logs: list[str], status: str = "running"
     ) -> Panel:
         """
         Create Docker container status panel.
@@ -187,7 +188,7 @@ class StatusPanels:
         )
 
     @staticmethod
-    def create_file_review_table(theme_name: str, files: List[str]) -> Table:
+    def create_file_review_table(theme_name: str, files: list[str]) -> Table:
         """
         Create file review table for manual review phase.
 
@@ -208,15 +209,15 @@ class StatusPanels:
         theme_dir = get_dealer_theme_dir(theme_name)
 
         for file_name in files:
-            file_path = os.path.join(theme_dir, file_name)
+            file_path = Path(theme_dir) / file_name
 
-            if os.path.exists(file_path):
+            if file_path.exists():
                 try:
                     # Get file statistics
-                    with open(file_path, encoding="utf-8") as f:
+                    with file_path.open(encoding="utf-8") as f:
                         lines = len(f.readlines())
 
-                    stat = os.stat(file_path)
+                    stat = file_path.stat()
                     size = stat.st_size
 
                     # Format size
@@ -257,7 +258,7 @@ class StatusPanels:
     def create_git_status_panel(
         theme_name: str,
         branch_name: str,
-        files_changed: List[str],
+        files_changed: list[str],
         commit_message: Optional[str] = None,
     ) -> Panel:
         """

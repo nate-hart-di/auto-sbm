@@ -8,7 +8,9 @@ import os
 import re
 import subprocess
 import tempfile
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Optional
+from re import Match
 
 from sbm.utils.helpers import darken_hex, lighten_hex
 from sbm.utils.logger import logger
@@ -106,7 +108,9 @@ class SCSSProcessor:
 
             # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
             if (
-                inside_mixin or stripped.startswith(("@each", "@for", "@if", "@else", "%#")) or "map-get(" in stripped or "map-keys(" in stripped
+                inside_mixin or stripped.startswith(
+                    ("@each", "@for", "@if", "@else", "%#")
+                ) or "map-get(" in stripped or "map-keys(" in stripped
             ):
                 continue
 
@@ -116,7 +120,8 @@ class SCSSProcessor:
                 continue
 
             # Convert variables in CSS property contexts only
-            # Look for patterns like "property: $variable" but exclude SCSS variable assignments and interpolation
+            # Look for patterns like "property: $variable" but exclude SCSS variable
+            # assignments and interpolation
             if (
                 ":" in stripped
                 and not stripped.startswith("@")
@@ -145,7 +150,7 @@ class SCSSProcessor:
         # Remove leading/trailing whitespace
         return content.strip()
 
-    def validate_scss_syntax(self, content: str) -> (bool, Optional[str]):
+    def validate_scss_syntax(self, content: str) -> tuple[bool, Optional[str]]:
         """
         Validates basic SCSS syntax by checking for balanced braces.
         """
@@ -207,7 +212,7 @@ class SCSSProcessor:
 
         # Case 2: SCSS functions with hardcoded hex colors - pre-calculate
         # lighten(#252525, 2%) -> #2a2a2a
-        def replace_lighten(match) -> str:
+        def replace_lighten(match: Match[str]) -> str:
             hex_color = match.group(2)
             percentage = int(match.group(3))
             lightened = lighten_hex(hex_color, percentage)
@@ -218,7 +223,7 @@ class SCSSProcessor:
         )
 
         # darken(#00ccfe, 10%) -> #00b8e6
-        def replace_darken(match) -> str:
+        def replace_darken(match: Match[str]) -> str:
             hex_color = match.group(2)
             percentage = int(match.group(3))
             darkened = darken_hex(hex_color, percentage)
@@ -273,11 +278,11 @@ class SCSSProcessor:
             )
 
             # Clean up output file
-            if os.path.exists(output_file_path):
-                os.unlink(output_file_path)
+            if Path(output_file_path).exists():
+                Path(output_file_path).unlink()
 
             # Clean up temporary file
-            os.unlink(temp_file_path)
+            Path(temp_file_path).unlink()
 
             if result.returncode != 0:
                 logger.error(f"SCSS compilation failed: {result.stderr}")
@@ -329,11 +334,16 @@ class SCSSProcessor:
         try:
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
-                logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
+                logger.info(
+                    "Filtering header/footer/navigation styles for Site Builder compatibility..."
+                )
                 content, exclusion_result = self.style_classifier.filter_scss_content(content)
 
                 if exclusion_result.excluded_count > 0:
-                    logger.info(f"Excluded {exclusion_result.excluded_count} header/footer/nav rules from migration")
+                    logger.info(
+                        f"Excluded {exclusion_result.excluded_count} header/footer/nav rules "
+                        f"from migration"
+                    )
                     for category, count in exclusion_result.patterns_matched.items():
                         logger.info(f"  - {category}: {count} rules")
                 else:
@@ -378,16 +388,16 @@ class SCSSProcessor:
         """
         Reads an SCSS file and applies transformations.
         """
-        if not os.path.exists(file_path):
+        if not Path(file_path).exists():
             logger.warning(f"File not found, skipping: {file_path}")
             return ""
 
-        with open(file_path, encoding="utf-8") as f:
+        with Path(file_path).open(encoding="utf-8") as f:
             content = f.read()
 
         return self.transform_scss_content(content)
 
-    def write_files_atomically(self, theme_dir: str, files: Dict[str, str]) -> bool:
+    def write_files_atomically(self, theme_dir: str, files: dict[str, str]) -> bool:
         """
         Writes the transformed SCSS files to the theme directory.
         """
@@ -397,8 +407,8 @@ class SCSSProcessor:
                     logger.info(f"Skipping empty file: {name}")
                     continue
 
-                final_path = os.path.join(theme_dir, name)
-                with open(final_path, "w", encoding="utf-8") as f:
+                final_path = Path(theme_dir) / name
+                with final_path.open("w", encoding="utf-8") as f:
                     f.write(content)
                 logger.info(f"Successfully wrote {final_path}")
             return True

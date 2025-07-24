@@ -5,7 +5,7 @@ This module provides Rich-enhanced interactive prompts with context panels,
 improving user experience during manual review and decision points.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from rich.panel import Panel
 from rich.prompt import Confirm, IntPrompt, Prompt
@@ -27,7 +27,7 @@ class InteractivePrompts:
     """
 
     @staticmethod
-    def confirm_migration_start(theme_name: str, config: Dict[str, Any]) -> bool:
+    def confirm_migration_start(theme_name: str, config: dict[str, Any]) -> bool:
         """
         Enhanced confirmation prompt for migration start.
 
@@ -111,7 +111,7 @@ class InteractivePrompts:
         return Confirm.ask("\n[bold cyan]Continue after manual review?[/]", default=True)
 
     @staticmethod
-    def git_operation_prompts(theme_name: str, branch_name: str) -> Dict[str, bool]:
+    def git_operation_prompts(theme_name: str, branch_name: str) -> dict[str, bool]:
         """
         Enhanced Git operation prompts with change preview.
 
@@ -157,7 +157,7 @@ class InteractivePrompts:
         return {"commit": commit, "push": push, "create_pr": create_pr}
 
     @staticmethod
-    def error_recovery_prompt(error_info: Dict[str, Any]) -> str:
+    def error_recovery_prompt(error_info: dict[str, Any]) -> str:
         """
         Enhanced error recovery prompt with options.
 
@@ -249,7 +249,7 @@ class InteractivePrompts:
         )
 
     @staticmethod
-    def select_theme_variant(theme_name: str, variants: List[str]) -> Optional[str]:
+    def select_theme_variant(theme_name: str, variants: list[str]) -> Optional[str]:
         """
         Prompt user to select theme variant if multiple are available.
 
@@ -349,7 +349,7 @@ class InteractivePrompts:
         )
 
     @staticmethod
-    def pr_configuration_prompt(theme_name: str, branch_name: str) -> Dict[str, Any]:
+    def pr_configuration_prompt(theme_name: str, branch_name: str) -> dict[str, Any]:
         """
         Prompt for pull request configuration options.
 

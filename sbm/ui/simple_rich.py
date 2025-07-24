@@ -9,7 +9,7 @@ from rich.panel import Panel
 _console = Console()
 
 
-def print_step(step_num: int, total_steps: int, description: str, theme_name: str) -> None:
+def print_step(step_num: int, total_steps: int, description: str, _theme_name: str) -> None:
     """Print a beautiful step header without progress bars."""
     _console.print(f"\n🌟 [bold cyan]Step {step_num}/{total_steps}:[/] {description}")
 

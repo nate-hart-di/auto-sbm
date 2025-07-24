@@ -193,7 +193,9 @@ class SBMConsole:
         """Print AWS-related status with AWS styling."""
         self.console.print(f"[sbm.aws]☁️  {message}[/]")
 
-    def print_migration_complete(self, theme_name: str, elapsed_time: float, timing_summary: Optional[dict] = None) -> None:
+    def print_migration_complete(
+        self, theme_name: str, elapsed_time: float, timing_summary: Optional[dict] = None
+    ) -> None:
         """
         Print migration completion with enhanced styling and timing details.
 

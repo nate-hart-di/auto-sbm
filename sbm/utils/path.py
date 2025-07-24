@@ -8,11 +8,12 @@ import logging
 import os
 import re
 from os.path import expanduser
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
-def get_platform_dir():
+def get_platform_dir() -> str:
     """
     Get the DI Websites Platform directory.
 
@@ -24,16 +25,16 @@ def get_platform_dir():
     """
     home_dir = expanduser("~")
     # This path is based on the user's explicit request.
-    platform_dir = os.path.join(home_dir, "di-websites-platform")
+    platform_dir = Path(home_dir) / "di-websites-platform"
 
-    if not os.path.isdir(platform_dir):
+    if not platform_dir.is_dir():
         msg = f"DI Websites Platform directory not found at: {platform_dir}"
         raise ValueError(msg)
 
-    return platform_dir
+    return str(platform_dir)
 
 
-def get_dealer_theme_dir(slug):
+def get_dealer_theme_dir(slug: str) -> str:
     """
     Get the dealer theme directory for a given slug.
 
@@ -47,11 +48,11 @@ def get_dealer_theme_dir(slug):
         ValueError: If the platform directory is not set
     """
     platform_dir = get_platform_dir()
-    return os.path.join(platform_dir, "dealer-themes", slug)
+    return str(Path(platform_dir) / "dealer-themes" / slug)
 
 
 
-def normalize_path(path):
+def normalize_path(path: str) -> str:
     """
     Normalize a path to use forward slashes.
 
@@ -64,7 +65,7 @@ def normalize_path(path):
     return path.replace("\\", "/")
 
 
-def convert_to_absolute_theme_path(path, slug):
+def convert_to_absolute_theme_path(path: str, slug: str) -> str:
     """
     Convert a relative path to an absolute theme path.
 
@@ -80,10 +81,12 @@ def convert_to_absolute_theme_path(path, slug):
 
     # Convert relative paths to absolute paths
     if path.startswith("../.."):
-        # ../../DealerInspireCommonTheme/file.png → /wp-content/themes/DealerInspireCommonTheme/file.png
+        # ../../DealerInspireCommonTheme/file.png →
+        # /wp-content/themes/DealerInspireCommonTheme/file.png
         path = re.sub(r"^../../", "/wp-content/themes/", path)
     elif path.startswith(".."):
-        # ../images/background.jpg → /wp-content/themes/DealerInspireDealerTheme/images/background.jpg
+        # ../images/background.jpg →
+        # /wp-content/themes/DealerInspireDealerTheme/images/background.jpg
         path = f"/wp-content/themes/DealerInspireDealerTheme/{path[3:]}"
 
     return path
@@ -98,16 +101,17 @@ def get_common_theme_path() -> str:
     """
     # Construct the path starting from the user's home directory
     home_dir = expanduser("~")
-    platform_root = os.path.join(home_dir, "di-websites-platform")
+    platform_root = Path(home_dir) / "di-websites-platform"
 
-    common_theme_path = os.path.join(
-        platform_root, "app", "dealer-inspire", "wp-content", "themes", "DealerInspireCommonTheme"
+    common_theme_path = (
+        platform_root / "app" / "dealer-inspire" / "wp-content" / "themes" /
+        "DealerInspireCommonTheme"
     )
 
-    if not os.path.isdir(common_theme_path):
+    if not common_theme_path.is_dir():
         # Fallback for different structures, can be adjusted
-        logger.warning(f"DealerInspireCommonTheme not found at expected path: {common_theme_path}")
+        logger.warning("DealerInspireCommonTheme not found at expected path: %s", common_theme_path)
         # A more robust solution might search or use a config setting
         return ""
 
-    return common_theme_path
+    return str(common_theme_path)

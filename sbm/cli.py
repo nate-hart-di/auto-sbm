@@ -481,6 +481,11 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
     is_flag=True,
     help="Show verbose Docker output during startup (for debugging).",
 )
+@click.option(
+    "--fullauto",
+    is_flag=True,
+    help="Full automation mode - bypass all user prompts except errors.",
+)
 @click.pass_context
 def auto(
     ctx: click.Context,
@@ -490,6 +495,7 @@ def auto(
     create_pr: bool,
     skip_post_migration: bool,
     verbose_docker: bool,
+    fullauto: bool,
 ) -> None:
     """
     Run the full, automated migration for a given theme.
@@ -519,7 +525,7 @@ def auto(
     console.console.print(start_panel)
 
     # Confirm migration start if not in non-interactive mode
-    if not skip_post_migration:
+    if not skip_post_migration and not fullauto:
         config_dict = {
             "skip_just": skip_just,
             "force_reset": force_reset,
@@ -533,9 +539,9 @@ def auto(
 
     console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
 
-    interactive_review = not skip_post_migration
-    interactive_git = not skip_post_migration
-    interactive_pr = not skip_post_migration
+    interactive_review = not skip_post_migration and not fullauto
+    interactive_git = not skip_post_migration and not fullauto
+    interactive_pr = not skip_post_migration and not fullauto
 
     # Use Rich UI for beautiful output WITHOUT progress bars
     try:
@@ -605,6 +611,19 @@ def auto(
         console.print_error(f"Unexpected migration error: {migration_error!s}")
         logger.exception("Unexpected migration error")
         sys.exit(1)
+
+
+@cli.command()
+@click.argument("theme_name")
+def fullauto(theme_name: str) -> None:
+    """
+    Run full automated migration with zero user prompts (except errors).
+    
+    Equivalent to: sbm auto <theme-name> --fullauto
+    """
+    ctx = click.get_current_context()
+    ctx.invoke(auto, theme_name=theme_name, skip_just=False, force_reset=False, 
+               create_pr=True, skip_post_migration=False, verbose_docker=False, fullauto=True)
 
 
 @cli.command()
@@ -718,13 +737,15 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
 )
 @click.option("--skip-git-prompt", is_flag=True, help="Skip prompt for Git operations.")
 @click.option("--skip-pr-prompt", is_flag=True, help="Skip prompt for PR creation.")
+@click.option("--fullauto", is_flag=True, help="Full automation mode - bypass all user prompts except errors.")
 def post_migrate(
     theme_name: str,
     skip_git: bool,
     create_pr: bool,
     skip_review: bool,
     skip_git_prompt: bool,
-    skip_pr_prompt: bool
+    skip_pr_prompt: bool,
+    fullauto: bool
 ) -> None:
     """
     Run post-migration steps for a given theme, including manual review, re-validation,
@@ -748,9 +769,9 @@ def post_migrate(
         click.echo("Please ensure you are in a Git repository and on the correct branch.", err=True)
         sys.exit(1)
 
-    interactive_review = not skip_review
-    interactive_git = not skip_git_prompt
-    interactive_pr = not skip_pr_prompt
+    interactive_review = not skip_review and not fullauto
+    interactive_git = not skip_git_prompt and not fullauto
+    interactive_pr = not skip_pr_prompt and not fullauto
 
     success = run_post_migration_workflow(
         theme_name,
