@@ -868,26 +868,43 @@ def run_post_migration_workflow(
         # Clear the terminal to remove stale progress bars and ensure clean display
         import os
         import sys
+        import time
 
+        # Force close any active Rich contexts
+        try:
+            from rich.console import Console
+            console = Console()
+            console.clear()
+        except:
+            pass
+            
+        # Clear terminal using system command
         os.system("clear" if os.name == "posix" else "cls")
+        
+        # Brief pause to ensure terminal is clear
+        time.sleep(0.1)
         
         # Force flush any remaining Rich output
         sys.stdout.flush()
         sys.stderr.flush()
 
-        print("🎉 MIGRATION COMPLETED SUCCESSFULLY! 🎉\n")
-        print("=" * 80)
-        print(f"Manual Review Required for {slug}")
-        print("Please review the migrated SCSS files in your theme directory:")
-        print(f"  - {get_dealer_theme_dir(slug)}/sb-inside.scss")
-        print(f"  - {get_dealer_theme_dir(slug)}/sb-vdp.scss")
-        print(f"  - {get_dealer_theme_dir(slug)}/sb-vrp.scss")
-        print(f"  - {get_dealer_theme_dir(slug)}/sb-home.scss")
-        print("\nVerify the content and make any necessary manual adjustments.")
-        print("Once you are satisfied, proceed to the next step.")
-        print("=" * 80 + "\n")
-        
-        # Force flush output before prompt
+        # Use direct sys.stdout.write to bypass any Rich interference
+        message = f"""🎉 MIGRATION COMPLETED SUCCESSFULLY! 🎉
+
+================================================================================
+Manual Review Required for {slug}
+Please review the migrated SCSS files in your theme directory:
+  - {get_dealer_theme_dir(slug)}/sb-inside.scss
+  - {get_dealer_theme_dir(slug)}/sb-vdp.scss
+  - {get_dealer_theme_dir(slug)}/sb-vrp.scss
+  - {get_dealer_theme_dir(slug)}/sb-home.scss
+
+Verify the content and make any necessary manual adjustments.
+Once you are satisfied, proceed to the next step.
+================================================================================
+
+"""
+        sys.stdout.write(message)
         sys.stdout.flush()
 
         # Use click.confirm for reliable visibility in all terminal contexts
