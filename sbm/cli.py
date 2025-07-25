@@ -549,12 +549,8 @@ def auto(
     )
     console.console.print(start_panel)
 
-    # Check if we're in fullauto mode
-    from .features.fullauto_mode import is_fullauto_active
-    fullauto_active = is_fullauto_active()
-    
-    # Confirm migration start if not in non-interactive mode and not in fullauto mode
-    if not skip_post_migration and not fullauto_active:
+    # Confirm migration start if not in non-interactive mode
+    if not skip_post_migration:
         config_dict = {
             "skip_just": skip_just,
             "force_reset": force_reset,
@@ -568,24 +564,16 @@ def auto(
 
     console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
     
-    if fullauto_active:
-        logger.info("Fullauto mode detected - disabling all interactive prompts")
-        interactive_review = False
-        interactive_git = False
-        interactive_pr = False
-    else:
-        interactive_review = not skip_post_migration
-        interactive_git = not skip_post_migration
-        interactive_pr = not skip_post_migration
+    interactive_review = not skip_post_migration
+    interactive_git = not skip_post_migration
+    interactive_pr = not skip_post_migration
 
     # Start migration timer and patch click.confirm for timing 
     from .utils.timer import start_migration_timer, timer_segment, patch_click_confirm_for_timing
     migration_timer = start_migration_timer(theme_name)
     
-    # Patch click.confirm to pause timer during user interactions (unless in fullauto mode)
-    original_confirm = None
-    if not fullauto_active:
-        original_confirm = patch_click_confirm_for_timing()
+    # Patch click.confirm to pause timer during user interactions
+    original_confirm = patch_click_confirm_for_timing()
     
     # Use Rich UI for beautiful output WITHOUT progress bars
     try:
@@ -658,7 +646,7 @@ def auto(
         sys.exit(1)
     finally:
         # Restore original click.confirm if we patched it
-        if original_confirm and not fullauto_active:
+        if original_confirm:
             from .utils.timer import restore_click_confirm
             restore_click_confirm(original_confirm)
         
@@ -667,32 +655,6 @@ def auto(
         finish_migration_timer()
 
 
-@cli.command()
-@click.argument("theme_name")
-def fullauto(theme_name: str) -> None:
-    """
-    Run full automated migration with zero user prompts (except errors).
-    
-    This command runs the complete migration workflow from start to PR creation
-    without any user interaction, except for compilation errors that require 
-    manual intervention.
-    
-    Equivalent to: sbm auto <theme-name> with all interactive flags disabled.
-    """
-    from .features.fullauto_mode import create_fullauto_context
-    
-    # Use fullauto context to manage prompt bypassing
-    with create_fullauto_context(enabled=True):
-        ctx = click.get_current_context()
-        ctx.invoke(
-            auto, 
-            theme_name=theme_name, 
-            skip_just=False, 
-            force_reset=False,
-            create_pr=True, 
-            skip_post_migration=False, 
-            verbose_docker=False
-        )
 
 
 @cli.command()
