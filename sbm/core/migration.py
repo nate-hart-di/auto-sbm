@@ -209,7 +209,7 @@ def _process_aws_output(output_line: str, console: SBMConsole) -> None:
         logger.debug(f"AWS: {output_line.strip()}")
 
 
-def _process_docker_output(output_line: str, progress_tracker) -> None:
+def _process_docker_output(output_line: str) -> None:
     """
     Process Docker output lines and provide meaningful progress updates.
 
@@ -258,7 +258,7 @@ def _process_docker_output(output_line: str, progress_tracker) -> None:
         logger.debug(f"Docker: {output_line.strip()}")
 
 
-def run_just_start(slug, suppress_output=False, progress_tracker=None) -> bool:
+def run_just_start(slug, suppress_output=False) -> bool:
     """
     Run the 'just start' command for the given slug (automatically chooses dev/prod database).
     Uses interactive execution to allow password prompts and user input.
@@ -266,7 +266,6 @@ def run_just_start(slug, suppress_output=False, progress_tracker=None) -> bool:
     Args:
         slug (str): Dealer theme slug
         suppress_output (bool): Whether to suppress verbose Docker output (default: False)
-        progress_tracker: Optional MigrationProgress instance for real-time monitoring
 
     Returns:
         bool: True if successful, False otherwise
@@ -865,7 +864,7 @@ def run_post_migration_workflow(
 
     # Manual review phase - MUST happen before any git operations
     if interactive_review:
-        # Clear the terminal to remove stale progress bars and ensure clean display
+        # Clear the terminal to ensure clean display
         import os
         import sys
         import time
@@ -947,7 +946,17 @@ Once you are satisfied, proceed to the next step.
         logger.info("Cleaning up automation snapshots")
         _cleanup_snapshot_files(slug)
 
-    if not interactive_git or click.confirm(f"Commit all changes for {slug}?", default=True):
+    # Git commit prompt with consistent input handling
+    commit_response = 'y'  # Default to yes
+    if interactive_git:
+        sys.stdout.write(f"Commit all changes for {slug}? [Y/n]: ")
+        sys.stdout.flush()
+        commit_response = input().strip().lower()
+        if commit_response in ('n', 'no'):
+            logger.info("Skipping commit.")
+            return True
+    
+    if not interactive_git or commit_response in ('', 'y', 'yes'):
         # Clean up any snapshot files before committing - do this right before git operations
         _cleanup_snapshot_files(slug)
 
@@ -961,7 +970,17 @@ Once you are satisfied, proceed to the next step.
         logger.info("Skipping commit.")
         return True  # End workflow if user skips commit
 
-    if not interactive_git or click.confirm(f"Push changes to origin/{branch_name}?", default=True):
+    # Git push prompt with consistent input handling
+    push_response = 'y'  # Default to yes
+    if interactive_git:
+        sys.stdout.write(f"Push changes to origin/{branch_name}? [Y/n]: ")
+        sys.stdout.flush()
+        push_response = input().strip().lower()
+        if push_response in ('n', 'no'):
+            logger.info("Skipping push.")
+            return True
+    
+    if not interactive_git or push_response in ('', 'y', 'yes'):
         if not push_changes(branch_name):
             logger.error("Failed to push changes.")
             return False
@@ -970,7 +989,17 @@ Once you are satisfied, proceed to the next step.
         return True  # End workflow if user skips push
 
     if create_pr:
-        if not interactive_pr or click.confirm("Create a pull request?", default=True):
+        # PR creation prompt with consistent input handling
+        pr_response = 'y'  # Default to yes
+        if interactive_pr:
+            sys.stdout.write("Create a pull request? [Y/n]: ")
+            sys.stdout.flush()
+            pr_response = input().strip().lower()
+            if pr_response in ('n', 'no'):
+                logger.info("Skipping pull request creation.")
+                return True
+        
+        if not interactive_pr or pr_response in ('', 'y', 'yes'):
             logger.info("Creating pull request...")
             try:
                 pr_result = git_create_pr(slug=slug, branch_name=branch_name)
@@ -1005,7 +1034,6 @@ def migrate_dealer_theme(
     interactive_review=True,
     interactive_git=True,
     interactive_pr=True,
-    progress_tracker=None,
     verbose_docker=False,
 ):
     """
@@ -1022,7 +1050,6 @@ def migrate_dealer_theme(
         interactive_review (bool): Whether to prompt for manual review and re-validation.
         interactive_git (bool): Whether to prompt for Git add, commit, push.
         interactive_pr (bool): Whether to prompt for PR creation.
-        progress_tracker (MigrationProgress, optional): Rich progress tracker for UI updates.
 
     Returns:
         bool: True if all steps are successful, False otherwise.
@@ -1049,8 +1076,6 @@ def migrate_dealer_theme(
     # Perform Git operations if not skipped
     if not skip_git:
         print_step(1, 6, "Setting up Git branch and repository", slug)
-        if progress_tracker:
-            progress_tracker.add_step_task("git", "Setting up Git branch and repository", 100)
 
         from sbm.utils.timer import timer_segment
         with timer_segment("Git Operations"):
@@ -1061,31 +1086,18 @@ def migrate_dealer_theme(
 
         print_step_success(f"Git operations completed: branch {branch_name}")
         logger.info(f"Git operations completed successfully, branch: {branch_name}")
-        if progress_tracker:
-            progress_tracker.complete_step("git")
 
     # Run 'just start' if not skipped
     if not skip_just:
         print_step(2, 6, "Starting Docker environment (just start)", slug)
 
         # Temporarily pause progress tracking during Docker startup to avoid output interference
-        if progress_tracker:
-            # Stop progress display to avoid mixing with Docker output
-            progress_tracker.progress.stop()
-
         from sbm.utils.timer import timer_segment
         with timer_segment("Docker Startup"):
             just_start_success = run_just_start(
                 slug,
                 suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
-                progress_tracker=None,  # Disable progress tracking during Docker startup
             )
-
-        # Resume progress tracking after Docker startup
-        if progress_tracker:
-            progress_tracker.progress.start()
-            progress_tracker.add_step_task("docker", "Starting Docker environment", 100)
-            progress_tracker.complete_step("docker")
 
         logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
@@ -1097,8 +1109,6 @@ def migrate_dealer_theme(
 
     # Create Site Builder files
     print_step(3, 6, "Creating Site Builder SCSS files", slug)
-    if progress_tracker:
-        progress_tracker.add_step_task("files", "Creating Site Builder SCSS files", 100)
 
     from sbm.utils.timer import timer_segment
     with timer_segment("Site Builder File Creation"):
@@ -1107,13 +1117,9 @@ def migrate_dealer_theme(
             return False
 
     print_step_success("Site Builder files created successfully")
-    if progress_tracker:
-        progress_tracker.complete_step("files")
 
     # Migrate styles
     print_step(4, 6, "Migrating SCSS styles and transforming syntax", slug)
-    if progress_tracker:
-        progress_tracker.add_step_task("scss", "Migrating SCSS styles and transforming syntax", 100)
 
     from sbm.utils.timer import timer_segment
     with timer_segment("SCSS Migration"):
@@ -1122,8 +1128,6 @@ def migrate_dealer_theme(
             return False
 
     print_step_success("SCSS styles migrated and transformed successfully")
-    if progress_tracker:
-        progress_tracker.complete_step("scss")
     
     # Clean up any existing EXCLUDED RULE comments that could break compilation
     logger.info(f"Cleaning up exclusion comments for {slug}...")
@@ -1132,23 +1136,16 @@ def migrate_dealer_theme(
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
     print_step(5, 6, "Adding predetermined OEM-specific styles", slug)
-    if progress_tracker:
-        progress_tracker.add_step_task("styles", "Adding predetermined OEM-specific styles", 100)
-
     from sbm.utils.timer import timer_segment
     with timer_segment("Predetermined Styles"):
         if not add_predetermined_styles(slug, oem_handler):
             logger.warning(f"Could not add all predetermined styles for {slug}")
 
     print_step_success("Predetermined styles added successfully")
-    if progress_tracker:
-        progress_tracker.complete_step("styles")
 
     # Migrate map components if not skipped
     if not skip_maps:
         print_step(6, 6, "Migrating map components and PHP partials", slug)
-        if progress_tracker:
-            progress_tracker.add_step_task("maps", "Migrating map components and PHP partials", 100)
 
         from sbm.utils.timer import timer_segment
         with timer_segment("Map Components Migration"):
@@ -1158,15 +1155,9 @@ def migrate_dealer_theme(
 
         print_step_success("Map components migrated successfully")
         logger.info(f"Map components migrated successfully for {slug}")
-        if progress_tracker:
-            progress_tracker.complete_step("maps")
     else:
         print_step(6, 6, "Skipping map components migration", slug)
-        if progress_tracker:
-            progress_tracker.add_step_task("maps", "Skipping map components migration", 100)
         print_step_success("Map components skipped")
-        if progress_tracker:
-            progress_tracker.complete_step("maps")
 
     logger.info(f"Migration completed successfully for {slug}")
 

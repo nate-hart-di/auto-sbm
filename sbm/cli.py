@@ -40,7 +40,6 @@ from .scss.validator import validate_scss_files
 # Rich UI imports
 from .ui.console import get_console
 from .ui.panels import StatusPanels
-from .ui.progress import MigrationProgress
 from .ui.prompts import InteractivePrompts
 from .utils.helpers import get_branch_name
 from .utils.logger import logger
@@ -581,24 +580,19 @@ def auto(
         # Enhanced migration header with SBM branding
         console.print_migration_header(theme_name)
 
-        # Initialize enhanced progress tracker (no more hanging issues!)
-        progress_tracker = MigrationProgress(show_speed=False)
-
-        # Run migration with enhanced progress tracking
+        # Run migration with timer tracking
         try:
-            with progress_tracker.progress_context():
-                with timer_segment("Complete Migration Process"):
-                    success = migrate_dealer_theme(
-                        theme_name,
-                        skip_just=skip_just,
-                        force_reset=force_reset,
-                        create_pr=create_pr,
-                        interactive_review=interactive_review,  # Use calculated interactive flags
-                        interactive_git=interactive_git,        # Use calculated interactive flags  
-                        interactive_pr=interactive_pr,          # Use calculated interactive flags
-                        progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
-                        verbose_docker=verbose_docker,
-                    )
+            with timer_segment("Complete Migration Process"):
+                success = migrate_dealer_theme(
+                    theme_name,
+                    skip_just=skip_just,
+                    force_reset=force_reset,
+                    create_pr=create_pr,
+                    interactive_review=interactive_review,  # Use calculated interactive flags
+                    interactive_git=interactive_git,        # Use calculated interactive flags  
+                    interactive_pr=interactive_pr,          # Use calculated interactive flags
+                    verbose_docker=verbose_docker,
+                )
 
             # Post-migration workflow is now handled inside migrate_dealer_theme
             # No need for duplicate post-migration workflow call
