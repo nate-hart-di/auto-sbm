@@ -152,6 +152,32 @@ class SCSSProcessor:
         # Remove leading/trailing whitespace
         return content.strip()
 
+    def _clean_comment_blocks(self, content: str) -> str:
+        """
+        Remove large comment blocks and section dividers that clutter PR diffs.
+        """
+        logger.info("Cleaning up large comment blocks and section dividers...")
+        
+        # Remove large asterisk comment blocks like:
+        # // *************************************************************************************************
+        # //    HEADER
+        # // *************************************************************************************************
+        content = re.sub(r'// \*{20,}\n//.*?\n// \*{20,}\n', '', content, flags=re.MULTILINE)
+        
+        # Remove unicode box drawing comment blocks like:
+        # //▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+        # // _MapRow  
+        # //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+        content = re.sub(r'//[▀▄]{20,}\n.*?\n//[▀▄]{20,}\n', '', content, flags=re.MULTILINE)
+        
+        # Remove standalone comment lines that are just section markers
+        content = re.sub(r'^//\s*$\n', '', content, flags=re.MULTILINE)
+        
+        # Remove excessive blank lines (more than 2 consecutive)
+        content = re.sub(r'\n\s*\n\s*\n+', '\n\n', content)
+        
+        return content
+
     def validate_scss_syntax(self, content: str) -> (bool, Optional[str]):
         """
         Validates basic SCSS syntax by checking for balanced braces.
@@ -377,7 +403,10 @@ class SCSSProcessor:
             # Step 4: Remove imports
             processed_content = self._remove_imports(content)
 
-            # Step 5: Trim whitespace for a clean final output
+            # Step 5: Clean up large comment blocks and section dividers
+            processed_content = self._clean_comment_blocks(processed_content)
+            
+            # Step 6: Trim whitespace for a clean final output
             return self._trim_whitespace(processed_content)
 
 

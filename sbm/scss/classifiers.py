@@ -177,10 +177,13 @@ class StyleClassifier:
     # Patterns for styles that MUST NOT be migrated to Site Builder
     # These conflict with Site Builder's own components
     HEADER_PATTERNS = [
-        r"\.header",  # Match .header anywhere in selector
-        r"#header",   # Match #header anywhere in selector
+        r"\.header",        # Match .header anywhere in selector
+        r"#header",         # Match #header anywhere in selector  
+        r"#desktopHeader",  # Match #desktopHeader (common DI pattern)
+        r"#mobileHeader",   # Match #mobileHeader (common DI pattern)
+        r"header-",         # Match header- in class names like .header-top, .header-bottom
         r"\.main-header",
-        r"\.site-header",
+        r"\.site-header", 
         r"\.page-header",
         r"\.top-header",
         r"\.masthead",
@@ -201,8 +204,9 @@ class StyleClassifier:
     ]
 
     FOOTER_PATTERNS = [
-        r"\.footer",  # Match .footer anywhere in selector
-        r"#footer",   # Match #footer anywhere in selector  
+        r"\.footer",      # Match .footer anywhere in selector
+        r"#footer",       # Match #footer anywhere in selector
+        r"footer-",       # Match footer- in class names like .footer-wrap, .footer-left  
         r"\.main-footer",
         r"\.site-footer",
         r"\.page-footer",
