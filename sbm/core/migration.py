@@ -882,7 +882,10 @@ def run_post_migration_workflow(
         click.echo("Once you are satisfied, proceed to the next step.")
         click.echo("=" * 80 + "\n")
 
-        if not click.confirm("Continue with the migration after manual review?"):
+        # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
+        from rich.prompt import Confirm
+        
+        if not Confirm.ask("Continue with the migration after manual review?", default=True):
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
 
@@ -1512,7 +1515,12 @@ def _handle_compilation_with_error_recovery(
 
             click.echo("=" * 50)
 
-            if click.confirm("Continue after fixing the errors?", default=True):
+            # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
+            from rich.prompt import Confirm
+            
+            user_wants_to_continue = Confirm.ask("Continue after fixing the errors?", default=True)
+            
+            if user_wants_to_continue:
                 # User fixed the errors manually, reprocess the files and test compilation
                 logger.info("User confirmed manual fixes, reprocessing files...")
 
@@ -1565,7 +1573,10 @@ def _handle_compilation_with_error_recovery(
         click.echo("Check Docker logs: docker logs dealerinspire_legacy_assets")
         click.echo(f"Theme directory: {theme_dir}")
 
-        if click.confirm("Continue anyway?", default=False):
+        # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
+        from rich.prompt import Confirm
+        
+        if Confirm.ask("Continue anyway?", default=False):
             return True
 
     return False
