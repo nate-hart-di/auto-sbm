@@ -907,10 +907,23 @@ Once you are satisfied, proceed to the next step.
         sys.stdout.write(message)
         sys.stdout.flush()
 
-        # Use click.confirm for reliable visibility in all terminal contexts
-        if not click.confirm("Continue with the migration after manual review?", default=True):
-            logger.info("Post-migration workflow stopped by user after manual review.")
-            return False
+        # Use basic input() for maximum compatibility - no Rich, no Click interference
+        while True:
+            try:
+                sys.stdout.write("Continue with the migration after manual review? [Y/n]: ")
+                sys.stdout.flush()
+                response = input().strip().lower()
+                if response in ('', 'y', 'yes'):
+                    break
+                elif response in ('n', 'no'):
+                    logger.info("Post-migration workflow stopped by user after manual review.")
+                    return False
+                else:
+                    sys.stdout.write("Please enter 'y' or 'n': ")
+                    sys.stdout.flush()
+            except (EOFError, KeyboardInterrupt):
+                logger.info("Post-migration workflow stopped by user after manual review.")
+                return False
 
         # Reprocess manual changes to ensure consistency (skip if already verified)
         if not skip_reprocessing:
