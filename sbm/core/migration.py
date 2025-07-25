@@ -772,7 +772,7 @@ def reprocess_manual_changes(slug) -> bool | None:
             file_path = os.path.join(theme_dir, sb_file)
 
             if os.path.exists(file_path):
-                # Read the current content
+                # Read the current manually-edited content
                 with open(file_path, encoding="utf-8") as f:
                     original_content = f.read()
 
@@ -780,14 +780,10 @@ def reprocess_manual_changes(slug) -> bool | None:
                 if not original_content.strip():
                     continue
 
-                # Apply the same transformations as initial migration
-                # Use original source file, not the already-processed content
-                source_scss_path = os.path.join(theme_dir, "css", "style.scss")
-                if os.path.exists(source_scss_path):
-                    processed_content = processor.process_scss_file(source_scss_path)
-                else:
-                    # Fallback to processing existing content if source not available
-                    processed_content = processor.transform_scss_content(original_content)
+                # CRITICAL FIX: Only apply minimal transformations to preserve manual fixes
+                # DO NOT reprocess from original source - this causes infinite loop
+                # Only do light cleanup on the existing manually-edited content
+                processed_content = processor.light_cleanup_scss_content(original_content)
 
                 # Check if any changes were made
                 if processed_content != original_content:
@@ -804,8 +800,10 @@ def reprocess_manual_changes(slug) -> bool | None:
                     original_lines = len(original_content.splitlines())
                     processed_lines = len(processed_content.splitlines())
                     logger.info(
-                        f"Reprocessed {sb_file}: {original_lines} → {processed_lines} lines"
+                        f"Light cleanup applied to {sb_file}: {original_lines} → {processed_lines} lines"
                     )
+                else:
+                    logger.info(f"No cleanup needed for {sb_file} - manual edits preserved")
 
         if changes_made:
             logger.info(
@@ -821,12 +819,14 @@ def reprocess_manual_changes(slug) -> bool | None:
             else:
                 logger.warning("Prettier formatting failed, using default formatting")
 
-        # MANDATORY: Verify SCSS compilation using Docker Gulp
-        if not _verify_scss_compilation_with_docker(theme_dir, slug, sb_files):
-            msg = "SCSS compilation verification failed - files do not compile with Docker Gulp"
-            raise Exception(
-                msg
-            )
+        # Verify SCSS compilation using Docker Gulp
+        compilation_result = _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
+        if not compilation_result:
+            logger.error("SCSS compilation verification failed - files do not compile with Docker Gulp")
+            logger.error("This may indicate syntax errors in the generated SCSS files.")
+            logger.error("You may need to manually review and fix the Site Builder files.")
+            # Don't throw exception - let the process continue and user can fix manually
+            return False
 
         logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
         return True
@@ -1528,8 +1528,35 @@ def _handle_compilation_with_error_recovery(
                     if os.path.exists(css_file_path):
                         os.remove(css_file_path)
 
-                # Reprocess the manually fixed files and verify compilation
-                return reprocess_manual_changes(slug)
+                # CRITICAL FIX: Do NOT reprocess manual changes - this causes infinite loop!
+                # Just verify the manually fixed files compile correctly
+                logger.info("Verifying manually fixed files compile correctly...")
+                
+                # Recopy the manually fixed files to test again
+                for test_filename, _ in test_files:
+                    original_file = test_filename.replace("test-", "")
+                    src_path = os.path.join(theme_dir, original_file)
+                    if os.path.exists(src_path):
+                        dst_path = os.path.join(css_dir, test_filename)
+                        shutil.copy2(src_path, dst_path)
+                
+                # Give Gulp time to compile
+                time.sleep(2)
+                
+                # Check if compilation succeeded
+                success_count = 0
+                for test_filename, _ in test_files:
+                    css_filename = test_filename.replace(".scss", ".css")
+                    css_path = os.path.join(css_dir, css_filename)
+                    if os.path.exists(css_path):
+                        success_count += 1
+                
+                if success_count == len(test_files):
+                    logger.info("✅ Manual fixes successful - all files now compile!")
+                    return True
+                else:
+                    logger.warning(f"Manual fixes incomplete: {success_count}/{len(test_files)} files compile")
+                    return False
             return False
 
     except Exception as e:

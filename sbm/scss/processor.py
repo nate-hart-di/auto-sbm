@@ -401,6 +401,53 @@ class SCSSProcessor:
 
         return self.transform_scss_content(content)
 
+    def light_cleanup_scss_content(self, content: str) -> str:
+        """
+        Apply minimal cleanup to manually-edited SCSS content without reprocessing from source.
+        This preserves manual fixes while ensuring consistent formatting.
+        
+        Args:
+            content: The manually-edited SCSS content
+            
+        Returns:
+            str: Lightly cleaned SCSS content
+        """
+        if not content.strip():
+            return content
+            
+        try:
+            # Only apply minimal transformations that don't break manual fixes
+            processed_content = content
+            
+            # 1. Normalize line endings
+            processed_content = processed_content.replace('\r\n', '\n').replace('\r', '\n')
+            
+            # 2. Remove excessive whitespace (but preserve intentional spacing)
+            processed_content = re.sub(r'\n\s*\n\s*\n', '\n\n', processed_content)  # Max 2 consecutive newlines
+            
+            # 3. Ensure proper spacing around braces
+            processed_content = re.sub(r'(\S)\{', r'\1 {', processed_content)  # Space before {
+            processed_content = re.sub(r'\}(\S)', r'} \1', processed_content)   # Space after }
+            
+            # 4. Basic variable cleanup (only if they look malformed)
+            # Convert any obvious SCSS variable syntax errors
+            processed_content = re.sub(r'\$([a-zA-Z-_]+)\s*=\s*', r'$\1: ', processed_content)  # Fix = to :
+            
+            # 5. Remove trailing whitespace from lines
+            lines = processed_content.split('\n')
+            cleaned_lines = [line.rstrip() for line in lines]
+            processed_content = '\n'.join(cleaned_lines)
+            
+            # 6. Ensure file ends with single newline
+            processed_content = processed_content.rstrip() + '\n'
+            
+            logger.debug(f"Light cleanup applied to SCSS content ({len(content)} → {len(processed_content)} chars)")
+            return processed_content
+            
+        except Exception as e:
+            logger.warning(f"Light cleanup failed, returning original content: {e}")
+            return content
+
     def write_files_atomically(self, theme_dir: str, files: Dict[str, str]) -> bool:
         """
         Writes the transformed SCSS files to the theme directory.

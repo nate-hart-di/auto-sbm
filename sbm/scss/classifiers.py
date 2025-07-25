@@ -177,37 +177,37 @@ class StyleClassifier:
     # Patterns for styles that MUST NOT be migrated to Site Builder
     # These conflict with Site Builder's own components
     HEADER_PATTERNS = [
-        r"\.header\b",
-        r"#header\b",
-        r"\.main-header\b",
-        r"\.site-header\b",
-        r"\.page-header\b",
-        r"\.top-header\b",
-        r"\.masthead\b",
-        r"\.banner\b"
+        r"\.header",  # Match .header anywhere in selector
+        r"#header",   # Match #header anywhere in selector
+        r"\.main-header",
+        r"\.site-header",
+        r"\.page-header",
+        r"\.top-header",
+        r"\.masthead",
+        r"\.banner"
     ]
 
     NAVIGATION_PATTERNS = [
-        r"\.nav\b",
-        r"\.navigation\b",
-        r"\.main-nav\b",
-        r"\.navbar\b",
-        r"\.menu\b",
-        r"\.primary-menu\b",
-        r"\.main-menu\b",
-        r"\.site-nav\b",
-        r"\.nav-menu\b",
-        r"\.breadcrumb\b"
+        r"\.nav",        # Match .nav anywhere in selector
+        r"\.navigation",  # Match .navigation anywhere in selector
+        r"\.main-nav",
+        r"\.navbar",      # Match .navbar anywhere in selector
+        r"\.menu",
+        r"\.primary-menu",
+        r"\.main-menu",
+        r"\.site-nav",
+        r"\.nav-menu",
+        r"\.breadcrumb"
     ]
 
     FOOTER_PATTERNS = [
-        r"\.footer\b",
-        r"#footer\b",
-        r"\.main-footer\b",
-        r"\.site-footer\b",
-        r"\.page-footer\b",
-        r"\.bottom-footer\b",
-        r"\.footer-content\b"
+        r"\.footer",  # Match .footer anywhere in selector
+        r"#footer",   # Match #footer anywhere in selector  
+        r"\.main-footer",
+        r"\.site-footer",
+        r"\.page-footer",
+        r"\.bottom-footer",
+        r"\.footer-content"
     ]
 
     def __init__(self, strict_mode: bool = True) -> None:
@@ -279,7 +279,7 @@ class StyleClassifier:
 
     def filter_scss_content(self, content: str) -> tuple[str, ExclusionResult]:
         """
-        Remove excluded styles from SCSS content.
+        Remove excluded styles from SCSS content with improved multiline rule handling.
 
         Args:
             content: The original SCSS content
@@ -295,51 +295,69 @@ class StyleClassifier:
         excluded_rules = []
         patterns_matched = {}
 
-        # Track current rule context
+        # Track current rule context with improved multiline handling
         current_rule = []
         brace_depth = 0
         in_rule = False
+        rule_start_line = 0
 
         for line_num, line in enumerate(lines, 1):
+            stripped_line = line.strip()
+            
             # Count braces to track rule boundaries
-            brace_depth += line.count("{") - line.count("}")
+            open_braces = line.count("{")
+            close_braces = line.count("}")
+            brace_depth += open_braces - close_braces
 
-            # If we're starting a new rule
-            if "{" in line and not in_rule:
+            # Check if we're starting a new rule
+            # A rule starts when we see an opening brace and we're not already in a rule
+            if open_braces > 0 and not in_rule:
                 in_rule = True
+                rule_start_line = line_num
                 current_rule = [line]
             elif in_rule:
+                # We're continuing an existing rule
                 current_rule.append(line)
             else:
-                # Not in a rule, include the line (comments, variables, etc.)
-                filtered_lines.append(line)
+                # Not in a rule - include non-rule content (comments, variables, imports, etc.)
+                if stripped_line or not in_rule:  # Preserve formatting
+                    filtered_lines.append(line)
                 continue
 
-            # If we've completed a rule (brace_depth returns to 0)
-            if in_rule and brace_depth == 0:
+            # Check if we've completed a rule (brace_depth returns to 0 or below)
+            if in_rule and brace_depth <= 0:
                 rule_content = "\n".join(current_rule)
-                should_exclude, reason = self.should_exclude_rule(rule_content)
+                
+                # Extract selectors from the rule (everything before first {)
+                selector_match = re.match(r'^(.*?)\{', rule_content, re.DOTALL)
+                if selector_match:
+                    selectors = selector_match.group(1).strip()
+                    # Check if ANY of the comma-separated selectors should be excluded
+                    should_exclude, reason = self._should_exclude_selectors(selectors)
+                else:
+                    # Fallback: check entire rule content
+                    should_exclude, reason = self.should_exclude_rule(rule_content)
 
                 if should_exclude:
-                    # Log the exclusion
-                    logger.debug(f"Excluding {reason} rule at line {line_num}: {current_rule[0].strip()}")
+                    # Log the exclusion with better context
+                    selector_preview = selectors[:100] + "..." if len(selectors) > 100 else selectors
+                    logger.debug(f"Excluding {reason} rule at lines {rule_start_line}-{line_num}: {selector_preview}")
                     excluded_rules.append(rule_content)
                     patterns_matched[reason] = patterns_matched.get(reason, 0) + 1
                     self._exclusion_stats[reason] += 1
-
-                    # CRITICAL FIX: Do NOT add comments to SCSS - they can break compilation
-                    # Just skip the rule entirely and log the exclusion
                 else:
-                    # Include the rule
+                    # Include the rule - add all lines from current_rule
                     filtered_lines.extend(current_rule)
 
                 # Reset for next rule
                 current_rule = []
                 in_rule = False
+                brace_depth = 0  # Reset brace depth to handle any counting errors
 
-        # Handle incomplete rules (shouldn't happen with valid SCSS)
+        # Handle incomplete rules (malformed SCSS)
         if current_rule and in_rule:
-            logger.warning("Incomplete SCSS rule found at end of file")
+            logger.warning(f"Incomplete SCSS rule found at end of file (started at line {rule_start_line})")
+            # Include incomplete rule to avoid losing content
             filtered_lines.extend(current_rule)
 
         # Update stats
@@ -350,17 +368,29 @@ class StyleClassifier:
 
         result = ExclusionResult(
             excluded_count=len(excluded_rules),
-            included_count=len(lines) - len(excluded_rules),
+            included_count=len([line for line in lines if line.strip()]) - len(excluded_rules),
             excluded_rules=excluded_rules,
             patterns_matched=patterns_matched
         )
 
-        # Log exclusion summary instead of adding dangerous comments
+        # Log exclusion summary
         if excluded_rules:
             exclusion_summary = ", ".join([f"{k}: {v}" for k, v in patterns_matched.items()])
-            logger.info(f"Excluded {len(excluded_rules)} rules from SCSS compilation: {exclusion_summary}")
+            logger.info(f"Excluded {len(excluded_rules)} rules: {exclusion_summary}")
 
         return filtered_content, result
+
+    def _should_exclude_selectors(self, selectors: str) -> tuple[bool, str | None]:
+        """Check if ANY selector in comma-separated list should be excluded."""
+        # Split comma-separated selectors and check each one
+        individual_selectors = [s.strip() for s in selectors.split(",") if s.strip()]
+        
+        for selector in individual_selectors:
+            should_exclude, reason = self.should_exclude_rule(selector)
+            if should_exclude:
+                return True, reason  # If ANY selector matches, exclude entire rule
+        
+        return False, None
 
     def analyze_file(self, file_path: Path) -> ExclusionResult:
         """
