@@ -93,5 +93,9 @@ auto-sbm.code-workspace
 
 # Private
 PRPs/
-tests/
+# Test output files (but NOT the tests/ directory itself)
+*.log
+test-results/
+.coverage
+htmlcov/
 backups/
