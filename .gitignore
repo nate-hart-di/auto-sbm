@@ -87,3 +87,4 @@ node_modules/
 
 # Auto-update settings
 .sbm-no-auto-update
+auto-sbm.code-workspace
