@@ -177,38 +177,23 @@ class StyleClassifier:
     # Patterns for styles that MUST NOT be migrated to Site Builder
     # These conflict with Site Builder's own components
     HEADER_PATTERNS = [
-        r"\.header",        # Match .header anywhere in selector
-        r"#header",         # Match #header anywhere in selector  
-        r"#desktopHeader",  # Match #desktopHeader (common DI pattern)
-        r"#mobileHeader",   # Match #mobileHeader (common DI pattern)
-        r"header-",         # Match header- in class names like .header-top, .header-bottom
-        r"\.main-header",
-        r"\.site-header", 
-        r"\.page-header",
-        r"\.top-header",
+        r"header",          # Match 'header' anywhere - catches #header, #desktopHeader, #mobileHeader, .header-top, etc.
         r"\.masthead",
         r"\.banner"
     ]
 
     NAVIGATION_PATTERNS = [
-        r"\.nav",        # Match .nav anywhere in selector
-        r"\.navigation",  # Match .navigation anywhere in selector
-        r"\.main-nav",
-        r"\.navbar",      # Match .navbar anywhere in selector
+        r"\.nav",         # Match .nav* anywhere - catches .nav, .navbar, .navigation, .nav-menu, etc.
+        r"navbar",        # Match 'navbar' anywhere - catches .navbar, #navbar, etc.
+        r"navigation",    # Match 'navigation' anywhere - catches .navigation, #navigation, etc.
         r"\.menu",
-        r"\.primary-menu",
-        r"\.main-menu",
-        r"\.site-nav",
-        r"\.nav-menu",
         r"\.breadcrumb"
     ]
 
     FOOTER_PATTERNS = [
-        r"\.footer",      # Match .footer anywhere in selector
-        r"#footer",       # Match #footer anywhere in selector
-        r"footer-",       # Match footer- in class names like .footer-wrap, .footer-left  
+        r"footer",        # Match 'footer' anywhere - catches #footer, #footerTop, #bb-footer, .footer-wrap, etc.
         r"\.main-footer",
-        r"\.site-footer",
+        r"\.site-footer", 
         r"\.page-footer",
         r"\.bottom-footer",
         r"\.footer-content"
