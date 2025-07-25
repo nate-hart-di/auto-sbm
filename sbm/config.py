@@ -8,7 +8,6 @@ replacing the legacy JSON-based configuration system.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Any
 
 from pydantic import Field, field_validator
@@ -76,7 +75,7 @@ class GitSettings(BaseSettings):
             msg = "GitHub token appears too short to be valid"
             raise ValueError(msg)
 
-        # Check if it looks like a proper token (starts with known prefixes or has reasonable length)
+        # Check if it looks like a proper token (starts with known prefixes or reasonable length)
         if not (v.startswith(("ghp_", "gho_", "ghu_", "ghs_", "ghr_")) or len(v) >= 20):
             msg = "GitHub token format appears invalid"
             raise ValueError(msg)
@@ -86,13 +85,6 @@ class GitSettings(BaseSettings):
 
 class MigrationSettings(BaseSettings):
     """Migration-specific configuration."""
-
-    cleanup_snapshots: bool = Field(default=True, description="Clean up migration snapshots")
-    create_backups: bool = Field(default=True, description="Create backups before migration")
-    max_concurrent_files: int = Field(
-        default=10, ge=1, le=50, description="Maximum concurrent file processing"
-    )
-    rich_ui_enabled: bool = Field(default=True, description="Enable Rich UI")
 
 
 class AutoSBMSettings(BaseSettings):
@@ -106,46 +98,16 @@ class AutoSBMSettings(BaseSettings):
         extra="ignore",  # CRITICAL: Allow extra inputs to prevent cross-env failures
     )
 
-    # PATTERN: Migrate all fields from legacy config.json
-    themes_directory: str = Field(default="themes", description="Themes directory path")
-    backup_directory: str = Field(default="backups", description="Backup directory path")
-    backup_enabled: bool = Field(default=True, description="Enable backups")
-    rich_ui_enabled: bool = Field(default=True, description="Enable Rich UI")
-
-    # Add WordPress debug fields to handle di-websites-platform environment variables
-    wp_debug: bool | None = Field(None, exclude=True, description="WordPress debug setting (ignored)")
-    wp_debug_log: bool | None = Field(None, exclude=True, description="WordPress debug log setting (ignored)")
-    wp_debug_display: bool | None = Field(None, exclude=True, description="WordPress debug display setting (ignored)")
+    # WordPress debug fields (ignored by auto-sbm)
+    wp_debug: bool | None = Field(None, exclude=True, description="WP debug (ignored)")
+    wp_debug_log: bool | None = Field(None, exclude=True, description="WP debug log (ignored)")
+    wp_debug_display: bool | None = Field(None, exclude=True, description="WP debug display (ignored)")
 
     # PATTERN: Nested models for complex configuration
     progress: ProgressSettings = Field(default_factory=lambda: ProgressSettings())
     logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
     git: GitSettings = Field(default_factory=lambda: GitSettings())
     migration: MigrationSettings = Field(default_factory=lambda: MigrationSettings())
-
-    @field_validator("themes_directory", "backup_directory")
-    @classmethod
-    def validate_directories(cls, v: str) -> str:
-        """Validate directory paths."""
-        path = Path(v)
-        # Try to create directories, but be more resilient to failures
-        if not path.exists():
-            try:
-                path.mkdir(parents=True, exist_ok=True)
-            except OSError as e:
-                # In test/CI environments or when permissions don't allow, just warn
-                if any(os.getenv(indicator) for indicator in [
-                    "CI", "CONTINUOUS_INTEGRATION", "BUILD_NUMBER",
-                    "GITHUB_ACTIONS", "JENKINS_URL", "TRAVIS", "PYTEST_CURRENT_TEST"
-                ]):
-                    # In test environments, allow it through
-                    import logging
-                    logging.getLogger(__name__).warning(f"Cannot create directory {v} in test environment: {e}")
-                    return v
-                # In production, this is still an error
-                msg = f"Cannot create directory {v}: {e}"
-                raise ValueError(msg)
-        return v
 
     def is_ci_environment(self) -> bool:
         """Detect if running in CI/CD environment."""

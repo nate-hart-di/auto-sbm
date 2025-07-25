@@ -1,8 +1,10 @@
 # Ignore environment variable files
 .env
-.env.*
 _.env
 _.env.*
+
+# Keep the template file
+!.env.example
 
 # Common environment/config files
 _.env.local
@@ -90,5 +92,6 @@ node_modules/
 auto-sbm.code-workspace
 
 # Private
-PRPs
-tests
+PRPs/
+tests/
+backups/
