@@ -7,8 +7,7 @@ import re
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, TYPE_CHECKING, Any, Protocol
-from pathlib import Path
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +37,18 @@ class StyleClassifier:
     ]
 
     NAVIGATION_PATTERNS = [
-        r"\.nav",                # Match .nav followed by ANYTHING (.nav*)
-        r"\.navbar",             # Match .navbar followed by ANYTHING (.navbar*)
-        r"menu-item",            # Match menu-item classes
-        r"\.menu-",              # Match .menu- classes
+        r"\.nav\b",         # Match .nav followed by word boundary
+        r"\.nav-",          # Match .nav- followed by anything
+        r"\.navbar",        # Match .navbar followed by anything
+        r"navbar",          # Match 'navbar' anywhere
+        r"navigation",      # Match 'navigation' anywhere
+        r"\.menu",
+        r"\.breadcrumb",
+        r"ul\.nav",         # Common pattern for nav lists
+        r"li\.nav",         # Navigation list items
+        r"\.megamenu",      # Megamenu patterns
+        r"\.dropdown-menu", # Dropdown navigation
+        r"\.sub-menu"       # Submenu patterns
     ]
 
     FOOTER_PATTERNS = [
@@ -202,12 +209,7 @@ class StyleClassifier:
         patterns_matched = {}
         
         for rule in rules:
-            # Check both selectors and full CSS content for patterns
-            should_exclude_by_selector, reason1 = self.should_exclude_rule(rule.selectors)
-            should_exclude_by_content, reason2 = self.should_exclude_rule(rule.css_text)
-            
-            should_exclude = should_exclude_by_selector or should_exclude_by_content
-            reason = reason1 or reason2
+            should_exclude, reason = self.should_exclude_rule(rule.selectors)
             
             if should_exclude:
                 excluded_rules.append(rule.css_text)
@@ -220,22 +222,9 @@ class StyleClassifier:
         # Reconstruct content
         all_lines = {}
         
-        # Create set of excluded rule line ranges for filtering
-        excluded_line_ranges = set()
-        for rule in rules:
-            # Check both selectors and full CSS content for patterns
-            should_exclude_by_selector, _ = self.should_exclude_rule(rule.selectors)
-            should_exclude_by_content, _ = self.should_exclude_rule(rule.css_text)
-            should_exclude = should_exclude_by_selector or should_exclude_by_content
-            
-            if should_exclude:
-                for line_num in range(rule.start_line, rule.end_line + 1):
-                    excluded_line_ranges.add(line_num)
-        
-        # Add non-rule lines that are not part of excluded rules
+        # Add non-rule lines
         for line_num, line in non_rule_lines:
-            if line_num not in excluded_line_ranges:
-                all_lines[line_num] = line
+            all_lines[line_num] = line
         
         # Add kept rules
         for rule in filtered_rules:
@@ -269,85 +258,3 @@ def filter_scss_for_site_builder(content: str, strict_mode: bool = True) -> tupl
     """Filter SCSS content to exclude header/footer/nav styles for Site Builder."""
     classifier = StyleClassifier(strict_mode=strict_mode)
     return classifier.filter_scss_content(content)
-
-
-class ProfessionalStyleClassifier(StyleClassifier):
-    """Professional CSS parser-based style classifier."""
-
-    def __init__(self, parser_strategy: str = "auto", strict_mode: bool = True) -> None:
-        """Initialize professional style classifier."""
-        super().__init__(strict_mode)
-        # For now, just use the base implementation
-        # Could be extended later with actual CSS parsers
-
-    def filter_scss_content(self, content: str) -> tuple[str, ExclusionResult]:
-        """Filter SCSS content using professional parsing (fallback to base for now)."""
-        return super().filter_scss_content(content)
-
-
-def robust_css_processing(content: str) -> tuple[str, ExclusionResult]:
-    """Multi-layer error handling with graceful degradation."""
-    try:
-        classifier = StyleClassifier()
-        return classifier.filter_scss_content(content)
-    except Exception as e:
-        logger.error(f"CSS processing failed: {e}")
-        # Conservative fallback - exclude complete rules with keywords
-        return conservative_keyword_exclusion(content)
-
-
-def conservative_keyword_exclusion(content: str) -> tuple[str, ExclusionResult]:
-    """Ultra-conservative fallback - exclude complete rules with keywords."""
-    exclusion_keywords = ["header", "nav", "footer", "navbar", "navigation"]
-
-    lines = content.split("\n")
-    filtered_lines = []
-    excluded_rules = []
-    skip_next_lines = 0
-    
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        
-        # Skip lines that were marked for skipping
-        if skip_next_lines > 0:
-            skip_next_lines -= 1
-            i += 1
-            continue
-        
-        line_lower = line.lower()
-        
-        # Check if this line contains excluded keywords
-        if any(keyword in line_lower for keyword in exclusion_keywords):
-            if '{' in line:
-                # This line starts a rule block - skip until the matching closing brace
-                brace_count = line.count('{') - line.count('}')
-                rule_lines = [line]
-                j = i + 1
-                
-                while j < len(lines) and brace_count > 0:
-                    next_line = lines[j]
-                    rule_lines.append(next_line)
-                    brace_count += next_line.count('{') - next_line.count('}')
-                    j += 1
-                
-                # Skip this entire rule block
-                excluded_rules.append('\n'.join(rule_lines))
-                skip_next_lines = j - i - 1
-                logger.debug(f"Conservative exclusion of rule block starting with: {line.strip()}")
-            else:
-                # Single line with keyword - exclude it
-                excluded_rules.append(line)
-                logger.debug(f"Conservative exclusion: {line.strip()}")
-        else:
-            # Line doesn't contain excluded keywords - include it
-            filtered_lines.append(line)
-        
-        i += 1
-
-    return "\n".join(filtered_lines), ExclusionResult(
-        excluded_count=len(excluded_rules),
-        included_count=len(filtered_lines),
-        excluded_rules=excluded_rules,
-        patterns_matched={"conservative": len(excluded_rules)}
-    )
