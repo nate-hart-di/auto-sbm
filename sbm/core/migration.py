@@ -863,7 +863,7 @@ def run_post_migration_workflow(
     """
     logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Manual review phase
+    # Manual review phase - MUST happen before any git operations
     if interactive_review:
         # Clear the terminal to remove stale progress bars
         import os
@@ -889,18 +889,27 @@ def run_post_migration_workflow(
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
 
-    # Reprocess manual changes to ensure consistency (skip if already verified)
-    if not skip_reprocessing:
-        logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
-        if not reprocess_manual_changes(slug):
-            logger.error("Failed to reprocess manual changes.")
-            return False
-    else:
-        logger.info("Skipping reprocessing - files were already manually fixed and verified")
+        # Reprocess manual changes to ensure consistency (skip if already verified)
+        if not skip_reprocessing:
+            logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+            if not reprocess_manual_changes(slug):
+                logger.error("Failed to reprocess manual changes.")
+                return False
+        else:
+            logger.info("Skipping reprocessing - files were already manually fixed and verified")
 
-    # Clean up snapshot files after manual review phase
-    logger.info("Cleaning up automation snapshots after manual review")
-    _cleanup_snapshot_files(slug)
+        # Clean up snapshot files after manual review phase
+        logger.info("Cleaning up automation snapshots after manual review")
+        _cleanup_snapshot_files(slug)
+    else:
+        # If no interactive review, still do cleanup and reprocessing
+        if not skip_reprocessing:
+            logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+            if not reprocess_manual_changes(slug):
+                logger.error("Failed to reprocess manual changes.")
+                return False
+        logger.info("Cleaning up automation snapshots")
+        _cleanup_snapshot_files(slug)
 
     if not interactive_git or click.confirm(f"Commit all changes for {slug}?", default=True):
         # Clean up any snapshot files before committing - do this right before git operations
