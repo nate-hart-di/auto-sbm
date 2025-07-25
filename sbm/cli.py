@@ -593,9 +593,9 @@ def auto(
                         skip_just=skip_just,
                         force_reset=force_reset,
                         create_pr=create_pr,
-                        interactive_review=interactive_review,
-                        interactive_git=interactive_git,
-                        interactive_pr=interactive_pr,
+                        interactive_review=False,  # Handle interactivity outside progress context
+                        interactive_git=False,  # Handle interactivity outside progress context
+                        interactive_pr=False,  # Handle interactivity outside progress context
                         progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
                         verbose_docker=verbose_docker,
                     )
