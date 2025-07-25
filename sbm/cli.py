@@ -593,27 +593,15 @@ def auto(
                         skip_just=skip_just,
                         force_reset=force_reset,
                         create_pr=create_pr,
-                        interactive_review=False,  # Handle interactivity outside progress context
-                        interactive_git=False,  # Handle interactivity outside progress context
-                        interactive_pr=False,  # Handle interactivity outside progress context
+                        interactive_review=interactive_review,  # Use calculated interactive flags
+                        interactive_git=interactive_git,        # Use calculated interactive flags  
+                        interactive_pr=interactive_pr,          # Use calculated interactive flags
                         progress_tracker=progress_tracker,  # Enhanced progress tracking enabled!
                         verbose_docker=verbose_docker,
                     )
 
-            # Handle interactive prompts AFTER progress context ends
-            if success and (interactive_review or interactive_git or interactive_pr):
-                # Get branch name - use centralized helper function
-                branch_name = get_branch_name(theme_name)
-
-                success = run_post_migration_workflow(
-                    theme_name,
-                    branch_name,
-                    skip_git=skip_just,  # Use skip_just for skip_git logic
-                    create_pr=create_pr,
-                    interactive_review=interactive_review,
-                    interactive_git=interactive_git,
-                    interactive_pr=interactive_pr,
-                )
+            # Post-migration workflow is now handled inside migrate_dealer_theme
+            # No need for duplicate post-migration workflow call
 
         except KeyboardInterrupt:
             # Handle user interruption specifically
