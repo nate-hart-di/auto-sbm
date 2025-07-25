@@ -781,7 +781,13 @@ def reprocess_manual_changes(slug) -> bool | None:
                     continue
 
                 # Apply the same transformations as initial migration
-                processed_content = processor.transform_scss_content(original_content)
+                # Use original source file, not the already-processed content
+                source_scss_path = os.path.join(theme_dir, "css", "style.scss")
+                if os.path.exists(source_scss_path):
+                    processed_content = processor.process_scss_file(source_scss_path)
+                else:
+                    # Fallback to processing existing content if source not available
+                    processed_content = processor.transform_scss_content(original_content)
 
                 # Check if any changes were made
                 if processed_content != original_content:

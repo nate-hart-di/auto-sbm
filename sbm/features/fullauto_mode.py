@@ -83,7 +83,12 @@ class FullautoMode:
         """
         critical_keywords = [
             "compilation failed",
-            "error",
+            "scss compilation error", 
+            "invalid css",
+            "error:",
+            "errors?",
+            "fixing the errors",
+            "continue after fixing",
             "failed to",
             "cannot continue",
             "critical",

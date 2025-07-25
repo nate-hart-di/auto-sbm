@@ -38,10 +38,10 @@ class SCSSProcessor:
                 # Use professional parser for better accuracy with comma-separated selectors
                 self.style_classifier = ProfessionalStyleClassifier(strict_mode=True)
                 logger.info("Professional style exclusion enabled for header/footer/navigation components")
-            except ImportError:
+            except Exception as e:
                 # Fallback to original classifier if professional parser not available
                 self.style_classifier = StyleClassifier(strict_mode=True)
-                logger.warning("Using fallback style classifier (professional parser not available)")
+                logger.warning(f"Using fallback style classifier (professional parser failed: {e})")
                 logger.info("Style exclusion enabled for header/footer/navigation components")
 
     def _process_scss_variables(self, content: str) -> str:
