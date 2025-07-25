@@ -14,7 +14,7 @@ from sbm.utils.helpers import darken_hex, lighten_hex
 from sbm.utils.logger import logger
 from sbm.utils.path import get_common_theme_path, get_dealer_theme_dir
 
-from .classifiers import StyleClassifier
+from .classifiers import ProfessionalStyleClassifier, StyleClassifier, robust_css_processing
 from .mixin_parser import CommonThemeMixinParser
 
 
@@ -34,8 +34,15 @@ class SCSSProcessor:
 
         # Initialize style classifier for header/footer/nav exclusion
         if self.exclude_nav_styles:
-            self.style_classifier = StyleClassifier(strict_mode=True)
-            logger.info("Style exclusion enabled for header/footer/navigation components")
+            try:
+                # Use professional parser for better accuracy with comma-separated selectors
+                self.style_classifier = ProfessionalStyleClassifier(strict_mode=True)
+                logger.info("Professional style exclusion enabled for header/footer/navigation components")
+            except Exception as e:
+                # Fallback to original classifier if professional parser not available
+                self.style_classifier = StyleClassifier(strict_mode=True)
+                logger.warning(f"Using fallback style classifier (professional parser failed: {e})")
+                logger.info("Style exclusion enabled for header/footer/navigation components")
 
     def _process_scss_variables(self, content: str) -> str:
         """
@@ -330,7 +337,14 @@ class SCSSProcessor:
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
                 logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
-                content, exclusion_result = self.style_classifier.filter_scss_content(content)
+
+                try:
+                    # Try the configured classifier first
+                    content, exclusion_result = self.style_classifier.filter_scss_content(content)
+                except Exception as e:
+                    logger.warning(f"Style classifier failed: {e}, using robust processing")
+                    # Use robust processing as ultimate fallback
+                    content, exclusion_result = robust_css_processing(content)
 
                 if exclusion_result.excluded_count > 0:
                     logger.info(f"Excluded {exclusion_result.excluded_count} header/footer/nav rules from migration")

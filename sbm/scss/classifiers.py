@@ -9,8 +9,10 @@ conflicts with Site Builder's own header, footer, and navigation components.
 from __future__ import annotations
 
 import re
+import subprocess
+import tempfile
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sbm.utils.logger import logger
 
@@ -25,6 +27,148 @@ class ExclusionResult:
     included_count: int
     excluded_rules: list[str]
     patterns_matched: dict[str, int]
+
+
+@dataclass
+class CSSRule:
+    """Normalized CSS rule representation."""
+    selectors: str
+    css_text: str
+    rule_type: str = "style"
+
+
+class CSSParser(Protocol):
+    """Protocol for CSS parser implementations."""
+
+    def parse_stylesheet(self, content: str) -> Any:
+        """Parse CSS content and return parsed data."""
+        ...
+
+    def extract_rules(self, parsed_data: Any) -> list[CSSRule]:
+        """Extract CSS rules from parsed data."""
+        ...
+
+
+class TinyCSS2Parser:
+    """CSS parser implementation using tinycss2 library."""
+
+    def parse_stylesheet(self, content: str) -> Any:
+        """Parse CSS content using tinycss2."""
+        try:
+            import tinycss2
+            return tinycss2.parse_stylesheet(content)
+        except ImportError as e:
+            logger.error(f"tinycss2 not available: {e}")
+            raise
+
+    def extract_rules(self, rules: Any) -> list[CSSRule]:
+        """Extract CSS rules from tinycss2 parsed data."""
+        import tinycss2
+        extracted = []
+
+        # tinycss2.parse_stylesheet returns a list of rules and tokens
+        if not isinstance(rules, list):
+            return extracted
+
+        for rule in rules:
+            if hasattr(rule, "type") and rule.type == "qualified-rule":
+                try:
+                    selectors = tinycss2.serialize(rule.prelude).strip()
+                    # Construct CSS text from selector and content
+                    content = tinycss2.serialize(rule.content)
+                    css_text = f"{selectors} {{{content}}}"
+                    extracted.append(CSSRule(selectors, css_text))
+                except Exception as e:
+                    logger.warning(f"Failed to serialize rule: {e}")
+                    continue
+
+        return extracted
+
+
+class CSSUtilsParser:
+    """CSS parser implementation using cssutils library."""
+
+    def parse_stylesheet(self, content: str) -> Any:
+        """Parse CSS content using cssutils."""
+        try:
+            import cssutils
+            # Suppress cssutils warnings
+            cssutils.log.setLevel("ERROR")
+            return cssutils.parseString(content)
+        except ImportError as e:
+            logger.error(f"cssutils not available: {e}")
+            raise
+
+    def extract_rules(self, sheet: Any) -> list[CSSRule]:
+        """Extract CSS rules from cssutils parsed data."""
+        import cssutils
+        extracted = []
+
+        for rule in sheet.cssRules:
+            if rule.type == cssutils.css.CSSRule.STYLE_RULE:
+                extracted.append(CSSRule(rule.selectorText, rule.cssText))
+
+        return extracted
+
+
+class SCSSPreprocessor:
+    """Convert SCSS to CSS for parsing."""
+
+    def __init__(self, strategy: str = "minimal") -> None:
+        """Initialize SCSS preprocessor with strategy."""
+        self.strategy = strategy
+
+    def process(self, scss_content: str) -> str:
+        """Convert SCSS to CSS."""
+        if self.strategy == "external":
+            return self._external_sass_compiler(scss_content)
+        if self.strategy == "minimal":
+            return self._minimal_scss_processing(scss_content)
+        # Try to determine if it's simple CSS or needs processing
+        if "$" in scss_content or ("&" in scss_content and "{" in scss_content):
+            # Has SCSS features, use minimal processing
+            return self._minimal_scss_processing(scss_content)
+        # Pass through as CSS (for simple cases)
+        return scss_content
+
+    def _external_sass_compiler(self, scss_content: str) -> str:
+        """Use external sass compiler."""
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".scss", delete=False) as f:
+                f.write(scss_content)
+                f.flush()
+
+                result = subprocess.run(
+                    ["sass", "--no-source-map", f.name],
+                    check=False, capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                if result.returncode == 0:
+                    return result.stdout
+                logger.warning(f"SASS compilation failed: {result.stderr}")
+                raise subprocess.CalledProcessError(result.returncode, "sass")
+
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+            logger.warning(f"External SASS compiler failed: {e}")
+            return self._minimal_scss_processing(scss_content)
+
+    def _minimal_scss_processing(self, scss_content: str) -> str:
+        """Basic SCSS-to-CSS conversion for simple cases."""
+        import re
+
+        # Remove SCSS variables (convert to CSS custom properties)
+        content = re.sub(r"^\s*\$([a-zA-Z-]+)\s*:\s*(.*?);",
+                        r"  --\1: \2;", scss_content, flags=re.MULTILINE)
+
+        # Convert SCSS variable usage to CSS custom properties
+        content = re.sub(r"\$([a-zA-Z-]+)", r"var(--\1)", content)
+
+        # Remove SCSS imports (keep only CSS imports)
+        content = re.sub(r'@import\s+["\'](?!.*\.css)[^"\']*["\'];?', "", content)
+
+        return content
 
 
 class StyleClassifier:
@@ -183,8 +327,8 @@ class StyleClassifier:
                     patterns_matched[reason] = patterns_matched.get(reason, 0) + 1
                     self._exclusion_stats[reason] += 1
 
-                    # Add a comment about the exclusion
-                    filtered_lines.append(f"/* EXCLUDED {reason.upper()} RULE: {current_rule[0].strip()} */")
+                    # CRITICAL FIX: Do NOT add comments to SCSS - they can break compilation
+                    # Just skip the rule entirely and log the exclusion
                 else:
                     # Include the rule
                     filtered_lines.extend(current_rule)
@@ -210,6 +354,11 @@ class StyleClassifier:
             excluded_rules=excluded_rules,
             patterns_matched=patterns_matched
         )
+
+        # Log exclusion summary instead of adding dangerous comments
+        if excluded_rules:
+            exclusion_summary = ", ".join([f"{k}: {v}" for k, v in patterns_matched.items()])
+            logger.info(f"Excluded {len(excluded_rules)} rules from SCSS compilation: {exclusion_summary}")
 
         return filtered_content, result
 
@@ -260,3 +409,178 @@ def filter_scss_for_site_builder(content: str, strict_mode: bool = True) -> tupl
     """
     classifier = StyleClassifier(strict_mode=strict_mode)
     return classifier.filter_scss_content(content)
+
+
+class ProfessionalStyleClassifier(StyleClassifier):
+    """Professional CSS parser-based style classifier."""
+
+    def __init__(self, parser_strategy: str = "auto", strict_mode: bool = True) -> None:
+        """Initialize professional style classifier."""
+        super().__init__(strict_mode)
+        self.parser = self._create_parser(parser_strategy)
+        self.scss_preprocessor = SCSSPreprocessor()
+
+    def filter_scss_content(self, content: str) -> tuple[str, ExclusionResult]:
+        """Filter SCSS content using professional parsing."""
+        if not content.strip():
+            return content, ExclusionResult(0, 0, [], {})
+
+        try:
+            # Step 1: Preprocess SCSS to CSS
+            css_content = self.scss_preprocessor.process(content)
+
+            # Step 2: Parse with professional library
+            parsed_data = self.parser.parse_stylesheet(css_content)
+            rules = self.parser.extract_rules(parsed_data)
+
+            # Step 3: Apply exclusion logic
+            return self._filter_parsed_rules(rules, content)
+
+        except Exception as e:
+            logger.warning(f"Professional parsing failed: {e}, using fallback")
+            return self._fallback_processing(content)
+
+    def _filter_parsed_rules(self, rules: list[CSSRule], original_content: str) -> tuple[str, ExclusionResult]:
+        """Apply exclusion logic to parsed CSS rules."""
+        filtered_rules = []
+        excluded_rules = []
+        patterns_matched = {}
+
+        for rule in rules:
+            should_exclude, reason = self._should_exclude_rule_selectors(rule.selectors)
+
+            if should_exclude:
+                excluded_rules.append(rule.css_text)
+                patterns_matched[reason] = patterns_matched.get(reason, 0) + 1
+                self._exclusion_stats[reason] += 1
+                logger.debug(f"Excluded {reason} rule: {rule.selectors}")
+            else:
+                filtered_rules.append(rule.css_text)
+
+        # Preserve non-rule content (variables, comments, imports)
+        filtered_content = self._merge_with_non_rule_content(
+            original_content, filtered_rules
+        )
+
+        result = ExclusionResult(
+            excluded_count=len(excluded_rules),
+            included_count=len(filtered_rules),
+            excluded_rules=excluded_rules,
+            patterns_matched=patterns_matched
+        )
+
+        # Log exclusion summary
+        if excluded_rules:
+            exclusion_summary = ", ".join([f"{k}: {v}" for k, v in patterns_matched.items()])
+            logger.info(f"Excluded {len(excluded_rules)} rules: {exclusion_summary}")
+
+        return filtered_content, result
+
+    def _should_exclude_rule_selectors(self, selectors: str) -> tuple[bool, str | None]:
+        """Check if ANY selector in comma-separated list should be excluded."""
+        # Split comma-separated selectors and check each one
+        individual_selectors = [s.strip() for s in selectors.split(",")]
+
+        for selector in individual_selectors:
+            should_exclude, reason = self.should_exclude_rule(selector)
+            if should_exclude:
+                return True, reason  # If ANY selector matches, exclude entire rule
+
+        return False, None
+
+    def _merge_with_non_rule_content(self, original_content: str, filtered_rules: list[str]) -> str:
+        """Merge filtered rules with non-rule content from original."""
+        # This is a simplified approach - in practice, we'd need more sophisticated
+        # reconstruction of the original structure
+        lines = original_content.split("\n")
+        result_lines = []
+
+        # Extract variables, imports, and comments
+        for line in lines:
+            stripped = line.strip()
+            if (stripped.startswith("$") or
+                stripped.startswith("@import") or
+                stripped.startswith("//") or
+                stripped.startswith("/*") or
+                not stripped):
+                result_lines.append(line)
+
+        # Add filtered rules
+        result_lines.extend(filtered_rules)
+
+        return "\n".join(result_lines)
+
+    def _create_parser(self, strategy: str) -> CSSParser:
+        """Factory method for CSS parser selection."""
+        if strategy == "tinycss2":
+            return TinyCSS2Parser()
+        if strategy == "cssutils":
+            return CSSUtilsParser()
+        if strategy == "auto":
+            # Try tinycss2 first, fallback to cssutils
+            try:
+                import tinycss2
+                return TinyCSS2Parser()
+            except ImportError:
+                try:
+                    import cssutils
+                    return CSSUtilsParser()
+                except ImportError:
+                    raise ImportError("No CSS parsing library available")
+        else:
+            raise ValueError(f"Unknown parser strategy: {strategy}")
+
+    def _fallback_processing(self, content: str) -> tuple[str, ExclusionResult]:
+        """Conservative fallback when professional parsing fails."""
+        logger.warning("Using conservative line-by-line exclusion fallback")
+
+        # Use original StyleClassifier logic as ultimate fallback
+        return super().filter_scss_content(content)
+
+
+def robust_css_processing(content: str) -> tuple[str, ExclusionResult]:
+    """Multi-layer error handling with graceful degradation."""
+
+    # Layer 1: Professional parsing
+    try:
+        classifier = ProfessionalStyleClassifier(parser_strategy="auto")
+        return classifier.filter_scss_content(content)
+    except ImportError as e:
+        logger.error(f"No professional CSS parser available: {e}")
+    except Exception as e:
+        logger.warning(f"Professional CSS parsing failed: {e}")
+
+    # Layer 2: Original implementation
+    try:
+        classifier = StyleClassifier()  # Original implementation
+        return classifier.filter_scss_content(content)
+    except Exception as e:
+        logger.error(f"Original CSS parsing failed: {e}")
+
+    # Layer 3: Conservative keyword-based exclusion
+    logger.error("All CSS parsing failed, using conservative keyword exclusion")
+    return conservative_keyword_exclusion(content)
+
+
+def conservative_keyword_exclusion(content: str) -> tuple[str, ExclusionResult]:
+    """Ultra-conservative fallback - exclude lines with keywords."""
+    exclusion_keywords = ["header", "nav", "footer", "navbar", "navigation"]
+
+    lines = content.split("\n")
+    filtered_lines = []
+    excluded_count = 0
+
+    for line in lines:
+        line_lower = line.lower()
+        if any(keyword in line_lower for keyword in exclusion_keywords):
+            excluded_count += 1
+            logger.debug(f"Conservative exclusion: {line.strip()}")
+        else:
+            filtered_lines.append(line)
+
+    return "\n".join(filtered_lines), ExclusionResult(
+        excluded_count=excluded_count,
+        included_count=len(lines) - excluded_count,
+        excluded_rules=[],
+        patterns_matched={"conservative": excluded_count}
+    )

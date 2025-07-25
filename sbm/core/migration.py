@@ -28,6 +28,71 @@ if TYPE_CHECKING:
     from sbm.ui.console import SBMConsole
 
 
+def _cleanup_exclusion_comments(slug: str) -> None:
+    """
+    Remove any existing EXCLUDED RULE comments from SCSS files to prevent compilation errors.
+    
+    Args:
+        slug (str): Dealer theme slug
+    """
+    try:
+        theme_dir = get_dealer_theme_dir(slug)
+        scss_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
+        
+        total_cleaned = 0
+        for scss_file in scss_files:
+            file_path = os.path.join(theme_dir, scss_file)
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                
+                # Remove EXCLUDED RULE comments and fix dangling commas
+                lines = content.split('\n')
+                cleaned_lines = []
+                i = 0
+                while i < len(lines):
+                    line = lines[i]
+                    
+                    # Check for dangling comma followed by EXCLUDED comment
+                    if (
+                        line.strip().endswith(',') and 
+                        i + 1 < len(lines) and 
+                        'EXCLUDED' in lines[i + 1] and 
+                        'RULE:' in lines[i + 1]
+                    ):
+                        # Remove comma and add cleaned line
+                        cleaned_line = line.strip().rstrip(',')
+                        if cleaned_line:  # Only add if not empty
+                            cleaned_lines.append(f"// CLEANED: {cleaned_line}")
+                        # Skip the EXCLUDED comment line
+                        i += 2
+                        total_cleaned += 1
+                        continue
+                    
+                    # Remove standalone EXCLUDED comments
+                    elif 'EXCLUDED' in line and 'RULE:' in line:
+                        # Skip this line entirely
+                        i += 1
+                        total_cleaned += 1
+                        continue
+                    
+                    # Keep regular lines
+                    cleaned_lines.append(line)
+                    i += 1
+                
+                # Write back if changes were made
+                if total_cleaned > 0:
+                    with open(file_path, 'w') as f:
+                        f.write('\n'.join(cleaned_lines))
+                    logger.info(f"Cleaned {total_cleaned} exclusion comments from {scss_file}")
+        
+        if total_cleaned > 0:
+            logger.info(f"Total cleaned exclusion comments from {slug}: {total_cleaned}")
+    
+    except Exception as e:
+        logger.warning(f"Error cleaning exclusion comments for {slug}: {e}")
+
+
 def _cleanup_snapshot_files(slug: str) -> None:
     """
     Remove any .sbm-snapshots directories and files before committing.
@@ -716,7 +781,13 @@ def reprocess_manual_changes(slug) -> bool | None:
                     continue
 
                 # Apply the same transformations as initial migration
-                processed_content = processor.transform_scss_content(original_content)
+                # Use original source file, not the already-processed content
+                source_scss_path = os.path.join(theme_dir, "css", "style.scss")
+                if os.path.exists(source_scss_path):
+                    processed_content = processor.process_scss_file(source_scss_path)
+                else:
+                    # Fallback to processing existing content if source not available
+                    processed_content = processor.transform_scss_content(original_content)
 
                 # Check if any changes were made
                 if processed_content != original_content:
@@ -933,7 +1004,9 @@ def migrate_dealer_theme(
         if progress_tracker:
             progress_tracker.add_step_task("git", "Setting up Git branch and repository", 100)
 
-        success, branch_name = git_operations(slug)
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Git Operations"):
+            success, branch_name = git_operations(slug)
         if not success:
             logger.error(f"Git operations failed for {slug}")
             return False
@@ -952,11 +1025,13 @@ def migrate_dealer_theme(
             # Stop progress display to avoid mixing with Docker output
             progress_tracker.progress.stop()
 
-        just_start_success = run_just_start(
-            slug,
-            suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
-            progress_tracker=None,  # Disable progress tracking during Docker startup
-        )
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Docker Startup"):
+            just_start_success = run_just_start(
+                slug,
+                suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
+                progress_tracker=None,  # Disable progress tracking during Docker startup
+            )
 
         # Resume progress tracking after Docker startup
         if progress_tracker:
@@ -977,9 +1052,11 @@ def migrate_dealer_theme(
     if progress_tracker:
         progress_tracker.add_step_task("files", "Creating Site Builder SCSS files", 100)
 
-    if not create_sb_files(slug, force_reset):
-        logger.error(f"Failed to create Site Builder files for {slug}")
-        return False
+    from sbm.utils.timer import timer_segment
+    with timer_segment("Site Builder File Creation"):
+        if not create_sb_files(slug, force_reset):
+            logger.error(f"Failed to create Site Builder files for {slug}")
+            return False
 
     print_step_success("Site Builder files created successfully")
     if progress_tracker:
@@ -990,13 +1067,19 @@ def migrate_dealer_theme(
     if progress_tracker:
         progress_tracker.add_step_task("scss", "Migrating SCSS styles and transforming syntax", 100)
 
-    if not migrate_styles(slug):
-        logger.error(f"Failed to migrate styles for {slug}")
-        return False
+    from sbm.utils.timer import timer_segment
+    with timer_segment("SCSS Migration"):
+        if not migrate_styles(slug):
+            logger.error(f"Failed to migrate styles for {slug}")
+            return False
 
     print_step_success("SCSS styles migrated and transformed successfully")
     if progress_tracker:
         progress_tracker.complete_step("scss")
+    
+    # Clean up any existing EXCLUDED RULE comments that could break compilation
+    logger.info(f"Cleaning up exclusion comments for {slug}...")
+    _cleanup_exclusion_comments(slug)
 
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
@@ -1004,8 +1087,10 @@ def migrate_dealer_theme(
     if progress_tracker:
         progress_tracker.add_step_task("styles", "Adding predetermined OEM-specific styles", 100)
 
-    if not add_predetermined_styles(slug, oem_handler):
-        logger.warning(f"Could not add all predetermined styles for {slug}")
+    from sbm.utils.timer import timer_segment
+    with timer_segment("Predetermined Styles"):
+        if not add_predetermined_styles(slug, oem_handler):
+            logger.warning(f"Could not add all predetermined styles for {slug}")
 
     print_step_success("Predetermined styles added successfully")
     if progress_tracker:
@@ -1017,9 +1102,11 @@ def migrate_dealer_theme(
         if progress_tracker:
             progress_tracker.add_step_task("maps", "Migrating map components and PHP partials", 100)
 
-        if not migrate_map_components(slug, oem_handler, interactive=False):
-            logger.error(f"Failed to migrate map components for {slug}")
-            return False
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Map Components Migration"):
+            if not migrate_map_components(slug, oem_handler, interactive=False):
+                logger.error(f"Failed to migrate map components for {slug}")
+                return False
 
         print_step_success("Map components migrated successfully")
         logger.info(f"Map components migrated successfully for {slug}")
@@ -1041,19 +1128,17 @@ def migrate_dealer_theme(
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
 
-    # Conditionally run post-migration workflow
-    if interactive_review or interactive_git or interactive_pr:
-        return run_post_migration_workflow(
-            slug,
-            branch_name,
-            skip_git=skip_git,
-            create_pr=create_pr,
-            interactive_review=interactive_review,
-            interactive_git=interactive_git,
-            interactive_pr=interactive_pr,
-        )
-
-    return True
+    # Always run post-migration workflow (git operations, PR creation)
+    # Interactive flags control prompting behavior, not whether operations run
+    return run_post_migration_workflow(
+        slug,
+        branch_name,
+        skip_git=skip_git,
+        create_pr=create_pr,
+        interactive_review=interactive_review,
+        interactive_git=interactive_git,
+        interactive_pr=interactive_pr,
+    )
 
 
 def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: list) -> bool:
@@ -1705,6 +1790,10 @@ def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
     """Fix invalid CSS syntax errors."""
     error_message = error_info.get("message", "")
 
+    # Handle dangling comma selectors (like .navbar .navbar-inner ul.nav li a,)
+    if "expected 1 selector or at-rule" in error_message and (".navbar" in error_message or "navbar-inn" in error_message):
+        return _fix_dangling_comma_selector(error_info, css_dir)
+
     # Handle specific mixin parameter syntax errors
     if "fade-transition(" in error_message and "var(--element))" in error_message:
         return _fix_mixin_parameter_syntax(error_info, css_dir)
@@ -1715,6 +1804,43 @@ def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
 
     # Fall back to commenting out the line
     return _comment_out_error_line(error_info, css_dir)
+
+
+def _fix_dangling_comma_selector(error_info: dict, css_dir: str) -> bool:
+    """Fix dangling comma selectors followed by comments that break SCSS compilation."""
+    for file_name in os.listdir(css_dir):
+        if file_name.startswith("test-") and file_name.endswith(".scss"):
+            file_path = os.path.join(css_dir, file_name)
+            
+            try:
+                with open(file_path) as f:
+                    lines = f.readlines()
+                
+                modified = False
+                for i, line in enumerate(lines):
+                    # Look for lines ending with comma followed by EXCLUDED comments
+                    if (
+                        line.strip().endswith(',') and 
+                        i + 1 < len(lines) and 
+                        'EXCLUDED' in lines[i + 1] and 
+                        'RULE:' in lines[i + 1]
+                    ):
+                        # Remove the comma and comment out the problematic line
+                        lines[i] = f"// FIXED DANGLING COMMA: {line.strip().rstrip(',')}"
+                        # Also comment out the EXCLUDED comment line
+                        lines[i + 1] = f"// REMOVED EXCLUSION COMMENT: {lines[i + 1].strip()}\n"
+                        modified = True
+                        logger.info(f"Fixed dangling comma selector in {file_name} at line {i + 1}")
+                
+                if modified:
+                    with open(file_path, 'w') as f:
+                        f.writelines(lines)
+                    return True
+                        
+            except Exception as e:
+                logger.warning(f"Error fixing dangling comma in {file_name}: {e}")
+    
+    return False
 
 
 def _fix_mixin_parameter_syntax(error_info: dict, css_dir: str) -> bool:
