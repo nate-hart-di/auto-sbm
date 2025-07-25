@@ -865,27 +865,33 @@ def run_post_migration_workflow(
 
     # Manual review phase - MUST happen before any git operations
     if interactive_review:
-        # Clear the terminal to remove stale progress bars
+        # Clear the terminal to remove stale progress bars and ensure clean display
         import os
+        import sys
 
         os.system("clear" if os.name == "posix" else "cls")
-
-        click.echo("🎉 MIGRATION COMPLETED SUCCESSFULLY! 🎉\n")
-        click.echo("=" * 80)
-        click.echo(f"Manual Review Required for {slug}")
-        click.echo("Please review the migrated SCSS files in your theme directory:")
-        click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-inside.scss")
-        click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-vdp.scss")
-        click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-vrp.scss")
-        click.echo(f"  - {get_dealer_theme_dir(slug)}/sb-home.scss")
-        click.echo("\nVerify the content and make any necessary manual adjustments.")
-        click.echo("Once you are satisfied, proceed to the next step.")
-        click.echo("=" * 80 + "\n")
-
-        # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
-        from rich.prompt import Confirm
         
-        if not Confirm.ask("Continue with the migration after manual review?", default=True):
+        # Force flush any remaining Rich output
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+        print("🎉 MIGRATION COMPLETED SUCCESSFULLY! 🎉\n")
+        print("=" * 80)
+        print(f"Manual Review Required for {slug}")
+        print("Please review the migrated SCSS files in your theme directory:")
+        print(f"  - {get_dealer_theme_dir(slug)}/sb-inside.scss")
+        print(f"  - {get_dealer_theme_dir(slug)}/sb-vdp.scss")
+        print(f"  - {get_dealer_theme_dir(slug)}/sb-vrp.scss")
+        print(f"  - {get_dealer_theme_dir(slug)}/sb-home.scss")
+        print("\nVerify the content and make any necessary manual adjustments.")
+        print("Once you are satisfied, proceed to the next step.")
+        print("=" * 80 + "\n")
+        
+        # Force flush output before prompt
+        sys.stdout.flush()
+
+        # Use click.confirm for reliable visibility in all terminal contexts
+        if not click.confirm("Continue with the migration after manual review?", default=True):
             logger.info("Post-migration workflow stopped by user after manual review.")
             return False
 
