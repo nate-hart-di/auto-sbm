@@ -37,58 +37,58 @@ def _cleanup_exclusion_comments(slug: str) -> None:
     """
     try:
         theme_dir = get_dealer_theme_dir(slug)
-        scss_files = ['sb-inside.scss', 'sb-vdp.scss', 'sb-vrp.scss', 'sb-home.scss']
-        
+        scss_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
+
         total_cleaned = 0
         for scss_file in scss_files:
             file_path = os.path.join(theme_dir, scss_file)
             if os.path.exists(file_path):
-                with open(file_path, 'r') as f:
+                with open(file_path) as f:
                     content = f.read()
-                
+
                 # Remove EXCLUDED RULE comments and fix dangling commas
-                lines = content.split('\n')
+                lines = content.split("\n")
                 cleaned_lines = []
                 i = 0
                 while i < len(lines):
                     line = lines[i]
-                    
+
                     # Check for dangling comma followed by EXCLUDED comment
                     if (
-                        line.strip().endswith(',') and 
-                        i + 1 < len(lines) and 
-                        'EXCLUDED' in lines[i + 1] and 
-                        'RULE:' in lines[i + 1]
+                        line.strip().endswith(",") and
+                        i + 1 < len(lines) and
+                        "EXCLUDED" in lines[i + 1] and
+                        "RULE:" in lines[i + 1]
                     ):
                         # Remove comma and add cleaned line
-                        cleaned_line = line.strip().rstrip(',')
+                        cleaned_line = line.strip().rstrip(",")
                         if cleaned_line:  # Only add if not empty
                             cleaned_lines.append(f"// CLEANED: {cleaned_line}")
                         # Skip the EXCLUDED comment line
                         i += 2
                         total_cleaned += 1
                         continue
-                    
+
                     # Remove standalone EXCLUDED comments
-                    elif 'EXCLUDED' in line and 'RULE:' in line:
+                    if "EXCLUDED" in line and "RULE:" in line:
                         # Skip this line entirely
                         i += 1
                         total_cleaned += 1
                         continue
-                    
+
                     # Keep regular lines
                     cleaned_lines.append(line)
                     i += 1
-                
+
                 # Write back if changes were made
                 if total_cleaned > 0:
-                    with open(file_path, 'w') as f:
-                        f.write('\n'.join(cleaned_lines))
+                    with open(file_path, "w") as f:
+                        f.write("\n".join(cleaned_lines))
                     logger.info(f"Cleaned {total_cleaned} exclusion comments from {scss_file}")
-        
+
         if total_cleaned > 0:
             logger.info(f"Total cleaned exclusion comments from {slug}: {total_cleaned}")
-    
+
     except Exception as e:
         logger.warning(f"Error cleaning exclusion comments for {slug}: {e}")
 
@@ -876,13 +876,13 @@ def run_post_migration_workflow(
             console.clear()
         except:
             pass
-            
+
         # Clear terminal using system command
         os.system("clear" if os.name == "posix" else "cls")
-        
+
         # Brief pause to ensure terminal is clear
         time.sleep(0.1)
-        
+
         # Force flush any remaining Rich output
         sys.stdout.flush()
         sys.stderr.flush()
@@ -912,14 +912,13 @@ Once you are satisfied, proceed to the next step.
                 sys.stdout.write("Continue with the migration after manual review? [Y/n]: ")
                 sys.stdout.flush()
                 response = input().strip().lower()
-                if response in ('', 'y', 'yes'):
+                if response in ("", "y", "yes"):
                     break
-                elif response in ('n', 'no'):
+                if response in ("n", "no"):
                     logger.info("Post-migration workflow stopped by user after manual review.")
                     return False
-                else:
-                    sys.stdout.write("Please enter 'y' or 'n': ")
-                    sys.stdout.flush()
+                sys.stdout.write("Please enter 'y' or 'n': ")
+                sys.stdout.flush()
             except (EOFError, KeyboardInterrupt):
                 logger.info("Post-migration workflow stopped by user after manual review.")
                 return False
@@ -947,16 +946,16 @@ Once you are satisfied, proceed to the next step.
         _cleanup_snapshot_files(slug)
 
     # Git commit prompt with consistent input handling
-    commit_response = 'y'  # Default to yes
+    commit_response = "y"  # Default to yes
     if interactive_git:
         sys.stdout.write(f"Commit all changes for {slug}? [Y/n]: ")
         sys.stdout.flush()
         commit_response = input().strip().lower()
-        if commit_response in ('n', 'no'):
+        if commit_response in ("n", "no"):
             logger.info("Skipping commit.")
             return True
-    
-    if not interactive_git or commit_response in ('', 'y', 'yes'):
+
+    if not interactive_git or commit_response in ("", "y", "yes"):
         # Clean up any snapshot files before committing - do this right before git operations
         _cleanup_snapshot_files(slug)
 
@@ -971,16 +970,16 @@ Once you are satisfied, proceed to the next step.
         return True  # End workflow if user skips commit
 
     # Git push prompt with consistent input handling
-    push_response = 'y'  # Default to yes
+    push_response = "y"  # Default to yes
     if interactive_git:
         sys.stdout.write(f"Push changes to origin/{branch_name}? [Y/n]: ")
         sys.stdout.flush()
         push_response = input().strip().lower()
-        if push_response in ('n', 'no'):
+        if push_response in ("n", "no"):
             logger.info("Skipping push.")
             return True
-    
-    if not interactive_git or push_response in ('', 'y', 'yes'):
+
+    if not interactive_git or push_response in ("", "y", "yes"):
         if not push_changes(branch_name):
             logger.error("Failed to push changes.")
             return False
@@ -990,16 +989,16 @@ Once you are satisfied, proceed to the next step.
 
     if create_pr:
         # PR creation prompt with consistent input handling
-        pr_response = 'y'  # Default to yes
+        pr_response = "y"  # Default to yes
         if interactive_pr:
             sys.stdout.write("Create a pull request? [Y/n]: ")
             sys.stdout.flush()
             pr_response = input().strip().lower()
-            if pr_response in ('n', 'no'):
+            if pr_response in ("n", "no"):
                 logger.info("Skipping pull request creation.")
                 return True
-        
-        if not interactive_pr or pr_response in ('', 'y', 'yes'):
+
+        if not interactive_pr or pr_response in ("", "y", "yes"):
             logger.info("Creating pull request...")
             try:
                 pr_result = git_create_pr(slug=slug, branch_name=branch_name)
@@ -1128,7 +1127,7 @@ def migrate_dealer_theme(
             return False
 
     print_step_success("SCSS styles migrated and transformed successfully")
-    
+
     # Clean up any existing EXCLUDED RULE comments that could break compilation
     logger.info(f"Cleaning up exclusion comments for {slug}...")
     _cleanup_exclusion_comments(slug)
@@ -1553,9 +1552,9 @@ def _handle_compilation_with_error_recovery(
 
             # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
             from rich.prompt import Confirm
-            
+
             user_wants_to_continue = Confirm.ask("Continue after fixing the errors?", default=True)
-            
+
             if user_wants_to_continue:
                 # User fixed the errors manually, reprocess the files and test compilation
                 logger.info("User confirmed manual fixes, reprocessing files...")
@@ -1575,7 +1574,7 @@ def _handle_compilation_with_error_recovery(
                 # CRITICAL FIX: Do NOT reprocess manual changes - this causes infinite loop!
                 # Just verify the manually fixed files compile correctly
                 logger.info("Verifying manually fixed files compile correctly...")
-                
+
                 # Recopy the manually fixed files to test again
                 for test_filename, _ in test_files:
                     original_file = test_filename.replace("test-", "")
@@ -1583,10 +1582,10 @@ def _handle_compilation_with_error_recovery(
                     if os.path.exists(src_path):
                         dst_path = os.path.join(css_dir, test_filename)
                         shutil.copy2(src_path, dst_path)
-                
+
                 # Give Gulp time to compile
                 time.sleep(2)
-                
+
                 # Check if compilation succeeded
                 success_count = 0
                 for test_filename, _ in test_files:
@@ -1594,13 +1593,12 @@ def _handle_compilation_with_error_recovery(
                     css_path = os.path.join(css_dir, css_filename)
                     if os.path.exists(css_path):
                         success_count += 1
-                
+
                 if success_count == len(test_files):
                     logger.info("✅ Manual fixes successful - all files now compile!")
                     return True
-                else:
-                    logger.warning(f"Manual fixes incomplete: {success_count}/{len(test_files)} files compile")
-                    return False
+                logger.warning(f"Manual fixes incomplete: {success_count}/{len(test_files)} files compile")
+                return False
             return False
 
     except Exception as e:
@@ -1611,7 +1609,7 @@ def _handle_compilation_with_error_recovery(
 
         # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
         from rich.prompt import Confirm
-        
+
         if Confirm.ask("Continue anyway?", default=False):
             return True
 
@@ -1885,19 +1883,19 @@ def _fix_dangling_comma_selector(error_info: dict, css_dir: str) -> bool:
     for file_name in os.listdir(css_dir):
         if file_name.startswith("test-") and file_name.endswith(".scss"):
             file_path = os.path.join(css_dir, file_name)
-            
+
             try:
                 with open(file_path) as f:
                     lines = f.readlines()
-                
+
                 modified = False
                 for i, line in enumerate(lines):
                     # Look for lines ending with comma followed by EXCLUDED comments
                     if (
-                        line.strip().endswith(',') and 
-                        i + 1 < len(lines) and 
-                        'EXCLUDED' in lines[i + 1] and 
-                        'RULE:' in lines[i + 1]
+                        line.strip().endswith(",") and
+                        i + 1 < len(lines) and
+                        "EXCLUDED" in lines[i + 1] and
+                        "RULE:" in lines[i + 1]
                     ):
                         # Remove the comma and comment out the problematic line
                         lines[i] = f"// FIXED DANGLING COMMA: {line.strip().rstrip(',')}"
@@ -1905,15 +1903,15 @@ def _fix_dangling_comma_selector(error_info: dict, css_dir: str) -> bool:
                         lines[i + 1] = f"// REMOVED EXCLUSION COMMENT: {lines[i + 1].strip()}\n"
                         modified = True
                         logger.info(f"Fixed dangling comma selector in {file_name} at line {i + 1}")
-                
+
                 if modified:
-                    with open(file_path, 'w') as f:
+                    with open(file_path, "w") as f:
                         f.writelines(lines)
                     return True
-                        
+
             except Exception as e:
                 logger.warning(f"Error fixing dangling comma in {file_name}: {e}")
-    
+
     return False
 
 

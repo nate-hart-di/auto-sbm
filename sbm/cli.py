@@ -41,7 +41,6 @@ from .scss.validator import validate_scss_files
 from .ui.console import get_console
 from .ui.panels import StatusPanels
 from .ui.prompts import InteractivePrompts
-from .utils.helpers import get_branch_name
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
 
@@ -78,15 +77,15 @@ def is_env_healthy() -> bool:
 
     # If we're running from a different venv (like di-websites-platform) or
     # if this is an external installation, skip detailed health checks
-    import sys
     import os
-    
-    current_venv = getattr(sys, 'prefix', None)
+    import sys
+
+    current_venv = getattr(sys, "prefix", None)
     expected_venv = str(REPO_ROOT / ".venv")
     current_dir = os.getcwd()
-    
+
     # Skip health check if:
-    # 1. Running from different venv 
+    # 1. Running from different venv
     # 2. Not running from within auto-sbm directory
     # 3. Auto-sbm installed as external package
     if (current_venv and expected_venv not in current_venv) or \
@@ -95,10 +94,10 @@ def is_env_healthy() -> bool:
         logger.debug("Skipping detailed health check for external auto-sbm usage")
         # Just verify basic functionality - if sbm command works, we're good
         return True
-    
+
     # Only do detailed health checks when running from auto-sbm development environment
     logger.debug("Running detailed health check for auto-sbm development environment")
-    
+
     # Check Python venv and packages (only when running from auto-sbm venv)
     venv_path = REPO_ROOT / ".venv"
     pip_path = venv_path / "bin" / "pip"
@@ -130,6 +129,7 @@ def is_env_healthy() -> bool:
 # --- Setup logic ---
 # Only run setup when in auto-sbm development environment
 import os
+
 current_dir = os.getcwd()
 in_auto_sbm_repo = str(REPO_ROOT) in current_dir
 
@@ -562,18 +562,18 @@ def auto(
             return
 
     console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
-    
+
     interactive_review = not skip_post_migration
     interactive_git = not skip_post_migration
     interactive_pr = not skip_post_migration
 
-    # Start migration timer and patch click.confirm for timing 
-    from .utils.timer import start_migration_timer, timer_segment, patch_click_confirm_for_timing
+    # Start migration timer and patch click.confirm for timing
+    from .utils.timer import patch_click_confirm_for_timing, start_migration_timer, timer_segment
     migration_timer = start_migration_timer(theme_name)
-    
+
     # Patch click.confirm to pause timer during user interactions
     original_confirm = patch_click_confirm_for_timing()
-    
+
     # Use Rich UI for beautiful output WITHOUT progress bars
     try:
         # Beautiful startup panel
@@ -589,7 +589,7 @@ def auto(
                     force_reset=force_reset,
                     create_pr=create_pr,
                     interactive_review=interactive_review,  # Use calculated interactive flags
-                    interactive_git=interactive_git,        # Use calculated interactive flags  
+                    interactive_git=interactive_git,        # Use calculated interactive flags
                     interactive_pr=interactive_pr,          # Use calculated interactive flags
                     verbose_docker=verbose_docker,
                 )
@@ -631,7 +631,7 @@ def auto(
         if original_confirm:
             from .utils.timer import restore_click_confirm
             restore_click_confirm(original_confirm)
-        
+
         # Always finish the timer
         from .utils.timer import finish_migration_timer
         finish_migration_timer()
