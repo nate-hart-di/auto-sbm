@@ -157,25 +157,25 @@ class SCSSProcessor:
         Remove large comment blocks and section dividers that clutter PR diffs.
         """
         logger.info("Cleaning up large comment blocks and section dividers...")
-        
+
         # Remove large asterisk comment blocks like:
         # // *************************************************************************************************
         # //    HEADER
         # // *************************************************************************************************
-        content = re.sub(r'// \*{20,}\n//.*?\n// \*{20,}\n', '', content, flags=re.MULTILINE)
-        
+        content = re.sub(r"// \*{20,}\n//.*?\n// \*{20,}\n", "", content, flags=re.MULTILINE)
+
         # Remove unicode box drawing comment blocks like:
         # //▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-        # // _MapRow  
+        # // _MapRow
         # //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-        content = re.sub(r'//[▀▄]{20,}\n.*?\n//[▀▄]{20,}\n', '', content, flags=re.MULTILINE)
-        
+        content = re.sub(r"//[▀▄]{20,}\n.*?\n//[▀▄]{20,}\n", "", content, flags=re.MULTILINE)
+
         # Remove standalone comment lines that are just section markers
-        content = re.sub(r'^//\s*$\n', '', content, flags=re.MULTILINE)
-        
+        content = re.sub(r"^//\s*$\n", "", content, flags=re.MULTILINE)
+
         # Remove excessive blank lines (more than 2 consecutive)
-        content = re.sub(r'\n\s*\n\s*\n+', '\n\n', content)
-        
+        content = re.sub(r"\n\s*\n\s*\n+", "\n\n", content)
+
         return content
 
     def validate_scss_syntax(self, content: str) -> (bool, Optional[str]):
@@ -405,7 +405,7 @@ class SCSSProcessor:
 
             # Step 5: Clean up large comment blocks and section dividers
             processed_content = self._clean_comment_blocks(processed_content)
-            
+
             # Step 6: Trim whitespace for a clean final output
             return self._trim_whitespace(processed_content)
 
@@ -443,36 +443,36 @@ class SCSSProcessor:
         """
         if not content.strip():
             return content
-            
+
         try:
             # Only apply minimal transformations that don't break manual fixes
             processed_content = content
-            
+
             # 1. Normalize line endings
-            processed_content = processed_content.replace('\r\n', '\n').replace('\r', '\n')
-            
+            processed_content = processed_content.replace("\r\n", "\n").replace("\r", "\n")
+
             # 2. Remove excessive whitespace (but preserve intentional spacing)
-            processed_content = re.sub(r'\n\s*\n\s*\n', '\n\n', processed_content)  # Max 2 consecutive newlines
-            
+            processed_content = re.sub(r"\n\s*\n\s*\n", "\n\n", processed_content)  # Max 2 consecutive newlines
+
             # 3. Ensure proper spacing around braces
-            processed_content = re.sub(r'(\S)\{', r'\1 {', processed_content)  # Space before {
-            processed_content = re.sub(r'\}(\S)', r'} \1', processed_content)   # Space after }
-            
+            processed_content = re.sub(r"(\S)\{", r"\1 {", processed_content)  # Space before {
+            processed_content = re.sub(r"\}(\S)", r"} \1", processed_content)   # Space after }
+
             # 4. Basic variable cleanup (only if they look malformed)
             # Convert any obvious SCSS variable syntax errors
-            processed_content = re.sub(r'\$([a-zA-Z-_]+)\s*=\s*', r'$\1: ', processed_content)  # Fix = to :
-            
+            processed_content = re.sub(r"\$([a-zA-Z-_]+)\s*=\s*", r"$\1: ", processed_content)  # Fix = to :
+
             # 5. Remove trailing whitespace from lines
-            lines = processed_content.split('\n')
+            lines = processed_content.split("\n")
             cleaned_lines = [line.rstrip() for line in lines]
-            processed_content = '\n'.join(cleaned_lines)
-            
+            processed_content = "\n".join(cleaned_lines)
+
             # 6. Ensure file ends with single newline
-            processed_content = processed_content.rstrip() + '\n'
-            
+            processed_content = processed_content.rstrip() + "\n"
+
             logger.debug(f"Light cleanup applied to SCSS content ({len(content)} → {len(processed_content)} chars)")
             return processed_content
-            
+
         except Exception as e:
             logger.warning(f"Light cleanup failed, returning original content: {e}")
             return content

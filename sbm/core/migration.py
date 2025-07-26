@@ -874,7 +874,8 @@ def run_post_migration_workflow(
             from rich.console import Console
             console = Console()
             console.clear()
-        except:
+        except (ImportError, AttributeError):
+            # Console clearing failed, not critical for functionality
             pass
 
         # Clear terminal using system command

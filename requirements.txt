@@ -14,6 +14,8 @@ pydantic>=2.5.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 pathlib-mate>=1.2.0
+tinycss2>=1.2.1
+cssutils>=2.11.0
 
 # Development Dependencies (also available via pip install -e .[dev])
 pytest>=7.0.0

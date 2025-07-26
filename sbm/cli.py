@@ -105,15 +105,32 @@ def is_env_healthy() -> bool:
         logger.warning("Python virtual environment or pip not found")
         return False
 
+    # Check if packages are importable instead of relying on pip freeze
+    # This works better with editable installs where dependencies may not show individually
+    python_path = venv_path / "bin" / "python"
+    if not python_path.is_file():
+        logger.warning("Python interpreter not found in virtual environment")
+        return False
+    
+    # Map package names to import names (some differ)
+    import_map = {
+        "gitpython": "git",
+        "pyyaml": "yaml", 
+        "pytest": "pytest",
+        "click": "click",
+        "rich": "rich",
+        "jinja2": "jinja2",
+        "requests": "requests",
+        "colorama": "colorama"
+    }
+    
     try:
-        result = subprocess.run(
-            [str(pip_path), "freeze"], check=False, capture_output=True, text=True, timeout=10
-        )
-        installed = [
-            line.split("==")[0].lower() for line in result.stdout.splitlines() if "==" in line
-        ]
-        for pkg in REQUIRED_PYTHON_PACKAGES:
-            if pkg.lower() not in installed:
+        for pkg, import_name in import_map.items():
+            result = subprocess.run(
+                [str(python_path), "-c", f"import {import_name}"],
+                check=False, capture_output=True, timeout=5
+            )
+            if result.returncode != 0:
                 logger.warning(f"Required Python package missing: {pkg}")
                 return False
     except subprocess.TimeoutExpired:
@@ -608,10 +625,8 @@ def auto(
             success = False
 
         if success:
-            # Enhanced completion with elapsed time tracking and timing breakdown
-            elapsed_time = progress_tracker.get_elapsed_time() if progress_tracker else 0.0
-            timing_summary = progress_tracker.get_timing_summary() if progress_tracker else None
-            console.print_migration_complete(theme_name, elapsed_time, timing_summary)
+            # Migration completed successfully
+            console.print_migration_complete(theme_name, elapsed_time=None, timing_summary=None)
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
@@ -1299,6 +1314,90 @@ def version() -> None:
     """Display version information."""
     click.echo("auto-sbm version 2.0.0")
     click.echo("Site Builder Migration Tool")
+
+
+@cli.command()
+def doctor() -> None:
+    """
+    Validate auto-sbm installation and diagnose common issues.
+    
+    This command checks that all dependencies are available and the 
+    environment is properly configured for running migrations.
+    """
+    console = get_console()
+    
+    console.console.print("\n🔍 Auto-SBM Environment Diagnosis", style="bold blue")
+    console.console.print("=" * 50)
+    
+    # Check critical modules
+    required_modules = [
+        ('pydantic', 'Data validation'),
+        ('pytest', 'Testing framework'), 
+        ('click', 'CLI framework'),
+        ('rich', 'Terminal UI'),
+        ('git', 'Git operations'),
+        ('jinja2', 'Template processing'),
+        ('yaml', 'YAML processing'),
+        ('requests', 'HTTP requests'),
+        ('psutil', 'System monitoring')
+    ]
+    
+    missing_modules = []
+    for module, description in required_modules:
+        try:
+            __import__(module)
+            console.console.print(f"✅ {module:<12} - {description}")
+        except ImportError:
+            console.console.print(f"❌ {module:<12} - {description} [red](MISSING)[/red]")
+            missing_modules.append(module)
+    
+    # Check virtual environment
+    console.console.print(f"\n📁 Environment Information:")
+    console.console.print(f"   Python: {sys.executable}")
+    console.console.print(f"   Version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    console.console.print(f"   Project root: {REPO_ROOT}")
+    
+    # Check setup marker
+    if SETUP_MARKER.exists():
+        console.console.print("✅ Setup completed successfully")
+    else:
+        console.console.print("⚠️  Setup marker missing - run setup.sh")
+    
+    # Check git configuration
+    try:
+        from git import Repo
+        repo = Repo(REPO_ROOT)
+        console.console.print(f"✅ Git repository: {repo.active_branch.name}")
+    except Exception as e:
+        console.console.print(f"❌ Git issue: {e}")
+    
+    # Check GitHub CLI
+    if shutil.which("gh"):
+        try:
+            result = subprocess.run(["gh", "auth", "status"], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                console.console.print("✅ GitHub CLI authenticated")
+            else:
+                console.console.print("⚠️  GitHub CLI not authenticated")
+        except Exception:
+            console.console.print("⚠️  GitHub CLI auth check failed")
+    else:
+        console.console.print("❌ GitHub CLI not found")
+    
+    # Summary and recommendations
+    console.console.print(f"\n📊 Summary:")
+    if missing_modules:
+        console.console.print(f"❌ {len(missing_modules)} missing dependencies: {', '.join(missing_modules)}")
+        console.console.print(f"\n🔧 Recommended fix:")
+        console.console.print(f"   cd {REPO_ROOT}")
+        console.console.print(f"   bash setup.sh")
+        click.echo("\nEnvironment needs attention.")
+        sys.exit(1)
+    else:
+        console.console.print("✅ All critical dependencies available!")
+        console.console.print("✅ Environment looks healthy!")
+        click.echo("\nEnvironment is ready for migrations.")
 
 
 @cli.command()
