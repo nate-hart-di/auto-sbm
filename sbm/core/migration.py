@@ -818,16 +818,8 @@ def reprocess_manual_changes(slug) -> bool | None:
             else:
                 logger.warning("Prettier formatting failed, using default formatting")
 
-        # Verify SCSS compilation using Docker Gulp
-        compilation_result = _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
-        if not compilation_result:
-            logger.error("SCSS compilation verification failed - files do not compile with Docker Gulp")
-            logger.error("This may indicate syntax errors in the generated SCSS files.")
-            logger.error("You may need to manually review and fix the Site Builder files.")
-            # Don't throw exception - let the process continue and user can fix manually
-            return False
-
-        logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
+        # Note: SCSS compilation verification moved to separate timer segment 
+        # to avoid including long sleep/user interaction time in reprocessing timer
         return True
 
     except Exception as e:
@@ -935,6 +927,19 @@ Once you are satisfied, proceed to the next step.
                 if not reprocess_manual_changes(slug):
                     logger.error("Failed to reprocess manual changes.")
                     return False
+            
+            # Verify SCSS compilation in separate timer to avoid including long sleep/user interaction time
+            with timer_segment("SCSS Compilation Verification"):
+                theme_dir = get_dealer_theme_dir(slug)
+                sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
+                compilation_result = _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
+                if not compilation_result:
+                    logger.error("SCSS compilation verification failed - files do not compile with Docker Gulp")
+                    logger.error("This may indicate syntax errors in the generated SCSS files.")
+                    logger.error("You may need to manually review and fix the Site Builder files.")
+                    # Don't throw exception - let the process continue and user can fix manually
+                    return False
+                logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
         else:
             logger.info("Skipping reprocessing - files were already manually fixed and verified")
 
@@ -950,6 +955,19 @@ Once you are satisfied, proceed to the next step.
                 if not reprocess_manual_changes(slug):
                     logger.error("Failed to reprocess manual changes.")
                     return False
+            
+            # Verify SCSS compilation in separate timer to avoid including long sleep/user interaction time
+            with timer_segment("SCSS Compilation Verification"):
+                theme_dir = get_dealer_theme_dir(slug)
+                sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
+                compilation_result = _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
+                if not compilation_result:
+                    logger.error("SCSS compilation verification failed - files do not compile with Docker Gulp")
+                    logger.error("This may indicate syntax errors in the generated SCSS files.")
+                    logger.error("You may need to manually review and fix the Site Builder files.")
+                    # Don't throw exception - let the process continue and user can fix manually
+                    return False
+                logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
         logger.info("Cleaning up automation snapshots")
         _cleanup_snapshot_files(slug)
 

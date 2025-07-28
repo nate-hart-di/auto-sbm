@@ -458,16 +458,20 @@ class SCSSProcessor:
             processed_content = re.sub(r"(\S)\{", r"\1 {", processed_content)  # Space before {
             processed_content = re.sub(r"\}(\S)", r"} \1", processed_content)   # Space after }
 
-            # 4. Basic variable cleanup (only if they look malformed)
+            # 4. Convert SCSS variables to CSS custom properties
+            # This ensures any remaining SCSS variables get converted during light cleanup
+            processed_content = self._convert_scss_variables_intelligently(processed_content)
+
+            # 5. Basic variable cleanup (only if they look malformed)
             # Convert any obvious SCSS variable syntax errors
             processed_content = re.sub(r"\$([a-zA-Z-_]+)\s*=\s*", r"$\1: ", processed_content)  # Fix = to :
 
-            # 5. Remove trailing whitespace from lines
+            # 7. Remove trailing whitespace from lines
             lines = processed_content.split("\n")
             cleaned_lines = [line.rstrip() for line in lines]
             processed_content = "\n".join(cleaned_lines)
 
-            # 6. Ensure file ends with single newline
+            # 8. Ensure file ends with single newline
             processed_content = processed_content.rstrip() + "\n"
 
             logger.debug(f"Light cleanup applied to SCSS content ({len(content)} → {len(processed_content)} chars)")

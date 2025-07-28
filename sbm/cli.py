@@ -584,8 +584,11 @@ def auto(
     interactive_git = not skip_post_migration
     interactive_pr = not skip_post_migration
 
-    # Patch click.confirm for timing (without overall timer)
-    from .utils.timer import patch_click_confirm_for_timing
+    # Initialize timing tracking and patch click.confirm
+    from .utils.timer import patch_click_confirm_for_timing, init_timing_summary
+    
+    # Initialize timing summary for this migration
+    init_timing_summary(theme_name)
     
     # Patch click.confirm to pause timer during user interactions
     original_confirm = patch_click_confirm_for_timing()
@@ -645,7 +648,10 @@ def auto(
             from .utils.timer import restore_click_confirm
             restore_click_confirm(original_confirm)
 
-        # No overall timer to finish - individual segment timers handle themselves
+        # Display the beautiful timing summary at the end
+        from .utils.timer import print_timing_summary, clear_timing_summary
+        print_timing_summary()
+        clear_timing_summary()
 
 
 

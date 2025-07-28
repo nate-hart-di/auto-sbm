@@ -13,6 +13,11 @@ from typing import Dict, List, Optional
 from sbm.utils.logger import logger
 
 
+# Global timing summary storage
+_timing_summary: Dict[str, float] = {}
+_current_theme: Optional[str] = None
+
+
 @dataclass
 class TimerSegment:
     """Represents a timed segment of the migration process."""
@@ -234,7 +239,7 @@ def timer_segment(name: str):
         finally:
             timer.end_segment()
     else:
-        # Create standalone segment timer
+        # Create standalone segment timer and track in global summary
         start_time = time.time()
         logger.info(f"⏱️  Started: {name}")
         try:
@@ -242,6 +247,10 @@ def timer_segment(name: str):
         finally:
             duration = time.time() - start_time
             logger.info(f"✅ Completed: {name} ({duration:.2f}s)")
+            
+            # Add to global timing summary
+            global _timing_summary
+            _timing_summary[name] = duration
 
 
 @contextmanager
@@ -283,3 +292,168 @@ def restore_click_confirm(original_confirm):
     """Restore the original click.confirm function."""
     import click
     click.confirm = original_confirm
+
+
+def init_timing_summary(theme_name: str):
+    """Initialize timing summary for a theme migration."""
+    global _timing_summary, _current_theme
+    _timing_summary = {}
+    _current_theme = theme_name
+
+
+def get_timing_summary() -> Dict[str, float]:
+    """Get the current timing summary."""
+    return _timing_summary.copy()
+
+
+def print_timing_summary():
+    """Print a beautiful Rich timing summary box."""
+    if not _timing_summary or not _current_theme:
+        return
+        
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.text import Text
+        
+        console = Console()
+        
+        # Calculate totals
+        total_time = sum(_timing_summary.values())
+        
+        # Calculate automation time (exclude Docker time as requested)
+        docker_time = _timing_summary.get("Docker Startup", 0)
+        automation_time = total_time - docker_time
+        automation_percentage = (automation_time / total_time * 100) if total_time > 0 else 100.0
+        
+        # Create timing table
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Step", style="white", width=25)
+        table.add_column("Duration", style="green", justify="right", width=12)
+        table.add_column("Percentage", style="yellow", justify="right", width=10)
+        
+        # Add each segment to the table
+        for segment_name, duration in _timing_summary.items():
+            percentage = (duration / total_time * 100) if total_time > 0 else 0
+            
+            # Format duration
+            if duration < 60:
+                duration_str = f"{duration:.2f}s"
+            elif duration < 3600:
+                minutes = int(duration // 60)
+                seconds = duration % 60
+                duration_str = f"{minutes}m {seconds:.1f}s"
+            else:
+                hours = int(duration // 3600)
+                minutes = int((duration % 3600) // 60)
+                seconds = duration % 60
+                duration_str = f"{hours}h {minutes}m {seconds:.1f}s"
+            
+            table.add_row(
+                segment_name,
+                duration_str,
+                f"{percentage:.1f}%"
+            )
+        
+        # Format total time
+        if total_time < 60:
+            total_str = f"{total_time:.2f} seconds"
+        elif total_time < 3600:
+            minutes = int(total_time // 60)
+            seconds = total_time % 60
+            total_str = f"{minutes}m {seconds:.1f}s"
+        else:
+            hours = int(total_time // 3600)
+            minutes = int((total_time % 3600) // 60)
+            seconds = total_time % 60
+            total_str = f"{hours}h {minutes}m {seconds:.1f}s"
+        
+        # Create summary content
+        summary_content = Text()
+        summary_content.append("🎯 ", style="bold blue")
+        summary_content.append("Migration Timing Summary for ", style="white")
+        summary_content.append(_current_theme, style="bold cyan")
+        summary_content.append("\n\n")
+        
+        # Format automation time
+        if automation_time < 60:
+            automation_str = f"{automation_time:.2f} seconds"
+        elif automation_time < 3600:
+            minutes = int(automation_time // 60)
+            seconds = automation_time % 60
+            automation_str = f"{minutes}m {seconds:.1f}s"
+        else:
+            hours = int(automation_time // 3600)
+            minutes = int((automation_time % 3600) // 60)
+            seconds = automation_time % 60
+            automation_str = f"{hours}h {minutes}m {seconds:.1f}s"
+        
+        # Format docker time
+        if docker_time < 60:
+            docker_str = f"{docker_time:.2f} seconds"
+        elif docker_time < 3600:
+            minutes = int(docker_time // 60)
+            seconds = docker_time % 60
+            docker_str = f"{minutes}m {seconds:.1f}s"
+        else:
+            hours = int(docker_time // 3600)
+            minutes = int((docker_time % 3600) // 60)
+            seconds = docker_time % 60
+            docker_str = f"{hours}h {minutes}m {seconds:.1f}s"
+        
+        summary_content.append("📊 Total Time: ", style="bold white")
+        summary_content.append(total_str, style="bold green")
+        summary_content.append("\n")
+        
+        summary_content.append("🤖 Automation Time: ", style="bold white") 
+        summary_content.append(automation_str, style="bold green")
+        summary_content.append("\n")
+        
+        summary_content.append("🐳 Docker Setup Time: ", style="bold white")
+        summary_content.append(docker_str, style="bold blue")
+        summary_content.append("\n")
+        
+        summary_content.append("⚡ Automation Efficiency: ", style="bold white")
+        summary_content.append(f"{automation_percentage:.1f}%", style="bold green")
+        
+        # Print the main panel
+        console.print(Panel(
+            summary_content,
+            title="⏱️  Migration Timer Results",
+            title_align="center",
+            border_style="bright_blue",
+            padding=(1, 2)
+        ))
+        
+        # Print the detailed breakdown table
+        console.print(Panel(
+            table,
+            title="📋 Segment Breakdown",
+            title_align="center", 
+            border_style="bright_green",
+            padding=(1, 1)
+        ))
+        
+    except ImportError:
+        # Fallback to plain text if Rich is not available
+        print(f"\n⏱️  Migration Timing Summary for {_current_theme}")
+        print("=" * 60)
+        print(f"Total Time:           {total_time:.2f} seconds")
+        print(f"Automation Time:      {automation_time:.2f} seconds")
+        print(f"Docker Setup Time:    {docker_time:.2f} seconds")
+        print(f"Automation Efficiency: {automation_percentage:.1f}%")
+        
+        if _timing_summary:
+            print("\nSegment Breakdown:")
+            for segment_name, duration in _timing_summary.items():
+                print(f"  {segment_name:<25} {duration:.2f}s")
+        
+        print("=" * 60)
+
+
+def clear_timing_summary():
+    """Clear the timing summary."""
+    global _timing_summary, _current_theme
+    _timing_summary = {}
+    _current_theme = None
