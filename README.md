@@ -25,11 +25,13 @@
 ### Prerequisites
 
 **For Fresh Mac (Zero Setup Required):**
+
 - macOS with Terminal access
 - Internet connection
 - That's it! The setup script will install everything else automatically.
 
 **What gets installed automatically:**
+
 - **Homebrew** (macOS package manager)
 - **Python 3.9+** (includes pip)
 - **Git** with SSH access to GitHub
@@ -37,8 +39,9 @@
 - **UV** (fast Python package manager)
 
 **Manual Prerequisites (if you prefer):**
-- **just** for starting dealer sites *(optional - can be installed later)*
-- **DI Websites Platform** cloned to `~/di-websites-platform` *(for actual migration work)*
+
+- **just** for starting dealer sites _(optional - can be installed later)_
+- **DI Websites Platform** cloned to `~/di-websites-platform` _(for actual migration work)_
 
 ### Installation
 
@@ -54,22 +57,26 @@ bash setup.sh
 **What setup.sh does:**
 
 🍺 **Automatic Tool Installation (macOS):**
+
 - Installs Homebrew if missing
 - Installs Python 3.9+, Git, and GitHub CLI automatically
 - Installs UV for faster package management
 - Sets up ~/.local/bin in your PATH
 
 🐍 **Python Environment:**
+
 - Creates isolated virtual environment (`.venv`)
 - Installs all dependencies via modern `pyproject.toml`
 - Includes development and testing tools
 
 🌍 **Global Access:**
+
 - Creates global `sbm` command available anywhere
 - Smart wrapper script with environment validation
 - Auto-healing setup if dependencies are missing
 
 ⚙️ **Configuration:**
+
 - Creates `.env` from template
 - Sets up GitHub CLI authentication
 - Validates installation with health checks
@@ -443,12 +450,12 @@ sbm migrate theme --monitor-memory
 # Fresh Mac (automatic setup):
 git clone git@github.com:nate-hart-di/auto-sbm.git
 cd auto-sbm
-bash setup.sh  # Installs everything automatically
+bash setup.sh # Installs everything automatically
 
 # Existing development machine:
 git clone git@github.com:nate-hart-di/auto-sbm.git
 cd auto-sbm
-bash setup.sh  # Uses existing tools where available
+bash setup.sh # Uses existing tools where available
 
 # Manual development setup (if preferred):
 pip install -e .[dev]
