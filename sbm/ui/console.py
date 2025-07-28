@@ -209,7 +209,9 @@ class SBMConsole:
         content += "[bold]Status:[/] [sbm.success]All steps completed successfully[/]\n"
 
         # Enhanced timing display
-        if elapsed_time < 60:
+        if elapsed_time is None or elapsed_time <= 0:
+            time_display = "N/A"
+        elif elapsed_time < 60:
             time_display = f"{elapsed_time:.1f}s"
         elif elapsed_time < 3600:
             minutes = int(elapsed_time // 60)

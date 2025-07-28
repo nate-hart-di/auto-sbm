@@ -1,1 +1,0 @@
-# Rich UI tests package

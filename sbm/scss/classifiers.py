@@ -104,7 +104,6 @@ class StyleClassifier:
         i = 0
         while i < len(lines):
             line = lines[i]
-            stripped = line.strip()
 
             # Count braces
             open_braces = line.count("{")

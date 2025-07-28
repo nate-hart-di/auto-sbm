@@ -111,11 +111,11 @@ def is_env_healthy() -> bool:
     if not python_path.is_file():
         logger.warning("Python interpreter not found in virtual environment")
         return False
-    
+
     # Map package names to import names (some differ)
     import_map = {
         "gitpython": "git",
-        "pyyaml": "yaml", 
+        "pyyaml": "yaml",
         "pytest": "pytest",
         "click": "click",
         "rich": "rich",
@@ -123,7 +123,7 @@ def is_env_healthy() -> bool:
         "requests": "requests",
         "colorama": "colorama"
     }
-    
+
     try:
         for pkg, import_name in import_map.items():
             result = subprocess.run(
@@ -586,7 +586,7 @@ def auto(
 
     # Start migration timer and patch click.confirm for timing
     from .utils.timer import patch_click_confirm_for_timing, start_migration_timer, timer_segment
-    migration_timer = start_migration_timer(theme_name)
+    start_migration_timer(theme_name)  # Timer started but not tracked locally
 
     # Patch click.confirm to pause timer during user interactions
     original_confirm = patch_click_confirm_for_timing()
@@ -599,17 +599,16 @@ def auto(
 
         # Run migration with timer tracking
         try:
-            with timer_segment("Complete Migration Process"):
-                success = migrate_dealer_theme(
-                    theme_name,
-                    skip_just=skip_just,
-                    force_reset=force_reset,
-                    create_pr=create_pr,
-                    interactive_review=interactive_review,  # Use calculated interactive flags
-                    interactive_git=interactive_git,        # Use calculated interactive flags
-                    interactive_pr=interactive_pr,          # Use calculated interactive flags
-                    verbose_docker=verbose_docker,
-                )
+            success = migrate_dealer_theme(
+                theme_name,
+                skip_just=skip_just,
+                force_reset=force_reset,
+                create_pr=create_pr,
+                interactive_review=interactive_review,  # Use calculated interactive flags
+                interactive_git=interactive_git,        # Use calculated interactive flags
+                interactive_pr=interactive_pr,          # Use calculated interactive flags
+                verbose_docker=verbose_docker,
+            )
 
             # Post-migration workflow is now handled inside migrate_dealer_theme
             # No need for duplicate post-migration workflow call
@@ -625,8 +624,13 @@ def auto(
             success = False
 
         if success:
+            # Get elapsed time before finishing timer
+            from .utils.timer import get_current_timer
+            current_timer = get_current_timer()
+            elapsed_time = current_timer.total_time if current_timer else 0.0
+            
             # Migration completed successfully
-            console.print_migration_complete(theme_name, elapsed_time=None, timing_summary=None)
+            console.print_migration_complete(theme_name, elapsed_time=elapsed_time, timing_summary=None)
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
@@ -1325,23 +1329,23 @@ def doctor() -> None:
     environment is properly configured for running migrations.
     """
     console = get_console()
-    
+
     console.console.print("\n🔍 Auto-SBM Environment Diagnosis", style="bold blue")
     console.console.print("=" * 50)
-    
+
     # Check critical modules
     required_modules = [
-        ('pydantic', 'Data validation'),
-        ('pytest', 'Testing framework'), 
-        ('click', 'CLI framework'),
-        ('rich', 'Terminal UI'),
-        ('git', 'Git operations'),
-        ('jinja2', 'Template processing'),
-        ('yaml', 'YAML processing'),
-        ('requests', 'HTTP requests'),
-        ('psutil', 'System monitoring')
+        ("pydantic", "Data validation"),
+        ("pytest", "Testing framework"),
+        ("click", "CLI framework"),
+        ("rich", "Terminal UI"),
+        ("git", "Git operations"),
+        ("jinja2", "Template processing"),
+        ("yaml", "YAML processing"),
+        ("requests", "HTTP requests"),
+        ("psutil", "System monitoring")
     ]
-    
+
     missing_modules = []
     for module, description in required_modules:
         try:
@@ -1350,19 +1354,19 @@ def doctor() -> None:
         except ImportError:
             console.console.print(f"❌ {module:<12} - {description} [red](MISSING)[/red]")
             missing_modules.append(module)
-    
+
     # Check virtual environment
-    console.console.print(f"\n📁 Environment Information:")
+    console.console.print("\n📁 Environment Information:")
     console.console.print(f"   Python: {sys.executable}")
     console.console.print(f"   Version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
     console.console.print(f"   Project root: {REPO_ROOT}")
-    
+
     # Check setup marker
     if SETUP_MARKER.exists():
         console.console.print("✅ Setup completed successfully")
     else:
         console.console.print("⚠️  Setup marker missing - run setup.sh")
-    
+
     # Check git configuration
     try:
         from git import Repo
@@ -1370,12 +1374,12 @@ def doctor() -> None:
         console.console.print(f"✅ Git repository: {repo.active_branch.name}")
     except Exception as e:
         console.console.print(f"❌ Git issue: {e}")
-    
+
     # Check GitHub CLI
     if shutil.which("gh"):
         try:
-            result = subprocess.run(["gh", "auth", "status"], 
-                                  capture_output=True, text=True, timeout=5)
+            result = subprocess.run(["gh", "auth", "status"],
+                                  check=False, capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 console.console.print("✅ GitHub CLI authenticated")
             else:
@@ -1384,14 +1388,14 @@ def doctor() -> None:
             console.console.print("⚠️  GitHub CLI auth check failed")
     else:
         console.console.print("❌ GitHub CLI not found")
-    
+
     # Summary and recommendations
-    console.console.print(f"\n📊 Summary:")
+    console.console.print("\n📊 Summary:")
     if missing_modules:
         console.console.print(f"❌ {len(missing_modules)} missing dependencies: {', '.join(missing_modules)}")
-        console.console.print(f"\n🔧 Recommended fix:")
+        console.console.print("\n🔧 Recommended fix:")
         console.console.print(f"   cd {REPO_ROOT}")
-        console.console.print(f"   bash setup.sh")
+        console.console.print("   bash setup.sh")
         click.echo("\nEnvironment needs attention.")
         sys.exit(1)
     else:

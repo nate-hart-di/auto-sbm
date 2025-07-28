@@ -908,18 +908,21 @@ Once you are satisfied, proceed to the next step.
         sys.stdout.flush()
 
         # Use basic input() for maximum compatibility - no Rich, no Click interference
+        from sbm.utils.timer import timer_pause
         while True:
             try:
-                sys.stdout.write("Continue with the migration after manual review? [Y/n]: ")
-                sys.stdout.flush()
-                response = input().strip().lower()
+                with timer_pause("Manual review confirmation"):
+                    sys.stdout.write("Continue with the migration after manual review? [Y/n]: ")
+                    sys.stdout.flush()
+                    response = input().strip().lower()
                 if response in ("", "y", "yes"):
                     break
                 if response in ("n", "no"):
                     logger.info("Post-migration workflow stopped by user after manual review.")
                     return False
-                sys.stdout.write("Please enter 'y' or 'n': ")
-                sys.stdout.flush()
+                with timer_pause("Invalid input clarification"):
+                    sys.stdout.write("Please enter 'y' or 'n': ")
+                    sys.stdout.flush()
             except (EOFError, KeyboardInterrupt):
                 logger.info("Post-migration workflow stopped by user after manual review.")
                 return False
@@ -927,9 +930,11 @@ Once you are satisfied, proceed to the next step.
         # Reprocess manual changes to ensure consistency (skip if already verified)
         if not skip_reprocessing:
             logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
-            if not reprocess_manual_changes(slug):
-                logger.error("Failed to reprocess manual changes.")
-                return False
+            from sbm.utils.timer import timer_segment
+            with timer_segment("Reprocessing Manual Changes"):
+                if not reprocess_manual_changes(slug):
+                    logger.error("Failed to reprocess manual changes.")
+                    return False
         else:
             logger.info("Skipping reprocessing - files were already manually fixed and verified")
 
@@ -940,9 +945,11 @@ Once you are satisfied, proceed to the next step.
         # If no interactive review, still do cleanup and reprocessing
         if not skip_reprocessing:
             logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
-            if not reprocess_manual_changes(slug):
-                logger.error("Failed to reprocess manual changes.")
-                return False
+            from sbm.utils.timer import timer_segment
+            with timer_segment("Reprocessing Manual Changes"):
+                if not reprocess_manual_changes(slug):
+                    logger.error("Failed to reprocess manual changes.")
+                    return False
         logger.info("Cleaning up automation snapshots")
         _cleanup_snapshot_files(slug)
 
@@ -960,9 +967,11 @@ Once you are satisfied, proceed to the next step.
         # Clean up any snapshot files before committing - do this right before git operations
         _cleanup_snapshot_files(slug)
 
-        if not commit_changes(slug):
-            logger.error("Failed to commit changes.")
-            return False
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Git Commit Operations"):
+            if not commit_changes(slug):
+                logger.error("Failed to commit changes.")
+                return False
 
         # Clean up snapshots again after commit in case they were recreated
         _cleanup_snapshot_files(slug)
@@ -981,9 +990,11 @@ Once you are satisfied, proceed to the next step.
             return True
 
     if not interactive_git or push_response in ("", "y", "yes"):
-        if not push_changes(branch_name):
-            logger.error("Failed to push changes.")
-            return False
+        from sbm.utils.timer import timer_segment
+        with timer_segment("Git Push Operations"):
+            if not push_changes(branch_name):
+                logger.error("Failed to push changes.")
+                return False
     else:
         logger.info("Skipping push.")
         return True  # End workflow if user skips push
@@ -1002,7 +1013,9 @@ Once you are satisfied, proceed to the next step.
         if not interactive_pr or pr_response in ("", "y", "yes"):
             logger.info("Creating pull request...")
             try:
-                pr_result = git_create_pr(slug=slug, branch_name=branch_name)
+                from sbm.utils.timer import timer_segment
+                with timer_segment("GitHub PR Creation"):
+                    pr_result = git_create_pr(slug=slug, branch_name=branch_name)
 
                 if pr_result and pr_result.get("success"):
                     pr_url = pr_result.get("pr_url")
