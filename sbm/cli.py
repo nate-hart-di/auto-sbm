@@ -584,10 +584,9 @@ def auto(
     interactive_git = not skip_post_migration
     interactive_pr = not skip_post_migration
 
-    # Start migration timer and patch click.confirm for timing
-    from .utils.timer import patch_click_confirm_for_timing, start_migration_timer, timer_segment
-    start_migration_timer(theme_name)  # Timer started but not tracked locally
-
+    # Patch click.confirm for timing (without overall timer)
+    from .utils.timer import patch_click_confirm_for_timing
+    
     # Patch click.confirm to pause timer during user interactions
     original_confirm = patch_click_confirm_for_timing()
 
@@ -624,13 +623,8 @@ def auto(
             success = False
 
         if success:
-            # Get elapsed time before finishing timer
-            from .utils.timer import get_current_timer
-            current_timer = get_current_timer()
-            elapsed_time = current_timer.total_time if current_timer else 0.0
-            
-            # Migration completed successfully
-            console.print_migration_complete(theme_name, elapsed_time=elapsed_time, timing_summary=None)
+            # Migration completed successfully - no overall timer needed
+            console.print_migration_complete(theme_name, elapsed_time=None, timing_summary=None)
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
@@ -651,9 +645,7 @@ def auto(
             from .utils.timer import restore_click_confirm
             restore_click_confirm(original_confirm)
 
-        # Always finish the timer
-        from .utils.timer import finish_migration_timer
-        finish_migration_timer()
+        # No overall timer to finish - individual segment timers handle themselves
 
 
 

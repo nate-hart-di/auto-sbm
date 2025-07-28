@@ -220,19 +220,28 @@ def finish_migration_timer():
 def timer_segment(name: str):
     """
     Context manager for timing a segment of work.
+    Creates standalone segment timer if no main timer exists.
     
     Args:
         name: Name of the segment
     """
     timer = get_current_timer()
     if timer:
+        # Use existing timer system
         timer.start_segment(name)
         try:
             yield timer
         finally:
             timer.end_segment()
     else:
-        yield None
+        # Create standalone segment timer
+        start_time = time.time()
+        logger.info(f"⏱️  Started: {name}")
+        try:
+            yield None
+        finally:
+            duration = time.time() - start_time
+            logger.info(f"✅ Completed: {name} ({duration:.2f}s)")
 
 
 @contextmanager
@@ -251,6 +260,7 @@ def timer_pause(reason: str = "User interaction"):
         finally:
             timer.resume()
     else:
+        # No timer to pause, just yield None
         yield None
 
 
