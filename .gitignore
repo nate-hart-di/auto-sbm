@@ -97,6 +97,7 @@ issue-tracker/
 docs/
 config.json
 auto-sbm.code-workspace
+scripts/
 
 # Test output files (but NOT the tests/ directory itself)
 *.log
