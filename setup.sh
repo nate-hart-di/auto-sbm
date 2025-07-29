@@ -78,26 +78,56 @@ function install_required_tools() {
 
 # --- Install Node.js Dependencies ---
 function install_node_dependencies() {
-  if command -v node &> /dev/null; then
-    # Check Node.js version (prettier 3.6.2 requires Node.js 18+)
-    NODE_VERSION=$(node --version | sed 's/v//')
-    MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+  log "Checking Node.js version and installing prettier..."
+  
+  if ! command -v node &> /dev/null; then
+    error "Node.js not found. This should have been installed in the previous step."
+    error "Please ensure Node.js was installed successfully before continuing."
+    return 1
+  fi
+  
+  # Check Node.js version (prettier 3.6.2 requires Node.js 18+)
+  NODE_VERSION=$(node --version | sed 's/v//')
+  MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+  
+  if [ "$MAJOR_VERSION" -lt 18 ]; then
+    warn "Node.js version $NODE_VERSION detected. Prettier requires Node.js 18+."
     
-    if [ "$MAJOR_VERSION" -lt 18 ]; then
-      warn "Node.js version $NODE_VERSION detected. Prettier requires Node.js 18+."
+    # Check if Node.js was installed via Homebrew
+    if brew list node &> /dev/null; then
       log "Upgrading Node.js via Homebrew..."
       retry_command "brew upgrade node" "Node.js upgrade"
-    fi
-    
-    log "Installing prettier for code formatting..."
-    if ! command -v prettier &> /dev/null; then
-      retry_command "npm install -g prettier" "prettier installation"
-      log "✅ prettier installed successfully"
+      
+      # Verify upgrade worked
+      NEW_NODE_VERSION=$(node --version | sed 's/v//')
+      NEW_MAJOR_VERSION=$(echo $NEW_NODE_VERSION | cut -d. -f1)
+      if [ "$NEW_MAJOR_VERSION" -lt 18 ]; then
+        error "Node.js upgrade failed. Still at version $NEW_NODE_VERSION"
+        return 1
+      fi
+      log "✅ Node.js upgraded to version $NEW_NODE_VERSION"
     else
-      log "✅ prettier already installed"
+      warn "Node.js not managed by Homebrew. Cannot auto-upgrade."
+      warn "Please upgrade Node.js manually to version 18+ or higher:"
+      warn "  1. Uninstall current Node.js"
+      warn "  2. Install via Homebrew: brew install node"
+      warn "  3. Or download from https://nodejs.org/"
+      warn "  4. Or use a version manager like nvm"
+      error "Skipping prettier installation due to incompatible Node.js version."
+      return 1
     fi
   else
-    warn "Node.js not found. Prettier installation skipped."
+    log "✅ Node.js version $NODE_VERSION is compatible (18+ required)"
+  fi
+  
+  # Install prettier
+  log "Installing prettier for code formatting..."
+  if ! command -v prettier &> /dev/null; then
+    retry_command "npm install -g prettier" "prettier installation"
+    log "✅ prettier installed successfully"
+  else
+    PRETTIER_VERSION=$(prettier --version)
+    log "✅ prettier already installed (version $PRETTIER_VERSION)"
   fi
 }
 
@@ -130,8 +160,8 @@ function setup_package_manager() {
 if [[ "$OSTYPE" == "darwin"* ]]; then
   install_homebrew
   install_required_tools
-  install_node_dependencies
   install_uv
+  install_node_dependencies  # Moved after required tools installation
 else
   warn "Non-macOS system detected. Please ensure git, gh, python3, node 18+, prettier, and uv are installed manually."
 fi
