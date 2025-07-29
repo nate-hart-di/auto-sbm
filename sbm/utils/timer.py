@@ -325,7 +325,6 @@ def print_timing_summary():
         # Calculate automation time (exclude Docker time as requested)
         docker_time = _timing_summary.get("Docker Startup", 0)
         automation_time = total_time - docker_time
-        automation_percentage = (automation_time / total_time * 100) if total_time > 0 else 100.0
         
         # Create timing table
         table = Table(show_header=True, header_style="bold cyan")
@@ -412,10 +411,6 @@ def print_timing_summary():
         
         summary_content.append("🐳 Docker Setup Time: ", style="bold white")
         summary_content.append(docker_str, style="bold blue")
-        summary_content.append("\n")
-        
-        summary_content.append("⚡ Automation Efficiency: ", style="bold white")
-        summary_content.append(f"{automation_percentage:.1f}%", style="bold green")
         
         # Print the main panel
         console.print(Panel(
@@ -442,7 +437,6 @@ def print_timing_summary():
         print(f"Total Time:           {total_time:.2f} seconds")
         print(f"Automation Time:      {automation_time:.2f} seconds")
         print(f"Docker Setup Time:    {docker_time:.2f} seconds")
-        print(f"Automation Efficiency: {automation_percentage:.1f}%")
         
         if _timing_summary:
             print("\nSegment Breakdown:")
