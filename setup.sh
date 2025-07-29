@@ -79,6 +79,16 @@ function install_required_tools() {
 # --- Install Node.js Dependencies ---
 function install_node_dependencies() {
   if command -v node &> /dev/null; then
+    # Check Node.js version (prettier 3.6.2 requires Node.js 18+)
+    NODE_VERSION=$(node --version | sed 's/v//')
+    MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+    
+    if [ "$MAJOR_VERSION" -lt 18 ]; then
+      warn "Node.js version $NODE_VERSION detected. Prettier requires Node.js 18+."
+      log "Upgrading Node.js via Homebrew..."
+      retry_command "brew upgrade node" "Node.js upgrade"
+    fi
+    
     log "Installing prettier for code formatting..."
     if ! command -v prettier &> /dev/null; then
       retry_command "npm install -g prettier" "prettier installation"
@@ -123,7 +133,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   install_node_dependencies
   install_uv
 else
-  warn "Non-macOS system detected. Please ensure git, gh, python3, node, prettier, and uv are installed manually."
+  warn "Non-macOS system detected. Please ensure git, gh, python3, node 18+, prettier, and uv are installed manually."
 fi
 
 echo ""

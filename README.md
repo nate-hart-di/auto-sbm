@@ -38,7 +38,7 @@
 - **Git** with SSH access to GitHub
 - **GitHub CLI (`gh`)** for PR automation
 - **UV** (fast Python package manager)
-- **Node.js** and **prettier** for code formatting
+- **Node.js 18+** and **prettier** for code formatting
 
 **Manual Prerequisites (if you prefer):**
 
@@ -60,7 +60,7 @@ bash setup.sh
 
 - Installs Homebrew if missing
 - Installs Python 3.8+, Git, and GitHub CLI automatically
-- Installs Node.js and prettier for code formatting
+- Installs Node.js 18+ and prettier for code formatting
 - Installs UV for faster package management
 - Sets up ~/.local/bin in your PATH
 
@@ -314,12 +314,18 @@ rm -rf .venv
 bash setup.sh
 ```
 
-**❌ "prettier: command not found"**
+**❌ "prettier: command not found" or npm version errors**
 
-This should not happen after running `setup.sh`, but if it does:
+This can happen if Node.js version is too old. Prettier 3.6.2 requires Node.js 18+:
 
 ```bash
-# Install prettier globally
+# Check your Node.js version
+node --version
+
+# If version is less than 18, upgrade Node.js
+brew upgrade node
+
+# Then install prettier
 npm install -g prettier
 
 # Verify installation
