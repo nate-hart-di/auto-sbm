@@ -1167,22 +1167,17 @@ def migrate_dealer_theme(
     # Add cookie banner and directions row styles as a separate step (after style migration)
     # This ensures these predetermined styles are not affected by the validators and parsers
     print_step(5, 6, "Adding predetermined OEM-specific styles", slug)
-    from sbm.utils.timer import timer_segment
-    with timer_segment("Predetermined Styles"):
-        if not add_predetermined_styles(slug, oem_handler):
-            logger.warning(f"Could not add all predetermined styles for {slug}")
+    if not add_predetermined_styles(slug, oem_handler):
+        logger.warning(f"Could not add all predetermined styles for {slug}")
 
     print_step_success("Predetermined styles added successfully")
 
     # Migrate map components if not skipped
     if not skip_maps:
         print_step(6, 6, "Migrating map components and PHP partials", slug)
-
-        from sbm.utils.timer import timer_segment
-        with timer_segment("Map Components Migration"):
-            if not migrate_map_components(slug, oem_handler, interactive=False):
-                logger.error(f"Failed to migrate map components for {slug}")
-                return False
+        if not migrate_map_components(slug, oem_handler, interactive=False):
+            logger.error(f"Failed to migrate map components for {slug}")
+            return False
 
         print_step_success("Map components migrated successfully")
         logger.info(f"Map components migrated successfully for {slug}")
