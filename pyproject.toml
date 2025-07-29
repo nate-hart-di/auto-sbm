@@ -40,7 +40,8 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pathlib-mate>=1.2.0",
     "tinycss2>=1.2.1",
-    "cssutils>=2.11.0"
+    "cssutils>=2.11.0",
+    "colorama>=0.4.0"
 ]
 
 [project.optional-dependencies]
