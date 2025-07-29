@@ -248,13 +248,7 @@ if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2> /de
     echo "INFO     Setup complete. Continuing with SBM command..." >&2
 fi
 
-# Check if .env exists and warn if GITHUB_TOKEN not set
-if [ -f "\$PROJECT_ROOT/.env" ]; then
-    if ! grep -q "^GITHUB_TOKEN=.*[^[:space:]]" "\$PROJECT_ROOT/.env"; then
-        echo "⚠️  Warning: GITHUB_TOKEN not configured in .env file" >&2
-        echo "Please edit .env with your GitHub personal access token" >&2
-    fi
-fi
+# GitHub authentication is handled via 'gh auth login' - no token needed in .env
 
 # Change to project directory to ensure proper imports
 cd "\$PROJECT_ROOT" || {
@@ -332,8 +326,7 @@ echo ""
 echo "✅ All 7 steps completed successfully!"
 echo ""
 echo "📋 Next steps:"
-echo "1. Edit .env file with your GitHub token:"
-echo "   nano .env"
+echo "1. GitHub authentication is handled via 'gh auth login' (no .env editing needed)"
 echo ""
 echo "2. The 'sbm' command is now globally available."
 echo "   You may need to restart your terminal or run: source ~/.zshrc"

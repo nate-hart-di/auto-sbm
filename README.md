@@ -87,14 +87,12 @@ Copy and configure your environment:
 
 ```bash
 cp .env.example .env
-# Edit .env with your GitHub token and preferences
+# Edit .env with your preferences (no GitHub token needed)
 ```
 
-**Required Environment Variables:**
+**GitHub Authentication:**
 
-```bash
-GITHUB_TOKEN=your_github_personal_access_token
-```
+GitHub authentication is handled via `gh auth login` (browser-based). No tokens needed in `.env` files.
 
 ---
 
