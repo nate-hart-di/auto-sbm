@@ -398,6 +398,22 @@ chmod +x setup.sh
 chmod +x ~/.local/bin/sbm
 ```
 
+**❌ "error parsing value for field 'git' from source 'DotEnvSettingsSource'"**
+
+This JSON parsing error occurs when environment variables are incorrectly formatted:
+
+```bash
+# Copy the corrected .env template
+cp .env.example .env
+
+# Ensure list values use JSON array format:
+# ✅ Correct: GIT__DEFAULT_LABELS=["fe-dev"]  
+# ❌ Wrong:   GIT__DEFAULT_LABELS=fe-dev
+
+# Then reinstall to get missing dependencies:
+pip install -e .
+```
+
 ### **Development & Debugging**
 
 **Run with verbose output:**
