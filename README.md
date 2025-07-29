@@ -93,16 +93,15 @@ The setup script creates a `.env` file automatically. GitHub authentication is h
 ### 1. **Start Migration**
 
 ```bash
-sbm migrate {theme-slug}
-# or the equivalent shortcuts:
 sbm auto {theme-slug}
+# or equivalently
 sbm {theme-slug}
 ```
 
 **Example:**
 
 ```bash
-sbm migrate fiatofportland
+sbm fiatofportland
 ```
 
 ### 2. **Automated Processing**
@@ -110,16 +109,19 @@ sbm migrate fiatofportland
 The tool performs these steps automatically with Rich UI progress tracking:
 
 #### **🔧 Git Operations** (Step 1/6)
+
 - Creates feature branch: `feature/{theme-slug}-sbm{date}`
 - Sets up clean working environment
 - Validates repository state
 
 #### **🐳 Docker Startup** (Step 2/6)
+
 - Monitors Docker container status
 - Validates DI platform environment
 - Displays container health information
 
 #### **📁 File Creation** (Step 3/6)
+
 - Creates Site Builder SCSS files:
   - `sb-inside.scss` - Interior pages styling
   - `sb-vdp.scss` - Vehicle Detail Page styling
@@ -127,6 +129,7 @@ The tool performs these steps automatically with Rich UI progress tracking:
 - Logs file creation with line counts
 
 #### **🔄 SCSS Migration** (Step 4/6)
+
 - **Variable Conversion**: Legacy SCSS variables → CSS custom properties
 - **Path Processing**: Relative image paths with enforced quotes
 - **Mixin Migration**: Converts 50+ CommonTheme mixins to CSS
@@ -134,11 +137,13 @@ The tool performs these steps automatically with Rich UI progress tracking:
 - **Rich Progress**: Real-time progress tracking with detailed status
 
 #### **🎨 Predetermined Styles** (Step 5/6)
+
 - Adds predetermined styles (cookie banners, directions)
 - Applies OEM-specific customizations (Stellantis, etc.)
 - Integrates theme-specific enhancements
 
 #### **🗺️ Map Components** (Step 6/6)
+
 - Migrates map components (if shortcodes detected)
 - Handles MapBox integration
 - Processes location-based features
@@ -153,7 +158,7 @@ The tool pauses for your review with a structured status panel:
 
 📂 Generated Files:
 ✅ sb-inside.scss (245 lines)
-✅ sb-vdp.scss (189 lines)  
+✅ sb-vdp.scss (189 lines)
 ✅ sb-vrp.scss (203 lines)
 
 📍 Location: ~/di-websites-platform/themes/fiatofportland/
@@ -164,6 +169,7 @@ Continue with Git operations? [y/N]
 ```
 
 **During review:**
+
 - Examine generated SCSS files in your editor
 - Make manual adjustments as needed
 - Run `prettier` for consistent formatting
