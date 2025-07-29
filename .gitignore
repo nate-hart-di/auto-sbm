@@ -91,11 +91,20 @@ node_modules/
 .sbm-no-auto-update
 auto-sbm.code-workspace
 
-# Private
+# Development/Internal files that users don't need
 PRPs/
+issue-tracker/
+docs/
+config.json
+auto-sbm.code-workspace
+
 # Test output files (but NOT the tests/ directory itself)
 *.log
 test-results/
 .coverage
 htmlcov/
 backups/
+
+# Auto-generated files users will create themselves
+setup.log
+uv.lock
