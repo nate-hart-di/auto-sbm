@@ -63,7 +63,7 @@ function install_homebrew() {
 
 # --- Install Required CLI Tools ---
 function install_required_tools() {
-  local tools=("git" "gh" "python3")
+  local tools=("git" "gh" "python3" "node")
 
   for tool in "${tools[@]}"; do
     if ! command -v "$tool" &> /dev/null; then
@@ -74,6 +74,21 @@ function install_required_tools() {
       log "✅ $tool already installed"
     fi
   done
+}
+
+# --- Install Node.js Dependencies ---
+function install_node_dependencies() {
+  if command -v node &> /dev/null; then
+    log "Installing prettier for code formatting..."
+    if ! command -v prettier &> /dev/null; then
+      retry_command "npm install -g prettier" "prettier installation"
+      log "✅ prettier installed successfully"
+    else
+      log "✅ prettier already installed"
+    fi
+  else
+    warn "Node.js not found. Prettier installation skipped."
+  fi
 }
 
 # --- Install UV for Fast Package Management ---
@@ -105,9 +120,10 @@ function setup_package_manager() {
 if [[ "$OSTYPE" == "darwin"* ]]; then
   install_homebrew
   install_required_tools
+  install_node_dependencies
   install_uv
 else
-  warn "Non-macOS system detected. Please ensure git, gh, python3, and uv are installed manually."
+  warn "Non-macOS system detected. Please ensure git, gh, python3, node, prettier, and uv are installed manually."
 fi
 
 echo ""
