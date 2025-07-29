@@ -174,10 +174,10 @@ function install_auto_sbm() {
   # Install dependencies based on available package manager
   if [ "$PACKAGE_MANAGER" = "uv" ]; then
       log "Installing with UV (fast mode)"
-      retry_command "uv pip install -e .[dev]" "UV package installation"
+      retry_command "uv pip install -e ." "UV package installation"
   else
       log "Installing with pip"
-      retry_command "pip install -e .[dev]" "pip package installation"
+      retry_command "pip install -e ." "pip package installation"
   fi
   log "✅ Auto-SBM package installed successfully"
 }
@@ -233,16 +233,19 @@ if [ ! -d "\$PROJECT_ROOT" ]; then
 fi
 
 # Validate critical modules are available (quick check for common issues)
-if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, sbm.cli" 2> /dev/null; then
-    echo "❌ Required modules missing or corrupted. Re-running setup..." >&2
-    echo "🔧 Running: cd \$PROJECT_ROOT && bash setup.sh" >&2
+if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2> /dev/null; then
+    echo "WARNING  Required Python package missing: colorama" >&2
+    echo "WARNING  Environment health check failed. Setup will be re-run to fix issues." >&2
+    echo "INFO     Running setup.sh..." >&2
+    echo "🔄 Delegating to scripts/setup.sh for cleaner project organization..." >&2
     cd "\$PROJECT_ROOT" && bash setup.sh
     
     # Re-check after setup
-    if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, sbm.cli" 2> /dev/null; then
+    if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2> /dev/null; then
         echo "❌ Setup failed. Please check the error messages above." >&2
         exit 1
     fi
+    echo "INFO     Setup complete. Continuing with SBM command..." >&2
 fi
 
 # Check if .env exists and warn if GITHUB_TOKEN not set
@@ -306,6 +309,15 @@ function validate_installation() {
     log "✅ Virtual environment is properly configured"
   else
     error "❌ Virtual environment not found"
+    return 1
+  fi
+  
+  # Test that configuration loads without JSON parsing errors
+  if .venv/bin/python -c "from sbm.config import get_config; get_config()" 2> /dev/null; then
+    log "✅ Configuration loads successfully"
+  else
+    error "❌ Configuration has parsing errors. Check your .env file format"
+    error "    Ensure JSON arrays use proper format: GIT__DEFAULT_LABELS=[\"fe-dev\"]"
     return 1
   fi
   
