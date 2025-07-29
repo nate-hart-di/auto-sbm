@@ -80,40 +80,70 @@ function install_required_tools() {
 function install_node_dependencies() {
   log "Checking Node.js version and installing prettier..."
   
-  if ! command -v node &> /dev/null; then
-    error "Node.js not found. This should have been installed in the previous step."
-    error "Please ensure Node.js was installed successfully before continuing."
+  # Function to install Node.js 18 via nvm if available
+  function install_node_via_nvm() {
+    if [ -s "$HOME/.nvm/nvm.sh" ]; then
+      log "NVM detected. Installing Node.js 18..."
+      source "$HOME/.nvm/nvm.sh"
+      retry_command "nvm install 18" "Node.js 18 installation via nvm"
+      retry_command "nvm use 18" "Switching to Node.js 18"
+      retry_command "nvm alias default 18" "Setting Node.js 18 as default"
+      return 0
+    elif command -v nvm &> /dev/null; then
+      log "NVM command available. Installing Node.js 18..."
+      retry_command "nvm install 18" "Node.js 18 installation via nvm"
+      retry_command "nvm use 18" "Switching to Node.js 18"
+      retry_command "nvm alias default 18" "Setting Node.js 18 as default"
+      return 0
+    fi
     return 1
+  }
+  
+  # Check if Node.js exists and get version
+  if command -v node &> /dev/null; then
+    NODE_VERSION=$(node --version | sed 's/v//')
+    MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+    log "Found Node.js version $NODE_VERSION"
+  else
+    log "Node.js not found, will attempt installation..."
+    MAJOR_VERSION=0
   fi
   
-  # Check Node.js version (prettier 3.6.2 requires Node.js 18+)
-  NODE_VERSION=$(node --version | sed 's/v//')
-  MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
-  
+  # If Node.js version is < 18, try to install/upgrade
   if [ "$MAJOR_VERSION" -lt 18 ]; then
-    warn "Node.js version $NODE_VERSION detected. Prettier requires Node.js 18+."
+    if [ "$MAJOR_VERSION" -gt 0 ]; then
+      warn "Node.js version $NODE_VERSION detected. Prettier requires Node.js 18+."
+    fi
     
-    # Check if Node.js was installed via Homebrew
+    # Try different installation methods in order of preference
     if brew list node &> /dev/null; then
       log "Upgrading Node.js via Homebrew..."
       retry_command "brew upgrade node" "Node.js upgrade"
-      
-      # Verify upgrade worked
+    elif install_node_via_nvm; then
+      log "✅ Node.js 18 installed via nvm"
+    elif command -v brew &> /dev/null; then
+      log "Installing Node.js 18 via Homebrew..."
+      retry_command "brew install node" "Node.js installation"
+    else
+      error "Cannot install Node.js automatically. Please install manually:"
+      error "  1. Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+      error "  2. Install Node.js: brew install node"
+      error "  3. Or install nvm and run: nvm install 18 && nvm use 18"
+      error "  4. Or download from https://nodejs.org/"
+      return 1
+    fi
+    
+    # Verify installation worked
+    if command -v node &> /dev/null; then
       NEW_NODE_VERSION=$(node --version | sed 's/v//')
       NEW_MAJOR_VERSION=$(echo $NEW_NODE_VERSION | cut -d. -f1)
       if [ "$NEW_MAJOR_VERSION" -lt 18 ]; then
-        error "Node.js upgrade failed. Still at version $NEW_NODE_VERSION"
+        error "Node.js installation/upgrade failed. Version is still $NEW_NODE_VERSION (need 18+)"
         return 1
       fi
-      log "✅ Node.js upgraded to version $NEW_NODE_VERSION"
+      log "✅ Node.js version $NEW_NODE_VERSION is now available"
     else
-      warn "Node.js not managed by Homebrew. Cannot auto-upgrade."
-      warn "Please upgrade Node.js manually to version 18+ or higher:"
-      warn "  1. Uninstall current Node.js"
-      warn "  2. Install via Homebrew: brew install node"
-      warn "  3. Or download from https://nodejs.org/"
-      warn "  4. Or use a version manager like nvm"
-      error "Skipping prettier installation due to incompatible Node.js version."
+      error "Node.js installation failed - command not found after installation"
       return 1
     fi
   else
@@ -126,7 +156,7 @@ function install_node_dependencies() {
     retry_command "npm install -g prettier" "prettier installation"
     log "✅ prettier installed successfully"
   else
-    PRETTIER_VERSION=$(prettier --version)
+    PRETTIER_VERSION=$(prettier --version 2>/dev/null || echo "unknown")
     log "✅ prettier already installed (version $PRETTIER_VERSION)"
   fi
 }

@@ -845,7 +845,7 @@ def run_post_migration_workflow(
         branch_name (str): Git branch name
         skip_git (bool): Whether to skip git operations
         create_pr (bool): Whether to create a pull request
-        interactive_review (bool): Whether to prompt for manual review
+        interactive_review (bool): DEPRECATED - manual review step removed
         interactive_git (bool): Whether to prompt for git operations
         interactive_pr (bool): Whether to prompt for PR creation
 
@@ -854,8 +854,8 @@ def run_post_migration_workflow(
     """
     logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Manual review phase - MUST happen before any git operations
-    if interactive_review:
+    # Skip manual review - go directly to processing
+    if False:  # interactive_review disabled
         # Clear the terminal to ensure clean display
         import os
         import sys
@@ -1078,7 +1078,7 @@ def migrate_dealer_theme(
         skip_maps (bool): Whether to skip map components migration
         oem_handler (BaseOEMHandler, optional): Manually specified OEM handler
         create_pr (bool): Whether to create a GitHub Pull Request after successful migration (default: True).
-        interactive_review (bool): Whether to prompt for manual review and re-validation.
+        interactive_review (bool): DEPRECATED - manual review step removed and re-validation.
         interactive_git (bool): Whether to prompt for Git add, commit, push.
         interactive_pr (bool): Whether to prompt for PR creation.
 
