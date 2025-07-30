@@ -214,10 +214,27 @@ function setup_package_manager() {
     if [ -f ".venv/bin/pip" ]; then
       PACKAGE_MANAGER="pip"
       log "Using pip for package management (from virtual environment)"
+    elif [ -f ".venv/bin/pip3" ]; then
+      PACKAGE_MANAGER="pip3"
+      log "Using pip3 for package management (from virtual environment)"
     else
       error "No package manager available. Virtual environment may not have been created properly."
-      error "Please ensure Python3 and venv are working correctly."
-      exit 1
+      error "Trying to install pip manually..."
+      
+      # Try to install pip manually
+      if python3 -m ensurepip --upgrade 2>/dev/null; then
+        log "✅ pip installed successfully via ensurepip"
+        if [ -f ".venv/bin/pip" ]; then
+          PACKAGE_MANAGER="pip"
+        elif [ -f ".venv/bin/pip3" ]; then
+          PACKAGE_MANAGER="pip3"
+        fi
+      else
+        error "Failed to install pip. Please run manually:"
+        error "  python3 -m ensurepip --upgrade"
+        error "Or download get-pip.py and run: python3 get-pip.py"
+        exit 1
+      fi
     fi
   fi
 }
@@ -418,6 +435,11 @@ function install_auto_sbm() {
   if [ "$PACKAGE_MANAGER" = "uv" ]; then
       log "Installing with UV (fast mode)"
       retry_command "uv pip install -e ." "UV package installation"
+  elif [ "$PACKAGE_MANAGER" = "pip3" ]; then
+      log "Installing with pip3 from virtual environment"
+      # Use explicit venv pip3 path
+      retry_command ".venv/bin/pip3 install --upgrade pip" "pip3 upgrade"
+      retry_command ".venv/bin/pip3 install -e ." "pip3 package installation"
   else
       log "Installing with pip from virtual environment"
       # Use explicit venv pip path to avoid confusion
@@ -506,7 +528,7 @@ except Exception as e:
     
     if [[ "\$IMPORT_CHECK_2" != "SUCCESS" ]]; then
         echo "❌ Setup failed after retry: \$IMPORT_CHECK_2" >&2
-        echo "Please run manually: cd \$PROJECT_ROOT && .venv/bin/pip install -e ." >&2
+        echo "Please run manually: cd \$PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
         exit 1
     fi
     echo "INFO     Setup complete. Continuing with SBM command..." >&2
