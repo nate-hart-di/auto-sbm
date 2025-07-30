@@ -584,38 +584,13 @@ function validate_installation() {
 
 validate_installation
 
-# Automatically source the updated .zshrc for current session
-log "Reloading shell configuration..."
-if [ -f "$HOME/.zshrc" ]; then
-    # Source the .zshrc to apply changes to current session
-    if source "$HOME/.zshrc" 2>/dev/null; then
-        log "✅ Shell configuration reloaded successfully"
-        
-        # Test that new configurations are working
-        if command -v sbm &> /dev/null; then
-            log "✅ SBM command available in current session"
-        else
-            warn "SBM command not immediately available - PATH may need terminal restart"
-        fi
-        
-        if command -v prettier &> /dev/null; then
-            log "✅ Prettier available in current session"
-        else
-            log "ℹ️  Prettier may require terminal restart to be available"
-        fi
-    else
-        warn "Could not source .zshrc - you may need to restart your terminal"
-    fi
-else
-    warn ".zshrc not found - shell configuration not reloaded"
-fi
-
 echo ""
 echo "🎉 Auto-SBM v2.0 Setup Complete!"
 echo ""
 echo "✅ All 8 steps completed successfully!"
 echo ""
-echo "✅ Shell configuration automatically reloaded!"
+echo "🔄 IMPORTANT: Restart your terminal or run:"
+echo "   source ~/.zshrc"
 echo ""
 echo "📋 Next steps:"
 echo "1. Verify installation:"

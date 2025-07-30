@@ -84,7 +84,10 @@ bash setup.sh
 
 ### Post-Setup Instructions
 
-The setup script automatically reloads your shell configuration. All new features are immediately available:
+**⚠️ IMPORTANT:** After setup completes, restart your terminal or run:
+```bash
+source ~/.zshrc
+```
 
 **What was configured:**
 - Node.js 18+ and NVM with auto-switching
@@ -92,8 +95,6 @@ The setup script automatically reloads your shell configuration. All new feature
 - Development aliases and shortcuts
 - Homebrew paths (M1/M2/M3 Macs)
 - GitHub CLI authentication
-
-*Note: If you open a new terminal window, all configurations will be available automatically.*
 
 ### Verify Installation
 
