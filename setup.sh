@@ -150,11 +150,20 @@ function install_node_dependencies() {
     log "✅ Node.js version $NODE_VERSION is compatible (18+ required)"
   fi
   
-  # Install prettier
+  # Install prettier globally
   log "Installing prettier for code formatting..."
   if ! command -v prettier &> /dev/null; then
+    # Ensure npm/node paths are available
+    export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
     retry_command "npm install -g prettier" "prettier installation"
-    log "✅ prettier installed successfully"
+    
+    # Verify installation worked
+    if command -v prettier &> /dev/null; then
+      PRETTIER_VERSION=$(prettier --version 2>/dev/null || echo "unknown")
+      log "✅ prettier installed successfully (version $PRETTIER_VERSION)"
+    else
+      warn "prettier installation may have failed. Try running: npm install -g prettier"
+    fi
   else
     PRETTIER_VERSION=$(prettier --version 2>/dev/null || echo "unknown")
     log "✅ prettier already installed (version $PRETTIER_VERSION)"
@@ -174,15 +183,20 @@ function install_uv() {
 
 # --- Setup Package Manager Detection ---
 function setup_package_manager() {
+  # Check if UV is available globally
   if command -v uv &> /dev/null; then
     PACKAGE_MANAGER="uv"
     log "Using UV for fast package management"
-  elif command -v pip &> /dev/null; then
-    PACKAGE_MANAGER="pip"
-    log "Using pip for package management"
   else
-    error "No package manager available after Python3 installation"
-    exit 1
+    # After venv creation, pip should be available in the venv
+    if [ -f ".venv/bin/pip" ]; then
+      PACKAGE_MANAGER="pip"
+      log "Using pip for package management (from virtual environment)"
+    else
+      error "No package manager available. Virtual environment may not have been created properly."
+      error "Please ensure Python3 and venv are working correctly."
+      exit 1
+    fi
   fi
 }
 
@@ -197,8 +211,8 @@ else
 fi
 
 echo ""
-echo "Step 2/7: Setting up package manager..."
-setup_package_manager
+echo "Step 2/7: Setting up package manager (after virtual environment)..."
+# Package manager setup moved to after venv creation
 
 # --- Docker Desktop (optional, for local platform dev) ---
 if ! command -v docker &> /dev/null; then
@@ -249,21 +263,25 @@ function setup_virtual_environment() {
 
 setup_virtual_environment
 
+# Now detect package manager after venv is created
+setup_package_manager
+
 echo ""
 echo "Step 5/7: Installing Python dependencies (this may take 2-3 minutes)..."
 
 # --- Install Auto-SBM Package ---
 function install_auto_sbm() {
   log "Installing Python dependencies using $PACKAGE_MANAGER"
-  pip install --upgrade pip
-
-  # Install dependencies based on available package manager
+  
+  # Ensure we're using the venv pip
   if [ "$PACKAGE_MANAGER" = "uv" ]; then
       log "Installing with UV (fast mode)"
       retry_command "uv pip install -e ." "UV package installation"
   else
-      log "Installing with pip"
-      retry_command "pip install -e ." "pip package installation"
+      log "Installing with pip from virtual environment"
+      # Use explicit venv pip path to avoid confusion
+      retry_command ".venv/bin/pip install --upgrade pip" "pip upgrade"
+      retry_command ".venv/bin/pip install -e ." "pip package installation"
   fi
   log "✅ Auto-SBM package installed successfully"
 }
@@ -319,16 +337,35 @@ if [ ! -d "\$PROJECT_ROOT" ]; then
 fi
 
 # Validate critical modules are available (quick check for common issues)
-if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2> /dev/null; then
-    echo "WARNING  Required Python package missing: colorama" >&2
-    echo "WARNING  Environment health check failed. Setup will be re-run to fix issues." >&2
-    echo "INFO     Running setup.sh..." >&2
-    echo "🔄 Re-running setup.sh to fix missing dependencies..." >&2
+IMPORT_CHECK=\$("\$VENV_PYTHON" -c "
+try:
+    import pydantic, click, rich, colorama, sbm.cli
+    print('SUCCESS')
+except ImportError as e:
+    print(f'IMPORT_ERROR: {e}')
+except Exception as e:
+    print(f'ERROR: {e}')
+" 2>&1)
+
+if [[ "\$IMPORT_CHECK" != "SUCCESS" ]]; then
+    echo "WARNING  Environment health check failed: \$IMPORT_CHECK" >&2
+    echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
     cd "\$PROJECT_ROOT" && bash setup.sh
     
     # Re-check after setup
-    if ! "\$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2> /dev/null; then
-        echo "❌ Setup failed. Please check the error messages above." >&2
+    IMPORT_CHECK_2=\$("\$VENV_PYTHON" -c "
+try:
+    import pydantic, click, rich, colorama, sbm.cli
+    print('SUCCESS')
+except ImportError as e:
+    print(f'IMPORT_ERROR: {e}')
+except Exception as e:
+    print(f'ERROR: {e}')
+" 2>&1)
+    
+    if [[ "\$IMPORT_CHECK_2" != "SUCCESS" ]]; then
+        echo "❌ Setup failed after retry: \$IMPORT_CHECK_2" >&2
+        echo "Please run manually: cd \$PROJECT_ROOT && .venv/bin/pip install -e ." >&2
         exit 1
     fi
     echo "INFO     Setup complete. Continuing with SBM command..." >&2
@@ -421,7 +458,7 @@ echo "3. Verify installation:"
 echo "   sbm --help"
 echo ""
 echo "4. Run your first migration:"
-echo "   sbm migrate your-theme-name"
+echo "   sbm your-theme-name"
 echo ""
 echo "📚 Documentation: README.md"
 echo "🔧 Development: CLAUDE.md"
