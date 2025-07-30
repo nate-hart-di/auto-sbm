@@ -82,9 +82,32 @@ bash setup.sh
 - Sets up GitHub CLI authentication
 - Validates installation with health checks
 
-### Environment Configuration
+### Post-Setup Instructions
 
-The setup script creates a `.env` file automatically. GitHub authentication is handled via `gh auth login` (browser-based) - no tokens needed in `.env` files.
+The setup script automatically reloads your shell configuration. All new features are immediately available:
+
+**What was configured:**
+- Node.js 18+ and NVM with auto-switching
+- Prettier with Node version wrapper functions  
+- Development aliases and shortcuts
+- Homebrew paths (M1/M2/M3 Macs)
+- GitHub CLI authentication
+
+*Note: If you open a new terminal window, all configurations will be available automatically.*
+
+### Verify Installation
+
+```bash
+# Test all components
+sbm --help
+prettier --version  
+node --version
+
+# New development shortcuts
+sbm-dev     # Quick access to auto-sbm development
+sbm-test    # Run auto-sbm tests  
+gs, ga, gc  # Git shortcuts
+```
 
 ---
 
@@ -93,9 +116,8 @@ The setup script creates a `.env` file automatically. GitHub authentication is h
 ### 1. **Start Migration**
 
 ```bash
-sbm auto {theme-slug}
-# or equivalently
 sbm {theme-slug}
+# This is the primary command format
 ```
 
 **Example:**
