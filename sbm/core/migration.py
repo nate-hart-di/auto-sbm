@@ -549,9 +549,30 @@ def _check_prettier_available() -> bool | None:
         bool: True if prettier is available, False otherwise
     """
     try:
+        # Try different ways to find prettier with extended PATH
+        import os
+        
+        # Common paths where npm global packages are installed
+        extended_paths = [
+            "/usr/local/bin",
+            "/opt/homebrew/bin", 
+            os.path.expanduser("~/.nvm/versions/node/*/bin"),
+            os.path.expanduser("~/.npm-global/bin")
+        ]
+        
+        current_path = os.environ.get("PATH", "")
+        extended_path = ":".join(extended_paths) + ":" + current_path
+        
+        # Set environment with extended PATH
+        env = os.environ.copy()
+        env["PATH"] = extended_path
+        
         # First check if prettier command exists
         success, stdout, stderr, _ = execute_command(
-            "prettier --version", "Checking prettier availability", wait_for_completion=True
+            "prettier --version", 
+            "Checking prettier availability", 
+            wait_for_completion=True,
+            env=env
         )
 
         if success and stdout:
@@ -559,6 +580,20 @@ def _check_prettier_available() -> bool | None:
             version_output = "".join(stdout).strip()
             if version_output and any(char.isdigit() for char in version_output):
                 logger.debug(f"Prettier version detected: {version_output}")
+                return True
+
+        # If that fails, try which command to find prettier
+        success, stdout, stderr, _ = execute_command(
+            "which prettier", 
+            "Finding prettier location", 
+            wait_for_completion=True,
+            env=env
+        )
+        
+        if success and stdout:
+            prettier_path = "".join(stdout).strip()
+            if prettier_path and os.path.isfile(prettier_path):
+                logger.debug(f"Prettier found at: {prettier_path}")
                 return True
 
         return False
@@ -578,11 +613,30 @@ def _format_scss_with_prettier(file_path) -> bool | None:
         bool: True if formatting succeeded, False otherwise
     """
     try:
+        # Setup extended PATH for prettier
+        import os
+        
+        # Common paths where npm global packages are installed
+        extended_paths = [
+            "/usr/local/bin",
+            "/opt/homebrew/bin", 
+            os.path.expanduser("~/.nvm/versions/node/*/bin"),
+            os.path.expanduser("~/.npm-global/bin")
+        ]
+        
+        current_path = os.environ.get("PATH", "")
+        extended_path = ":".join(extended_paths) + ":" + current_path
+        
+        # Set environment with extended PATH
+        env = os.environ.copy()
+        env["PATH"] = extended_path
+        
         # Use prettier to format the file in place
         success, stdout, stderr, _ = execute_command(
             f"prettier --write '{file_path}'",
             f"Failed to format {os.path.basename(file_path)} with prettier",
             wait_for_completion=True,
+            env=env
         )
 
         if success:
@@ -974,6 +1028,7 @@ Once you are satisfied, proceed to the next step.
     # Git commit prompt with consistent input handling
     commit_response = "y"  # Default to yes
     if interactive_git:
+        import sys
         sys.stdout.write(f"Commit all changes for {slug}? [Y/n]: ")
         sys.stdout.flush()
         commit_response = input().strip().lower()

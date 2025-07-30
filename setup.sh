@@ -80,8 +80,30 @@ function install_required_tools() {
 function install_node_dependencies() {
   log "Checking Node.js version and installing prettier..."
   
+  # Function to install NVM if not present
+  function install_nvm_if_needed() {
+    if [ ! -s "$HOME/.nvm/nvm.sh" ] && ! command -v nvm &> /dev/null; then
+      log "Installing NVM (Node Version Manager)..."
+      if command -v brew &> /dev/null; then
+        retry_command "brew install nvm" "NVM installation via Homebrew"
+        # Create NVM directory if it doesn't exist
+        mkdir -p "$HOME/.nvm"
+        log "✅ NVM installed via Homebrew"
+      else
+        # Install via curl if Homebrew not available
+        retry_command 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash' "NVM installation via curl"
+        log "✅ NVM installed via curl"
+      fi
+      # Source NVM for current session
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    fi
+  }
+
   # Function to install Node.js 18 via nvm if available
   function install_node_via_nvm() {
+    install_nvm_if_needed
+    
     if [ -s "$HOME/.nvm/nvm.sh" ]; then
       log "NVM detected. Installing Node.js 18..."
       source "$HOME/.nvm/nvm.sh"
@@ -241,6 +263,125 @@ function setup_local_bin_path() {
       log "✅ ~/.local/bin added to PATH"
   else
       log "✅ ~/.local/bin already in PATH"
+  fi
+  
+  # Add prettier/node wrapper functions if not already present
+  if ! grep -q "##### PRETTIER/NODE WRAPPER #####" "$ZSHRC_FILE"; then
+      log "Adding prettier/node wrapper functions to $ZSHRC_FILE"
+      cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
+
+##### PRETTIER/NODE WRAPPER #####
+prettier() {
+  if ! command -v nvm > /dev/null; then
+    echo "NVM not available. Running with current Node version."
+    command prettier "$@"
+    return $?
+  fi
+  local CURRENT_NODE=$(nvm current)
+  nvm use 22 > /dev/null 2>&1 || echo "Failed to switch to Node 22"
+  command prettier "$@"
+  local EXIT_CODE=$?
+  nvm use "$CURRENT_NODE" > /dev/null 2>&1 || echo "Failed to revert to $CURRENT_NODE"
+  return $EXIT_CODE
+}
+
+npx() {
+  if [ "$1" = "prettier" ]; then
+    shift
+    prettier "$@"
+  else
+    command npx "$@" || echo "npx command failed"
+  fi
+}
+ZSHRC_EOF
+      log "✅ prettier/node wrapper functions added"
+  else
+      log "✅ prettier/node wrapper functions already present"
+  fi
+  
+  # Add NVM configuration if not already present
+  if ! grep -q "##### NVM CONFIGURATION #####" "$ZSHRC_FILE"; then
+      log "Adding NVM configuration to $ZSHRC_FILE"
+      cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
+
+##### NVM CONFIGURATION #####
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/nvm.sh.d/bash_completion" ] && \. "$NVM_DIR/nvm.sh.d/bash_completion"  # This loads nvm bash_completion
+
+# Auto-switch Node versions based on .nvmrc file
+autoload -U add-zsh-hook
+load-nvmrc() {
+  local node_version="$(nvm version)"
+  local nvmrc_path="$(nvm_find_nvmrc)"
+
+  if [ -n "$nvmrc_path" ]; then
+    local nvmrc_node_version=$(nvm version "$(cat "${nvmrc_path}")")
+
+    if [ "$nvmrc_node_version" = "N/A" ]; then
+      nvm install
+    elif [ "$nvmrc_node_version" != "$node_version" ]; then
+      nvm use
+    fi
+  elif [ "$node_version" != "$(nvm version default)" ]; then
+    echo "Reverting to nvm default version"
+    nvm use default
+  fi
+}
+add-zsh-hook chpwd load-nvmrc
+load-nvmrc
+ZSHRC_EOF
+      log "✅ NVM configuration added"
+  else
+      log "✅ NVM configuration already present"
+  fi
+  
+  # Add Homebrew paths for M1/M2/M3 Macs if not already present
+  if ! grep -q "##### HOMEBREW CONFIGURATION #####" "$ZSHRC_FILE"; then
+      log "Adding Homebrew configuration to $ZSHRC_FILE"
+      cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
+
+##### HOMEBREW CONFIGURATION #####
+# Add Homebrew to PATH (supports both Intel and Apple Silicon Macs)
+if [[ -d "/opt/homebrew" ]]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+    export PATH="/opt/homebrew/sbin:$PATH"
+elif [[ -d "/usr/local/Homebrew" ]]; then
+    export PATH="/usr/local/bin:$PATH"
+    export PATH="/usr/local/sbin:$PATH"
+fi
+ZSHRC_EOF
+      log "✅ Homebrew configuration added"
+  else
+      log "✅ Homebrew configuration already present"
+  fi
+  
+  # Add essential development aliases if not already present  
+  if ! grep -q "##### AUTO-SBM DEVELOPMENT ALIASES #####" "$ZSHRC_FILE"; then
+      log "Adding development aliases to $ZSHRC_FILE"
+      cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
+
+##### AUTO-SBM DEVELOPMENT ALIASES #####
+# Git shortcuts
+alias gs="git status"
+alias ga="git add"
+alias gc="git commit"
+alias gp="git push"
+alias gl="git log --oneline -10"
+
+# Development shortcuts
+alias ll="ls -la"
+alias la="ls -la"
+alias ..="cd .."
+alias ...="cd ../.."
+
+# Auto-SBM specific
+alias sbm-dev="cd ~/auto-sbm && source .venv/bin/activate"
+alias sbm-test="cd ~/auto-sbm && source .venv/bin/activate && python -m pytest tests/ -v"
+ZSHRC_EOF
+      log "✅ Development aliases added"
+  else
+      log "✅ Development aliases already present"
   fi
 }
 
