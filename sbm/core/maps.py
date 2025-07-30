@@ -242,6 +242,7 @@ def migrate_map_partials(slug, map_imports, interactive=False):
             os.path.join(theme_dir, "index.php"),
             os.path.join(theme_dir, "page.php"),
             os.path.join(theme_dir, "home.php"),
+            os.path.join(theme_dir, "functions.php"),  # Add functions.php for shortcode functions
         ]
 
         # Also check partials directory
@@ -276,7 +277,7 @@ def migrate_map_partials(slug, map_imports, interactive=False):
 
 def find_template_parts_in_file(template_file, map_imports):
     """
-    Find get_template_part calls that might correspond to map imports.
+    Find get_template_part calls and custom map functions that might correspond to map imports.
 
     Args:
         template_file (str): Path to template file
@@ -291,14 +292,13 @@ def find_template_parts_in_file(template_file, map_imports):
 
         partial_paths = []
 
-        # Look for get_template_part calls that contain "map"
+        # 1. Look for get_template_part calls that contain "map"
         template_part_pattern = r"get_template_part\s*\(\s*['\"]([^'\"]*map[^'\"]*)['\"]"
         matches = re.finditer(template_part_pattern, content)
 
         for match in matches:
             partial_path = match.group(1)
 
-            # Found a template part with "map" in the path
             partial_info = {
                 "template_file": template_file,
                 "partial_path": partial_path,
@@ -307,6 +307,64 @@ def find_template_parts_in_file(template_file, map_imports):
 
             logger.info(
                 f"Found map template part: {partial_path} in {os.path.basename(template_file)}"
+            )
+            partial_paths.append(partial_info)
+
+        # 2. Look for get_template_part calls with "directions" or "getdirections"
+        directions_pattern = r"get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections)[^'\"]*)['\"]"
+        matches = re.finditer(directions_pattern, content, re.IGNORECASE)
+
+        for match in matches:
+            partial_path = match.group(1)
+
+            partial_info = {
+                "template_file": template_file,
+                "partial_path": partial_path,
+                "source": "found_directions_partial",
+            }
+
+            logger.info(
+                f"Found directions template part: {partial_path} in {os.path.basename(template_file)}"
+            )
+            partial_paths.append(partial_info)
+
+        # 3. Look for custom shortcode functions that call directions partials
+        # Pattern: function xyz_map() { ... get_template_part('...directions...') ... }
+        # More flexible pattern to match your full_map() function
+        shortcode_function_pattern = r"function\s+(\w*(?:map|directions)\w*)\s*\([^)]*\)\s*\{[^}]*get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections|map)[^'\"]*)['\"]"
+        matches = re.finditer(shortcode_function_pattern, content, re.IGNORECASE | re.DOTALL)
+
+        for match in matches:
+            function_name = match.group(1)
+            partial_path = match.group(2)
+
+            partial_info = {
+                "template_file": template_file,
+                "partial_path": partial_path,
+                "source": "found_in_shortcode_function",
+                "function_name": function_name,
+            }
+
+            logger.info(
+                f"Found map shortcode function: {function_name}() calling {partial_path} in {os.path.basename(template_file)}"
+            )
+            partial_paths.append(partial_info)
+
+        # 4. Specifically look for homecontent-getdirections pattern
+        homecontent_pattern = r"get_template_part\s*\(\s*['\"]([^'\"]*homecontent[^'\"]*directions[^'\"]*)['\"]"
+        matches = re.finditer(homecontent_pattern, content, re.IGNORECASE)
+
+        for match in matches:
+            partial_path = match.group(1)
+
+            partial_info = {
+                "template_file": template_file,
+                "partial_path": partial_path,
+                "source": "found_homecontent_directions",
+            }
+
+            logger.info(
+                f"Found homecontent-getdirections partial: {partial_path} in {os.path.basename(template_file)}"
             )
             partial_paths.append(partial_info)
 
