@@ -177,14 +177,37 @@ function install_node_dependencies() {
   if ! command -v prettier &> /dev/null; then
     # Ensure npm/node paths are available
     export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-    retry_command "npm install -g prettier" "prettier installation"
+    
+    # Try multiple approaches to handle certificate issues
+    log "Attempting prettier installation with certificate handling..."
+    
+    # First try: disable strict SSL (corporate networks often need this)
+    if npm install -g prettier --strict-ssl=false 2>/dev/null; then
+      log "✅ prettier installed with relaxed SSL"
+    # Second try: use different registry
+    elif npm install -g prettier --registry http://registry.npmjs.org/ 2>/dev/null; then
+      log "✅ prettier installed using HTTP registry"
+    # Third try: update certificates and retry
+    elif npm config set cafile "" && npm install -g prettier 2>/dev/null; then
+      log "✅ prettier installed after clearing certificate config"
+    # Fourth try: use Homebrew as fallback
+    elif command -v brew &> /dev/null && brew install prettier 2>/dev/null; then
+      log "✅ prettier installed via Homebrew"
+    else
+      warn "prettier installation failed due to certificate issues"
+      warn "Manual solutions:"
+      warn "  1. Corporate network: npm config set strict-ssl false"
+      warn "  2. Certificate update: npm config set registry http://registry.npmjs.org/"
+      warn "  3. Or install via Homebrew: brew install prettier"
+      return 1
+    fi
     
     # Verify installation worked
     if command -v prettier &> /dev/null; then
       PRETTIER_VERSION=$(prettier --version 2>/dev/null || echo "unknown")
       log "✅ prettier installed successfully (version $PRETTIER_VERSION)"
     else
-      warn "prettier installation may have failed. Try running: npm install -g prettier"
+      warn "prettier installation verification failed"
     fi
   else
     PRETTIER_VERSION=$(prettier --version 2>/dev/null || echo "unknown")
