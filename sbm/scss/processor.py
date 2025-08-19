@@ -59,6 +59,12 @@ class SCSSProcessor:
         root_properties = []
         if declarations:
             for var_name, var_value in declarations:
+                # CRITICAL FIX: Don't convert SCSS functions to CSS custom properties
+                # Skip variables that contain SCSS functions like map_keys(), map-get()
+                if any(func in var_value for func in ['map_keys', 'map-get', 'map-']):
+                    logger.warning(f"Skipping variable with SCSS function: {var_name}")
+                    continue
+                
                 # Convert to CSS custom property format (e.g., --primary: #000;)
                 prop_name = var_name.replace("$", "--")
                 # Important: Convert any variables used in the value of another variable
@@ -109,6 +115,12 @@ class SCSSProcessor:
             # Check if we're exiting a map definition
             elif inside_map and stripped.endswith(");"):
                 inside_map = False
+                continue
+
+            # CRITICAL FIX: Handle @each loops properly
+            if "@each" in stripped and "$types" in stripped:
+                # Fix undefined variable reference
+                lines[i] = line.replace("$types", "map-keys($font-types)")
                 continue
 
             # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
@@ -226,6 +238,21 @@ class SCSSProcessor:
         2. SCSS functions with hardcoded colors (e.g., lighten(#252525, 2%))
         """
         logger.info("Converting SCSS functions to CSS-compatible equivalents...")
+
+        # CRITICAL FIX: Handle color keywords in SCSS functions
+        # Replace color keywords with variables before processing
+        color_mappings = {
+            'green': '#008000',
+            'red': '#ff0000', 
+            'blue': '#0000ff',
+            'black': '#000000',
+            'white': '#ffffff'
+        }
+
+        for color_name, hex_value in color_mappings.items():
+            # Fix darken(green,10%) -> darken(#008000,10%)
+            content = content.replace(f'darken({color_name}', f'darken({hex_value}')
+            content = content.replace(f'lighten({color_name}', f'lighten({hex_value}')
 
         # Case 1: SCSS functions with CSS variables - convert to CSS-compatible equivalents
         # These appear in raw SCSS content (not from mixins) and need to be handled
@@ -360,6 +387,19 @@ class SCSSProcessor:
         logger.info(f"Performing SCSS transformation for {self.slug}...")
 
         try:
+            # Step 0: Inject required utility functions at the start
+            utility_functions = """
+// Auto-generated utility functions
+@function em($pixels, $context: 16) {
+  @return #{$pixels/$context}em;
+}
+
+@function rem($pixels, $context: 16) {
+  @return #{$pixels/$context}rem;
+}
+
+"""
+            content = utility_functions + content
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
                 logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")

@@ -1306,6 +1306,12 @@ class CommonThemeMixinParser:
         self.converted_mixins = []
         self.unconverted_mixins = []
 
+    def fix_placeholder_syntax(self, content: str) -> str:
+        """Fix invalid placeholder selector syntax."""
+        # Fix %# {$var} to %#{$var}
+        content = re.sub(r'%#\s*\{([^}]+)\}', r'%#{\1}', content)
+        return content
+
     def _load_commontheme_mixins(self) -> Dict[str, str]:
         """
         Load basic CommonTheme mixin definitions for fallback.
@@ -1346,6 +1352,9 @@ class CommonThemeMixinParser:
             self.logger.warning(
                 f"Maximum passes ({max_passes}) reached. Some deeply nested mixins may remain."
             )
+
+        # Fix placeholder selector syntax before returning
+        current_content = self.fix_placeholder_syntax(current_content)
 
         return current_content, self.converted_mixins, self.unconverted_mixins
 
