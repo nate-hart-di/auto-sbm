@@ -494,9 +494,21 @@ class SCSSProcessor:
             # 2. Remove excessive whitespace (but preserve intentional spacing)
             processed_content = re.sub(r"\n\s*\n\s*\n", "\n\n", processed_content)  # Max 2 consecutive newlines
 
-            # 3. Ensure proper spacing around braces
-            processed_content = re.sub(r"(\S)\{", r"\1 {", processed_content)  # Space before {
-            processed_content = re.sub(r"\}(\S)", r"} \1", processed_content)   # Space after }
+            # 3. Ensure proper spacing around braces (but preserve SCSS interpolation #{...})
+            # First protect SCSS interpolation completely by temporarily replacing it
+            interpolation_matches = re.findall(r"#\{[^}]*\}", processed_content)
+            protected_content = processed_content
+            for i, match in enumerate(interpolation_matches):
+                protected_content = protected_content.replace(match, f"SCSS_INTERPOLATION_{i}", 1)
+            
+            # Apply spacing rules to protected content
+            protected_content = re.sub(r"(\S)\{", r"\1 {", protected_content)  # Space before {
+            protected_content = re.sub(r"\}(\S)", r"} \1", protected_content)   # Space after }
+            
+            # Restore SCSS interpolation
+            for i, match in enumerate(interpolation_matches):
+                protected_content = protected_content.replace(f"SCSS_INTERPOLATION_{i}", match)
+            processed_content = protected_content
 
             # 4. Convert SCSS variables to CSS custom properties
             # This ensures any remaining SCSS variables get converted during light cleanup
