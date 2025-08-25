@@ -551,3 +551,79 @@ class SCSSProcessor:
         except Exception as e:
             logger.error(f"Error writing files atomically: {e}", exc_info=True)
             return False
+
+    def reprocess_scss_content(self, content: str) -> str:
+        """
+        Apply comprehensive transformations to existing Site Builder SCSS content
+        without resetting from source. This is specifically for the reprocess workflow.
+        """
+        logger.debug("Applying reprocess transformations to existing SB content...")
+        
+        try:
+            # Skip utility function injection if already present
+            if "@function em(" not in content:
+                utility_functions = """// Auto-generated utility functions
+@function em($pixels, $context: 16) {
+  @return #{$pixels/$context}em;
+}
+
+@function rem($pixels, $context: 16) {
+  @return #{$pixels/$context}rem;
+}
+
+"""
+                content = utility_functions + content
+            
+            # Apply the same transformations as migration but on existing content
+            # Step 1: Process SCSS variables into CSS custom properties
+            content = self._process_scss_variables(content)
+            
+            # Step 2: Convert relative image paths to absolute paths  
+            content = self._convert_image_paths(content)
+            
+            # Step 3: Convert SCSS functions to CSS-compatible equivalents
+            content = self._convert_scss_functions(content)
+            
+            # Step 4: Convert mixins using the intelligent parser
+            logger.debug("Converting mixins to CSS for reprocess...")
+            content, errors, unconverted = self.mixin_parser.parse_and_convert_mixins(content)
+            if errors:
+                logger.debug(f"Mixin conversion errors during reprocess: {len(errors)}")
+            if unconverted:
+                logger.debug(f"Unconverted mixins during reprocess: {len(unconverted)}")
+            
+            # Step 5: Final cleanup of any remaining SCSS variable references
+            content = self._final_reprocess_cleanup(content)
+            
+            # Step 6: Basic formatting cleanup
+            content = self._trim_whitespace(content)
+            
+            return content
+            
+        except Exception as e:
+            logger.warning(f"Reprocess transformations failed, using light cleanup: {e}")
+            # Fallback to light cleanup if reprocess fails
+            return self.light_cleanup_scss_content(content)
+    
+    def _final_reprocess_cleanup(self, content: str) -> str:
+        """
+        Final cleanup specifically for reprocessing to catch any remaining SCSS variables.
+        """
+        lines = content.split('\n')
+        processed_lines = []
+        
+        for line in lines:
+            # Skip SCSS internal logic
+            if ('#{' in line or line.strip().startswith('@mixin') or 
+                line.strip().startswith('@function') or line.strip().startswith('@each')):
+                processed_lines.append(line)
+                continue
+            
+            # Convert remaining SCSS variables in CSS property contexts
+            if ':' in line and '$' in line and not line.strip().startswith('$'):
+                # Convert $variable to var(--variable) in CSS values
+                line = re.sub(r'\$([a-zA-Z][\w-]*)', r'var(--\1)', line)
+            
+            processed_lines.append(line)
+        
+        return '\n'.join(processed_lines)

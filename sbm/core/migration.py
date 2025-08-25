@@ -833,10 +833,10 @@ def reprocess_manual_changes(slug) -> bool | None:
                 if not original_content.strip():
                     continue
 
-                # Apply full transformation logic to existing content (like migrate but without resetting)
+                # Apply reprocess-specific transformation logic to existing content
                 # This ensures all conversions (variables, paths, mixins, functions) are applied
-                # while preserving manual edits since we're processing the current content
-                processed_content = processor.transform_scss_content(original_content)
+                # while preserving manual edits and avoiding duplicate utility functions
+                processed_content = processor.reprocess_scss_content(original_content)
 
                 # Check if any changes were made
                 if processed_content != original_content:
