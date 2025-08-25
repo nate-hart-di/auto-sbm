@@ -560,7 +560,10 @@ class SCSSProcessor:
         logger.debug("Applying reprocess transformations to existing SB content...")
         
         try:
-            # Skip utility function injection if already present
+            # Step 1: Remove duplicate utility functions first
+            content = self._remove_duplicate_functions(content)
+            
+            # Step 2: Add utility functions at the beginning if not present
             if "@function em(" not in content:
                 utility_functions = """// Auto-generated utility functions
 @function em($pixels, $context: 16) {
@@ -574,17 +577,16 @@ class SCSSProcessor:
 """
                 content = utility_functions + content
             
-            # Apply the same transformations as migration but on existing content
-            # Step 1: Process SCSS variables into CSS custom properties
+            # Step 3: Process SCSS variables (handles both new and partially processed content)
             content = self._process_scss_variables(content)
             
-            # Step 2: Convert relative image paths to absolute paths  
+            # Step 4: Convert relative image paths to absolute paths  
             content = self._convert_image_paths(content)
             
-            # Step 3: Convert SCSS functions to CSS-compatible equivalents
+            # Step 5: Convert SCSS functions to CSS-compatible equivalents
             content = self._convert_scss_functions(content)
             
-            # Step 4: Convert mixins using the intelligent parser
+            # Step 6: Convert mixins using the intelligent parser
             logger.debug("Converting mixins to CSS for reprocess...")
             content, errors, unconverted = self.mixin_parser.parse_and_convert_mixins(content)
             if errors:
@@ -592,10 +594,10 @@ class SCSSProcessor:
             if unconverted:
                 logger.debug(f"Unconverted mixins during reprocess: {len(unconverted)}")
             
-            # Step 5: Final cleanup of any remaining SCSS variable references
+            # Step 7: Final cleanup of any remaining SCSS variable references
             content = self._final_reprocess_cleanup(content)
             
-            # Step 6: Basic formatting cleanup
+            # Step 8: Basic formatting cleanup
             content = self._trim_whitespace(content)
             
             return content
@@ -627,3 +629,53 @@ class SCSSProcessor:
             processed_lines.append(line)
         
         return '\n'.join(processed_lines)
+    
+    def _remove_duplicate_functions(self, content: str) -> str:
+        """
+        Remove duplicate utility function definitions, keeping only the first occurrence.
+        """
+        lines = content.split('\n')
+        
+        # Track if we've seen em/rem functions
+        seen_em_function = False
+        seen_rem_function = False
+        skip_until_end = False
+        brace_count = 0
+        
+        filtered_lines = []
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
+            
+            # Check for start of em function
+            if stripped.startswith('@function em(') and seen_em_function:
+                # Skip this duplicate function definition
+                brace_count = line.count('{') - line.count('}')
+                i += 1
+                while i < len(lines) and brace_count > 0:
+                    line = lines[i]
+                    brace_count += line.count('{') - line.count('}')
+                    i += 1
+                continue
+            elif stripped.startswith('@function em('):
+                seen_em_function = True
+            
+            # Check for start of rem function
+            elif stripped.startswith('@function rem(') and seen_rem_function:
+                # Skip this duplicate function definition
+                brace_count = line.count('{') - line.count('}')
+                i += 1
+                while i < len(lines) and brace_count > 0:
+                    line = lines[i]
+                    brace_count += line.count('{') - line.count('}')
+                    i += 1
+                continue
+            elif stripped.startswith('@function rem('):
+                seen_rem_function = True
+            
+            filtered_lines.append(line)
+            i += 1
+        
+        return '\n'.join(filtered_lines)
