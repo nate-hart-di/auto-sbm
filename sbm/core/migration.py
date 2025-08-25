@@ -833,10 +833,10 @@ def reprocess_manual_changes(slug) -> bool | None:
                 if not original_content.strip():
                     continue
 
-                # CRITICAL FIX: Only apply minimal transformations to preserve manual fixes
-                # DO NOT reprocess from original source - this causes infinite loop
-                # Only do light cleanup on the existing manually-edited content
-                processed_content = processor.light_cleanup_scss_content(original_content)
+                # Apply full transformation logic to existing content (like migrate but without resetting)
+                # This ensures all conversions (variables, paths, mixins, functions) are applied
+                # while preserving manual edits since we're processing the current content
+                processed_content = processor.transform_scss_content(original_content)
 
                 # Check if any changes were made
                 if processed_content != original_content:
