@@ -85,13 +85,15 @@ bash setup.sh
 ### Post-Setup Instructions
 
 **⚠️ IMPORTANT:** After setup completes, restart your terminal or run:
+
 ```bash
 source ~/.zshrc
 ```
 
 **What was configured:**
+
 - Node.js 18+ and NVM with auto-switching
-- Prettier with Node version wrapper functions  
+- Prettier with Node version wrapper functions
 - Development aliases and shortcuts
 - Homebrew paths (M1/M2/M3 Macs)
 - GitHub CLI authentication
@@ -101,13 +103,13 @@ source ~/.zshrc
 ```bash
 # Test all components
 sbm --help
-prettier --version  
+prettier --version
 node --version
 
 # New development shortcuts
-sbm-dev     # Quick access to auto-sbm development
-sbm-test    # Run auto-sbm tests  
-gs, ga, gc  # Git shortcuts
+sbm-dev    # Quick access to auto-sbm development
+sbm-test   # Run auto-sbm tests
+gs, ga, gc # Git shortcuts
 ```
 
 ---
@@ -481,3 +483,4 @@ python -m pytest tests/test_migration.py -v
 - **v1.x** - Legacy monolithic structure (deprecated)
 
 For detailed changes, see commit history and PRPs documentation.
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/nate-hart-di/auto-sbm)
