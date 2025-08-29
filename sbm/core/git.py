@@ -950,13 +950,18 @@ class GitOperations:
                         f"- Manual modifications added ({manual_lines} lines) - details need review"
                     )
 
-        # Add FCA-specific items for Stellantis brands (only if files were actually changed)
-        if automated_items and any(
-            brand in slug.lower()
-            for brand in ["chrysler", "dodge", "jeep", "ram", "fiat", "cdjr", "fca"]
-        ):
-            what_items.append("- Added FCA Direction Row Styles")
-            what_items.append("- Added FCA Cookie Banner styles")
+        # Add OEM-specific items based on actual OEM handler (not just slug matching)
+        try:
+            from sbm.oem.factory import OEMFactory
+            from sbm.oem.stellantis import StellantisHandler
+            
+            handler = OEMFactory.detect_from_theme(slug)
+            
+            if automated_items and isinstance(handler, StellantisHandler):
+                what_items.append("- Added Stellantis Direction Row Styles")
+                what_items.append("- Added Stellantis Cookie Banner styles")
+        except Exception as e:
+            logger.debug(f"Could not determine OEM for PR description: {e}")
 
         what_section = "\n".join(what_items)
 

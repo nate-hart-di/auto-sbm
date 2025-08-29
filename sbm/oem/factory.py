@@ -13,6 +13,7 @@ from sbm.utils.logger import logger
 
 from .default import DefaultHandler
 from .stellantis import StellantisHandler
+from .kia import KiaHandler
 
 
 class OEMFactory:
@@ -23,6 +24,7 @@ class OEMFactory:
     # List of all available handlers
     _handlers = [
         StellantisHandler,
+        KiaHandler,
         # Add more handlers here as they are needed
     ]
 
@@ -98,11 +100,14 @@ class OEMFactory:
         # Look for OEM-specific indicators in files
         indicators = {}
 
-        # Check functions.php for OEM-specific code
+        # Check functions.php for OEM-specific code (excluding migration-added content)
         functions_file = theme_dir / "functions.php"
         if functions_file.exists():
             with open(functions_file, encoding="utf-8", errors="ignore") as f:
                 content = f.read().lower()
+                
+                # Filter out migration-generated content to avoid false positives
+                content = cls._filter_migration_content(content)
 
                 # Check for each handler's patterns
                 for handler_class in cls._handlers:
@@ -118,7 +123,40 @@ class OEMFactory:
                             indicators.get(handler_class.__name__, 0) + matches
                         )
 
-        # If any indicators were found, use the handler with the most matches
+        # Also check other theme files (excluding sb-* migration files)
+        theme_files = [
+            "style.scss",
+            "inside.scss", 
+            "_support-requests.scss",
+            "lvdp.scss",
+            "lvrp.scss"
+        ]
+        
+        css_dir = theme_dir / "css"
+        for filename in theme_files:
+            file_path = css_dir / filename
+            if file_path.exists():
+                try:
+                    with open(file_path, encoding="utf-8", errors="ignore") as f:
+                        content = f.read().lower()
+                        content = cls._filter_migration_content(content)
+                        
+                        for handler_class in cls._handlers:
+                            handler = handler_class(slug)
+                            patterns = handler.get_brand_match_patterns()
+                            
+                            matches = 0
+                            for pattern in patterns:
+                                matches += len(re.findall(pattern, content, re.IGNORECASE))
+                            
+                            if matches > 0:
+                                indicators[handler_class.__name__] = (
+                                    indicators.get(handler_class.__name__, 0) + matches
+                                )
+                except Exception as e:
+                    logger.debug(f"Could not read {filename}: {e}")
+        
+        # Re-evaluate best match after checking all files
         if indicators:
             best_match = max(indicators.items(), key=lambda x: x[1])
             logger.info(f"Detected OEM for {slug} based on theme content: {best_match[0]}")
@@ -130,3 +168,29 @@ class OEMFactory:
 
         # If no indicators were found, fall back to the create_handler method
         return cls.create_handler(slug)
+
+    @classmethod
+    def _filter_migration_content(cls, content: str) -> str:
+        """
+        Filter out migration-generated content that could cause false OEM detection.
+        
+        Args:
+            content: File content to filter
+            
+        Returns:
+            Filtered content with migration artifacts removed
+        """
+        # Remove git commit messages and references that contain FCA/Stellantis keywords
+        content = re.sub(r'(?i)added fca[^\n]*', '', content)
+        content = re.sub(r'(?i)fca direction row styles[^\n]*', '', content)  
+        content = re.sub(r'(?i)fca cookie banner[^\n]*', '', content)
+        
+        # Remove Site Builder file references
+        content = re.sub(r'sb-[a-z]+\.scss', '', content)
+        
+        # Remove migration tool comments and artifacts
+        content = re.sub(r'(?i)auto-generated[^\n]*', '', content)
+        content = re.sub(r'(?i)migration tool[^\n]*', '', content)
+        content = re.sub(r'(?i)site builder[^\n]*', '', content)
+        
+        return content
