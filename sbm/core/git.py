@@ -359,19 +359,34 @@ class GitOperations:
                 )
                 repo.delete_head(branch_name, force=True)
             
-            # Check if remote branch exists and delete it too
+            # Check if remote branch exists and delete it too (equivalent to git push origin --delete [branch_name])
             try:
-                remote_refs = repo.remotes.origin.refs
-                remote_branch_ref = f"origin/{branch_name}"
-                if remote_branch_ref in [ref.name for ref in remote_refs]:
+                # Fetch latest refs to ensure we have up-to-date remote branch info
+                repo.remotes.origin.fetch()
+                
+                # Check if remote branch exists
+                remote_branch_exists = False
+                try:
+                    remote_refs = [ref.name for ref in repo.remotes.origin.refs]
+                    if f"origin/{branch_name}" in remote_refs:
+                        remote_branch_exists = True
+                except Exception:
+                    # If we can't list remote refs, try deletion anyway (safer)
+                    remote_branch_exists = True
+                
+                if remote_branch_exists:
                     logger.warning(
-                        f"Remote branch 'origin/{branch_name}' already exists. Deleting it to ensure a clean state."
+                        f"Remote branch 'origin/{branch_name}' exists. Deleting it to ensure clean state."
                     )
-                    # Delete the remote branch
+                    # Delete the remote branch (equivalent to: git push origin --delete [branch_name])
                     repo.remotes.origin.push(refspec=f":{branch_name}")
+                    logger.info(f"Successfully deleted remote branch 'origin/{branch_name}'")
+                else:
+                    logger.debug(f"Remote branch 'origin/{branch_name}' does not exist, no cleanup needed")
+                    
             except Exception as e:
-                # Remote branch deletion is not critical - continue with local branch creation
-                logger.debug(f"Could not delete remote branch (may not exist): {e}")
+                # Remote branch deletion failure is not critical - continue with local branch creation
+                logger.debug(f"Could not delete remote branch 'origin/{branch_name}': {e}")
 
             # Create and checkout the new branch
             new_branch = repo.create_head(branch_name)

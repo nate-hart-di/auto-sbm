@@ -909,8 +909,8 @@ def run_post_migration_workflow(
     """
     logger.debug(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Manual review - critical workflow step before final processing
-    if True:  # interactive_review enabled - critical workflow step
+    # Manual review - disabled by default for streamlined workflow
+    if False:  # interactive_review disabled
         # Clear the terminal to ensure clean display
         import os
         import sys
