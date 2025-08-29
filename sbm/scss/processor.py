@@ -387,19 +387,7 @@ class SCSSProcessor:
         logger.info(f"Performing SCSS transformation for {self.slug}...")
 
         try:
-            # Step 0: Inject required utility functions at the start
-            utility_functions = """
-// Auto-generated utility functions
-@function em($pixels, $context: 16) {
-  @return #{$pixels/$context}em;
-}
-
-@function rem($pixels, $context: 16) {
-  @return #{$pixels/$context}rem;
-}
-
-"""
-            content = utility_functions + content
+            # Step 0: Utility functions removed - Site Builder has its own utilities
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
                 logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
@@ -563,19 +551,7 @@ class SCSSProcessor:
             # Step 1: Remove duplicate utility functions first
             content = self._remove_duplicate_functions(content)
             
-            # Step 2: Add utility functions at the beginning if not present
-            if "@function em(" not in content:
-                utility_functions = """// Auto-generated utility functions
-@function em($pixels, $context: 16) {
-  @return #{$pixels/$context}em;
-}
-
-@function rem($pixels, $context: 16) {
-  @return #{$pixels/$context}rem;
-}
-
-"""
-                content = utility_functions + content
+            # Step 2: Utility functions removed - Site Builder has its own utilities
             
             # Step 3: Process SCSS variables (handles both new and partially processed content)
             content = self._process_scss_variables(content)
