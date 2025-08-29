@@ -88,10 +88,10 @@ class OEMFactory:
 
         theme_dir = Path(platform_dir) / "dealer-themes" / slug
 
-        # Check if the theme directory exists
+        # Check if the theme directory exists (skip warning since git checkout happens later)
         if not theme_dir.exists():
-            logger.warning(
-                f"Theme directory not found at {theme_dir}, unable to detect OEM from theme"
+            logger.debug(
+                f"Theme directory not found at {theme_dir} (will be available after git checkout)"
             )
             return cls.create_handler(slug)
 

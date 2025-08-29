@@ -314,7 +314,7 @@ def run_just_start(slug, suppress_output=False) -> bool:
     )
 
     if success:
-        logger.info("'just start' command completed successfully.")
+        logger.debug("'just start' command completed successfully.")
         return True
     from sbm.ui.simple_rich import print_step_error
 
@@ -1025,18 +1025,18 @@ Once you are satisfied, proceed to the next step.
         logger.info("Cleaning up automation snapshots")
         _cleanup_snapshot_files(slug)
 
-    # Git commit prompt with consistent input handling
-    commit_response = "y"  # Default to yes
+    # Git commit and push prompt combined into single confirmation
+    git_response = "y"  # Default to yes
     if interactive_git:
         import sys
-        sys.stdout.write(f"Commit all changes for {slug}? [Y/n]: ")
+        sys.stdout.write(f"Commit and push all changes for {slug}? [Y/n]: ")
         sys.stdout.flush()
-        commit_response = input().strip().lower()
-        if commit_response in ("n", "no"):
-            logger.info("Skipping commit.")
+        git_response = input().strip().lower()
+        if git_response in ("n", "no"):
+            logger.info("Skipping commit and push.")
             return True
 
-    if not interactive_git or commit_response in ("", "y", "yes"):
+    if not interactive_git or git_response in ("", "y", "yes"):
         # Clean up any snapshot files before committing - do this right before git operations
         _cleanup_snapshot_files(slug)
 
@@ -1048,29 +1048,15 @@ Once you are satisfied, proceed to the next step.
 
         # Clean up snapshots again after commit in case they were recreated
         _cleanup_snapshot_files(slug)
-    else:
-        logger.info("Skipping commit.")
-        return True  # End workflow if user skips commit
 
-    # Git push prompt with consistent input handling
-    push_response = "y"  # Default to yes
-    if interactive_git:
-        sys.stdout.write(f"Push changes to origin/{branch_name}? [Y/n]: ")
-        sys.stdout.flush()
-        push_response = input().strip().lower()
-        if push_response in ("n", "no"):
-            logger.info("Skipping push.")
-            return True
-
-    if not interactive_git or push_response in ("", "y", "yes"):
-        from sbm.utils.timer import timer_segment
+        # Push changes immediately after successful commit
         with timer_segment("Git Push Operations"):
             if not push_changes(branch_name):
                 logger.error("Failed to push changes.")
                 return False
     else:
-        logger.info("Skipping push.")
-        return True  # End workflow if user skips push
+        logger.info("Skipping commit and push.")
+        return True  # End workflow if user skips commit and push
 
     if create_pr:
         # PR creation prompt with consistent input handling
@@ -1185,13 +1171,11 @@ def migrate_dealer_theme(
                 suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
             )
 
-        logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
             logger.error(f"Failed to start site for {slug}")
             return False
 
         print_step_success("Docker environment started successfully")
-        logger.info(f"Site started successfully for {slug}")
 
     # Create Site Builder files
     print_step(3, 6, "Creating Site Builder SCSS files", slug)
