@@ -7,7 +7,9 @@ Rich-enhanced progress tracking, status displays, and interactive elements.
 
 from __future__ import annotations
 
+import datetime
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -367,6 +369,48 @@ class SBMCommandGroup(click.Group):
             return super().resolve_command(ctx, args)
 
 
+def check_and_run_daily_update():
+    """Check if sbm update needs to run (once per calendar day) and run it automatically."""
+    try:
+        # Get current date
+        today = datetime.date.today().isoformat()
+        
+        # Check for last update file
+        update_file = Path.home() / ".sbm_last_update"
+        
+        # Read last update date if file exists
+        last_update = None
+        if update_file.exists():
+            try:
+                last_update = update_file.read_text().strip()
+            except Exception:
+                pass
+        
+        # If we haven't updated today, run update
+        if last_update != today:
+            click.echo("🔄 Running daily auto-update...")
+            
+            # Run sbm update command
+            result = subprocess.run(
+                ["python", "-m", "sbm.cli", "update"], 
+                capture_output=True, 
+                text=True,
+                cwd=Path(__file__).parent.parent
+            )
+            
+            if result.returncode == 0:
+                # Update successful - record today's date
+                update_file.write_text(today)
+                click.echo("✅ Auto-update completed successfully")
+            else:
+                # Update failed - continue anyway but warn
+                click.echo(f"⚠️ Auto-update failed: {result.stderr.strip()}")
+                
+    except Exception as e:
+        # Auto-update failure shouldn't break the main command
+        click.echo(f"⚠️ Auto-update error (continuing): {e}")
+
+
 @click.group(
     cls=SBMCommandGroup,
     default_command="auto",
@@ -388,6 +432,10 @@ def cli(ctx: click.Context, verbose: bool, config_path: str) -> None:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
+    
+    # Run daily auto-update check (unless this is the update command itself)
+    if ctx.invoked_subcommand != "update":
+        check_and_run_daily_update()
 
     # Initialize context object
     ctx.ensure_object(dict)
