@@ -1030,6 +1030,9 @@ Once you are satisfied, proceed to the next step.
     git_response = "y"  # Default to yes
     if interactive_git:
         import sys
+        # Ensure all previous output is flushed before showing prompt
+        sys.stdout.flush()
+        sys.stderr.flush()
         sys.stdout.write(f"Commit and push all changes for {slug}? [Y/n]: ")
         sys.stdout.flush()
         git_response = input().strip().lower()
