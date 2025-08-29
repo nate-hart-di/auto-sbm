@@ -320,17 +320,17 @@ class GitOperations:
             bool: True if successful, False otherwise
         """
         try:
-            logger.info("Checking out main branch and pulling latest changes")
+            logger.info("Setting up clean main branch")
             repo = self._get_repo()
 
             # Stash or discard any local changes before switching branches
             if repo.is_dirty(untracked_files=True):
-                logger.info("Discarding dirty working directory before checkout.")
+                logger.debug("Discarding dirty working directory before checkout.")
                 repo.git.reset("--hard")
                 repo.git.clean("-fd")
 
             repo.heads.main.checkout()
-            logger.info("Pulling latest changes from origin/main")
+            logger.debug("Pulling latest changes from origin/main")
             repo.remotes.origin.pull()
             return True
         except GitCommandError as e:
@@ -448,9 +448,22 @@ class GitOperations:
         try:
             logger.info(f"Pushing changes to origin/{branch_name}")
             repo = self._get_repo()
-            repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
+            
+            # Use push_info to get detailed results and catch all errors
+            push_info = repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
+            
+            # Check push results for any failures
+            for info in push_info:
+                if info.flags & info.ERROR or info.flags & info.REJECTED:
+                    error_msg = info.summary or "Unknown push error"
+                    logger.error(f"Failed to push changes to origin/{branch_name}: {error_msg}")
+                    return False
+                if info.flags & info.UP_TO_DATE:
+                    logger.debug(f"Branch {branch_name} already up to date")
+            
             return True
-        except GitCommandError as e:
+        except Exception as e:
+            # Catch all exceptions, including GitCommandError and others
             logger.error(f"Failed to push changes to origin/{branch_name}: {e}")
             return False
 

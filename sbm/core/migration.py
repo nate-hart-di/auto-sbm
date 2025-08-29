@@ -802,7 +802,7 @@ def reprocess_manual_changes(slug) -> bool | None:
     Returns:
         bool: True if reprocessing was successful, False otherwise
     """
-    logger.info(f"Reprocessing manual changes for {slug}")
+    logger.debug(f"Reprocessing manual changes for {slug}")
 
     try:
         theme_dir = get_dealer_theme_dir(slug)
@@ -1261,7 +1261,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
     test_files = []
 
     try:
-        logger.info("Verifying SCSS compilation using Docker Gulp...")
+        logger.info("Testing SCSS compilation...")
 
         # Step 1: Copy sb-*.scss files to CSS directory with test prefix
         for sb_file in sb_files:
@@ -1273,14 +1273,14 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
 
                 shutil.copy2(src_path, dst_path)
                 test_files.append((test_filename, dst_path))
-                logger.info(f"Copied {sb_file} to {test_filename} for compilation test")
+                logger.debug(f"Copied {sb_file} to {test_filename} for compilation test")
 
         if not test_files:
             logger.warning("No Site Builder files found to test")
             return True
 
         # Step 2: Wait for Docker Gulp to process the files
-        logger.info("Monitoring Docker Gulp compilation...")
+        logger.debug("Monitoring Docker Gulp compilation...")
         time.sleep(1)  # Give Gulp time to detect and process files
 
         # Step 3: Check for corresponding CSS files
@@ -1302,7 +1302,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
 
                 if os.path.exists(css_path):
                     compiled_files.append(test_filename)
-                    logger.info(f"✅ {test_filename} compiled successfully to {css_filename}")
+                    logger.debug(f"✅ {test_filename} compiled successfully to {css_filename}")
 
                     # Start 2-second countdown after first compile
                     if first_compile_time is None:
@@ -1356,26 +1356,26 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         # Step 6: Cleanup sequence to avoid triggering additional compilations
         try:
             # First: Remove untracked test files (this will trigger Gulp to compile again)
-            logger.info("Removing test files...")
+            logger.debug("Cleaning up test files...")
             for test_filename, scss_path in test_files:
                 try:
                     # Remove test SCSS file
                     if os.path.exists(scss_path):
                         os.remove(scss_path)
-                        logger.info(f"Removed test SCSS file: {test_filename}")
+                        logger.debug(f"Removed test SCSS file: {test_filename}")
 
                     # Remove generated CSS file
                     css_filename = test_filename.replace(".scss", ".css")
                     css_path = os.path.join(css_dir, css_filename)
                     if os.path.exists(css_path):
                         os.remove(css_path)
-                        logger.info(f"Removed generated CSS file: {css_filename}")
+                        logger.debug(f"Removed generated CSS file: {css_filename}")
 
                 except Exception as e:
                     logger.warning(f"Error removing test file {test_filename}: {e}")
 
             # Second: Wait for Gulp to finish the cleanup compilation cycle
-            logger.info("Waiting for Gulp cleanup cycle to complete...")
+            logger.debug("Waiting for Gulp cleanup cycle to complete...")
             time.sleep(2)  # Give Gulp time to process file removals
 
             try:
@@ -1446,11 +1446,11 @@ def _handle_compilation_with_error_recovery(
     max_iterations = 5
     iteration = 0
 
-    logger.info("Starting compilation monitoring with error recovery...")
+    logger.debug("Starting compilation monitoring with error recovery...")
 
     while iteration < max_iterations:
         iteration += 1
-        logger.info(f"🔄 Compilation attempt {iteration}/{max_iterations}")
+        logger.debug(f"🔄 Compilation attempt {iteration}/{max_iterations}")
 
         # Wait for compilation cycle
         time.sleep(1)
