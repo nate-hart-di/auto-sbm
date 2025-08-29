@@ -190,6 +190,16 @@ class OEMFactory:
         
         # Remove migration tool comments and artifacts
         content = re.sub(r'(?i)auto-generated[^\n]*', '', content)
+        
+        # Remove SCSS import statements that contain Stellantis/FCA paths (major contamination source)
+        content = re.sub(r'@import[^;]*dealer-groups/fca[^;]*;', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'@import[^;]*dealer-groups/cdjr[^;]*;', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'@import[^;]*dealer-groups/stellantis[^;]*;', '', content, flags=re.IGNORECASE)
+        
+        # Remove any remaining references to stellantis, fca, cdjr patterns that are migration artifacts
+        content = re.sub(r'(?i)\bstellantis\b[^\n]*migration[^\n]*', '', content)
+        content = re.sub(r'(?i)\bfca\b[^\n]*migration[^\n]*', '', content)
+        content = re.sub(r'(?i)\bcdjr\b[^\n]*migration[^\n]*', '', content)
         content = re.sub(r'(?i)migration tool[^\n]*', '', content)
         content = re.sub(r'(?i)site builder[^\n]*', '', content)
         
