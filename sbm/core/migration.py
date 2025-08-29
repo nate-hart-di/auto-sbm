@@ -16,6 +16,7 @@ import click  # Import click for interactive prompts
 
 from sbm.oem.factory import OEMFactory
 from sbm.scss.processor import SCSSProcessor
+from sbm.ui.simple_rich import print_migration_complete
 from sbm.utils.command import execute_command, execute_interactive_command
 from sbm.utils.logger import logger
 from sbm.utils.path import get_dealer_theme_dir
