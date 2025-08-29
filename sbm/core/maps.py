@@ -126,7 +126,7 @@ def find_commontheme_map_imports(style_scss_path):
                 map_imports.append(map_import)
                 logger.info(f"Found map import: {map_import['filename']} at {actual_file_path}")
             else:
-                logger.warning(f"CommonTheme file not found: {commontheme_absolute}")
+                logger.debug(f"CommonTheme file not found (skipping): {commontheme_absolute}")
 
         if map_imports:
             logger.info(f"Found {len(map_imports)} CommonTheme map imports")
