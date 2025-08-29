@@ -73,7 +73,11 @@ class OEMFactory:
     @classmethod
     def detect_from_theme(cls, slug, platform_dir=None):
         """
-        Detect the OEM from the theme directory structure and content.
+        Detect the OEM from the dealer slug first, then fallback to theme content analysis.
+        
+        Priority order:
+        1. Slug-based detection (most reliable)
+        2. Theme content analysis (fallback for ambiguous cases)
 
         Args:
             slug (str): Dealer theme slug
@@ -82,6 +86,16 @@ class OEMFactory:
         Returns:
             BaseOEMHandler: An instance of the appropriate OEM handler
         """
+        
+        # PRIORITY 1: Try slug-based detection first (most reliable)
+        slug_based_handler = cls.create_handler(slug)
+        if slug_based_handler.__class__.__name__ != "DefaultHandler":
+            logger.info(f"Detected OEM for {slug} based on slug: {slug_based_handler.__class__.__name__}")
+            return slug_based_handler
+        
+        # PRIORITY 2: Slug didn't match known patterns, try theme content analysis as fallback
+        logger.debug(f"Slug '{slug}' didn't match known patterns, analyzing theme content...")
+        
         if not platform_dir:
             platform_dir = os.environ.get("DI_WEBSITES_PLATFORM_DIR", "")
             if not platform_dir:
@@ -165,16 +179,9 @@ class OEMFactory:
                 except Exception as e:
                     logger.debug(f"Could not read {filename}: {e}")
         
-        # Re-evaluate best match after checking all files
+        # Re-evaluate best match after checking all files (fallback only)
         if indicators:
             best_match = max(indicators.items(), key=lambda x: x[1])
-            
-            # CRITICAL OVERRIDE: If slug contains "kia" but Stellantis is detected, it's contamination
-            if "kia" in slug.lower() and best_match[0] == "StellantisHandler":
-                logger.warning(f"CONTAMINATION DETECTED: Kia dealer '{slug}' showing Stellantis matches - forcing KiaHandler")
-                logger.debug(f"Contamination evidence: {indicators}")
-                return KiaHandler(slug)
-            
             logger.info(f"Detected OEM for {slug} based on theme content: {best_match[0]}")
 
             # Create the appropriate handler
