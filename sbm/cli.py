@@ -468,7 +468,7 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
     if not _perform_migration_steps(theme_name, force_reset, skip_maps):
         sys.exit(1)
 
-    logger.info(f"Migration completed successfully for {theme_name}")
+    logger.debug(f"Core migration steps completed for {theme_name}")
 
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(theme_name)

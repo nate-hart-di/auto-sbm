@@ -909,8 +909,8 @@ def run_post_migration_workflow(
     """
     logger.debug(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Skip manual review - go directly to processing
-    if False:  # interactive_review disabled
+    # Manual review - critical workflow step before final processing
+    if True:  # interactive_review enabled - critical workflow step
         # Clear the terminal to ensure clean display
         import os
         import sys
@@ -1096,6 +1096,12 @@ Once you are satisfied, proceed to the next step.
         else:
             logger.info("Skipping pull request creation.")
 
+    # Migration workflow completed successfully 
+    logger.info(f"Migration completed successfully for {slug}")
+    
+    # Show beautiful completion message
+    print_migration_complete(slug)
+    
     return True
 
 
@@ -1228,10 +1234,10 @@ def migrate_dealer_theme(
         print_step(6, 6, "Skipping map components migration", slug)
         print_step_success("Map components skipped")
 
-    logger.info(f"Migration completed successfully for {slug}")
+    logger.debug(f"Core migration steps completed for {slug}")
 
-    # Show beautiful completion message
-    print_migration_complete(slug)
+    # Core migration complete - proceeding to manual review and finalization
+    print_step_success("Core migration steps completed")
 
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
