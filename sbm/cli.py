@@ -472,7 +472,7 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
 
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(theme_name)
-    logger.info("Created automation snapshot before manual review")
+    logger.debug("Created automation snapshot before manual review")
 
     # Manual review phase
     click.echo("\n" + "=" * 80)
@@ -493,7 +493,7 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
 
     # Reprocess manual changes to ensure consistency (includes validation, fixing issues,
     # prettier formatting)
-    logger.info(f"Reprocessing manual changes for {theme_name} to ensure consistency...")
+    logger.debug(f"Reprocessing manual changes for {theme_name} to ensure consistency...")
     if not reprocess_manual_changes(theme_name):
         logger.error("Failed to reprocess manual changes.")
         click.echo("❌ Failed to reprocess manual changes.", err=True)

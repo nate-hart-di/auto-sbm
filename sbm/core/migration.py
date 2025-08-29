@@ -108,7 +108,7 @@ def _cleanup_snapshot_files(slug: str) -> None:
             import shutil
 
             shutil.rmtree(snapshot_dir)
-            logger.info(f"Cleaned up snapshot directory: {snapshot_dir}")
+            logger.debug(f"Cleaned up snapshot directory: {snapshot_dir}")
         else:
             logger.debug(f"No snapshot directory found at: {snapshot_dir}")
 
@@ -161,8 +161,7 @@ def _create_automation_snapshots(slug: str) -> None:
                 logger.debug(f"Created snapshot: {snapshot_path}")
 
         if snapshots_created > 0:
-            logger.info(f"Created automation snapshot for {slug}")
-            logger.info("Created automation snapshot before manual review")
+            logger.debug(f"Created automation snapshot for {slug}")
         else:
             logger.debug(f"No Site Builder files found to snapshot for {slug}")
 
@@ -377,7 +376,7 @@ def migrate_styles(slug: str) -> bool:
     3. Processes the main SCSS files (style.scss, inside.scss, _support-requests.scss, lvdp.scss, lvrp.scss).
     4. Writes the transformed files to the target directory.
     """
-    logger.info(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
+    logger.debug(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
     try:
         theme_dir = get_dealer_theme_dir(slug)
         source_scss_dir = os.path.join(theme_dir, "css")
@@ -420,11 +419,13 @@ def migrate_styles(slug: str) -> bool:
         success = processor.write_files_atomically(theme_dir, results)
 
         if success:
+            generated_files = []
             for filename, content in results.items():
                 if content:
                     lines = len(content.splitlines())
-                    logger.info(f"Generated {filename}: {lines} lines")
-            logger.info("SCSS migration completed successfully!")
+                    generated_files.append(f"{filename} ({lines} lines)")
+            if generated_files:
+                logger.info(f"Generated: {', '.join(generated_files)}")
         else:
             logger.error("SCSS migration failed during file writing.")
 
@@ -906,7 +907,7 @@ def run_post_migration_workflow(
     Returns:
         bool: True if all steps are successful, False otherwise.
     """
-    logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
+    logger.debug(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
     # Skip manual review - go directly to processing
     if False:  # interactive_review disabled
@@ -975,7 +976,7 @@ Once you are satisfied, proceed to the next step.
 
         # Reprocess manual changes to ensure consistency (skip if already verified)
         if not skip_reprocessing:
-            logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+            logger.debug(f"Reprocessing manual changes for {slug} to ensure consistency...")
             from sbm.utils.timer import timer_segment
             with timer_segment("Reprocessing Manual Changes"):
                 if not reprocess_manual_changes(slug):
@@ -1003,7 +1004,7 @@ Once you are satisfied, proceed to the next step.
     else:
         # If no interactive review, still do cleanup and reprocessing
         if not skip_reprocessing:
-            logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+            logger.debug(f"Reprocessing manual changes for {slug} to ensure consistency...")
             from sbm.utils.timer import timer_segment
             with timer_segment("Reprocessing Manual Changes"):
                 if not reprocess_manual_changes(slug):
@@ -1022,7 +1023,7 @@ Once you are satisfied, proceed to the next step.
                     # Don't throw exception - let the process continue and user can fix manually
                     return False
                 logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
-        logger.info("Cleaning up automation snapshots")
+        logger.debug("Cleaning up automation snapshots")
         _cleanup_snapshot_files(slug)
 
     # Git commit and push prompt combined into single confirmation

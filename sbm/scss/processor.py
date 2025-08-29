@@ -168,7 +168,7 @@ class SCSSProcessor:
         """
         Remove large comment blocks and section dividers that clutter PR diffs.
         """
-        logger.info("Cleaning up large comment blocks and section dividers...")
+        logger.debug("Cleaning up large comment blocks and section dividers...")
 
         # Remove large asterisk comment blocks like:
         # // *************************************************************************************************
@@ -384,13 +384,13 @@ class SCSSProcessor:
         """
         Performs transformations on SCSS content.
         """
-        logger.info(f"Performing SCSS transformation for {self.slug}...")
+        logger.debug(f"Performing SCSS transformation for {self.slug}...")
 
         try:
             # Step 0: Utility functions removed - Site Builder has its own utilities
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
-                logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
+                logger.debug("Filtering header/footer/navigation styles for Site Builder compatibility...")
 
                 try:
                     # Try the configured classifier first
@@ -401,11 +401,12 @@ class SCSSProcessor:
                     content, exclusion_result = robust_css_processing(content)
 
                 if exclusion_result.excluded_count > 0:
-                    logger.info(f"Excluded {exclusion_result.excluded_count} header/footer/nav rules from migration")
+                    categories = []
                     for category, count in exclusion_result.patterns_matched.items():
-                        logger.info(f"  - {category}: {count} rules")
+                        categories.append(f"{category}: {count}")
+                    logger.info(f"Excluded {exclusion_result.excluded_count} rules ({', '.join(categories)})")
                 else:
-                    logger.info("No header/footer/navigation styles found to exclude")
+                    logger.debug("No header/footer/navigation styles found to exclude")
 
             # Step 1: Process SCSS variables into a :root block and convert usage
             content = self._process_scss_variables(content)
@@ -417,7 +418,7 @@ class SCSSProcessor:
             content = self._convert_scss_functions(content)
 
             # Step 3: Convert all @include mixins using the intelligent parser
-            logger.info("Converting mixins to CSS...")
+            logger.debug("Converting mixins to CSS...")
             content, errors, unconverted = self.mixin_parser.parse_and_convert_mixins(content)
             if errors:
                 logger.warning(f"Encountered {len(errors)} errors during mixin conversion.")

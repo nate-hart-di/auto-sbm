@@ -33,7 +33,7 @@ def migrate_map_components(slug, oem_handler=None, interactive=False) -> Optiona
     Returns:
         bool: True if migration was successful, False otherwise
     """
-    logger.info(f"Starting enhanced map components migration for {slug}")
+    logger.debug(f"Starting enhanced map components migration for {slug}")
 
     try:
         theme_dir = get_dealer_theme_dir(slug)
