@@ -168,6 +168,13 @@ class OEMFactory:
         # Re-evaluate best match after checking all files
         if indicators:
             best_match = max(indicators.items(), key=lambda x: x[1])
+            
+            # CRITICAL OVERRIDE: If slug contains "kia" but Stellantis is detected, it's contamination
+            if "kia" in slug.lower() and best_match[0] == "StellantisHandler":
+                logger.warning(f"CONTAMINATION DETECTED: Kia dealer '{slug}' showing Stellantis matches - forcing KiaHandler")
+                logger.debug(f"Contamination evidence: {indicators}")
+                return KiaHandler(slug)
+            
             logger.info(f"Detected OEM for {slug} based on theme content: {best_match[0]}")
 
             # Create the appropriate handler
