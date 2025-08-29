@@ -352,12 +352,26 @@ class GitOperations:
             logger.info(f"Creating new branch: {branch_name}")
             repo = self._get_repo()
 
-            # If branch already exists, delete it
+            # If branch already exists locally, delete it
             if branch_name in repo.heads:
                 logger.warning(
-                    f"Branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
+                    f"Local branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
                 )
                 repo.delete_head(branch_name, force=True)
+            
+            # Check if remote branch exists and delete it too
+            try:
+                remote_refs = repo.remotes.origin.refs
+                remote_branch_ref = f"origin/{branch_name}"
+                if remote_branch_ref in [ref.name for ref in remote_refs]:
+                    logger.warning(
+                        f"Remote branch 'origin/{branch_name}' already exists. Deleting it to ensure a clean state."
+                    )
+                    # Delete the remote branch
+                    repo.remotes.origin.push(refspec=f":{branch_name}")
+            except Exception as e:
+                # Remote branch deletion is not critical - continue with local branch creation
+                logger.debug(f"Could not delete remote branch (may not exist): {e}")
 
             # Create and checkout the new branch
             new_branch = repo.create_head(branch_name)
@@ -449,15 +463,44 @@ class GitOperations:
             logger.info(f"Pushing changes to origin/{branch_name}")
             repo = self._get_repo()
             
-            # Use push_info to get detailed results and catch all errors
+            # First, try a normal push with upstream tracking
             push_info = repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
             
             # Check push results for any failures
             for info in push_info:
                 if info.flags & info.ERROR or info.flags & info.REJECTED:
                     error_msg = info.summary or "Unknown push error"
-                    logger.error(f"Failed to push changes to origin/{branch_name}: {error_msg}")
-                    return False
+                    
+                    # If it's a non-fast-forward error, try force-with-lease
+                    if "non-fast-forward" in error_msg.lower() or "rejected" in error_msg.lower():
+                        logger.warning(f"Push rejected (non-fast-forward). Retrying with force-with-lease...")
+                        try:
+                            # Retry with force-with-lease to safely overwrite remote branch
+                            push_info_retry = repo.remotes.origin.push(
+                                refspec=f"{branch_name}:{branch_name}", 
+                                set_upstream=True,
+                                force_with_lease=True
+                            )
+                            
+                            # Check if the retry succeeded
+                            retry_failed = False
+                            for retry_info in push_info_retry:
+                                if retry_info.flags & (retry_info.ERROR | retry_info.REJECTED):
+                                    retry_failed = True
+                                    break
+                            
+                            if not retry_failed:
+                                logger.info(f"Successfully pushed with force-with-lease to origin/{branch_name}")
+                                return True
+                            else:
+                                logger.error(f"Force-with-lease push also failed for origin/{branch_name}")
+                                return False
+                        except Exception as retry_e:
+                            logger.error(f"Force-with-lease push failed: {retry_e}")
+                            return False
+                    else:
+                        logger.error(f"Failed to push changes to origin/{branch_name}: {error_msg}")
+                        return False
                 if info.flags & info.UP_TO_DATE:
                     logger.debug(f"Branch {branch_name} already up to date")
             
