@@ -404,7 +404,7 @@ class SCSSProcessor:
                     categories = []
                     for category, count in exclusion_result.patterns_matched.items():
                         categories.append(f"{category}: {count}")
-                    logger.info(f"Excluded {exclusion_result.excluded_count} rules ({', '.join(categories)})")
+                    logger.debug(f"Excluded {exclusion_result.excluded_count} rules ({', '.join(categories)})")
                 else:
                     logger.debug("No header/footer/navigation styles found to exclude")
 

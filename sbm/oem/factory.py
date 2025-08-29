@@ -139,17 +139,26 @@ class OEMFactory:
                 try:
                     with open(file_path, encoding="utf-8", errors="ignore") as f:
                         content = f.read().lower()
+                        original_content_preview = content[:200].replace('\n', ' ')
                         content = cls._filter_migration_content(content)
+                        filtered_content_preview = content[:200].replace('\n', ' ')
+                        
+                        logger.debug(f"OEM Detection for {filename}: Original='{original_content_preview}...' Filtered='{filtered_content_preview}...'")
                         
                         for handler_class in cls._handlers:
                             handler = handler_class(slug)
                             patterns = handler.get_brand_match_patterns()
                             
                             matches = 0
+                            matched_patterns = []
                             for pattern in patterns:
-                                matches += len(re.findall(pattern, content, re.IGNORECASE))
-                            
+                                pattern_matches = re.findall(pattern, content, re.IGNORECASE)
+                                matches += len(pattern_matches)
+                                if pattern_matches:
+                                    matched_patterns.append(f"{pattern}: {pattern_matches}")
+
                             if matches > 0:
+                                logger.debug(f"OEM Detection: {handler_class.__name__} found {matches} matches in {filename}: {matched_patterns}")
                                 indicators[handler_class.__name__] = (
                                     indicators.get(handler_class.__name__, 0) + matches
                                 )

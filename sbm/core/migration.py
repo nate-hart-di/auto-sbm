@@ -425,7 +425,7 @@ def migrate_styles(slug: str) -> bool:
                     lines = len(content.splitlines())
                     generated_files.append(f"{filename} ({lines} lines)")
             if generated_files:
-                logger.info(f"Generated: {', '.join(generated_files)}")
+                logger.info(f"Successfully wrote: {', '.join(generated_files)}")
         else:
             logger.error("SCSS migration failed during file writing.")
 

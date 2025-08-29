@@ -255,7 +255,7 @@ class StyleClassifier:
 
         if excluded_rules:
             exclusion_summary = ", ".join([f"{pattern}: {count}" for pattern, count in patterns_matched.items()])
-            logger.info(f"Excluded {len(excluded_rules)} rules: {exclusion_summary}")
+            logger.debug(f"Excluded {len(excluded_rules)} rules: {exclusion_summary}")
 
         return filtered_content, result
 
