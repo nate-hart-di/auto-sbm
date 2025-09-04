@@ -16,6 +16,7 @@ import click  # Import click for interactive prompts
 
 from sbm.oem.factory import OEMFactory
 from sbm.scss.processor import SCSSProcessor
+from sbm.ui.simple_rich import print_migration_complete
 from sbm.utils.command import execute_command, execute_interactive_command
 from sbm.utils.logger import logger
 from sbm.utils.path import get_dealer_theme_dir
@@ -108,7 +109,7 @@ def _cleanup_snapshot_files(slug: str) -> None:
             import shutil
 
             shutil.rmtree(snapshot_dir)
-            logger.info(f"Cleaned up snapshot directory: {snapshot_dir}")
+            logger.debug(f"Cleaned up snapshot directory: {snapshot_dir}")
         else:
             logger.debug(f"No snapshot directory found at: {snapshot_dir}")
 
@@ -161,8 +162,7 @@ def _create_automation_snapshots(slug: str) -> None:
                 logger.debug(f"Created snapshot: {snapshot_path}")
 
         if snapshots_created > 0:
-            logger.info(f"Created automation snapshot for {slug}")
-            logger.info("Created automation snapshot before manual review")
+            logger.debug(f"Created automation snapshot for {slug}")
         else:
             logger.debug(f"No Site Builder files found to snapshot for {slug}")
 
@@ -314,7 +314,7 @@ def run_just_start(slug, suppress_output=False) -> bool:
     )
 
     if success:
-        logger.info("'just start' command completed successfully.")
+        logger.debug("'just start' command completed successfully.")
         return True
     from sbm.ui.simple_rich import print_step_error
 
@@ -377,7 +377,7 @@ def migrate_styles(slug: str) -> bool:
     3. Processes the main SCSS files (style.scss, inside.scss, _support-requests.scss, lvdp.scss, lvrp.scss).
     4. Writes the transformed files to the target directory.
     """
-    logger.info(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
+    logger.debug(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
     try:
         theme_dir = get_dealer_theme_dir(slug)
         source_scss_dir = os.path.join(theme_dir, "css")
@@ -420,11 +420,13 @@ def migrate_styles(slug: str) -> bool:
         success = processor.write_files_atomically(theme_dir, results)
 
         if success:
+            generated_files = []
             for filename, content in results.items():
                 if content:
                     lines = len(content.splitlines())
-                    logger.info(f"Generated {filename}: {lines} lines")
-            logger.info("SCSS migration completed successfully!")
+                    generated_files.append(f"{filename} ({lines} lines)")
+            if generated_files:
+                logger.info(f"Successfully wrote: {', '.join(generated_files)}")
         else:
             logger.error("SCSS migration failed during file writing.")
 
@@ -802,7 +804,7 @@ def reprocess_manual_changes(slug) -> bool | None:
     Returns:
         bool: True if reprocessing was successful, False otherwise
     """
-    logger.info(f"Reprocessing manual changes for {slug}")
+    logger.debug(f"Reprocessing manual changes for {slug}")
 
     try:
         theme_dir = get_dealer_theme_dir(slug)
@@ -906,9 +908,9 @@ def run_post_migration_workflow(
     Returns:
         bool: True if all steps are successful, False otherwise.
     """
-    logger.info(f"Starting post-migration workflow for {slug} on branch {branch_name}")
+    logger.debug(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Skip manual review - go directly to processing
+    # Manual review - disabled by default for streamlined workflow
     if False:  # interactive_review disabled
         # Clear the terminal to ensure clean display
         import os
@@ -975,7 +977,7 @@ Once you are satisfied, proceed to the next step.
 
         # Reprocess manual changes to ensure consistency (skip if already verified)
         if not skip_reprocessing:
-            logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+            logger.debug(f"Reprocessing manual changes for {slug} to ensure consistency...")
             from sbm.utils.timer import timer_segment
             with timer_segment("Reprocessing Manual Changes"):
                 if not reprocess_manual_changes(slug):
@@ -1003,7 +1005,7 @@ Once you are satisfied, proceed to the next step.
     else:
         # If no interactive review, still do cleanup and reprocessing
         if not skip_reprocessing:
-            logger.info(f"Reprocessing manual changes for {slug} to ensure consistency...")
+            logger.debug(f"Reprocessing manual changes for {slug} to ensure consistency...")
             from sbm.utils.timer import timer_segment
             with timer_segment("Reprocessing Manual Changes"):
                 if not reprocess_manual_changes(slug):
@@ -1022,21 +1024,24 @@ Once you are satisfied, proceed to the next step.
                     # Don't throw exception - let the process continue and user can fix manually
                     return False
                 logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
-        logger.info("Cleaning up automation snapshots")
+        logger.debug("Cleaning up automation snapshots")
         _cleanup_snapshot_files(slug)
 
-    # Git commit prompt with consistent input handling
-    commit_response = "y"  # Default to yes
+    # Git commit and push prompt combined into single confirmation
+    git_response = "y"  # Default to yes
     if interactive_git:
         import sys
-        sys.stdout.write(f"Commit all changes for {slug}? [Y/n]: ")
+        # Ensure all previous output is flushed before showing prompt
         sys.stdout.flush()
-        commit_response = input().strip().lower()
-        if commit_response in ("n", "no"):
-            logger.info("Skipping commit.")
+        sys.stderr.flush()
+        sys.stdout.write(f"Commit and push all changes for {slug}? [Y/n]: ")
+        sys.stdout.flush()
+        git_response = input().strip().lower()
+        if git_response in ("n", "no"):
+            logger.info("Skipping commit and push.")
             return True
 
-    if not interactive_git or commit_response in ("", "y", "yes"):
+    if not interactive_git or git_response in ("", "y", "yes"):
         # Clean up any snapshot files before committing - do this right before git operations
         _cleanup_snapshot_files(slug)
 
@@ -1048,29 +1053,15 @@ Once you are satisfied, proceed to the next step.
 
         # Clean up snapshots again after commit in case they were recreated
         _cleanup_snapshot_files(slug)
-    else:
-        logger.info("Skipping commit.")
-        return True  # End workflow if user skips commit
 
-    # Git push prompt with consistent input handling
-    push_response = "y"  # Default to yes
-    if interactive_git:
-        sys.stdout.write(f"Push changes to origin/{branch_name}? [Y/n]: ")
-        sys.stdout.flush()
-        push_response = input().strip().lower()
-        if push_response in ("n", "no"):
-            logger.info("Skipping push.")
-            return True
-
-    if not interactive_git or push_response in ("", "y", "yes"):
-        from sbm.utils.timer import timer_segment
+        # Push changes immediately after successful commit
         with timer_segment("Git Push Operations"):
             if not push_changes(branch_name):
                 logger.error("Failed to push changes.")
                 return False
     else:
-        logger.info("Skipping push.")
-        return True  # End workflow if user skips push
+        logger.info("Skipping commit and push.")
+        return True  # End workflow if user skips commit and push
 
     if create_pr:
         # PR creation prompt with consistent input handling
@@ -1106,6 +1097,12 @@ Once you are satisfied, proceed to the next step.
         else:
             logger.info("Skipping pull request creation.")
 
+    # Migration workflow completed successfully 
+    logger.info(f"Migration completed successfully for {slug}")
+    
+    # Show beautiful completion message
+    print_migration_complete(slug)
+    
     return True
 
 
@@ -1185,13 +1182,11 @@ def migrate_dealer_theme(
                 suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
             )
 
-        logger.info(f"'just start' returned: {just_start_success}")
         if not just_start_success:
             logger.error(f"Failed to start site for {slug}")
             return False
 
         print_step_success("Docker environment started successfully")
-        logger.info(f"Site started successfully for {slug}")
 
     # Create Site Builder files
     print_step(3, 6, "Creating Site Builder SCSS files", slug)
@@ -1240,10 +1235,10 @@ def migrate_dealer_theme(
         print_step(6, 6, "Skipping map components migration", slug)
         print_step_success("Map components skipped")
 
-    logger.info(f"Migration completed successfully for {slug}")
+    logger.debug(f"Core migration steps completed for {slug}")
 
-    # Show beautiful completion message
-    print_migration_complete(slug)
+    # Core migration complete - proceeding to manual review and finalization
+    print_step_success("Core migration steps completed")
 
     # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
@@ -1277,7 +1272,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
     test_files = []
 
     try:
-        logger.info("Verifying SCSS compilation using Docker Gulp...")
+        logger.info("Testing SCSS compilation...")
 
         # Step 1: Copy sb-*.scss files to CSS directory with test prefix
         for sb_file in sb_files:
@@ -1289,14 +1284,14 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
 
                 shutil.copy2(src_path, dst_path)
                 test_files.append((test_filename, dst_path))
-                logger.info(f"Copied {sb_file} to {test_filename} for compilation test")
+                logger.debug(f"Copied {sb_file} to {test_filename} for compilation test")
 
         if not test_files:
             logger.warning("No Site Builder files found to test")
             return True
 
         # Step 2: Wait for Docker Gulp to process the files
-        logger.info("Monitoring Docker Gulp compilation...")
+        logger.debug("Monitoring Docker Gulp compilation...")
         time.sleep(1)  # Give Gulp time to detect and process files
 
         # Step 3: Check for corresponding CSS files
@@ -1318,7 +1313,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
 
                 if os.path.exists(css_path):
                     compiled_files.append(test_filename)
-                    logger.info(f"✅ {test_filename} compiled successfully to {css_filename}")
+                    logger.debug(f"✅ {test_filename} compiled successfully to {css_filename}")
 
                     # Start 2-second countdown after first compile
                     if first_compile_time is None:
@@ -1372,26 +1367,26 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         # Step 6: Cleanup sequence to avoid triggering additional compilations
         try:
             # First: Remove untracked test files (this will trigger Gulp to compile again)
-            logger.info("Removing test files...")
+            logger.debug("Cleaning up test files...")
             for test_filename, scss_path in test_files:
                 try:
                     # Remove test SCSS file
                     if os.path.exists(scss_path):
                         os.remove(scss_path)
-                        logger.info(f"Removed test SCSS file: {test_filename}")
+                        logger.debug(f"Removed test SCSS file: {test_filename}")
 
                     # Remove generated CSS file
                     css_filename = test_filename.replace(".scss", ".css")
                     css_path = os.path.join(css_dir, css_filename)
                     if os.path.exists(css_path):
                         os.remove(css_path)
-                        logger.info(f"Removed generated CSS file: {css_filename}")
+                        logger.debug(f"Removed generated CSS file: {css_filename}")
 
                 except Exception as e:
                     logger.warning(f"Error removing test file {test_filename}: {e}")
 
             # Second: Wait for Gulp to finish the cleanup compilation cycle
-            logger.info("Waiting for Gulp cleanup cycle to complete...")
+            logger.debug("Waiting for Gulp cleanup cycle to complete...")
             time.sleep(2)  # Give Gulp time to process file removals
 
             try:
@@ -1462,11 +1457,11 @@ def _handle_compilation_with_error_recovery(
     max_iterations = 5
     iteration = 0
 
-    logger.info("Starting compilation monitoring with error recovery...")
+    logger.debug("Starting compilation monitoring with error recovery...")
 
     while iteration < max_iterations:
         iteration += 1
-        logger.info(f"🔄 Compilation attempt {iteration}/{max_iterations}")
+        logger.debug(f"🔄 Compilation attempt {iteration}/{max_iterations}")
 
         # Wait for compilation cycle
         time.sleep(1)

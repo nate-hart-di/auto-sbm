@@ -320,17 +320,17 @@ class GitOperations:
             bool: True if successful, False otherwise
         """
         try:
-            logger.info("Checking out main branch and pulling latest changes")
+            logger.info("Setting up clean main branch")
             repo = self._get_repo()
 
             # Stash or discard any local changes before switching branches
             if repo.is_dirty(untracked_files=True):
-                logger.info("Discarding dirty working directory before checkout.")
+                logger.debug("Discarding dirty working directory before checkout.")
                 repo.git.reset("--hard")
                 repo.git.clean("-fd")
 
             repo.heads.main.checkout()
-            logger.info("Pulling latest changes from origin/main")
+            logger.debug("Pulling latest changes from origin/main")
             repo.remotes.origin.pull()
             return True
         except GitCommandError as e:
@@ -352,12 +352,41 @@ class GitOperations:
             logger.info(f"Creating new branch: {branch_name}")
             repo = self._get_repo()
 
-            # If branch already exists, delete it
+            # If branch already exists locally, delete it
             if branch_name in repo.heads:
                 logger.warning(
-                    f"Branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
+                    f"Local branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
                 )
                 repo.delete_head(branch_name, force=True)
+            
+            # Check if remote branch exists and delete it too (equivalent to git push origin --delete [branch_name])
+            try:
+                # Fetch latest refs to ensure we have up-to-date remote branch info
+                repo.remotes.origin.fetch()
+                
+                # Check if remote branch exists
+                remote_branch_exists = False
+                try:
+                    remote_refs = [ref.name for ref in repo.remotes.origin.refs]
+                    if f"origin/{branch_name}" in remote_refs:
+                        remote_branch_exists = True
+                except Exception:
+                    # If we can't list remote refs, try deletion anyway (safer)
+                    remote_branch_exists = True
+                
+                if remote_branch_exists:
+                    logger.warning(
+                        f"Remote branch 'origin/{branch_name}' exists. Deleting it to ensure clean state."
+                    )
+                    # Delete the remote branch (equivalent to: git push origin --delete [branch_name])
+                    repo.remotes.origin.push(refspec=f":{branch_name}")
+                    logger.info(f"Successfully deleted remote branch 'origin/{branch_name}'")
+                else:
+                    logger.debug(f"Remote branch 'origin/{branch_name}' does not exist, no cleanup needed")
+                    
+            except Exception as e:
+                # Remote branch deletion failure is not critical - continue with local branch creation
+                logger.debug(f"Could not delete remote branch 'origin/{branch_name}': {e}")
 
             # Create and checkout the new branch
             new_branch = repo.create_head(branch_name)
@@ -448,9 +477,51 @@ class GitOperations:
         try:
             logger.info(f"Pushing changes to origin/{branch_name}")
             repo = self._get_repo()
-            repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
+            
+            # First, try a normal push with upstream tracking
+            push_info = repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
+            
+            # Check push results for any failures
+            for info in push_info:
+                if info.flags & info.ERROR or info.flags & info.REJECTED:
+                    error_msg = info.summary or "Unknown push error"
+                    
+                    # If it's a non-fast-forward error, try force-with-lease
+                    if "non-fast-forward" in error_msg.lower() or "rejected" in error_msg.lower():
+                        logger.warning(f"Push rejected (non-fast-forward). Retrying with force-with-lease...")
+                        try:
+                            # Retry with force-with-lease to safely overwrite remote branch
+                            push_info_retry = repo.remotes.origin.push(
+                                refspec=f"{branch_name}:{branch_name}", 
+                                set_upstream=True,
+                                force_with_lease=True
+                            )
+                            
+                            # Check if the retry succeeded
+                            retry_failed = False
+                            for retry_info in push_info_retry:
+                                if retry_info.flags & (retry_info.ERROR | retry_info.REJECTED):
+                                    retry_failed = True
+                                    break
+                            
+                            if not retry_failed:
+                                logger.info(f"Successfully pushed with force-with-lease to origin/{branch_name}")
+                                return True
+                            else:
+                                logger.error(f"Force-with-lease push also failed for origin/{branch_name}")
+                                return False
+                        except Exception as retry_e:
+                            logger.error(f"Force-with-lease push failed: {retry_e}")
+                            return False
+                    else:
+                        logger.error(f"Failed to push changes to origin/{branch_name}: {error_msg}")
+                        return False
+                if info.flags & info.UP_TO_DATE:
+                    logger.debug(f"Branch {branch_name} already up to date")
+            
             return True
-        except GitCommandError as e:
+        except Exception as e:
+            # Catch all exceptions, including GitCommandError and others
             logger.error(f"Failed to push changes to origin/{branch_name}: {e}")
             return False
 
@@ -937,13 +1008,18 @@ class GitOperations:
                         f"- Manual modifications added ({manual_lines} lines) - details need review"
                     )
 
-        # Add FCA-specific items for Stellantis brands (only if files were actually changed)
-        if automated_items and any(
-            brand in slug.lower()
-            for brand in ["chrysler", "dodge", "jeep", "ram", "fiat", "cdjr", "fca"]
-        ):
-            what_items.append("- Added FCA Direction Row Styles")
-            what_items.append("- Added FCA Cookie Banner styles")
+        # Add OEM-specific items based on actual OEM handler (not just slug matching)
+        try:
+            from sbm.oem.factory import OEMFactory
+            from sbm.oem.stellantis import StellantisHandler
+            
+            handler = OEMFactory.detect_from_theme(slug)
+            
+            if automated_items and isinstance(handler, StellantisHandler):
+                what_items.append("- Added Stellantis Direction Row Styles")
+                what_items.append("- Added Stellantis Cookie Banner styles")
+        except Exception as e:
+            logger.debug(f"Could not determine OEM for PR description: {e}")
 
         what_section = "\n".join(what_items)
 

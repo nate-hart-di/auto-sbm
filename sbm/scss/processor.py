@@ -29,7 +29,7 @@ class SCSSProcessor:
         self.theme_dir = get_dealer_theme_dir(slug)
         self.common_theme_path = get_common_theme_path()
         self.exclude_nav_styles = exclude_nav_styles
-        logger.info(f"SCSS Processor initialized for dealer: {self.slug}")
+        logger.debug(f"SCSS Processor initialized for dealer: {self.slug}")
         self.mixin_parser = CommonThemeMixinParser()
 
         # Initialize style classifier for header/footer/nav exclusion
@@ -37,7 +37,7 @@ class SCSSProcessor:
             try:
                 # Use professional parser for better accuracy with comma-separated selectors
                 self.style_classifier = ProfessionalStyleClassifier(strict_mode=True)
-                logger.info("Professional style exclusion enabled for header/footer/navigation components")
+                logger.debug("Professional style exclusion enabled for header/footer/navigation components")
             except Exception as e:
                 # Fallback to original classifier if professional parser not available
                 self.style_classifier = StyleClassifier(strict_mode=True)
@@ -48,7 +48,7 @@ class SCSSProcessor:
         """
         Processes SCSS variables by moving them to a :root block as CSS custom properties.
         """
-        logger.info("Processing SCSS variables into CSS custom properties...")
+        logger.debug("Processing SCSS variables into CSS custom properties...")
 
         # Find all root-level SCSS variable declarations (e.g., "$primary: #000;")
         declarations = re.findall(r"^\s*(\$[\w-]+)\s*:\s*(.*?);", content, flags=re.MULTILINE)
@@ -158,7 +158,7 @@ class SCSSProcessor:
         """
         Removes excess whitespace and blank lines from the final output.
         """
-        logger.info("Trimming whitespace from final output...")
+        logger.debug("Trimming whitespace from final output...")
         # Replace multiple blank lines with a single one
         content = re.sub(r"\n\s*\n", "\n\n", content)
         # Remove leading/trailing whitespace
@@ -168,7 +168,7 @@ class SCSSProcessor:
         """
         Remove large comment blocks and section dividers that clutter PR diffs.
         """
-        logger.info("Cleaning up large comment blocks and section dividers...")
+        logger.debug("Cleaning up large comment blocks and section dividers...")
 
         # Remove large asterisk comment blocks like:
         # // *************************************************************************************************
@@ -206,7 +206,7 @@ class SCSSProcessor:
         Converts relative image paths to absolute Site Builder paths and ensures
         all URLs are consistently double-quoted.
         """
-        logger.info("Converting relative image paths and enforcing quotes...")
+        logger.debug("Converting relative image paths and enforcing quotes...")
 
         # Convert relative `../images/` paths to absolute, quoted paths
         content = re.sub(
@@ -237,7 +237,7 @@ class SCSSProcessor:
         1. SCSS functions with CSS variables (e.g., lighten(var(--primary), 20%))
         2. SCSS functions with hardcoded colors (e.g., lighten(#252525, 2%))
         """
-        logger.info("Converting SCSS functions to CSS-compatible equivalents...")
+        logger.debug("Converting SCSS functions to CSS-compatible equivalents...")
 
         # CRITICAL FIX: Handle color keywords in SCSS functions
         # Replace color keywords with variables before processing
@@ -384,13 +384,13 @@ class SCSSProcessor:
         """
         Performs transformations on SCSS content.
         """
-        logger.info(f"Performing SCSS transformation for {self.slug}...")
+        logger.debug(f"Performing SCSS transformation for {self.slug}...")
 
         try:
             # Step 0: Utility functions removed - Site Builder has its own utilities
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
-                logger.info("Filtering header/footer/navigation styles for Site Builder compatibility...")
+                logger.debug("Filtering header/footer/navigation styles for Site Builder compatibility...")
 
                 try:
                     # Try the configured classifier first
@@ -401,11 +401,12 @@ class SCSSProcessor:
                     content, exclusion_result = robust_css_processing(content)
 
                 if exclusion_result.excluded_count > 0:
-                    logger.info(f"Excluded {exclusion_result.excluded_count} header/footer/nav rules from migration")
+                    categories = []
                     for category, count in exclusion_result.patterns_matched.items():
-                        logger.info(f"  - {category}: {count} rules")
+                        categories.append(f"{category}: {count}")
+                    logger.debug(f"Excluded {exclusion_result.excluded_count} rules ({', '.join(categories)})")
                 else:
-                    logger.info("No header/footer/navigation styles found to exclude")
+                    logger.debug("No header/footer/navigation styles found to exclude")
 
             # Step 1: Process SCSS variables into a :root block and convert usage
             content = self._process_scss_variables(content)
@@ -417,7 +418,7 @@ class SCSSProcessor:
             content = self._convert_scss_functions(content)
 
             # Step 3: Convert all @include mixins using the intelligent parser
-            logger.info("Converting mixins to CSS...")
+            logger.debug("Converting mixins to CSS...")
             content, errors, unconverted = self.mixin_parser.parse_and_convert_mixins(content)
             if errors:
                 logger.warning(f"Encountered {len(errors)} errors during mixin conversion.")
