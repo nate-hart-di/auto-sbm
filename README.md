@@ -49,6 +49,7 @@
 
 ```bash
 # Clone and setup
+cd ~
 git clone git@github.com:nate-hart-di/auto-sbm.git
 cd auto-sbm
 bash setup.sh
