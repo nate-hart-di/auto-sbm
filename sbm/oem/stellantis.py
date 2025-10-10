@@ -54,4 +54,13 @@ class StellantisHandler(BaseOEMHandler):
         Returns:
             list: Regular expression patterns for matching Stellantis brands
         """
-        return [r"chrysler", r"dodge", r"jeep", r"ram", r"fiat", r"cdjr", r"fca"]
+        return [
+            r"chrysler",
+            r"dodge",
+            r"jeep",
+            r"ram",
+            r"fiat",
+            r"cdjr",
+            r"cjdr",  # Common slug typo still maps to Stellantis
+            r"fca",
+        ]
