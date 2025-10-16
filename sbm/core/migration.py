@@ -769,7 +769,7 @@ def test_compilation_recovery(slug):
         click.echo("Files will be copied to CSS directory to trigger Docker Gulp compilation...")
 
         # Test compilation with error recovery
-        success, _ = _handle_compilation_with_error_recovery(
+        success, _, _ = _handle_compilation_with_error_recovery(
             css_dir, test_files, theme_dir, slug
         )
 
@@ -1277,191 +1277,202 @@ def _verify_scss_compilation_with_docker(
         bool: True if all files compile successfully, False otherwise
     """
     css_dir = os.path.join(theme_dir, "css")
-    test_files = []
     manual_fix_attempted = False
     cleanup_skip_git_checkout = skip_git_checkout
 
-    try:
-        logger.info("Testing SCSS compilation...")
+    while True:
+        test_files = []
+        rerun_requested = False
+        compilation_success = False
 
-        # Step 1: Copy sb-*.scss files to CSS directory with test prefix
-        for sb_file in sb_files:
-            src_path = os.path.join(theme_dir, sb_file)
-            if os.path.exists(src_path):
-                # Create test filename (sb-inside.scss -> test-sb-inside.scss)
-                test_filename = f"test-{sb_file}"
-                dst_path = os.path.join(css_dir, test_filename)
+        try:
+            logger.info("Testing SCSS compilation...")
 
-                shutil.copy2(src_path, dst_path)
-                test_files.append((test_filename, dst_path))
-                logger.debug(f"Copied {sb_file} to {test_filename} for compilation test")
+            # Step 1: Copy sb-*.scss files to CSS directory with test prefix
+            for sb_file in sb_files:
+                src_path = os.path.join(theme_dir, sb_file)
+                if os.path.exists(src_path):
+                    test_filename = f"test-{sb_file}"
+                    dst_path = os.path.join(css_dir, test_filename)
 
-        if not test_files:
-            logger.warning("No Site Builder files found to test")
-            return True
+                    shutil.copy2(src_path, dst_path)
+                    test_files.append((test_filename, dst_path))
+                    logger.debug(f"Copied {sb_file} to {test_filename} for compilation test")
 
-        # Step 2: Wait for Docker Gulp to process the files
-        logger.debug("Monitoring Docker Gulp compilation...")
-        time.sleep(1)  # Give Gulp time to detect and process files
+            if not test_files:
+                logger.warning("No Site Builder files found to test")
+                return True
 
-        # Step 3: Check for corresponding CSS files
-        max_wait = 5  # 5 seconds max wait time total
-        start_time = time.time()
-        compiled_files = []
+            # Step 2: Wait for Docker Gulp to process the files
+            logger.debug("Monitoring Docker Gulp compilation...")
+            time.sleep(1)
 
-        # If any file compiles, wait max 2 more seconds for others
-        first_compile_time = None
+            # Step 3: Check for corresponding CSS files
+            max_wait = 5
+            start_time = time.time()
+            compiled_files = []
+            first_compile_time = None
 
-        while (time.time() - start_time) < max_wait and len(compiled_files) < len(test_files):
-            for test_filename, scss_path in test_files:
-                if test_filename in compiled_files:
+            while (time.time() - start_time) < max_wait and len(compiled_files) < len(test_files):
+                for test_filename, _ in test_files:
+                    if test_filename in compiled_files:
+                        continue
+
+                    css_filename = test_filename.replace(".scss", ".css")
+                    css_path = os.path.join(css_dir, css_filename)
+
+                    if os.path.exists(css_path):
+                        compiled_files.append(test_filename)
+                        logger.debug(f"✅ {test_filename} compiled successfully to {css_filename}")
+
+                        if first_compile_time is None:
+                            first_compile_time = time.time()
+
+                if first_compile_time and (time.time() - first_compile_time) >= 2:
+                    break
+
+                if len(compiled_files) < len(test_files):
+                    time.sleep(0.2)
+
+            # Step 4: Monitor compilation with iterative error handling
+            try:
+                (
+                    recovery_success,
+                    recovery_manual_fix,
+                    recovery_rerun_requested,
+                ) = _handle_compilation_with_error_recovery(
+                    css_dir, test_files, theme_dir, slug
+                )
+
+                manual_fix_attempted = manual_fix_attempted or recovery_manual_fix
+                cleanup_skip_git_checkout = cleanup_skip_git_checkout or manual_fix_attempted
+
+                if recovery_rerun_requested:
+                    rerun_requested = True
+                    logger.info("Manual fixes applied to source SCSS. Restarting verification...")
                     continue
 
-                # Check for corresponding CSS file
-                css_filename = test_filename.replace(".scss", ".css")
-                css_path = os.path.join(css_dir, css_filename)
+                if not recovery_success:
+                    logger.error("❌ SCSS compilation failed after error recovery attempts")
+                    return False
 
-                if os.path.exists(css_path):
-                    compiled_files.append(test_filename)
-                    logger.debug(f"✅ {test_filename} compiled successfully to {css_filename}")
-
-                    # Start 2-second countdown after first compile
-                    if first_compile_time is None:
-                        first_compile_time = time.time()
-
-            # If we have at least one compile and it's been 2+ seconds, stop waiting
-            if first_compile_time and (time.time() - first_compile_time) >= 2:
-                break
-
-            if len(compiled_files) < len(test_files):
-                time.sleep(0.2)  # Check every 200ms
-
-        # Step 4: Monitor compilation with iterative error handling
-        compilation_success = False
-        try:
-            # Attempt compilation with error handling loop
-            (
-                recovery_success,
-                recovery_manual_fix,
-            ) = _handle_compilation_with_error_recovery(css_dir, test_files, theme_dir, slug)
-            manual_fix_attempted = manual_fix_attempted or recovery_manual_fix
-            cleanup_skip_git_checkout = cleanup_skip_git_checkout or manual_fix_attempted
-
-            if not recovery_success:
-                logger.error("❌ SCSS compilation failed after error recovery attempts")
-                return False
-
-            # Step 5: Re-verify compilation success after error recovery
-            # Check again for CSS files after error recovery completed - MUST be done BEFORE cleanup
-            final_compiled_files = []
-            for test_filename, scss_path in test_files:
-                css_filename = test_filename.replace(".scss", ".css")
-                css_path = os.path.join(css_dir, css_filename)
-                if os.path.exists(css_path):
-                    final_compiled_files.append(test_filename)
-
-            compilation_success = len(final_compiled_files) == len(test_files)
-
-            if compilation_success:
-                logger.info(
-                    f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp"
-                )
-            else:
-                failed_files = [f for f, _ in test_files if f not in final_compiled_files]
-                logger.error(f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}")
-
-        except Exception as e:
-            logger.error(f"Critical error during compilation monitoring: {e}")
-            return False
-
-        return compilation_success
-
-    except Exception as e:
-        logger.error(f"Error during Docker Gulp compilation verification: {e}")
-        return False
-
-    finally:
-        # Step 6: Cleanup sequence to avoid triggering additional compilations
-        try:
-            # First: Remove untracked test files (this will trigger Gulp to compile again)
-            logger.debug("Cleaning up test files...")
-            for test_filename, scss_path in test_files:
-                try:
-                    # Remove test SCSS file
-                    if os.path.exists(scss_path):
-                        os.remove(scss_path)
-                        logger.debug(f"Removed test SCSS file: {test_filename}")
-
-                    # Remove generated CSS file
+                # Step 5: Re-verify compilation success after error recovery
+                final_compiled_files = []
+                for test_filename, _ in test_files:
                     css_filename = test_filename.replace(".scss", ".css")
                     css_path = os.path.join(css_dir, css_filename)
                     if os.path.exists(css_path):
-                        os.remove(css_path)
-                        logger.debug(f"Removed generated CSS file: {css_filename}")
+                        final_compiled_files.append(test_filename)
 
-                except Exception as e:
-                    logger.warning(f"Error removing test file {test_filename}: {e}")
+                compilation_success = len(final_compiled_files) == len(test_files)
 
-            # Second: Wait for Gulp to finish the cleanup compilation cycle
-            logger.debug("Waiting for Gulp cleanup cycle to complete...")
-            time.sleep(2)  # Give Gulp time to process file removals
-
-            try:
-                cleanup_wait = 10
-                cleanup_start = time.time()
-                cleanup_sass_done = False
-                cleanup_process_done = False
-
-                while (time.time() - cleanup_start) < cleanup_wait:
-                    result = subprocess.run(
-                        ["docker", "logs", "--tail", "10", "dealerinspire_legacy_assets"],
-                        check=False,
-                        capture_output=True,
-                        text=True,
-                        timeout=5,
+                if compilation_success:
+                    logger.info(
+                        f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp"
+                    )
+                else:
+                    failed_files = [f for f, _ in test_files if f not in final_compiled_files]
+                    logger.error(
+                        f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}"
                     )
 
-                    if result.returncode == 0 and result.stdout:
-                        recent_logs = result.stdout.lower()
-                        if "finished 'sass'" in recent_logs:
-                            cleanup_sass_done = True
-                        if "finished 'processcss'" in recent_logs:
-                            cleanup_process_done = True
-
-                        if cleanup_sass_done and cleanup_process_done:
-                            logger.info("✅ Gulp cleanup cycle completed")
-                            break
-
-                    time.sleep(1)
-
             except Exception as e:
-                logger.warning(f"Could not monitor cleanup cycle: {e}")
-
-            # Third: Reset CSS directory to undo any changes to tracked files
-            if not cleanup_skip_git_checkout:
-                result = subprocess.run(
-                    ["git", "checkout", "HEAD", "css/"],
-                    check=False,
-                    cwd=theme_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-
-                if result.returncode == 0:
-                    logger.info("✅ CSS directory reset to original state using git checkout")
-                else:
-                    logger.warning(f"Git checkout of CSS directory failed: {result.stderr}")
-            else:
-                logger.debug("Skipping git checkout of css/ due to manual fix mode")
+                logger.error(f"Critical error during compilation monitoring: {e}")
+                return False
 
         except Exception as e:
-            logger.warning(f"Error during CSS directory cleanup: {e}")
+            logger.error(f"Error during Docker Gulp compilation verification: {e}")
+            return False
+
+        finally:
+            # Step 6: Cleanup sequence to avoid triggering additional compilations
+            try:
+                logger.debug("Cleaning up test files...")
+                for test_filename, scss_path in test_files:
+                    try:
+                        if os.path.exists(scss_path):
+                            os.remove(scss_path)
+                            logger.debug(f"Removed test SCSS file: {test_filename}")
+
+                        css_filename = test_filename.replace(".scss", ".css")
+                        css_path = os.path.join(css_dir, css_filename)
+                        if os.path.exists(css_path):
+                            os.remove(css_path)
+                            logger.debug(f"Removed generated CSS file: {css_filename}")
+
+                    except Exception as cleanup_error:
+                        logger.warning(
+                            f"Error removing test file {test_filename}: {cleanup_error}"
+                        )
+
+                logger.debug("Waiting for Gulp cleanup cycle to complete...")
+                time.sleep(2)
+
+                try:
+                    cleanup_wait = 10
+                    cleanup_start = time.time()
+                    cleanup_sass_done = False
+                    cleanup_process_done = False
+
+                    while (time.time() - cleanup_start) < cleanup_wait:
+                        result = subprocess.run(
+                            ["docker", "logs", "--tail", "10", "dealerinspire_legacy_assets"],
+                            check=False,
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        )
+
+                        if result.returncode == 0 and result.stdout:
+                            recent_logs = result.stdout.lower()
+                            if "finished 'sass'" in recent_logs:
+                                cleanup_sass_done = True
+                            if "finished 'processcss'" in recent_logs:
+                                cleanup_process_done = True
+
+                            if cleanup_sass_done and cleanup_process_done:
+                                logger.info("✅ Gulp cleanup cycle completed")
+                                break
+
+                        time.sleep(1)
+
+                except Exception as monitor_error:
+                    logger.warning(f"Could not monitor cleanup cycle: {monitor_error}")
+
+                if not cleanup_skip_git_checkout:
+                    result = subprocess.run(
+                        ["git", "checkout", "HEAD", "css/"],
+                        check=False,
+                        cwd=theme_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+
+                    if result.returncode == 0:
+                        logger.info("✅ CSS directory reset to original state using git checkout")
+                    else:
+                        logger.warning(
+                            f"Git checkout of CSS directory failed: {result.stderr}"
+                        )
+                else:
+                    logger.debug("Skipping git checkout of css/ due to manual fix mode")
+
+            except Exception as cleanup_exception:
+                logger.warning(f"Error during CSS directory cleanup: {cleanup_exception}")
+
+        if rerun_requested:
+            logger.debug(
+                "Manual fixes applied to source files. Starting a fresh compilation verification cycle..."
+            )
+            continue
+
+        return compilation_success
 
 
 def _handle_compilation_with_error_recovery(
     css_dir: str, test_files: list, theme_dir: str, slug: str
-) -> tuple[bool, bool]:
+) -> tuple[bool, bool, bool]:
     """
     Handle SCSS compilation with comprehensive error recovery and iterative fixing.
 
@@ -1472,7 +1483,7 @@ def _handle_compilation_with_error_recovery(
         slug: Dealer theme slug
 
     Returns:
-        tuple[bool, bool]: (compilation_success, manual_fix_attempted)
+        tuple[bool, bool, bool]: (compilation_success, manual_fix_attempted, rerun_requested)
     """
     max_iterations = 5
     iteration = 0
@@ -1509,7 +1520,7 @@ def _handle_compilation_with_error_recovery(
                         for error_indicator in ["Error:", "gulp-notify: [Error running Gulp]"]
                     ):
                         logger.info("✅ Compilation completed successfully")
-                        return True, manual_fix_attempted
+                        return True, manual_fix_attempted, False
 
                 # Parse and handle specific errors
                 errors_found = _parse_compilation_errors(logs, test_files)
@@ -1553,7 +1564,7 @@ def _handle_compilation_with_error_recovery(
 
         if success_count == len(test_files):
             logger.info("✅ All CSS files generated successfully")
-            return True, manual_fix_attempted
+            return True, manual_fix_attempted, False
 
         logger.info(f"Compilation status: {success_count}/{len(test_files)} files compiled")
 
@@ -1693,11 +1704,11 @@ def _handle_compilation_with_error_recovery(
 
                 if not create_sb_files(slug, force_reset=True):
                     logger.error("Failed to recreate Site Builder scaffolding after manual fixes")
-                    return False, manual_fix_attempted
+                    return False, manual_fix_attempted, False
 
                 if not migrate_styles(slug):
                     logger.error("Regenerating Site Builder styles failed after manual fixes")
-                    return False, manual_fix_attempted
+                    return False, manual_fix_attempted, False
 
                 _cleanup_exclusion_comments(slug)
 
@@ -1711,24 +1722,11 @@ def _handle_compilation_with_error_recovery(
 
                 _create_automation_snapshots(slug)
 
-                logger.info("Copying regenerated Site Builder files for compilation retry...")
-
-                for test_filename, _ in test_files:
-                    original_file = test_filename.replace("test-", "")
-                    src_path = os.path.join(theme_dir, original_file)
-                    if os.path.exists(src_path):
-                        dst_path = os.path.join(css_dir, test_filename)
-                        shutil.copy2(src_path, dst_path)
-
-                # Give the Docker watch task a moment to react to regenerated files
-                time.sleep(1)
-
-                logger.info("Retrying SCSS compilation after full regeneration")
-                regenerated_result, regenerated_manual = _handle_compilation_with_error_recovery(
-                    css_dir, test_files, theme_dir, slug
+                logger.info(
+                    "Regenerated Site Builder files created. Requesting fresh compilation verification cycle..."
                 )
-                return regenerated_result, (manual_fix_attempted or regenerated_manual)
-            return False, manual_fix_attempted
+                return False, manual_fix_attempted, True
+            return False, manual_fix_attempted, False
 
     except Exception as e:
         logger.warning(f"Error getting compilation details: {e}")
@@ -1740,9 +1738,9 @@ def _handle_compilation_with_error_recovery(
         from rich.prompt import Confirm
 
         if Confirm.ask("Continue anyway?", default=False):
-            return True, manual_fix_attempted
+            return True, manual_fix_attempted, False
 
-    return False, manual_fix_attempted
+    return False, manual_fix_attempted, False
 
 
 def _parse_compilation_errors(logs: str, test_files: list) -> list:
