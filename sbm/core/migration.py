@@ -329,6 +329,38 @@ def run_just_start(slug, suppress_output=False) -> bool:
     return False
 
 
+def _wait_for_gulp_idle(timeout: int = 20) -> None:
+    """Wait for the Docker Gulp watcher to finish its current cycle."""
+    try:
+        cleanup_start = time.time()
+        cleanup_sass_done = False
+        cleanup_process_done = False
+
+        while (time.time() - cleanup_start) < timeout:
+            result = subprocess.run(
+                ["docker", "logs", "--tail", "10", "dealerinspire_legacy_assets"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+
+            if result.returncode == 0 and result.stdout:
+                recent_logs = result.stdout.lower()
+                if "finished 'sass'" in recent_logs:
+                    cleanup_sass_done = True
+                if "finished 'processcss'" in recent_logs:
+                    cleanup_process_done = True
+
+                if cleanup_sass_done and cleanup_process_done:
+                    logger.debug("Docker Gulp watcher reports sass/processcss completed")
+                    break
+
+            time.sleep(1)
+
+    except Exception as e:
+        logger.warning(f"Could not monitor Docker Gulp logs for idle state: {e}")
+
 def create_sb_files(slug, force_reset=False) -> bool | None:
     """
     Create necessary Site Builder SCSS files if they don't exist.
@@ -1407,37 +1439,7 @@ def _verify_scss_compilation_with_docker(
 
                 logger.debug("Waiting for Gulp cleanup cycle to complete...")
                 time.sleep(2)
-
-                try:
-                    cleanup_wait = 10
-                    cleanup_start = time.time()
-                    cleanup_sass_done = False
-                    cleanup_process_done = False
-
-                    while (time.time() - cleanup_start) < cleanup_wait:
-                        result = subprocess.run(
-                            ["docker", "logs", "--tail", "10", "dealerinspire_legacy_assets"],
-                            check=False,
-                            capture_output=True,
-                            text=True,
-                            timeout=5,
-                        )
-
-                        if result.returncode == 0 and result.stdout:
-                            recent_logs = result.stdout.lower()
-                            if "finished 'sass'" in recent_logs:
-                                cleanup_sass_done = True
-                            if "finished 'processcss'" in recent_logs:
-                                cleanup_process_done = True
-
-                            if cleanup_sass_done and cleanup_process_done:
-                                logger.info("✅ Gulp cleanup cycle completed")
-                                break
-
-                        time.sleep(1)
-
-                except Exception as monitor_error:
-                    logger.warning(f"Could not monitor cleanup cycle: {monitor_error}")
+                _wait_for_gulp_idle(timeout=10)
 
                 if not cleanup_skip_git_checkout:
                     result = subprocess.run(
@@ -1683,6 +1685,9 @@ def _handle_compilation_with_error_recovery(
                     if os.path.exists(css_file_path):
                         os.remove(css_file_path)
 
+                logger.info("Waiting for Docker Gulp to finish processing removed test assets...")
+                _wait_for_gulp_idle(timeout=20)
+
                 # Remove Site Builder outputs so we can regenerate from updated sources
                 sb_outputs = [
                     "sb-inside.scss",
@@ -1718,7 +1723,7 @@ def _handle_compilation_with_error_recovery(
                 reprocess_result = reprocess_manual_changes(slug)
                 if reprocess_result is False:
                     logger.error("Reprocessing manual changes failed during manual fix retry")
-                    return False, manual_fix_attempted
+                    return False, manual_fix_attempted, False
 
                 _create_automation_snapshots(slug)
 
