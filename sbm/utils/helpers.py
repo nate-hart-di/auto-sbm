@@ -28,14 +28,19 @@ def get_branch_name(slug: str) -> str:
     """
     Generate a standardized branch name for a migration.
 
+    All Site Builder migrations use PCON-727 for Jira tracking.
+
     Args:
         slug (str): Dealer theme slug
 
     Returns:
-        str: Branch name in the format {slug}-sbm{MMYY}
+        str: Branch name in the format pcon-727-{slug}-sbm{MMYY}
+
+    Example:
+        get_branch_name("centralmainechrysler") -> "pcon-727-centralmainechrysler-sbm1025"
     """
     current_date = datetime.now().strftime("%m%y")
-    return f"{slug}-sbm{current_date}"
+    return f"pcon-727-{slug}-sbm{current_date}"
 
 
 def extract_content_between_comments(content: str, start_marker: str, end_marker: str) -> str:

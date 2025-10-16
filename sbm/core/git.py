@@ -358,12 +358,12 @@ class GitOperations:
                     f"Local branch '{branch_name}' already exists. Deleting and re-creating it to ensure a clean state."
                 )
                 repo.delete_head(branch_name, force=True)
-            
+
             # Check if remote branch exists and delete it too (equivalent to git push origin --delete [branch_name])
             try:
                 # Fetch latest refs to ensure we have up-to-date remote branch info
                 repo.remotes.origin.fetch()
-                
+
                 # Check if remote branch exists
                 remote_branch_exists = False
                 try:
@@ -373,7 +373,7 @@ class GitOperations:
                 except Exception:
                     # If we can't list remote refs, try deletion anyway (safer)
                     remote_branch_exists = True
-                
+
                 if remote_branch_exists:
                     logger.warning(
                         f"Remote branch 'origin/{branch_name}' exists. Deleting it to ensure clean state."
@@ -383,7 +383,7 @@ class GitOperations:
                     logger.info(f"Successfully deleted remote branch 'origin/{branch_name}'")
                 else:
                     logger.debug(f"Remote branch 'origin/{branch_name}' does not exist, no cleanup needed")
-                    
+
             except Exception as e:
                 # Remote branch deletion failure is not critical - continue with local branch creation
                 logger.debug(f"Could not delete remote branch 'origin/{branch_name}': {e}")
@@ -477,15 +477,15 @@ class GitOperations:
         try:
             logger.info(f"Pushing changes to origin/{branch_name}")
             repo = self._get_repo()
-            
+
             # First, try a normal push with upstream tracking
             push_info = repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
-            
+
             # Check push results for any failures
             for info in push_info:
                 if info.flags & info.ERROR or info.flags & info.REJECTED:
                     error_msg = info.summary or "Unknown push error"
-                    
+
                     # If it's a non-fast-forward error, try force-with-lease
                     if "non-fast-forward" in error_msg.lower() or "rejected" in error_msg.lower():
                         logger.warning(f"Push rejected (non-fast-forward). Retrying with force-with-lease...")
@@ -496,14 +496,14 @@ class GitOperations:
                                 set_upstream=True,
                                 force_with_lease=True
                             )
-                            
+
                             # Check if the retry succeeded
                             retry_failed = False
                             for retry_info in push_info_retry:
                                 if retry_info.flags & (retry_info.ERROR | retry_info.REJECTED):
                                     retry_failed = True
                                     break
-                            
+
                             if not retry_failed:
                                 logger.info(f"Successfully pushed with force-with-lease to origin/{branch_name}")
                                 return True
@@ -518,7 +518,7 @@ class GitOperations:
                         return False
                 if info.flags & info.UP_TO_DATE:
                     logger.debug(f"Branch {branch_name} already up to date")
-            
+
             return True
         except Exception as e:
             # Catch all exceptions, including GitCommandError and others
@@ -974,7 +974,8 @@ class GitOperations:
         self, slug: str, branch: str, repo_info: Dict[str, str]
     ) -> Dict[str, str]:
         """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
-        title = f"{slug} - SBM FE Audit"
+        # All Site Builder migrations use PCON-727
+        title = f"PCON-727: {slug} SBM FE Audit"
 
         # Get automated migration changes
         automated_items = self._analyze_migration_changes()
@@ -1012,9 +1013,9 @@ class GitOperations:
         try:
             from sbm.oem.factory import OEMFactory
             from sbm.oem.stellantis import StellantisHandler
-            
+
             handler = OEMFactory.detect_from_theme(slug)
-            
+
             if automated_items and isinstance(handler, StellantisHandler):
                 what_items.append("- Added Stellantis Direction Row Styles")
                 what_items.append("- Added Stellantis Cookie Banner styles")
