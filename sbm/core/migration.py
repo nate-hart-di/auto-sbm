@@ -1654,9 +1654,11 @@ def _handle_compilation_with_error_recovery(
             user_wants_to_continue = Confirm.ask("Continue after fixing the errors?", default=True)
 
             if user_wants_to_continue:
-                # User fixed the errors manually, regenerate Site Builder files and retest
+                # User fixed the errors manually; prepare updated files and retry
                 manual_fix_attempted = True
-                logger.info("User confirmed manual fixes, regenerating Site Builder files...")
+                logger.info(
+                    "User confirmed manual fixes. Cleaning up test artifacts before retrying..."
+                )
 
                 # Clean up existing test files and CSS outputs
                 for test_filename, _ in test_files:
@@ -1670,23 +1672,47 @@ def _handle_compilation_with_error_recovery(
                     if os.path.exists(css_file_path):
                         os.remove(css_file_path)
 
-                logger.info("Running migrate_styles to regenerate Site Builder SCSS from source...")
-                migration_success = migrate_styles(slug)
-                if not migration_success:
-                    logger.error("Manual fix regeneration failed during migrate_styles")
+                # Remove Site Builder outputs so we can regenerate from updated sources
+                sb_outputs = [
+                    "sb-inside.scss",
+                    "sb-vdp.scss",
+                    "sb-vrp.scss",
+                    "sb-home.scss",
+                ]
+                for sb_file in sb_outputs:
+                    sb_path = os.path.join(theme_dir, sb_file)
+                    if os.path.exists(sb_path):
+                        os.remove(sb_path)
+                        logger.debug(f"Removed stale Site Builder file: {sb_file}")
+
+                # Remove any previous automation snapshots so they can be recreated
+                _cleanup_snapshot_files(slug)
+
+                # Re-run the core migration steps against the updated theme sources
+                logger.info("Re-running migration pipeline using manually updated theme assets...")
+
+                if not create_sb_files(slug, force_reset=True):
+                    logger.error("Failed to recreate Site Builder scaffolding after manual fixes")
                     return False, manual_fix_attempted
 
-                logger.info("Applying reprocess_manual_changes to harmonize regenerated files...")
+                if not migrate_styles(slug):
+                    logger.error("Regenerating Site Builder styles failed after manual fixes")
+                    return False, manual_fix_attempted
+
+                _cleanup_exclusion_comments(slug)
+
+                if not add_predetermined_styles(slug):
+                    logger.warning("Could not reapply predetermined styles during manual fix retry")
+
                 reprocess_result = reprocess_manual_changes(slug)
                 if reprocess_result is False:
-                    logger.error(
-                        "Manual fix regeneration failed during reprocess_manual_changes"
-                    )
+                    logger.error("Reprocessing manual changes failed during manual fix retry")
                     return False, manual_fix_attempted
 
-                logger.info("Verifying regenerated files compile correctly...")
+                _create_automation_snapshots(slug)
 
-                # Recopy the regenerated files to test again
+                logger.info("Copying regenerated Site Builder files for compilation retry...")
+
                 for test_filename, _ in test_files:
                     original_file = test_filename.replace("test-", "")
                     src_path = os.path.join(theme_dir, original_file)
@@ -1694,7 +1720,7 @@ def _handle_compilation_with_error_recovery(
                         dst_path = os.path.join(css_dir, test_filename)
                         shutil.copy2(src_path, dst_path)
 
-                # Give Gulp time to compile
+                # Give Docker Gulp a moment to rebuild with the regenerated files
                 time.sleep(2)
 
                 # Check if compilation succeeded
@@ -1706,10 +1732,11 @@ def _handle_compilation_with_error_recovery(
                         success_count += 1
 
                 if success_count == len(test_files):
-                    logger.info("✅ Manual fixes successful - all files now compile!")
+                    logger.info("✅ Manual fixes successful - regenerated files now compile")
                     return True, manual_fix_attempted
+
                 logger.warning(
-                    f"Manual fixes incomplete: {success_count}/{len(test_files)} files compile"
+                    f"Manual fixes incomplete after regeneration: {success_count}/{len(test_files)} files compile"
                 )
                 return False, manual_fix_attempted
             return False, manual_fix_attempted
