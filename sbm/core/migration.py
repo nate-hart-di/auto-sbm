@@ -1720,25 +1720,14 @@ def _handle_compilation_with_error_recovery(
                         dst_path = os.path.join(css_dir, test_filename)
                         shutil.copy2(src_path, dst_path)
 
-                # Give Docker Gulp a moment to rebuild with the regenerated files
-                time.sleep(2)
+                # Give the Docker watch task a moment to react to regenerated files
+                time.sleep(1)
 
-                # Check if compilation succeeded
-                success_count = 0
-                for test_filename, _ in test_files:
-                    css_filename = test_filename.replace(".scss", ".css")
-                    css_path = os.path.join(css_dir, css_filename)
-                    if os.path.exists(css_path):
-                        success_count += 1
-
-                if success_count == len(test_files):
-                    logger.info("✅ Manual fixes successful - regenerated files now compile")
-                    return True, manual_fix_attempted
-
-                logger.warning(
-                    f"Manual fixes incomplete after regeneration: {success_count}/{len(test_files)} files compile"
+                logger.info("Retrying SCSS compilation after full regeneration")
+                regenerated_result, regenerated_manual = _handle_compilation_with_error_recovery(
+                    css_dir, test_files, theme_dir, slug
                 )
-                return False, manual_fix_attempted
+                return regenerated_result, (manual_fix_attempted or regenerated_manual)
             return False, manual_fix_attempted
 
     except Exception as e:

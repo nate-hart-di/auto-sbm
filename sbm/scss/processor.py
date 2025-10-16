@@ -320,6 +320,48 @@ class SCSSProcessor:
             content = content.replace(f'darken({color_name}', f'darken({hex_value}')
             content = content.replace(f'lighten({color_name}', f'lighten({hex_value}')
 
+        # Normalize named arguments for lighten/darken so downstream conversion works
+        def _normalize_named_color_functions(match: re.Match) -> str:
+            func = match.group("func")
+            color_arg = match.group("color").strip()
+            amount = match.group("amount").strip()
+
+            # Ensure amount is expressed as a percentage where appropriate
+            def _format_amount(raw: str) -> str:
+                raw_clean = raw.strip()
+                # Skip conversion if amount already includes non-numeric characters (e.g., var(--foo))
+                if any(char.isalpha() for char in raw_clean):
+                    return raw_clean
+                if raw_clean.endswith("%"):
+                    return raw_clean
+                # Allow decimal amounts as well (e.g., 7.5)
+                try:
+                    float(raw_clean.replace("%", ""))
+                except ValueError:
+                    return raw_clean
+                return f"{raw_clean.rstrip('%')}%"
+
+            formatted_amount = _format_amount(amount)
+            return f"{func}({color_arg}, {formatted_amount})"
+
+        # Handle both argument orders: $color first or $amount first
+        named_arg_patterns = [
+            r"(?P<func>lighten|darken)\(\s*\$color\s*:\s*(?P<color>[^,]+?),\s*\$amount\s*:\s*(?P<amount>[^)]+?)\)",
+            r"(?P<func>lighten|darken)\(\s*\$amount\s*:\s*(?P<amount>[^,]+?),\s*\$color\s*:\s*(?P<color>[^)]+?)\)",
+        ]
+
+        for pattern in named_arg_patterns:
+            content = re.sub(pattern, _normalize_named_color_functions, content, flags=re.IGNORECASE)
+
+        # Handle named arguments that already passed through variable conversion
+        var_named_patterns = [
+            r"(?P<func>lighten|darken)\(\s*var\(--color\)\s*:\s*(?P<color>[^,]+?),\s*var\(--amount\)\s*:\s*(?P<amount>[^)]+?)\)",
+            r"(?P<func>lighten|darken)\(\s*var\(--amount\)\s*:\s*(?P<amount>[^,]+?),\s*var\(--color\)\s*:\s*(?P<color>[^)]+?)\)",
+        ]
+
+        for pattern in var_named_patterns:
+            content = re.sub(pattern, _normalize_named_color_functions, content, flags=re.IGNORECASE)
+
         # Case 1: SCSS functions with CSS variables - convert to CSS-compatible equivalents
         # These appear in raw SCSS content (not from mixins) and need to be handled
 
