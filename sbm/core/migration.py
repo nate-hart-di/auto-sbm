@@ -769,7 +769,9 @@ def test_compilation_recovery(slug):
         click.echo("Files will be copied to CSS directory to trigger Docker Gulp compilation...")
 
         # Test compilation with error recovery
-        success = _handle_compilation_with_error_recovery(css_dir, test_files, theme_dir, slug)
+        success, _ = _handle_compilation_with_error_recovery(
+            css_dir, test_files, theme_dir, slug
+        )
 
         # Clean up test files
         click.echo("\n🧹 Cleaning up test files...")
@@ -1256,7 +1258,12 @@ def migrate_dealer_theme(
     )
 
 
-def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: list) -> bool:
+def _verify_scss_compilation_with_docker(
+    theme_dir: str,
+    slug: str,
+    sb_files: list,
+    skip_git_checkout: bool = False,
+) -> bool:
     """
     Verify SCSS compilation by copying files to CSS directory and monitoring Docker Gulp compilation.
 
@@ -1264,12 +1271,15 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         theme_dir: Path to dealer theme directory
         slug: Dealer theme slug
         sb_files: List of Site Builder SCSS files to verify
+        skip_git_checkout: When True, skip resetting tracked css/ files during cleanup
 
     Returns:
         bool: True if all files compile successfully, False otherwise
     """
     css_dir = os.path.join(theme_dir, "css")
     test_files = []
+    manual_fix_attempted = False
+    cleanup_skip_git_checkout = skip_git_checkout
 
     try:
         logger.info("Testing SCSS compilation...")
@@ -1330,7 +1340,14 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
         compilation_success = False
         try:
             # Attempt compilation with error handling loop
-            if not _handle_compilation_with_error_recovery(css_dir, test_files, theme_dir, slug):
+            (
+                recovery_success,
+                recovery_manual_fix,
+            ) = _handle_compilation_with_error_recovery(css_dir, test_files, theme_dir, slug)
+            manual_fix_attempted = manual_fix_attempted or recovery_manual_fix
+            cleanup_skip_git_checkout = cleanup_skip_git_checkout or manual_fix_attempted
+
+            if not recovery_success:
                 logger.error("❌ SCSS compilation failed after error recovery attempts")
                 return False
 
@@ -1421,19 +1438,22 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
                 logger.warning(f"Could not monitor cleanup cycle: {e}")
 
             # Third: Reset CSS directory to undo any changes to tracked files
-            result = subprocess.run(
-                ["git", "checkout", "HEAD", "css/"],
-                check=False,
-                cwd=theme_dir,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+            if not cleanup_skip_git_checkout:
+                result = subprocess.run(
+                    ["git", "checkout", "HEAD", "css/"],
+                    check=False,
+                    cwd=theme_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
 
-            if result.returncode == 0:
-                logger.info("✅ CSS directory reset to original state using git checkout")
+                if result.returncode == 0:
+                    logger.info("✅ CSS directory reset to original state using git checkout")
+                else:
+                    logger.warning(f"Git checkout of CSS directory failed: {result.stderr}")
             else:
-                logger.warning(f"Git checkout of CSS directory failed: {result.stderr}")
+                logger.debug("Skipping git checkout of css/ due to manual fix mode")
 
         except Exception as e:
             logger.warning(f"Error during CSS directory cleanup: {e}")
@@ -1441,7 +1461,7 @@ def _verify_scss_compilation_with_docker(theme_dir: str, slug: str, sb_files: li
 
 def _handle_compilation_with_error_recovery(
     css_dir: str, test_files: list, theme_dir: str, slug: str
-) -> bool:
+) -> tuple[bool, bool]:
     """
     Handle SCSS compilation with comprehensive error recovery and iterative fixing.
 
@@ -1452,12 +1472,13 @@ def _handle_compilation_with_error_recovery(
         slug: Dealer theme slug
 
     Returns:
-        bool: True if compilation succeeds, False if all recovery attempts fail
+        tuple[bool, bool]: (compilation_success, manual_fix_attempted)
     """
     max_iterations = 5
     iteration = 0
 
     logger.debug("Starting compilation monitoring with error recovery...")
+    manual_fix_attempted = False
 
     while iteration < max_iterations:
         iteration += 1
@@ -1488,7 +1509,7 @@ def _handle_compilation_with_error_recovery(
                         for error_indicator in ["Error:", "gulp-notify: [Error running Gulp]"]
                     ):
                         logger.info("✅ Compilation completed successfully")
-                        return True
+                        return True, manual_fix_attempted
 
                 # Parse and handle specific errors
                 errors_found = _parse_compilation_errors(logs, test_files)
@@ -1532,7 +1553,7 @@ def _handle_compilation_with_error_recovery(
 
         if success_count == len(test_files):
             logger.info("✅ All CSS files generated successfully")
-            return True
+            return True, manual_fix_attempted
 
         logger.info(f"Compilation status: {success_count}/{len(test_files)} files compiled")
 
@@ -1633,8 +1654,9 @@ def _handle_compilation_with_error_recovery(
             user_wants_to_continue = Confirm.ask("Continue after fixing the errors?", default=True)
 
             if user_wants_to_continue:
-                # User fixed the errors manually, reprocess the files and test compilation
-                logger.info("User confirmed manual fixes, reprocessing files...")
+                # User fixed the errors manually, regenerate Site Builder files and retest
+                manual_fix_attempted = True
+                logger.info("User confirmed manual fixes, regenerating Site Builder files...")
 
                 # Clean up existing test files and CSS outputs
                 for test_filename, _ in test_files:
@@ -1648,11 +1670,23 @@ def _handle_compilation_with_error_recovery(
                     if os.path.exists(css_file_path):
                         os.remove(css_file_path)
 
-                # CRITICAL FIX: Do NOT reprocess manual changes - this causes infinite loop!
-                # Just verify the manually fixed files compile correctly
-                logger.info("Verifying manually fixed files compile correctly...")
+                logger.info("Running migrate_styles to regenerate Site Builder SCSS from source...")
+                migration_success = migrate_styles(slug)
+                if not migration_success:
+                    logger.error("Manual fix regeneration failed during migrate_styles")
+                    return False, manual_fix_attempted
 
-                # Recopy the manually fixed files to test again
+                logger.info("Applying reprocess_manual_changes to harmonize regenerated files...")
+                reprocess_result = reprocess_manual_changes(slug)
+                if reprocess_result is False:
+                    logger.error(
+                        "Manual fix regeneration failed during reprocess_manual_changes"
+                    )
+                    return False, manual_fix_attempted
+
+                logger.info("Verifying regenerated files compile correctly...")
+
+                # Recopy the regenerated files to test again
                 for test_filename, _ in test_files:
                     original_file = test_filename.replace("test-", "")
                     src_path = os.path.join(theme_dir, original_file)
@@ -1673,10 +1707,12 @@ def _handle_compilation_with_error_recovery(
 
                 if success_count == len(test_files):
                     logger.info("✅ Manual fixes successful - all files now compile!")
-                    return True
-                logger.warning(f"Manual fixes incomplete: {success_count}/{len(test_files)} files compile")
-                return False
-            return False
+                    return True, manual_fix_attempted
+                logger.warning(
+                    f"Manual fixes incomplete: {success_count}/{len(test_files)} files compile"
+                )
+                return False, manual_fix_attempted
+            return False, manual_fix_attempted
 
     except Exception as e:
         logger.warning(f"Error getting compilation details: {e}")
@@ -1688,9 +1724,9 @@ def _handle_compilation_with_error_recovery(
         from rich.prompt import Confirm
 
         if Confirm.ask("Continue anyway?", default=False):
-            return True
+            return True, manual_fix_attempted
 
-    return False
+    return False, manual_fix_attempted
 
 
 def _parse_compilation_errors(logs: str, test_files: list) -> list:
