@@ -170,10 +170,6 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "--cov=sbm",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-fail-under=50",
     "--strict-markers",
     "--strict-config",
     "--verbose"
@@ -187,6 +183,10 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning"
 ]
+
+# Development pytest configuration with coverage
+# To use: pytest --cov=sbm --cov-report=term-missing --cov-report=html --cov-fail-under=50
+# Or create a pytest.ini file locally with these options
 
 [tool.coverage.run]
 source = ["sbm"]

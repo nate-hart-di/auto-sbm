@@ -203,25 +203,91 @@ class SCSSProcessor:
 
     def _convert_image_paths(self, content: str) -> str:
         """
-        Converts relative image paths to absolute Site Builder paths and ensures
-        all URLs are consistently double-quoted.
+        Converts relative image paths to absolute Site Builder paths for both DealerTheme and CommonTheme,
+        handling single-quoted, double-quoted, and unquoted URLs, and ensures all URLs are consistently
+        double-quoted. Supports paths with additional CSS properties and filenames with spaces.
         """
         logger.debug("Converting relative image paths and enforcing quotes...")
 
-        # Convert relative `../images/` paths to absolute, quoted paths
+        # Pattern 1: Double-quoted relative DealerTheme paths
+        pattern1 = r'url\("\.\.\/images\/([^"]+)"\)'
+        matches_count = len(re.findall(pattern1, content))
         content = re.sub(
-            r"url\((['\"]?)\.\.\/images\/(.*?)(['\"]?)\)",
-            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\2")',
-            content,
+            pattern1,
+            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
+            content
         )
+        logger.debug(f"Matched and converted double-quoted DealerTheme paths: {matches_count} instances")
 
-        # A second pass to catch any unquoted, already-absolute paths that were missed
-        unquoted_pattern = re.compile(
-            r"url\((/wp-content/themes/DealerInspireDealerTheme/images/[^)]+)\)"
+        # Pattern 2: Single-quoted relative DealerTheme paths
+        pattern2 = r"url\('\.\.\/images\/([^']+)'\)"
+        matches_count = len(re.findall(pattern2, content))
+        content = re.sub(
+            pattern2,
+            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
+            content
         )
-        return unquoted_pattern.sub(r'url("\1")', content)
+        logger.debug(f"Matched and converted single-quoted DealerTheme paths: {matches_count} instances")
 
+        # Pattern 3: Unquoted relative DealerTheme paths
+        pattern3 = r'url\(\.\.\/images\/([^)]+)\)'
+        matches_count = len(re.findall(pattern3, content))
+        content = re.sub(
+            pattern3,
+            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
+            content
+        )
+        logger.debug(f"Matched and converted unquoted DealerTheme paths: {matches_count} instances")
 
+        # Pattern 4: Double-quoted CommonTheme paths
+        pattern4 = r'url\("\.\.\/\.\.\/([^"]+)"\)'
+        matches_count = len(re.findall(pattern4, content))
+        content = re.sub(
+            pattern4,
+            r'url("/wp-content/themes/\1")',
+            content
+        )
+        logger.debug(f"Matched and converted double-quoted CommonTheme paths: {matches_count} instances")
+
+        # Pattern 5: Single-quoted CommonTheme paths
+        pattern5 = r"url\('\.\.\/\.\.\/([^']+)'\)"
+        matches_count = len(re.findall(pattern5, content))
+        content = re.sub(
+            pattern5,
+            r'url("/wp-content/themes/\1")',
+            content
+        )
+        logger.debug(f"Matched and converted single-quoted CommonTheme paths: {matches_count} instances")
+
+        # Pattern 6: Unquoted CommonTheme paths
+        pattern6 = r'url\(\.\.\/\.\.\/([^)]+)\)'
+        matches_count = len(re.findall(pattern6, content))
+        content = re.sub(
+            pattern6,
+            r'url("/wp-content/themes/\1")',
+            content
+        )
+        logger.debug(f"Matched and converted unquoted CommonTheme paths: {matches_count} instances")
+
+        # Pattern 7: Second pass to ensure all absolute paths are double-quoted
+        unquoted_pattern = r'url\((/wp-content/themes/[^)]+)\)'
+        matches_count = len(re.findall(unquoted_pattern, content))
+        content = re.sub(
+            unquoted_pattern,
+            r'url("\1")',
+            content
+        )
+        logger.debug(f"Ensured double-quoting for absolute paths: {matches_count} instances")
+
+        # Final validation: Check for any remaining relative paths
+        remaining_relative = re.findall(r'url\([\'"]?\.\.(?:\/\.\.)?\/[^)]+\)', content)
+        if remaining_relative:
+            logger.warning(f"Found {len(remaining_relative)} unconverted relative paths: {remaining_relative}")
+        else:
+            logger.debug("No remaining relative paths found after conversion")
+
+        return content
+    
     def _remove_imports(self, content: str) -> str:
         """
         Removes all @import statements from the SCSS content.
