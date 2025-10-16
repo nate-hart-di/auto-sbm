@@ -109,3 +109,4 @@ backups/
 # Auto-generated files users will create themselves
 setup.log
 uv.lock
+.bmad-core/
