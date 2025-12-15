@@ -45,6 +45,7 @@ from .ui.panels import StatusPanels
 from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
+from .utils.tracker import get_migration_stats, record_migration
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 REPO_ROOT = Path(__file__).parent.parent.resolve()
@@ -392,10 +393,10 @@ def check_and_run_daily_update():
             
             # Run sbm update command
             result = subprocess.run(
-                ["python", "-m", "sbm.cli", "update"], 
-                capture_output=True, 
+                [sys.executable, "-m", "sbm.cli", "update"],
+                capture_output=True,
                 text=True,
-                cwd=Path(__file__).parent.parent
+                cwd=Path(__file__).parent.parent,
             )
             
             if result.returncode == 0:
@@ -555,6 +556,15 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
     click.echo("Files have been validated, issues fixed, and formatted with prettier.")
     click.echo("You can now review the final files and commit them when ready.")
 
+    try:
+        added, total = record_migration(theme_name)
+        if added:
+            logger.info(f"Migration tracker updated: {theme_name} (total: {total})")
+        else:
+            logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
+    except Exception as tracker_error:
+        logger.warning(f"Could not update migration tracker: {tracker_error}")
+
 
 @cli.command()
 @click.argument("theme_name")
@@ -674,6 +684,14 @@ def auto(
             success = False
 
         if success:
+            try:
+                added, total = record_migration(theme_name)
+                if added:
+                    logger.info(f"Migration tracker updated: {theme_name} (total: {total})")
+                else:
+                    logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
+            except Exception as tracker_error:
+                logger.warning(f"Could not update migration tracker: {tracker_error}")
             # Migration completed successfully - no overall timer needed
             console.print_migration_complete(theme_name, elapsed_time=None, timing_summary=None)
         else:
@@ -799,6 +817,32 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
             click.echo("✅ SUMMARY: No problematic header/footer/navigation styles found")
 
         click.echo(f"📊 Checked {total_checked} Site Builder files")
+
+
+@cli.command()
+@click.option(
+    "--list",
+    "show_list",
+    is_flag=True,
+    help="Show the list of migrated slugs in addition to the total count.",
+)
+def stats(show_list: bool) -> None:
+    """Show migration tracker stats (total count and optional slug list)."""
+    stats = get_migration_stats()
+
+    click.echo(f"📈 Total migrations recorded: {stats['count']}")
+    click.echo(f"🗂️ Tracker file: {stats['path']}")
+    if stats.get("last_updated"):
+        click.echo(f"⏱️ Last updated: {stats['last_updated']}")
+
+    if show_list:
+        migrations = stats.get("migrations", [])
+        if migrations:
+            click.echo("\nMigrated slugs:")
+            for slug in migrations:
+                click.echo(f"- {slug}")
+        else:
+            click.echo("\nNo migrations have been recorded yet.")
 
 
 @cli.command()

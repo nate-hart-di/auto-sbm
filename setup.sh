@@ -599,10 +599,10 @@ function validate_installation() {
   fi
   
   # Test that configuration loads without JSON parsing errors
-  if .venv/bin/python -c "from sbm.config import get_config; get_config()" 2> /dev/null; then
+  if .venv/bin/python -c "from sbm.config import get_config; get_config()"; then
     log "✅ Configuration loads successfully"
   else
-    error "❌ Configuration has parsing errors. Check your .env file format"
+    error "❌ Configuration has parsing errors. See traceback above for details."
     error "    Ensure JSON arrays use proper format: GIT__DEFAULT_LABELS=[\"fe-dev\"]"
     return 1
   fi

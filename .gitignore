@@ -110,3 +110,9 @@ backups/
 setup.log
 uv.lock
 .bmad-core/
+.bmad/
+.codex/
+.github/
+.mcp.json
+.agentvibes/
+.vscode/

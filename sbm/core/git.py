@@ -1022,6 +1022,42 @@ class GitOperations:
         except Exception as e:
             logger.debug(f"Could not determine OEM for PR description: {e}")
 
+        # Add map migration details if present
+        try:
+            from sbm.core.maps import get_map_report
+
+            map_report = get_map_report(slug)
+            if map_report:
+                shortcodes = map_report.get("shortcodes_found")
+                imports = map_report.get("imports_found")
+                scss_targets = map_report.get("scss_targets") or []
+                partials_copied = map_report.get("partials_copied") or []
+                skipped_reason = map_report.get("skipped_reason")
+
+                if not shortcodes:
+                    if imports:
+                        what_items.append(
+                            "- Map components: CommonTheme map references present but no map shortcodes/template usage; migration skipped."
+                        )
+                    else:
+                        what_items.append("- Map components: No map shortcodes detected; migration skipped.")
+                elif shortcodes and not imports:
+                    what_items.append(
+                        "- Map components: Map shortcodes detected but no CommonTheme map assets found; migration skipped."
+                    )
+                else:
+                    parts = []
+                    if scss_targets:
+                        parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
+                    if partials_copied:
+                        parts.append(f"Partials copied {', '.join(sorted(set(partials_copied)))}")
+                    detail = "; ".join(parts) if parts else "Map shortcodes detected; assets migrated."
+                    if skipped_reason == "migration_issue":
+                        detail = f"{detail} (check logs for issues)"
+                    what_items.append(f"- Map components: {detail}")
+        except Exception as e:
+            logger.debug(f"Could not add map migration details to PR: {e}")
+
         what_section = "\n".join(what_items)
 
         # Build the body using the original clean format
