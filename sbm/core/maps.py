@@ -83,37 +83,31 @@ def migrate_map_components(slug, oem_handler=None, interactive=False) -> Optiona
             map_imports.extend(shortcode_map_imports)
             map_imports = dedupe_map_imports(map_imports)
 
-        if not shortcode_partials:
-            if map_imports:
-                logger.info(
-                    "Map SCSS references found but no map shortcodes/template usage detected; "
-                    "skipping map migration."
-                )
-                click.echo("ℹ️ Map SCSS references found but no map shortcodes/template usage detected; skipping map migration.")
-                _set_map_report(
-                    slug,
-                    {
-                        "shortcodes_found": False,
-                        "imports_found": bool(map_imports),
-                        "scss_targets": [],
-                        "partials_copied": [],
-                        "skipped_reason": "imports_without_shortcodes",
-                    },
-                )
-            else:
-                logger.info("No map shortcodes or map SCSS references found; skipping map migration.")
-                click.echo("ℹ️ No map shortcodes or map SCSS references found; skipping map migration.")
-                _set_map_report(
-                    slug,
-                    {
-                        "shortcodes_found": False,
-                        "imports_found": False,
-                        "scss_targets": [],
-                        "partials_copied": [],
-                        "skipped_reason": "none_found",
-                    },
-                )
+        if not shortcode_partials and not map_imports:
+            # Only skip if NEITHER shortcodes nor imports are found.
+            # If imports are found but no shortcodes, we SHOULD still migrate the SCSS,
+            # because the site might be using hardcoded HTML or custom methods (like Lexus).
+            logger.info(
+                "No map shortcodes/template usage AND no CommonTheme map imports found; "
+                "skipping map migration."
+            )
+            click.echo("ℹ️ No map components detected; skipping map migration.")
+            _set_map_report(
+                slug,
+                {
+                    "shortcodes_found": False,
+                    "imports_found": False,
+                    "scss_targets": [],
+                    "partials_copied": [],
+                    "skipped_reason": "none_found",
+                },
+            )
             return True
+
+        if not map_imports and not shortcode_map_imports:
+             # Case: Shortcodes found, but no assets found in CommonTheme to migrate
+             # logic handled below...
+             pass
 
         if not map_imports:
             logger.info("No CommonTheme map imports found; skipping map migration.")
@@ -158,6 +152,13 @@ def migrate_map_components(slug, oem_handler=None, interactive=False) -> Optiona
                 },
             )
         else:
+            # If arrays are empty but success is True, it means everything was already there.
+            if scss_success and partials_success:
+                reason = "already_present"
+                logger.info("Map components already present in dealer theme; no changes needed.")
+            else:
+                reason = "migration_issue"
+            
             _set_map_report(
                 slug,
                 {
@@ -165,7 +166,7 @@ def migrate_map_components(slug, oem_handler=None, interactive=False) -> Optiona
                     "imports_found": True,
                     "scss_targets": scss_targets,
                     "partials_copied": [c for c in copied_partials if c],
-                    "skipped_reason": "migration_issue",
+                    "skipped_reason": reason,
                 },
             )
 
@@ -534,6 +535,11 @@ def migrate_map_scss_content(slug, map_imports):
                         # We just want to grab the filename part of the import path
                         import_matches = re.findall(r"@import\s*['\"]([^'\"]+)['\"]", content)
                         for imp in import_matches:
+                            # Skip counting CommonTheme imports as "existing local imports"
+                            # because we want to migrate them to local files.
+                            if "CommonTheme" in imp or imp.startswith("../../"):
+                                continue
+
                             # Extract basename without extension or underscore
                             base = os.path.basename(imp)
                             base = base.replace(".scss", "").replace(".css", "")
@@ -574,8 +580,9 @@ def migrate_map_scss_content(slug, map_imports):
                     scss_content = f.read()
                 
                 # Add header comment
+                map_import_path = map_import.get("commontheme_relative", map_import["filename"])
                 map_section = f"""
-/* {map_import["filename"]} - Migrated from CommonTheme */
+/* Migrated from CommonTheme: {map_import_path} */
 {scss_content}
 """
                 all_map_content.append(map_section)

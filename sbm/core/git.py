@@ -1046,15 +1046,19 @@ class GitOperations:
                         "- Map components: Map shortcodes detected but no CommonTheme map assets found; migration skipped."
                     )
                 else:
-                    parts = []
-                    if scss_targets:
-                        parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
-                    if partials_copied:
-                        parts.append(f"Partials copied {', '.join(sorted(set(partials_copied)))}")
-                    detail = "; ".join(parts) if parts else "Map shortcodes detected; assets migrated."
-                    if skipped_reason == "migration_issue":
-                        detail = f"{detail} (check logs for issues)"
-                    what_items.append(f"- Map components: {detail}")
+                    # If strictly skipped because already present (complete success without changes), suppress note
+                    if skipped_reason == "already_present":
+                        pass
+                    else:
+                        parts = []
+                        if scss_targets:
+                            parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
+                        if partials_copied:
+                            parts.append(f"Partials copied {', '.join(sorted(set(partials_copied)))}")
+                        detail = "; ".join(parts) if parts else "Map shortcodes detected; assets migrated."
+                        if skipped_reason == "migration_issue":
+                            detail = f"{detail} (check logs for issues)"
+                        what_items.append(f"- Map components: {detail}")
         except Exception as e:
             logger.debug(f"Could not add map migration details to PR: {e}")
 
