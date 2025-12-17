@@ -38,7 +38,9 @@ def _get_user_id() -> str:
         email = result.stdout.strip()
         if email:
             return email.replace("@", "_").replace(".", "_")
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.debug(f"Could not get git email: {e}")
         pass
 
     # Fallback to hostname + username
@@ -134,6 +136,7 @@ def record_run(
     status: str,
     duration: float,
     automation_time: float,
+    lines_migrated: int = 0,
     manual_estimate_minutes: int = 240,
 ) -> None:
     """
@@ -157,6 +160,7 @@ def record_run(
         "status": status,
         "duration_seconds": round(duration, 2),
         "automation_seconds": round(automation_time, 2),
+        "lines_migrated": lines_migrated,
         "manual_estimate_seconds": manual_estimate_minutes * 60,
     }
 
@@ -199,21 +203,17 @@ def _calculate_metrics(data: dict) -> dict:
 
     # Calculate time saved
     total_automation_seconds = sum(r.get("automation_seconds", 0) for r in successful_runs)
-    total_manual_estimated_seconds = sum(r.get("manual_estimate_seconds", 0) for r in successful_runs)
-    time_saved_seconds = max(0, total_manual_estimated_seconds - total_automation_seconds)
+    total_lines_migrated = sum(r.get("lines_migrated", 0) for r in successful_runs)
 
-    # Calculate averages
-    avg_duration = 0.0
-    if success_count > 0:
-        avg_duration = total_automation_seconds / success_count
+    # Mathematical time saved: 1 hour per 100 lines migrated
+    time_saved_hours = total_lines_migrated / 100.0
 
     return {
         "total_runs": total_runs,
         "success_count": success_count,
-        "success_rate": (success_count / total_runs * 100) if total_runs > 0 else 0,
+        "total_lines_migrated": total_lines_migrated,
         "total_automation_time_h": round(total_automation_seconds / 3600, 2),
-        "total_time_saved_h": round(time_saved_seconds / 3600, 1),
-        "avg_automation_time_m": round(avg_duration / 60, 1),
+        "total_time_saved_h": round(time_saved_hours, 1),
     }
 
 
@@ -226,7 +226,7 @@ def _aggregate_global_stats() -> dict:
     total_runs = 0
     total_success = 0
     total_automation_seconds = 0.0
-    total_manual_seconds = 0.0
+    total_lines_migrated = 0
     user_count = 0
 
     for stats_file in GLOBAL_STATS_DIR.glob("*.json"):
@@ -246,18 +246,20 @@ def _aggregate_global_stats() -> dict:
                     if run.get("status") == "success":
                         total_success += 1
                         total_automation_seconds += run.get("automation_seconds", 0)
-                        total_manual_seconds += run.get("manual_estimate_seconds", 0)
-        except Exception:
+                        total_lines_migrated += run.get("lines_migrated", 0)
+        except Exception as e:
+            logger.debug(f"Error processing global stats file {stats_file}: {e}")
             continue
 
-    time_saved_seconds = max(0, total_manual_seconds - total_automation_seconds)
+    # Mathematical time saved: 1 hour per 100 lines migrated
+    time_saved_hours = total_lines_migrated / 100.0
 
     return {
         "total_users": user_count,
         "total_migrations": len(all_migrations),
         "total_runs": total_runs,
-        "success_rate": (total_success / total_runs * 100) if total_runs > 0 else 0,
-        "total_time_saved_h": round(time_saved_seconds / 3600, 1),
+        "total_lines_migrated": total_lines_migrated,
+        "total_time_saved_h": round(time_saved_hours, 1),
         "total_automation_time_h": round(total_automation_seconds / 3600, 2),
     }
 

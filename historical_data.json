@@ -1,0 +1,2459 @@
+[
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20238",
+    "additions": 420,
+    "author": "nate-hart-di",
+    "createdAt": "2025-12-15T20:27:42Z",
+    "title": "PCON-727: wasecachryslercenter SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20227",
+    "additions": 522,
+    "author": "nate-hart-di",
+    "createdAt": "2025-12-15T17:33:32Z",
+    "title": "PCON-727: ingramparkchryslerjeepdodge SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20223",
+    "additions": 256,
+    "author": "nate-hart-di",
+    "createdAt": "2025-12-15T16:48:32Z",
+    "title": "PCON-727: timshortchryslerdodgejeepramhazard SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20217",
+    "additions": 613,
+    "author": "nate-hart-di",
+    "createdAt": "2025-12-15T16:07:38Z",
+    "title": "PCON-727: turlockchryslerjeepdodgeram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20218",
+    "additions": 286,
+    "author": "nate-hart-di",
+    "createdAt": "2025-12-15T16:17:33Z",
+    "title": "PCON-727: gladstonedodgechryslerjeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20181",
+    "additions": 296,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-12T19:00:26Z",
+    "title": "PCON-727: barkauchryslerdodgejeepramfreeport SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20177",
+    "additions": 311,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-12T18:32:07Z",
+    "title": "PCON-727: barkauchryslerdodgejeepramstockton SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20170",
+    "additions": 698,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-12T16:47:56Z",
+    "title": "PCON-727: bernardscdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20171",
+    "additions": 358,
+    "author": "jwinter100",
+    "createdAt": "2025-12-12T16:57:05Z",
+    "title": "PCON-727: merchantsauto SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/20166",
+    "additions": 248,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-12T16:17:08Z",
+    "title": "PCON-727: iversonchryslerdodgejeepramhuron1 SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19997",
+    "additions": 136,
+    "author": "adalbec2016",
+    "createdAt": "2025-12-09T16:17:35Z",
+    "title": "PCON-727: kennykentlexus SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19893",
+    "additions": 262,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-05T20:05:26Z",
+    "title": "PCON-727: tallasseechryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19891",
+    "additions": 254,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-05T19:28:26Z",
+    "title": "PCON-727: premierchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19950",
+    "additions": 92,
+    "author": "adalbec2016",
+    "createdAt": "2025-12-08T17:40:41Z",
+    "title": "PCON-727: wetzelcdj SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19946",
+    "additions": 712,
+    "author": "adalbec2016",
+    "createdAt": "2025-12-08T17:17:14Z",
+    "title": "PCON-727: parkchryslerjeep SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19934",
+    "additions": 320,
+    "author": "donati-a",
+    "createdAt": "2025-12-08T15:40:56Z",
+    "title": "PCON-727: erwinchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19890",
+    "additions": 671,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-05T18:43:51Z",
+    "title": "PCON-727: findlaychryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19825",
+    "additions": 260,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-04T17:21:33Z",
+    "title": "PCON-727: lakeelsinorechryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19781",
+    "additions": 375,
+    "author": "kschlarb",
+    "createdAt": "2025-12-03T19:49:43Z",
+    "title": "PCON-727: hemetchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19779",
+    "additions": 316,
+    "author": "adalbec2016",
+    "createdAt": "2025-12-03T19:17:24Z",
+    "title": "PCON-727: powaychryslerjeepdodgeram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19757",
+    "additions": 209,
+    "author": "donati-a",
+    "createdAt": "2025-12-03T16:00:58Z",
+    "title": "PCON-727: lexusmontereypeninsula SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19722",
+    "additions": 387,
+    "author": "kschlarb",
+    "createdAt": "2025-12-02T17:35:53Z",
+    "title": "PCON-727: whitewatercdjrofstcharles SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19708",
+    "additions": 494,
+    "author": "adalbec2016",
+    "createdAt": "2025-12-02T15:29:41Z",
+    "title": "PCON-727: waconiadodge SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19684",
+    "additions": 261,
+    "author": "donati-a",
+    "createdAt": "2025-12-01T19:28:11Z",
+    "title": "PCON-727: temeculavalleylexus SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19678",
+    "additions": 268,
+    "author": "donati-a",
+    "createdAt": "2025-12-01T18:54:09Z",
+    "title": "PCON-727: slingerlandchryslerdodgejeepramfiat SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19674",
+    "additions": 92,
+    "author": "donati-a",
+    "createdAt": "2025-12-01T18:28:58Z",
+    "title": "PCON-727: lexusofwoodlandhills SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19666",
+    "additions": 518,
+    "author": "donati-a",
+    "createdAt": "2025-12-01T17:08:41Z",
+    "title": "PCON-727: friscocdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19663",
+    "additions": 56,
+    "author": "donati-a",
+    "createdAt": "2025-12-01T16:53:50Z",
+    "title": "PCON-727: fresnolexus SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19662",
+    "additions": 297,
+    "author": "donati-a",
+    "createdAt": "2025-12-01T16:37:29Z",
+    "title": "PCON-727: dodgeofburnsville SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19875",
+    "additions": 116,
+    "author": "csheppard-di",
+    "createdAt": "2025-12-05T15:38:30Z",
+    "title": "PCON-727: lakeelsinorechryslerdodgejeepram SBM FE Audit - Map Styles"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19511",
+    "additions": 593,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-11-24T17:05:10Z",
+    "title": "PCON-727: shepardchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19510",
+    "additions": 376,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-11-24T16:56:42Z",
+    "title": "PCON-727: sharpchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19508",
+    "additions": 365,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-11-24T16:39:59Z",
+    "title": "PCON-727: ellisboyschryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19506",
+    "additions": 172,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-11-24T16:30:04Z",
+    "title": "PCON-727: kendalllexusofeugene SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19502",
+    "additions": 173,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-11-24T15:52:57Z",
+    "title": "PCON-727: kendalllexusofalaska SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19495",
+    "additions": 29,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-11-24T14:34:59Z",
+    "title": "PCON-727: rontonkingranturismo SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19146",
+    "additions": 472,
+    "author": "vande012",
+    "createdAt": "2025-11-13T17:24:55Z",
+    "title": "PCON-727: steamboatmotorscjdr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19464",
+    "additions": 549,
+    "author": "csheppard-di",
+    "createdAt": "2025-11-21T15:31:26Z",
+    "title": "PCON-727: northwestjeepchryslerdodgeram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19446",
+    "additions": 590,
+    "author": "csheppard-di",
+    "createdAt": "2025-11-20T21:50:35Z",
+    "title": "PCON-727: majorworldchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19329",
+    "additions": 315,
+    "author": "adalbec2016",
+    "createdAt": "2025-11-18T20:02:47Z",
+    "title": "PCON-727: daytonandrewschryslerdodgejeepramclearwater SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19327",
+    "additions": 323,
+    "author": "adalbec2016",
+    "createdAt": "2025-11-18T19:37:51Z",
+    "title": "PCON-727: tillemanmotorcompany SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19321",
+    "additions": 276,
+    "author": "kschlarb",
+    "createdAt": "2025-11-18T17:57:41Z",
+    "title": "PCON-727: rccdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19316",
+    "additions": 505,
+    "author": "kschlarb",
+    "createdAt": "2025-11-18T17:29:54Z",
+    "title": "PCON-727: hendricksoncdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19265",
+    "additions": 175,
+    "author": "donati-a",
+    "createdAt": "2025-11-17T17:26:02Z",
+    "title": "PCON-727: joerizzamaserati1 SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19262",
+    "additions": 258,
+    "author": "donati-a",
+    "createdAt": "2025-11-17T17:16:13Z",
+    "title": "PCON-727: greshamdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19257",
+    "additions": 268,
+    "author": "donati-a",
+    "createdAt": "2025-11-17T16:37:23Z",
+    "title": "PCON-727: joemachenschryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19255",
+    "additions": 252,
+    "author": "donati-a",
+    "createdAt": "2025-11-17T16:28:01Z",
+    "title": "PCON-727: capitalcitycdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19253",
+    "additions": 592,
+    "author": "donati-a",
+    "createdAt": "2025-11-17T16:14:16Z",
+    "title": "PCON-727: shavercdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19211",
+    "additions": 255,
+    "author": "donati-a",
+    "createdAt": "2025-11-14T17:16:06Z",
+    "title": "PCON-727: moorechryslerdodgejeepramofparis SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19200",
+    "additions": 318,
+    "author": "donati-a",
+    "createdAt": "2025-11-14T15:30:07Z",
+    "title": "PCON-727: douglasdodgeram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19166",
+    "additions": 680,
+    "author": "vande012",
+    "createdAt": "2025-11-13T19:52:39Z",
+    "title": "PCON-727: goodbrotherdodgeandram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19163",
+    "additions": 751,
+    "author": "vande012",
+    "createdAt": "2025-11-13T19:45:05Z",
+    "title": "PCON-727: interstatedodgechryslerjeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19149",
+    "additions": 505,
+    "author": "vande012",
+    "createdAt": "2025-11-13T17:58:09Z",
+    "title": "PCON-727: prestigechryslerjeepdodge SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19148",
+    "additions": 660,
+    "author": "vande012",
+    "createdAt": "2025-11-13T17:47:07Z",
+    "title": "PCON-727: qualitychryslerdodgejeepramfiat SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19147",
+    "additions": 333,
+    "author": "vande012",
+    "createdAt": "2025-11-13T17:34:33Z",
+    "title": "PCON-727: donvancechryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19140",
+    "additions": 421,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T16:29:10Z",
+    "title": "PCON-727: mattmazzeichryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19137",
+    "additions": 252,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T16:14:14Z",
+    "title": "PCON-727: madisoncjdr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19134",
+    "additions": 334,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T16:08:45Z",
+    "title": "PCON-727: libertychryslerdodgejeep SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19130",
+    "additions": 239,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T15:48:36Z",
+    "title": "PCON-727: frontiermotors SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19125",
+    "additions": 369,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T15:33:15Z",
+    "title": "PCON-727: daytonandrewsdodgechryslerjeepramstpetersburg SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19119",
+    "additions": 459,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T15:11:26Z",
+    "title": "PCON-727: billharrischryslerdodgejeep SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19113",
+    "additions": 273,
+    "author": "donati-a",
+    "createdAt": "2025-11-13T13:18:31Z",
+    "title": "PCON-727: autocentrochryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19094",
+    "additions": 460,
+    "author": "kschlarb",
+    "createdAt": "2025-11-12T20:56:52Z",
+    "title": "PCON-727: astorgchryslerdodgejeepramfiat SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19081",
+    "additions": 302,
+    "author": "kschlarb",
+    "createdAt": "2025-11-12T18:40:52Z",
+    "title": "PCON-727: verhoefchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/19071",
+    "additions": 316,
+    "author": "kschlarb",
+    "createdAt": "2025-11-12T17:40:36Z",
+    "title": "PCON-727: watsonvillechryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18995",
+    "additions": 259,
+    "author": "donati-a",
+    "createdAt": "2025-11-11T15:13:40Z",
+    "title": "PCON-727: yaklinchryslerdodgejeepramofangleton SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18993",
+    "additions": 322,
+    "author": "donati-a",
+    "createdAt": "2025-11-11T15:00:24Z",
+    "title": "PCON-727: cmascdjrofmartinsburg SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18992",
+    "additions": 442,
+    "author": "donati-a",
+    "createdAt": "2025-11-11T14:42:19Z",
+    "title": "PCON-727: nixchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18987",
+    "additions": 421,
+    "author": "donati-a",
+    "createdAt": "2025-11-11T13:46:45Z",
+    "title": "PCON-727: crowndcjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18946",
+    "additions": 712,
+    "author": "donati-a",
+    "createdAt": "2025-11-10T18:22:00Z",
+    "title": "PCON-727: heartlandchryslerdodgejeeprammissouri SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18864",
+    "additions": 503,
+    "author": "vande012",
+    "createdAt": "2025-11-06T20:56:51Z",
+    "title": "PCON-727: mcfaddenfriendlymotorschryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18860",
+    "additions": 690,
+    "author": "vande012",
+    "createdAt": "2025-11-06T20:29:19Z",
+    "title": "PCON-727: cabralchryslerdodgejeepramfiat SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18858",
+    "additions": 607,
+    "author": "vande012",
+    "createdAt": "2025-11-06T20:13:05Z",
+    "title": "PCON-727: almachryslerjeepdodgeram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18862",
+    "additions": 725,
+    "author": "vande012",
+    "createdAt": "2025-11-06T20:45:45Z",
+    "title": "PCON-727: northlandchryslerdodgejeepramphase2 SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18725",
+    "additions": 473,
+    "author": "kschlarb",
+    "createdAt": "2025-11-04T21:12:34Z",
+    "title": "PCON-727: billycraftchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18707",
+    "additions": 550,
+    "author": "kschlarb",
+    "createdAt": "2025-11-04T18:34:36Z",
+    "title": "PCON-727: cmasvalleychryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18706",
+    "additions": 385,
+    "author": "adalbec2016",
+    "createdAt": "2025-11-04T18:34:02Z",
+    "title": "PCON-727: patriotchryslerdodgejeepramofpryor SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18702",
+    "additions": 290,
+    "author": "kschlarb",
+    "createdAt": "2025-11-04T18:00:00Z",
+    "title": "PCON-727: patriotchryslerdodgejeepramofmcalester SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18695",
+    "additions": 285,
+    "author": "adalbec2016",
+    "createdAt": "2025-11-04T17:38:13Z",
+    "title": "PCON-727: seelyeofpawpaw1 SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18627",
+    "additions": 296,
+    "author": "donati-a",
+    "createdAt": "2025-11-03T16:48:47Z",
+    "title": "PCON-727: rainbowchryslerdodgejeep SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18626",
+    "additions": 301,
+    "author": "donati-a",
+    "createdAt": "2025-11-03T16:43:40Z",
+    "title": "PCON-727: rainbowchryslerjeepdodgeramamite SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18623",
+    "additions": 467,
+    "author": "donati-a",
+    "createdAt": "2025-11-03T16:22:59Z",
+    "title": "PCON-727: karlklementcdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18586",
+    "additions": 270,
+    "author": "vande012",
+    "createdAt": "2025-10-31T18:52:36Z",
+    "title": "PCON-727: teamonecdjrofgadsden SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18511",
+    "additions": 286,
+    "author": "kschlarb",
+    "createdAt": "2025-10-29T21:20:15Z",
+    "title": "PCON-727: northparkchryslerdodgejeepramofcastroville SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18467",
+    "additions": 475,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-29T13:11:58Z",
+    "title": "PCON-727: doughenrycdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18441",
+    "additions": 288,
+    "author": "kschlarb",
+    "createdAt": "2025-10-28T21:10:53Z",
+    "title": "PCON-727: cdjrofalbertville SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18379",
+    "additions": 166,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-28T14:38:34Z",
+    "title": "PCON-727: maseratiofcincy SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18419",
+    "additions": 276,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-28T18:54:54Z",
+    "title": "PCON-727: summitautomotivechryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18414",
+    "additions": 338,
+    "author": "kschlarb",
+    "createdAt": "2025-10-28T18:15:06Z",
+    "title": "PCON-727: starchryslerdodgejeepramfiat SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18405",
+    "additions": 356,
+    "author": "kschlarb",
+    "createdAt": "2025-10-28T17:40:33Z",
+    "title": "PCON-727: tysonmotorchryslerjeepdodgeram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18397",
+    "additions": 485,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-28T17:08:38Z",
+    "title": "PCON-727: pellegrinochryslerjeep SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17883",
+    "additions": 2547,
+    "author": "vande012",
+    "createdAt": "2025-10-16T16:26:29Z",
+    "title": "championchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17881",
+    "additions": 2533,
+    "author": "vande012",
+    "createdAt": "2025-10-16T16:12:26Z",
+    "title": "cueterchryslerjeepdodge - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17869",
+    "additions": 2453,
+    "author": "vande012",
+    "createdAt": "2025-10-16T14:40:18Z",
+    "title": "brightonchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17853",
+    "additions": 267,
+    "author": "vande012",
+    "createdAt": "2025-10-15T21:55:37Z",
+    "title": "clementchryslerdodgejeepramflorissant - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17852",
+    "additions": 388,
+    "author": "vande012",
+    "createdAt": "2025-10-15T21:47:15Z",
+    "title": "hanleeschryslerdodgejeepramofnapa - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17851",
+    "additions": 547,
+    "author": "vande012",
+    "createdAt": "2025-10-15T21:30:34Z",
+    "title": "hanleesdavischryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17795",
+    "additions": 2241,
+    "author": "jwinter100",
+    "createdAt": "2025-10-14T21:51:34Z",
+    "title": "fredmartinsuperstore - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18159",
+    "additions": 726,
+    "author": "vande012",
+    "createdAt": "2025-10-23T15:42:33Z",
+    "title": "PCON-727: billluke SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18156",
+    "additions": 260,
+    "author": "vande012",
+    "createdAt": "2025-10-23T15:34:24Z",
+    "title": "PCON-727: mainstreetcjdroflansing SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17757",
+    "additions": 608,
+    "author": "donati-a",
+    "createdAt": "2025-10-14T15:24:05Z",
+    "title": "burnsmotorsltd - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17755",
+    "additions": 367,
+    "author": "donati-a",
+    "createdAt": "2025-10-14T15:14:52Z",
+    "title": "billvolzswestchester - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17754",
+    "additions": 252,
+    "author": "vande012",
+    "createdAt": "2025-10-14T15:13:54Z",
+    "title": "chryslerdodgejeepramfiatofmorgantown - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17753",
+    "additions": 261,
+    "author": "vande012",
+    "createdAt": "2025-10-14T15:08:48Z",
+    "title": "aadsencdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17752",
+    "additions": 278,
+    "author": "vande012",
+    "createdAt": "2025-10-14T15:03:53Z",
+    "title": "cdjrbrooksville - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17751",
+    "additions": 373,
+    "author": "donati-a",
+    "createdAt": "2025-10-14T15:02:48Z",
+    "title": "autonationchryslerdodgejeepramnorthrichlandhills - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17749",
+    "additions": 342,
+    "author": "vande012",
+    "createdAt": "2025-10-14T14:58:16Z",
+    "title": "meadowlandofcarmel - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17747",
+    "additions": 456,
+    "author": "donati-a",
+    "createdAt": "2025-10-14T14:50:00Z",
+    "title": "vanhornchryslerdodgejeepramofstoughton - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17745",
+    "additions": 406,
+    "author": "donati-a",
+    "createdAt": "2025-10-14T14:40:26Z",
+    "title": "vanhornchryslerdodgejeepramofmanitowoc - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17743",
+    "additions": 272,
+    "author": "donati-a",
+    "createdAt": "2025-10-14T14:29:26Z",
+    "title": "ganleychryslerofaurora - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18067",
+    "additions": 682,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-21T19:41:01Z",
+    "title": "PCON-727: williamsburgcdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18063",
+    "additions": 408,
+    "author": "kschlarb",
+    "createdAt": "2025-10-21T19:08:27Z",
+    "title": "PCON-727: cdjrofwoodstock SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18059",
+    "additions": 380,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-21T17:46:21Z",
+    "title": "PCON-727: videonchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/18058",
+    "additions": 417,
+    "author": "kschlarb",
+    "createdAt": "2025-10-21T17:43:19Z",
+    "title": "PCON-727: gettelcdjr SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17630",
+    "additions": 494,
+    "author": "vande012",
+    "createdAt": "2025-10-09T21:53:11Z",
+    "title": "vanhornchryslerdodgejeepramfiatofplymouth - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17628",
+    "additions": 217,
+    "author": "vande012",
+    "createdAt": "2025-10-09T21:32:28Z",
+    "title": "blevinsmotorscjdrpotsdam - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17914",
+    "additions": 369,
+    "author": "nate-hart-di",
+    "createdAt": "2025-10-16T23:04:54Z",
+    "title": "PCON-727: randymarionchryslerdodgejeepramofwilkesboro SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17962",
+    "additions": 676,
+    "author": "kschlarb",
+    "createdAt": "2025-10-17T18:13:12Z",
+    "title": "PCON-727: brownschryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17976",
+    "additions": 364,
+    "author": "kschlarb",
+    "createdAt": "2025-10-17T19:54:32Z",
+    "title": "PCON-727: salmonriverchryslerdodgejeepram SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17944",
+    "additions": 293,
+    "author": "adalbec2016",
+    "createdAt": "2025-10-17T15:57:46Z",
+    "title": "PCON-727: churnessmotorscompany sbm fe audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17912",
+    "additions": 474,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-10-16T21:38:56Z",
+    "title": "PCON-727: centralmainechrysler SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17880",
+    "additions": 463,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-10-16T15:55:17Z",
+    "title": "PCON-727: voylescdjrofbirmingham SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17782",
+    "additions": 396,
+    "author": "csheppard-di",
+    "createdAt": "2025-10-14T19:37:37Z",
+    "title": "PCON-727: glenncdjroflouisville SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17890",
+    "additions": 925,
+    "author": "nate-hart-di",
+    "createdAt": "2025-10-16T17:37:34Z",
+    "title": "pcon-727-zimmerchryslerdodgejeepram-SBM1025 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17296",
+    "additions": 401,
+    "author": "donati-a",
+    "createdAt": "2025-10-01T17:52:25Z",
+    "title": "sandysansingcdjroffoley1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17292",
+    "additions": 504,
+    "author": "donati-a",
+    "createdAt": "2025-10-01T17:22:44Z",
+    "title": "southernchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17293",
+    "additions": 380,
+    "author": "donati-a",
+    "createdAt": "2025-10-01T17:33:34Z",
+    "title": "sandysansingcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17229",
+    "additions": 388,
+    "author": "donati-a",
+    "createdAt": "2025-09-30T17:47:08Z",
+    "title": "antiochchryslerjeepdodgecalifornia - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17233",
+    "additions": 163,
+    "author": "donati-a",
+    "createdAt": "2025-09-30T18:18:05Z",
+    "title": "maseratiwalnutcreek - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17227",
+    "additions": 411,
+    "author": "donati-a",
+    "createdAt": "2025-09-30T17:35:22Z",
+    "title": "albrechtchryslerdodgejeepramofwestborough - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17226",
+    "additions": 457,
+    "author": "donati-a",
+    "createdAt": "2025-09-30T17:25:55Z",
+    "title": "townechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17149",
+    "additions": 339,
+    "author": "donati-a",
+    "createdAt": "2025-09-29T15:02:25Z",
+    "title": "samlemancdjrofchampaign - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17147",
+    "additions": 767,
+    "author": "donati-a",
+    "createdAt": "2025-09-29T14:54:03Z",
+    "title": "samlemanchryslerjeepdodgebloomington - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17145",
+    "additions": 263,
+    "author": "donati-a",
+    "createdAt": "2025-09-29T14:43:36Z",
+    "title": "warsawchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17098",
+    "additions": 359,
+    "author": "donati-a",
+    "createdAt": "2025-09-26T14:35:15Z",
+    "title": "tascachryslerdodgejeepramofwhiteplains - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17097",
+    "additions": 1109,
+    "author": "donati-a",
+    "createdAt": "2025-09-26T14:27:51Z",
+    "title": "dickhuvaeresrichmondchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17096",
+    "additions": 570,
+    "author": "donati-a",
+    "createdAt": "2025-09-26T14:23:05Z",
+    "title": "coonrapidschryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17095",
+    "additions": 358,
+    "author": "donati-a",
+    "createdAt": "2025-09-26T14:11:02Z",
+    "title": "centralavenuecdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17094",
+    "additions": 256,
+    "author": "donati-a",
+    "createdAt": "2025-09-26T14:05:15Z",
+    "title": "tascachryslerjeepdodgeramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17019",
+    "additions": 256,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-24T20:29:59Z",
+    "title": "tascachryslerdodgejeepramfiatkingston - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17016",
+    "additions": 469,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-24T20:23:29Z",
+    "title": "sarasotachryslerdodgejeepramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17014",
+    "additions": 327,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-24T20:15:36Z",
+    "title": "oharamotors - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/17012",
+    "additions": 330,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-24T19:57:23Z",
+    "title": "sheltonchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16992",
+    "additions": 359,
+    "author": "donati-a",
+    "createdAt": "2025-09-24T15:11:14Z",
+    "title": "timshortdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16990",
+    "additions": 345,
+    "author": "donati-a",
+    "createdAt": "2025-09-24T14:35:40Z",
+    "title": "bennyboydcdjrlampasas - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16969",
+    "additions": 498,
+    "author": "jwinter100",
+    "createdAt": "2025-09-23T22:07:09Z",
+    "title": "airportchryslerdodgejeepram1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16966",
+    "additions": 467,
+    "author": "jwinter100",
+    "createdAt": "2025-09-23T21:29:43Z",
+    "title": "myrtlebeachcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16965",
+    "additions": 115,
+    "author": "jwinter100",
+    "createdAt": "2025-09-23T21:13:05Z",
+    "title": "rickcasemaserati - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16954",
+    "additions": 34,
+    "author": "donati-a",
+    "createdAt": "2025-09-23T19:08:39Z",
+    "title": "blevinsseawaymotorsmassena - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16939",
+    "additions": 278,
+    "author": "donati-a",
+    "createdAt": "2025-09-23T16:54:18Z",
+    "title": "clearlakecjdr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16874",
+    "additions": 1018,
+    "author": "donati-a",
+    "createdAt": "2025-09-22T19:43:32Z",
+    "title": "keenechryslerdodgejeepramdiwebsite - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16804",
+    "additions": 253,
+    "author": "donati-a",
+    "createdAt": "2025-09-19T17:49:59Z",
+    "title": "castlerockchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16802",
+    "additions": 336,
+    "author": "donati-a",
+    "createdAt": "2025-09-19T17:35:40Z",
+    "title": "gainesvillechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16799",
+    "additions": 398,
+    "author": "donati-a",
+    "createdAt": "2025-09-19T17:24:56Z",
+    "title": "diehlcdjrofrobinsondiehlautogroup - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16792",
+    "additions": 282,
+    "author": "donati-a",
+    "createdAt": "2025-09-19T16:21:53Z",
+    "title": "diehlcdjrofgrovecity - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16791",
+    "additions": 1690,
+    "author": "donati-a",
+    "createdAt": "2025-09-19T16:06:46Z",
+    "title": "carrightautocdj - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16787",
+    "additions": 395,
+    "author": "donati-a",
+    "createdAt": "2025-09-19T15:51:24Z",
+    "title": "diehlcdjrofbutlerdiehlautogroup - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16748",
+    "additions": 272,
+    "author": "donati-a",
+    "createdAt": "2025-09-18T18:30:32Z",
+    "title": "superiordcjrofnorthwestarkansas - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16747",
+    "additions": 363,
+    "author": "donati-a",
+    "createdAt": "2025-09-18T18:24:10Z",
+    "title": "superiordodgechryslerjeepramofconway - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16745",
+    "additions": 247,
+    "author": "donati-a",
+    "createdAt": "2025-09-18T18:17:09Z",
+    "title": "dahlchryslerdodgejeepramstevenspoint - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16744",
+    "additions": 247,
+    "author": "donati-a",
+    "createdAt": "2025-09-18T18:12:11Z",
+    "title": "dahlchryslerdodgejeepramofrhinelander - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16742",
+    "additions": 309,
+    "author": "donati-a",
+    "createdAt": "2025-09-18T18:03:11Z",
+    "title": "chieflandchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16739",
+    "additions": 333,
+    "author": "donati-a",
+    "createdAt": "2025-09-18T17:56:34Z",
+    "title": "advantagechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16700",
+    "additions": 314,
+    "author": "jwinter100",
+    "createdAt": "2025-09-17T21:49:20Z",
+    "title": "imperialvalleychryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16699",
+    "additions": 510,
+    "author": "jwinter100",
+    "createdAt": "2025-09-17T21:41:18Z",
+    "title": "southlanddodgethibodaux - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16698",
+    "additions": 586,
+    "author": "jwinter100",
+    "createdAt": "2025-09-17T21:34:54Z",
+    "title": "southlanddodgehouma - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16688",
+    "additions": 737,
+    "author": "donati-a",
+    "createdAt": "2025-09-17T18:09:51Z",
+    "title": "downtownautogroup - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16683",
+    "additions": 255,
+    "author": "donati-a",
+    "createdAt": "2025-09-17T17:15:47Z",
+    "title": "riversidechryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16677",
+    "additions": 513,
+    "author": "donati-a",
+    "createdAt": "2025-09-17T15:30:58Z",
+    "title": "vatlandcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16653",
+    "additions": 897,
+    "author": "jwinter100",
+    "createdAt": "2025-09-16T21:57:38Z",
+    "title": "ranchochryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16652",
+    "additions": 966,
+    "author": "jwinter100",
+    "createdAt": "2025-09-16T21:50:23Z",
+    "title": "sandiegochryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16651",
+    "additions": 1293,
+    "author": "jwinter100",
+    "createdAt": "2025-09-16T21:32:04Z",
+    "title": "crosschryslerjeepfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16642",
+    "additions": 353,
+    "author": "donati-a",
+    "createdAt": "2025-09-16T19:45:35Z",
+    "title": "whittenbrothersofrichmond - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16621",
+    "additions": 223,
+    "author": "donati-a",
+    "createdAt": "2025-09-16T15:53:17Z",
+    "title": "whittenbrothersofashland - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16620",
+    "additions": 593,
+    "author": "donati-a",
+    "createdAt": "2025-09-16T15:42:26Z",
+    "title": "spartanburgchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16587",
+    "additions": 383,
+    "author": "jwinter100",
+    "createdAt": "2025-09-15T20:48:06Z",
+    "title": "johnjoneschryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16580",
+    "additions": 289,
+    "author": "jwinter100",
+    "createdAt": "2025-09-15T19:51:19Z",
+    "title": "fremontchryslerdodgejeepram1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16502",
+    "additions": 265,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-12T12:32:38Z",
+    "title": "eauclairechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16481",
+    "additions": 640,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-11T22:59:21Z",
+    "title": "securitydodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16480",
+    "additions": 39,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-11T22:56:35Z",
+    "title": "robersonmotors - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16478",
+    "additions": 580,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-11T22:12:57Z",
+    "title": "brydenmotors - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16473",
+    "additions": 328,
+    "author": "jwinter100",
+    "createdAt": "2025-09-11T20:56:30Z",
+    "title": "brownselkadercdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16472",
+    "additions": 350,
+    "author": "jwinter100",
+    "createdAt": "2025-09-11T20:48:42Z",
+    "title": "brownswestbranchchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16427",
+    "additions": 461,
+    "author": "jwinter100",
+    "createdAt": "2025-09-10T22:00:53Z",
+    "title": "jayhodgedodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16418",
+    "additions": 272,
+    "author": "jwinter100",
+    "createdAt": "2025-09-10T20:07:42Z",
+    "title": "hillsboroughcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16388",
+    "additions": 260,
+    "author": "jwinter100",
+    "createdAt": "2025-09-10T17:12:52Z",
+    "title": "capitalcdjrofindiantrail - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16386",
+    "additions": 453,
+    "author": "jwinter100",
+    "createdAt": "2025-09-10T16:47:54Z",
+    "title": "bachmancdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16384",
+    "additions": 280,
+    "author": "jwinter100",
+    "createdAt": "2025-09-10T16:38:20Z",
+    "title": "kellerbrosdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16356",
+    "additions": 260,
+    "author": "jwinter100",
+    "createdAt": "2025-09-09T21:22:56Z",
+    "title": "tannermotors - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16355",
+    "additions": 288,
+    "author": "jwinter100",
+    "createdAt": "2025-09-09T21:13:25Z",
+    "title": "pinckneychryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16354",
+    "additions": 252,
+    "author": "jwinter100",
+    "createdAt": "2025-09-09T20:58:53Z",
+    "title": "nucarchrysleroftilton - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16353",
+    "additions": 286,
+    "author": "jwinter100",
+    "createdAt": "2025-09-09T20:52:55Z",
+    "title": "nucarcdjrofallentown - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16351",
+    "additions": 257,
+    "author": "jwinter100",
+    "createdAt": "2025-09-09T20:45:17Z",
+    "title": "nucarcdjrsaintalbans - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16299",
+    "additions": 294,
+    "author": "jwinter100",
+    "createdAt": "2025-09-08T21:40:05Z",
+    "title": "westherrchryslerdodgejeepramoflockport - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16298",
+    "additions": 275,
+    "author": "jwinter100",
+    "createdAt": "2025-09-08T21:31:15Z",
+    "title": "westherrchryslerdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16244",
+    "additions": 479,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-05T20:01:06Z",
+    "title": "millschryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16246",
+    "additions": 2578,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-05T20:10:26Z",
+    "title": "marinochryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16243",
+    "additions": 297,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-05T19:49:43Z",
+    "title": "orangecoastchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16233",
+    "additions": 289,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-05T18:03:57Z",
+    "title": "cuttercdjrofpearlcity - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16232",
+    "additions": 540,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-09-05T17:48:08Z",
+    "title": "cutterchryslerdodgejeepramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16218",
+    "additions": 909,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-05T14:47:45Z",
+    "title": "executivejeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16199",
+    "additions": 998,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-04T23:33:28Z",
+    "title": "executivedodgeandjeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16178",
+    "additions": 287,
+    "author": "donati-a",
+    "createdAt": "2025-09-04T18:26:18Z",
+    "title": "bodwellchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16177",
+    "additions": 271,
+    "author": "donati-a",
+    "createdAt": "2025-09-04T18:00:01Z",
+    "title": "covertcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16176",
+    "additions": 22,
+    "author": "donati-a",
+    "createdAt": "2025-09-04T17:54:58Z",
+    "title": "bishopmaserati - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16148",
+    "additions": 775,
+    "author": "nate-hart-di",
+    "createdAt": "2025-09-04T01:01:45Z",
+    "title": "plazachryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16137",
+    "additions": 547,
+    "author": "donati-a",
+    "createdAt": "2025-09-03T20:48:40Z",
+    "title": "tuttleclickchryslerjeepdodgeramirvine - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16136",
+    "additions": 227,
+    "author": "donati-a",
+    "createdAt": "2025-09-03T20:39:22Z",
+    "title": "forestlanecdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16135",
+    "additions": 255,
+    "author": "donati-a",
+    "createdAt": "2025-09-03T20:32:19Z",
+    "title": "allensamuelscdjrofoxford - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16133",
+    "additions": 559,
+    "author": "donati-a",
+    "createdAt": "2025-09-03T20:21:20Z",
+    "title": "wallyarmourchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/16008",
+    "additions": 269,
+    "author": "nate-hart-di",
+    "createdAt": "2025-08-29T20:13:21Z",
+    "title": "hastingschryslercenterinc - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15953",
+    "additions": 298,
+    "author": "jwinter100",
+    "createdAt": "2025-08-28T21:55:35Z",
+    "title": "northfieldchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15952",
+    "additions": 761,
+    "author": "jwinter100",
+    "createdAt": "2025-08-28T21:50:47Z",
+    "title": "cornerstonechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15950",
+    "additions": 1467,
+    "author": "jwinter100",
+    "createdAt": "2025-08-28T21:40:34Z",
+    "title": "hillviewmotors - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15891",
+    "additions": 302,
+    "author": "jwinter100",
+    "createdAt": "2025-08-27T22:04:03Z",
+    "title": "pinebeltcdjrms - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15889",
+    "additions": 292,
+    "author": "jwinter100",
+    "createdAt": "2025-08-27T21:38:27Z",
+    "title": "carolinacdjr1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15886",
+    "additions": 320,
+    "author": "jwinter100",
+    "createdAt": "2025-08-27T21:32:16Z",
+    "title": "winnerscirclechryslerdodgejeepramoffranklinva - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15881",
+    "additions": 324,
+    "author": "jwinter100",
+    "createdAt": "2025-08-27T20:41:58Z",
+    "title": "waxahachiedodgechryslerjeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15879",
+    "additions": 315,
+    "author": "donati-a",
+    "createdAt": "2025-08-27T20:30:40Z",
+    "title": "jeffbelzersdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15874",
+    "additions": 890,
+    "author": "donati-a",
+    "createdAt": "2025-08-27T20:02:30Z",
+    "title": "rosevillecjdr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15872",
+    "additions": 319,
+    "author": "donati-a",
+    "createdAt": "2025-08-27T19:54:42Z",
+    "title": "jeffbelzerchryslerdodgejeepramnewprague - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15871",
+    "additions": 790,
+    "author": "donati-a",
+    "createdAt": "2025-08-27T19:44:27Z",
+    "title": "pinebeltcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15870",
+    "additions": 364,
+    "author": "donati-a",
+    "createdAt": "2025-08-27T19:37:08Z",
+    "title": "pettijohnautocentercdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15729",
+    "additions": 836,
+    "author": "donati-a",
+    "createdAt": "2025-08-25T18:56:08Z",
+    "title": "dennisdillonfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15679",
+    "additions": 375,
+    "author": "donati-a",
+    "createdAt": "2025-08-22T19:52:42Z",
+    "title": "victorychryslerdodgejeepramofdyersburgg - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15676",
+    "additions": 370,
+    "author": "donati-a",
+    "createdAt": "2025-08-22T19:41:39Z",
+    "title": "victorychryslerdodgejeeprammarietta1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15674",
+    "additions": 379,
+    "author": "donati-a",
+    "createdAt": "2025-08-22T19:26:46Z",
+    "title": "tricitieschryslerdodgejeepramm - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15673",
+    "additions": 372,
+    "author": "donati-a",
+    "createdAt": "2025-08-22T19:16:06Z",
+    "title": "easttennesseedodgechryslerjeepramm - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15672",
+    "additions": 404,
+    "author": "donati-a",
+    "createdAt": "2025-08-22T18:46:35Z",
+    "title": "ancirachryslerjeepdodgeramsanantonio - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15468",
+    "additions": 946,
+    "author": "jwinter100",
+    "createdAt": "2025-08-18T22:12:06Z",
+    "title": "zeiglerchryslerdodgejeepramofschaumburg - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15630",
+    "additions": 396,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-21T20:21:26Z",
+    "title": "buckeyechryslerjeepdodgeofshelby - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15628",
+    "additions": 605,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-21T20:16:34Z",
+    "title": "contemporarychryslerdodgejeepramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15626",
+    "additions": 330,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-21T20:06:11Z",
+    "title": "hustonchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15625",
+    "additions": 486,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-21T19:56:46Z",
+    "title": "happychryslerdodgejeepramofrochester - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15624",
+    "additions": 293,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-21T19:47:18Z",
+    "title": "ancirachryslerjeepdodgerameaglepass - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15623",
+    "additions": 753,
+    "author": "donati-a",
+    "createdAt": "2025-08-21T19:39:06Z",
+    "title": "harrchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15621",
+    "additions": 2076,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-21T19:35:44Z",
+    "title": "dupagecdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15620",
+    "additions": 631,
+    "author": "donati-a",
+    "createdAt": "2025-08-21T18:33:16Z",
+    "title": "newcarlislechryslerjeepdodge - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15618",
+    "additions": 587,
+    "author": "donati-a",
+    "createdAt": "2025-08-21T18:18:15Z",
+    "title": "keychryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15616",
+    "additions": 303,
+    "author": "donati-a",
+    "createdAt": "2025-08-21T17:55:07Z",
+    "title": "siddilloncdjrfiatoflincoln - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15615",
+    "additions": 298,
+    "author": "donati-a",
+    "createdAt": "2025-08-21T17:48:40Z",
+    "title": "siddillonchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15613",
+    "additions": 429,
+    "author": "donati-a",
+    "createdAt": "2025-08-21T17:08:57Z",
+    "title": "kendalldcjrofsoldotna - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15573",
+    "additions": 451,
+    "author": "nate-hart-di",
+    "createdAt": "2025-08-20T19:53:24Z",
+    "title": "zeiglerfiatofschaumburg - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15482",
+    "additions": 1270,
+    "author": "nate-hart-di",
+    "createdAt": "2025-08-19T06:07:42Z",
+    "title": "jackpowellchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15463",
+    "additions": 752,
+    "author": "jwinter100",
+    "createdAt": "2025-08-18T22:05:55Z",
+    "title": "susquehannacdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15462",
+    "additions": 251,
+    "author": "jwinter100",
+    "createdAt": "2025-08-18T21:42:08Z",
+    "title": "midwaymotorschryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15457",
+    "additions": 448,
+    "author": "jwinter100",
+    "createdAt": "2025-08-18T20:22:07Z",
+    "title": "humeschryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15438",
+    "additions": 253,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-08-18T16:41:01Z",
+    "title": "mannchryslerdodgejeepofmtsterling - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15434",
+    "additions": 595,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-08-18T16:15:55Z",
+    "title": "autolandchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15428",
+    "additions": 330,
+    "author": "nzbasnikDI",
+    "createdAt": "2025-08-18T15:42:05Z",
+    "title": "santabarbarachryslerdodgejeepramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15379",
+    "additions": 760,
+    "author": "jwinter100",
+    "createdAt": "2025-08-15T16:17:49Z",
+    "title": "allensamuelschryslerdodgejeepramjackson - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15377",
+    "additions": 318,
+    "author": "jwinter100",
+    "createdAt": "2025-08-15T15:53:44Z",
+    "title": "stetlerdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15371",
+    "additions": 391,
+    "author": "jwinter100",
+    "createdAt": "2025-08-15T15:28:28Z",
+    "title": "sonscdjrfiatofmontgomery - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15369",
+    "additions": 530,
+    "author": "jwinter100",
+    "createdAt": "2025-08-15T15:01:46Z",
+    "title": "scottrobinsoncdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15163",
+    "additions": 453,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-11T15:53:00Z",
+    "title": "southerngreenbriarchryslerjeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15175",
+    "additions": 306,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-11T17:57:00Z",
+    "title": "visionchryslerdodgejeepramofpenfield - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15173",
+    "additions": 198,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-11T17:51:10Z",
+    "title": "jimbrownecjdrdadecity - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15172",
+    "additions": 345,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-11T17:42:07Z",
+    "title": "lucassmithcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15171",
+    "additions": 254,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-11T17:31:52Z",
+    "title": "aventurachryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15159",
+    "additions": 273,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-11T15:43:14Z",
+    "title": "geauxchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15160",
+    "additions": 273,
+    "author": "donati-a",
+    "createdAt": "2025-08-11T15:44:24Z",
+    "title": "southernchyslerdodgejeepramnewportnews - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15157",
+    "additions": 429,
+    "author": "donati-a",
+    "createdAt": "2025-08-11T15:40:07Z",
+    "title": "southernnorfolkairportdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15155",
+    "additions": 436,
+    "author": "donati-a",
+    "createdAt": "2025-08-11T15:31:48Z",
+    "title": "miamilakesdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15154",
+    "additions": 464,
+    "author": "donati-a",
+    "createdAt": "2025-08-11T15:27:04Z",
+    "title": "capecoralchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15153",
+    "additions": 409,
+    "author": "donati-a",
+    "createdAt": "2025-08-11T15:21:58Z",
+    "title": "hollywoodchryslerjeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15051",
+    "additions": 248,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-07T15:43:49Z",
+    "title": "nyechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15049",
+    "additions": 72,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-07T15:34:02Z",
+    "title": "desert215superstore - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15046",
+    "additions": 331,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-07T15:23:28Z",
+    "title": "universitydodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15045",
+    "additions": 268,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-07T15:15:23Z",
+    "title": "southernchryslerdodgejeepramchesapeake - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15043",
+    "additions": 277,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-07T15:07:33Z",
+    "title": "kendalldodgechryslerjeepram1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15023",
+    "additions": 1283,
+    "author": "brandonstranc",
+    "createdAt": "2025-08-06T19:41:22Z",
+    "title": "greggyoungchryslerdodgejeepramofnewton - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15018",
+    "additions": 262,
+    "author": "brandonstranc",
+    "createdAt": "2025-08-06T19:21:58Z",
+    "title": "applechryslerdodgejeepramofshakopee - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15017",
+    "additions": 117,
+    "author": "brandonstranc",
+    "createdAt": "2025-08-06T19:14:52Z",
+    "title": "valleymotorcity - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/15016",
+    "additions": 386,
+    "author": "brandonstranc",
+    "createdAt": "2025-08-06T19:01:45Z",
+    "title": "valleychryslerdodgejeepramofbryan - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14955",
+    "additions": 290,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-05T14:55:56Z",
+    "title": "lpkchryslerdodgejeepramofdefiance - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14952",
+    "additions": 551,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-05T14:47:57Z",
+    "title": "coxchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14949",
+    "additions": 371,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-05T14:29:42Z",
+    "title": "northcountrychryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14947",
+    "additions": 315,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-05T14:16:40Z",
+    "title": "delandchryslerdodgejeepram1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14946",
+    "additions": 275,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-08-05T14:04:16Z",
+    "title": "serratraversecitycdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14928",
+    "additions": 319,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T21:06:50Z",
+    "title": "lakewaleschryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14927",
+    "additions": 365,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T21:01:35Z",
+    "title": "dodgechryslerjeepramofwinterhaven - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14926",
+    "additions": 330,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T20:56:30Z",
+    "title": "posnerparkchryslerdodgejeepramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14923",
+    "additions": 360,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T20:32:11Z",
+    "title": "monroesuperstoredodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14919",
+    "additions": 281,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T20:15:59Z",
+    "title": "brooklynchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14895",
+    "additions": 600,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T15:04:33Z",
+    "title": "stephenwadechryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14896",
+    "additions": 931,
+    "author": "nate-hart-di",
+    "createdAt": "2025-08-04T15:18:28Z",
+    "title": "cdjconfidential - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14892",
+    "additions": 446,
+    "author": "evantritt",
+    "createdAt": "2025-08-04T14:41:03Z",
+    "title": "classicchryslerjeepdodgeramfiatofgoldsboro - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14783",
+    "additions": 335,
+    "author": "donati-a",
+    "createdAt": "2025-07-31T14:56:23Z",
+    "title": "statelinechryslerjeepdodge - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14781",
+    "additions": 431,
+    "author": "donati-a",
+    "createdAt": "2025-07-31T14:39:03Z",
+    "title": "classicchryslerdodgejeepramofsouthcharlotte - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14779",
+    "additions": 253,
+    "author": "donati-a",
+    "createdAt": "2025-07-31T14:33:16Z",
+    "title": "classiccdjrlancaster - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14776",
+    "additions": 268,
+    "author": "donati-a",
+    "createdAt": "2025-07-31T14:20:33Z",
+    "title": "ronlewischryslerdodgejeepramwaynesburg - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14773",
+    "additions": 274,
+    "author": "donati-a",
+    "createdAt": "2025-07-31T14:05:42Z",
+    "title": "ronlewischryslerdodgejeeprampleasanthills - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14734",
+    "additions": 55,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-30T17:03:33Z",
+    "title": "burnsmotorsmission - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14732",
+    "additions": 418,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-30T16:57:07Z",
+    "title": "ronbouchardchryslerdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14729",
+    "additions": 271,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-30T16:48:34Z",
+    "title": "ronlewischryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14728",
+    "additions": 303,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-30T16:41:26Z",
+    "title": "chryslerdodgejeepramofprinceton - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14727",
+    "additions": 321,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-30T16:30:15Z",
+    "title": "toliverchryslerdodgejeepramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14679",
+    "additions": 248,
+    "author": "donati-a",
+    "createdAt": "2025-07-29T19:14:45Z",
+    "title": "dentonchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14675",
+    "additions": 1530,
+    "author": "donati-a",
+    "createdAt": "2025-07-29T18:49:36Z",
+    "title": "martindodgejeepchryslerram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14674",
+    "additions": 300,
+    "author": "donati-a",
+    "createdAt": "2025-07-29T18:22:24Z",
+    "title": "lochmandymotorsalesincchrysler - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14660",
+    "additions": 355,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-29T16:10:08Z",
+    "title": "delaneychryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14633",
+    "additions": 908,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-29T05:35:59Z",
+    "title": "dallasdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14632",
+    "additions": 319,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-29T05:30:47Z",
+    "title": "rockwallchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14631",
+    "additions": 799,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-29T05:23:56Z",
+    "title": "southpointechryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14601",
+    "additions": 560,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-28T17:53:09Z",
+    "title": "normandinchryslerjeepdodgeramfiat - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14582",
+    "additions": 805,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-28T15:05:29Z",
+    "title": "bobhowardchryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14577",
+    "additions": 416,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-28T14:31:52Z",
+    "title": "corwindodgeofspringfield - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14559",
+    "additions": 0,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-25T21:04:32Z",
+    "title": "rontonkinchryslercjdrf - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14540",
+    "additions": 336,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-25T15:42:32Z",
+    "title": "ferneliuscdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14533",
+    "additions": 622,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-25T15:00:06Z",
+    "title": "ferneliuscdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14492",
+    "additions": 342,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-24T19:20:36Z",
+    "title": "waltsliveoakcdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14490",
+    "additions": 943,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-24T19:03:04Z",
+    "title": "olathedodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14489",
+    "additions": 467,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-24T18:56:49Z",
+    "title": "bayerchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14488",
+    "additions": 779,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-24T18:53:15Z",
+    "title": "rontonkinchryslercjdrf - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14395",
+    "additions": 16,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-23T00:06:49Z",
+    "title": "midwaycdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14394",
+    "additions": 2,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-23T00:02:40Z",
+    "title": "covertchryslerdodgejeeprambeecave - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14393",
+    "additions": 214,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-22T23:55:03Z",
+    "title": "bertogdenmaserati - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14390",
+    "additions": 311,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-22T22:28:57Z",
+    "title": "jamesriverchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14240",
+    "additions": 396,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-18T01:48:05Z",
+    "title": "larryhillischryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14239",
+    "additions": 355,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-18T01:33:33Z",
+    "title": "victorychryslerdodgejeepramkansascity - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14238",
+    "additions": 2092,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-18T01:26:35Z",
+    "title": "midwaycdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14237",
+    "additions": 396,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-18T00:56:42Z",
+    "title": "rainierdodge - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14235",
+    "additions": 266,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T22:28:18Z",
+    "title": "magmaserati - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14218",
+    "additions": 321,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T18:38:45Z",
+    "title": "allensamuelsdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14181",
+    "additions": 535,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T02:29:46Z",
+    "title": "victorychryslerdodgejeepramofottawa - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14182",
+    "additions": 266,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T02:42:54Z",
+    "title": "covertchryslerdodgejeeprambeecave - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14180",
+    "additions": 366,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T02:19:19Z",
+    "title": "byerscdjr - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14179",
+    "additions": 227,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T02:06:26Z",
+    "title": "bertogdenmaserati - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14178",
+    "additions": 1607,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T01:50:54Z",
+    "title": "watermarkchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14177",
+    "additions": 330,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T01:46:25Z",
+    "title": "johnhirschscambridgemotorschryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14175",
+    "additions": 334,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-17T01:35:53Z",
+    "title": "ronsayerschryslerjeepdodge1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/14170",
+    "additions": 572,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-16T22:41:15Z",
+    "title": "andersonchrysler - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13802",
+    "additions": 1375,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T23:39:49Z",
+    "title": "heggsjeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13803",
+    "additions": 1187,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T23:52:30Z",
+    "title": "allensamuelsdodgechryslerjeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13800",
+    "additions": 1588,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T23:28:00Z",
+    "title": "superstitionspringschryslerjeepdodgeram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13799",
+    "additions": 1685,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T23:06:03Z",
+    "title": "jamesriverchryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13798",
+    "additions": 1132,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T22:46:44Z",
+    "title": "allensamuelschryslerdodgejeepramhutchinson - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13783",
+    "additions": 675,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T19:42:41Z",
+    "title": "ryancjd - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13781",
+    "additions": 562,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T19:37:38Z",
+    "title": "advantagedodgechryslerjeep - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13729",
+    "additions": 1820,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T03:15:13Z",
+    "title": "premierchryslerdodgejeepramofbuenapark - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13730",
+    "additions": 1657,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T03:25:42Z",
+    "title": "lamesachryslerdodgejeepram - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13728",
+    "additions": 336,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T03:08:33Z",
+    "title": "premiercdjrofharvey - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13727",
+    "additions": 793,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-08T01:51:56Z",
+    "title": "allensamuelscdjraransaspass - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13721",
+    "additions": 1768,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-07T22:51:49Z",
+    "title": "ronsayerschryslerjeepdodge1 - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13720",
+    "additions": 841,
+    "author": "nate-hart-di",
+    "createdAt": "2025-07-07T22:37:31Z",
+    "title": "andersonchrysler - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13624",
+    "additions": 212,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-02T20:05:18Z",
+    "title": "thecollectionmaserati - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13623",
+    "additions": 134,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-02T19:57:05Z",
+    "title": "maseratioffortmyers - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13622",
+    "additions": 302,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-02T19:47:06Z",
+    "title": "maseratioforlando - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13621",
+    "additions": 386,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-02T19:29:45Z",
+    "title": "conklincdjrnewton - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13618",
+    "additions": 324,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-02T19:04:15Z",
+    "title": "fowlerjeepofboulder - SBM FE Audit"
+  },
+  {
+    "url": "https://github.com/carsdotcom/di-websites-platform/pull/13617",
+    "additions": 429,
+    "author": "abondDealerInspire",
+    "createdAt": "2025-07-02T18:42:31Z",
+    "title": "mcminnvillechryslerdodgejeepram - SBM FE Audit"
+  }
+]

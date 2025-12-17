@@ -20,6 +20,13 @@ from pathlib import Path
 import click
 from git import Repo
 
+from sbm.utils.tracker import (
+    get_migration_stats,
+    record_migration,
+    record_run,
+    sync_global_stats,
+)
+
 from .config import Config, ConfigurationError, get_config
 from .core.git import GitOperations
 from .core.migration import (
@@ -46,12 +53,6 @@ from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
 from .utils.timer import get_total_automation_time, get_total_duration
-from sbm.utils.tracker import (
-    get_migration_stats,
-    record_migration,
-    record_run,
-    sync_global_stats,
-)
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 REPO_ROOT = Path(__file__).parent.parent.resolve()
@@ -154,7 +155,6 @@ def is_env_healthy() -> bool:
 
 # --- Setup logic ---
 # Only run setup when in auto-sbm development environment
-import os
 
 current_dir = os.getcwd()
 in_auto_sbm_repo = str(REPO_ROOT) in current_dir
@@ -400,7 +400,7 @@ def check_and_run_daily_update():
             # Run sbm update command
             result = subprocess.run(
                 [sys.executable, "-m", "sbm.cli", "update"],
-                capture_output=True,
+                check=False, capture_output=True,
                 text=True,
                 cwd=Path(__file__).parent.parent,
             )
@@ -564,6 +564,25 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
         else:
             logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
 
+        # Calculate lines migrated
+        try:
+            repo = Repo(get_platform_dir())
+            current_branch = repo.active_branch.name
+            # Base counts against main (standard platform workflow)
+            diff = repo.git.diff("main..." + current_branch, "--numstat")
+            lines_added = 0
+            for line in diff.splitlines():
+                if line.strip():
+                    try:
+                        added, _, _ = line.split("\t")
+                        if added != "-":
+                            lines_added += int(added)
+                    except (ValueError, IndexError):
+                        continue
+        except Exception as e:
+            logger.debug(f"Could not calculate lines migrated: {e}")
+            lines_added = 0
+
         # Record detailed run
         record_run(
             slug=theme_name,
@@ -571,6 +590,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
             status="success",
             duration=get_total_duration(),
             automation_time=get_total_automation_time(),
+            lines_migrated=lines_added,
         )
         # Sync stats to GitHub in background
         sync_global_stats()
@@ -655,7 +675,7 @@ def auto(
     interactive_pr = not skip_post_migration
 
     # Initialize timing tracking and patch click.confirm
-    from .utils.timer import patch_click_confirm_for_timing, init_timing_summary
+    from .utils.timer import init_timing_summary, patch_click_confirm_for_timing
 
     # Initialize timing summary for this migration
     init_timing_summary(theme_name)
@@ -703,6 +723,21 @@ def auto(
                 else:
                     logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
 
+                # Calculate lines migrated
+                repo = Repo(get_platform_dir())
+                current_branch = repo.active_branch.name
+                # Base counts against main (standard platform workflow)
+                diff = repo.git.diff("main..." + current_branch, "--numstat")
+                lines_added = 0
+                for line in diff.splitlines():
+                    if line.strip():
+                        try:
+                            added, _, _ = line.split("\t")
+                            if added != "-":
+                                lines_added += int(added)
+                        except (ValueError, IndexError):
+                            continue
+
                 # Record detailed run
                 record_run(
                     slug=theme_name,
@@ -710,6 +745,7 @@ def auto(
                     status="success",
                     duration=get_total_duration(),
                     automation_time=get_total_automation_time(),
+                    lines_migrated=lines_added,
                 )
                 # Sync stats to GitHub in background
                 sync_global_stats()
@@ -738,7 +774,7 @@ def auto(
             restore_click_confirm(original_confirm)
 
         # Display the beautiful timing summary at the end
-        from .utils.timer import print_timing_summary, clear_timing_summary
+        from .utils.timer import clear_timing_summary, print_timing_summary
         print_timing_summary()
         clear_timing_summary()
 
@@ -862,10 +898,11 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
     console = get_console(config)
     rich_console = console.console
 
+    # Imports for stats display
+    from rich.columns import Columns
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
-    from rich.columns import Columns
 
     # Header Panel
     header = Panel(
@@ -888,10 +925,17 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
         )
 
     metric_panels = [
-        make_metric_panel("Total Migrations", str(stats_data["count"]), "green"),
-        make_metric_panel("Success Rate", f"{metrics_local.get('success_rate', 0):.1f}%", "cyan"),
-        make_metric_panel("Total Time Saved", f"{metrics_local.get('total_time_saved_h', 0)}h", "yellow"),
-        make_metric_panel("Avg. Automation", f"{metrics_local.get('avg_automation_time_m', 0)}m", "magenta"),
+        make_metric_panel("Sites Migrated", str(stats_data["count"]), "green"),
+        make_metric_panel(
+            "Lines Migrated",
+            f"{metrics_local.get('total_lines_migrated', 0):,}",
+            "cyan",
+        ),
+        make_metric_panel(
+            "Time Saved",
+            f"{metrics_local.get('total_time_saved_h', 0)}h",
+            "yellow",
+        ),
     ]
 
     rich_console.print(Columns(metric_panels, equal=True))
@@ -902,10 +946,24 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
         rich_console.print("\n[bold cyan]Global Team Impact (Shared)[/bold cyan]")
 
         global_panels = [
-            make_metric_panel("Total Users", str(global_metrics.get("total_users", 0)), "blue"),
-            make_metric_panel("Collective Migrations", str(global_metrics.get("total_migrations", 0)), "green"),
-            make_metric_panel("Team Time Saved", f"{global_metrics.get('total_time_saved_h', 0)}h", "yellow"),
-            make_metric_panel("Team Success Rate", f"{global_metrics.get('success_rate', 0):.1f}%", "cyan"),
+            make_metric_panel(
+                "Total Users", str(global_metrics.get("total_users", 0)), "blue"
+            ),
+            make_metric_panel(
+                "Sites Migrated",
+                str(global_metrics.get("total_migrations", 0)),
+                "green",
+            ),
+            make_metric_panel(
+                "Lines Migrated",
+                f"{global_metrics.get('total_lines_migrated', 0):,}",
+                "cyan",
+            ),
+            make_metric_panel(
+                "Team Time Saved",
+                f"{global_metrics.get('total_time_saved_h', 0)}h",
+                "yellow",
+            ),
         ]
         rich_console.print(Columns(global_panels, equal=True))
 
@@ -916,7 +974,12 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
     if history:
         runs = stats_data.get("runs", [])
         if runs:
-            table = Table(title="Recent Migration Runs", title_style="bold cyan", show_header=True, header_style="bold magenta")
+            table = Table(
+                title="Recent Migration Runs",
+                title_style="bold cyan",
+                show_header=True,
+                header_style="bold magenta",
+            )
             table.add_column("Timestamp", style="dim")
             table.add_column("Theme Slug", style="cyan")
             table.add_column("Command", style="green")
