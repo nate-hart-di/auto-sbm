@@ -99,8 +99,7 @@ def is_env_healthy() -> bool:
     # 1. Running from different venv
     # 2. Not running from within auto-sbm directory
     # 3. Auto-sbm installed as external package
-    if (current_venv and expected_venv not in current_venv) or \
-       (str(REPO_ROOT) not in current_dir):
+    if (current_venv and expected_venv not in current_venv) or (str(REPO_ROOT) not in current_dir):
         logger.debug(f"External usage detected (venv: {current_venv}, dir: {current_dir})")
         logger.debug("Skipping detailed health check for external auto-sbm usage")
         # Just verify basic functionality - if sbm command works, we're good
@@ -132,14 +131,16 @@ def is_env_healthy() -> bool:
         "rich": "rich",
         "jinja2": "jinja2",
         "requests": "requests",
-        "colorama": "colorama"
+        "colorama": "colorama",
     }
 
     try:
         for pkg, import_name in import_map.items():
             result = subprocess.run(
                 [str(python_path), "-c", f"import {import_name}"],
-                check=False, capture_output=True, timeout=5
+                check=False,
+                capture_output=True,
+                timeout=5,
             )
             if result.returncode != 0:
                 logger.warning(f"Required Python package missing: {pkg}")
@@ -205,23 +206,29 @@ def auto_update_repo() -> None:
             return  # Not a git repo, skip update
 
         # Check connectivity
-        if subprocess.run(
-            ["git", "ls-remote", "--exit-code", "origin", "HEAD"],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            timeout=5,
-        ).returncode != 0:
+        if (
+            subprocess.run(
+                ["git", "ls-remote", "--exit-code", "origin", "HEAD"],
+                check=False,
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                timeout=5,
+            ).returncode
+            != 0
+        ):
             return
 
         # Check strictly for detached HEAD
         # git symbolic-ref -q HEAD returns 0 if on branch, 1 if detached
-        if subprocess.run(
-            ["git", "symbolic-ref", "-q", "HEAD"],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True
-        ).returncode != 0:
+        if (
+            subprocess.run(
+                ["git", "symbolic-ref", "-q", "HEAD"],
+                check=False,
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+            ).returncode
+            != 0
+        ):
             logger.debug("Detached HEAD detected; skipping auto-update.")
             return
 
@@ -231,11 +238,11 @@ def auto_update_repo() -> None:
             check=False,
             cwd=str(REPO_ROOT),
             capture_output=True,
-            text=True
+            text=True,
         )
         if branch_res.returncode != 0:
             return
-        
+
         current_branch = branch_res.stdout.strip()
         if current_branch not in ["main", "master"]:
             return
@@ -247,7 +254,7 @@ def auto_update_repo() -> None:
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         has_changes = bool(status_res.stdout.strip())
         stash_created = False
@@ -258,7 +265,7 @@ def auto_update_repo() -> None:
                 check=False,
                 cwd=str(REPO_ROOT),
                 capture_output=True,
-                timeout=10
+                timeout=10,
             )
             stash_created = stash_res.returncode == 0
 
@@ -270,7 +277,7 @@ def auto_update_repo() -> None:
                 cwd=str(REPO_ROOT),
                 capture_output=True,
                 text=True,
-                timeout=15
+                timeout=15,
             )
 
             if pull_res.returncode == 0:
@@ -286,7 +293,7 @@ def auto_update_repo() -> None:
                     cwd=str(REPO_ROOT),
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=10,
                 )
                 if restore_res.returncode != 0:
                     logger.warning(
@@ -297,8 +304,6 @@ def auto_update_repo() -> None:
 
     except Exception as e:
         logger.debug(f"Auto-update failed silently: {e}")
-
-
 
 
 def _check_and_run_setup_if_needed() -> None:
@@ -391,7 +396,8 @@ def check_and_run_daily_update():
             # Run sbm update command
             result = subprocess.run(
                 [sys.executable, "-m", "sbm.cli", "update"],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
                 cwd=Path(__file__).parent.parent,
             )
@@ -461,6 +467,7 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
 
     total_steps = 3 if skip_maps else 4
     from sbm.ui.console import get_console
+
     console = get_console()
 
     # Step 1: Create Site Builder files
@@ -507,6 +514,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
     # Get configuration and initialize SBMConsole
     config = ctx.obj.get("config", Config({}))
     from sbm.ui.console import get_console
+
     console = get_console(config)
 
     console.print_migration_header(theme_name)
@@ -548,7 +556,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
     console.print_migration_complete(
         theme_name,
         elapsed_time=get_total_duration(),
-        files_processed=len(files_to_review), # Proxy for now or we could count actual files
+        files_processed=len(files_to_review),  # Proxy for now or we could count actual files
     )
 
     try:
@@ -600,7 +608,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
     "--create-pr/--no-create-pr",
     default=True,
     help="Create a GitHub Pull Request after successful migration (default: True, with "
-         "defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
+    "defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
 )
 @click.option(
     "--skip-post-migration",
@@ -691,8 +699,8 @@ def auto(
                 force_reset=force_reset,
                 create_pr=create_pr,
                 interactive_review=interactive_review,  # Use calculated interactive flags
-                interactive_git=interactive_git,        # Use calculated interactive flags
-                interactive_pr=interactive_pr,          # Use calculated interactive flags
+                interactive_git=interactive_git,  # Use calculated interactive flags
+                interactive_pr=interactive_pr,  # Use calculated interactive flags
                 verbose_docker=verbose_docker,
             )
 
@@ -765,14 +773,14 @@ def auto(
         # Restore original click.confirm if we patched it
         if original_confirm:
             from .utils.timer import restore_click_confirm
+
             restore_click_confirm(original_confirm)
 
         # Display the beautiful timing summary at the end
         from .utils.timer import clear_timing_summary, print_timing_summary
+
         print_timing_summary()
         clear_timing_summary()
-
-
 
 
 @cli.command()
@@ -821,7 +829,6 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
 
     # Style exclusion validation
     if check_exclusions:
-
         theme_dir = get_dealer_theme_dir(theme_name)
         classifier = StyleClassifier(strict_mode=True)
 
@@ -900,10 +907,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
 
     # Header Panel
     header = Panel(
-        Text.from_markup(
-            f"[bold cyan]Auto-SBM Migration Dashboard[/bold cyan]\n"
-            f"[dim]Tracker: {stats_data['path']}[/dim]"
-        ),
+        Text.from_markup(f"[bold cyan]Auto-SBM Migration Dashboard[/bold cyan]"),
         border_style="bright_blue",
     )
     rich_console.print(header)
@@ -940,9 +944,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
         rich_console.print("\n[bold cyan]Global Team Impact (Shared)[/bold cyan]")
 
         global_panels = [
-            make_metric_panel(
-                "Total Users", str(global_metrics.get("total_users", 0)), "blue"
-            ),
+            make_metric_panel("Total Users", str(global_metrics.get("total_users", 0)), "blue"),
             make_metric_panel(
                 "Sites Migrated",
                 str(global_metrics.get("total_migrations", 0)),
@@ -961,9 +963,37 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
         ]
         rich_console.print(Columns(global_panels, equal=True))
 
+        # Top Contributors
+        top_contributors = global_metrics.get("top_contributors", [])
+        if top_contributors:
+            rich_console.print("\n[bold cyan]Top Contributors[/bold cyan]")
+            contrib_table = Table(show_header=False, box=None, padding=(0, 2))
+            contrib_table.add_column("Rank", style="dim", width=4)
+            contrib_table.add_column("User", style="bold cyan")
+            contrib_table.add_column("Migrations", style="green")
+
+            for i, (user, count) in enumerate(top_contributors, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"#{i}"
+                contrib_table.add_row(medal, user, f"{count} sites")
+            rich_console.print(contrib_table)
+
     # User ID info
     current_user = stats_data.get("user_id", "unknown")
-    rich_console.print(f"\n[dim]Contributing as: {current_user}[/dim]")
+
+    last_updated_str = "Never"
+    if stats_data.get("last_updated"):
+        try:
+            ts = stats_data["last_updated"]
+            if ts.endswith("Z"):
+                ts = ts[:-1] + "+00:00"
+            dt = datetime.fromisoformat(ts)
+            last_updated_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            last_updated_str = stats_data["last_updated"]
+
+    rich_console.print(
+        f"\n[dim]Contributing as: {current_user} | Last updated: {last_updated_str}[/dim]"
+    )
 
     if history:
         runs = stats_data.get("runs", [])
@@ -985,7 +1015,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
                 status_color = "green" if status == "success" else "red"
 
                 duration = run.get("duration_seconds", 0)
-                duration_str = f"{duration:.1f}s" if duration < 60 else f"{duration/60:.1f}m"
+                duration_str = f"{duration:.1f}s" if duration < 60 else f"{duration / 60:.1f}m"
 
                 table.add_row(
                     run.get("timestamp", "")[:19].replace("T", " "),
@@ -1009,9 +1039,6 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
         else:
             rich_console.print("[yellow]No migrations have been recorded yet.[/yellow]")
 
-    if stats_data.get("last_updated"):
-        rich_console.print(f"\n[dim]Last updated: {stats_data['last_updated']}[/dim]")
-
 
 @cli.command()
 @click.argument("theme_name")
@@ -1020,7 +1047,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
     "--create-pr/--no-create-pr",
     default=True,
     help="Create a GitHub Pull Request after successful post-migration steps "
-         "(default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
+    "(default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
 )
 @click.option(
     "--skip-review", is_flag=True, help="Skip interactive manual review and re-validation."
@@ -1033,7 +1060,7 @@ def post_migrate(
     create_pr: bool,
     skip_review: bool,
     skip_git_prompt: bool,
-    skip_pr_prompt: bool
+    skip_pr_prompt: bool,
 ) -> None:
     """
     Run post-migration steps for a given theme, including manual review, re-validation,
@@ -1109,7 +1136,7 @@ def pr(
     reviewers: str | None,
     labels: str | None,
     draft: bool,
-    publish: bool
+    publish: bool,
 ) -> None:
     """
     Create a GitHub Pull Request for a given theme.
@@ -1209,9 +1236,7 @@ def _stash_changes_if_needed() -> bool:
     if has_changes:
         click.echo("Stashing local changes...")
         subprocess.run(
-            ["git", "stash", "push", "-m", "Manual SBM update stash"],
-            cwd=REPO_ROOT,
-            check=True
+            ["git", "stash", "push", "-m", "Manual SBM update stash"], cwd=REPO_ROOT, check=True
         )
 
     return has_changes
@@ -1301,9 +1326,7 @@ def update() -> None:
 @click.option(
     "--timeout", default=45, help="Maximum wait time for compilation in seconds (default: 45)."
 )
-def test_compilation(
-    theme_name: str, no_cleanup: bool, max_iterations: int, timeout: int
-) -> None:
+def test_compilation(theme_name: str, no_cleanup: bool, max_iterations: int, timeout: int) -> None:
     """
     Test SCSS compilation error handling system without running a full migration.
 
@@ -1407,9 +1430,7 @@ def _prepare_test_files(
     return test_files
 
 
-def _report_test_results(
-    theme_name: str, num_files: int, total_time: float, success: bool
-) -> None:
+def _report_test_results(theme_name: str, num_files: int, total_time: float, success: bool) -> None:
     """Report the final results of the compilation test."""
     click.echo(f"\n📈 Compilation Test Results for {theme_name}")
     click.echo("=" * 60)
@@ -1496,9 +1517,7 @@ def _test_compilation_with_monitoring(
         except Exception as e:
             click.echo(f"⚠️  Error checking Docker logs: {e}")
 
-        success_count = sum(
-            (css_dir / f.replace(".scss", ".css")).exists() for f, _ in test_files
-        )
+        success_count = sum((css_dir / f.replace(".scss", ".css")).exists() for f, _ in test_files)
         if success_count == len(test_files):
             click.echo("✅ All CSS files generated successfully")
             return True
@@ -1512,18 +1531,14 @@ def _test_compilation_with_monitoring(
     if click.confirm("🔧 Comment out problematic SCSS code to allow compilation?", default=False):
         _comment_out_problematic_code_for_test(test_files)
         time.sleep(3)
-        success_count = sum(
-            (css_dir / f.replace(".scss", ".css")).exists() for f, _ in test_files
-        )
+        success_count = sum((css_dir / f.replace(".scss", ".css")).exists() for f, _ in test_files)
         if success_count == len(test_files):
             click.echo("✅ Compilation successful after commenting out problematic code")
             return True
     return False
 
 
-def _comment_out_problematic_code_for_test(
-    test_files: list[tuple[str, Path]]
-) -> None:
+def _comment_out_problematic_code_for_test(test_files: list[tuple[str, Path]]) -> None:
     """Comment out potentially problematic SCSS code in test files."""
     click.echo("🔧 Commenting out potentially problematic SCSS code...")
     problematic_patterns = [
@@ -1568,9 +1583,6 @@ def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> No
         click.echo(f"⚠️  Error during cleanup: {e}")
 
 
-
-
-
 @cli.command()
 def version() -> None:
     """Display version information."""
@@ -1601,7 +1613,7 @@ def doctor() -> None:
         ("jinja2", "Template processing"),
         ("yaml", "YAML processing"),
         ("requests", "HTTP requests"),
-        ("psutil", "System monitoring")
+        ("psutil", "System monitoring"),
     ]
 
     missing_modules = []
@@ -1616,7 +1628,9 @@ def doctor() -> None:
     # Check virtual environment
     console.console.print("\n📁 Environment Information:")
     console.console.print(f"   Python: {sys.executable}")
-    console.console.print(f"   Version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    console.console.print(
+        f"   Version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
     console.console.print(f"   Project root: {REPO_ROOT}")
 
     # Check setup marker
@@ -1628,6 +1642,7 @@ def doctor() -> None:
     # Check git configuration
     try:
         from git import Repo
+
         repo = Repo(REPO_ROOT)
         console.console.print(f"✅ Git repository: {repo.active_branch.name}")
     except Exception as e:
@@ -1636,8 +1651,9 @@ def doctor() -> None:
     # Check GitHub CLI
     if shutil.which("gh"):
         try:
-            result = subprocess.run(["gh", "auth", "status"],
-                                  check=False, capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["gh", "auth", "status"], check=False, capture_output=True, text=True, timeout=5
+            )
             if result.returncode == 0:
                 console.console.print("✅ GitHub CLI authenticated")
             else:
@@ -1650,7 +1666,9 @@ def doctor() -> None:
     # Summary and recommendations
     console.console.print("\n📊 Summary:")
     if missing_modules:
-        console.console.print(f"❌ {len(missing_modules)} missing dependencies: {', '.join(missing_modules)}")
+        console.console.print(
+            f"❌ {len(missing_modules)} missing dependencies: {', '.join(missing_modules)}"
+        )
         console.console.print("\n🔧 Recommended fix:")
         console.console.print(f"   cd {REPO_ROOT}")
         console.console.print("   bash setup.sh")
@@ -1714,6 +1732,7 @@ def internal_refresh_stats() -> None:
 
         # 2. Sync global stats (git push)
         from .utils.tracker import sync_global_stats
+
         sync_global_stats()
     except Exception as e:
         logger.debug(f"Internal stats refresh failed: {e}")

@@ -119,3 +119,4 @@ uv.lock
 # AI Assistant files (Keep these tracked for collaboration)
 !CLAUDE.md
 !GEMINI.md
+stats/.sync.lock

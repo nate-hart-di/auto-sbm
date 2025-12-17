@@ -41,30 +41,34 @@ class InteractivePrompts:
         console = get_console()
 
         # Show configuration panel
-        config_panel = Panel(
-            Text.assemble(
-                ("Theme: ", "bold cyan"),
-                (theme_name, "filename"),
-                "\n",
-                ("Skip Just: ", "bold"),
-                (str(config.get("skip_just", False)), "white"),
-                "\n",
-                ("Force Reset: ", "bold"),
-                (str(config.get("force_reset", False)), "white"),
-                "\n",
-                ("Create PR: ", "bold"),
-                (str(config.get("create_pr", True)), "white"),
-                "\n",
-                ("Skip Post-Migration: ", "bold"),
-                (str(config.get("skip_post_migration", False)), "white"),
+        config_items = [
+            ("Theme", theme_name, "cyan"),
+            ("Just Start", "Enabled" if not config.get("skip_just") else "Skipped", "white"),
+            ("Clean Reset", "Yes" if config.get("force_reset") else "No", "white"),
+            ("Create PR", "Yes" if config.get("create_pr") else "No", "white"),
+            (
+                "Workflow",
+                "Full Automation"
+                if not config.get("skip_post_migration")
+                else "Transformation Only",
+                "white",
             ),
-            title="Migration Configuration",
+        ]
+
+        text = Text()
+        for label, value, color in config_items:
+            text.append(f"{label:18}: ", style="bold")
+            text.append(f"{value}\n", style=color)
+
+        config_panel = Panel(
+            text,
+            title="Migration Plan",
             border_style="cyan",
             padding=(1, 2),
         )
         console.console.print(config_panel)
 
-        return Confirm.ask("[bold green]Proceed with migration?[/]", default=True)
+        return Confirm.ask("[bold green]Start migration with these settings?[/]", default=True)
 
     @staticmethod
     def manual_review_interface(theme_name: str) -> bool:

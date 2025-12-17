@@ -382,7 +382,9 @@ class GitOperations:
                     repo.remotes.origin.push(refspec=f":{branch_name}")
                     logger.info(f"Successfully deleted remote branch 'origin/{branch_name}'")
                 else:
-                    logger.debug(f"Remote branch 'origin/{branch_name}' does not exist, no cleanup needed")
+                    logger.debug(
+                        f"Remote branch 'origin/{branch_name}' does not exist, no cleanup needed"
+                    )
 
             except Exception as e:
                 # Remote branch deletion failure is not critical - continue with local branch creation
@@ -479,7 +481,9 @@ class GitOperations:
             repo = self._get_repo()
 
             # First, try a normal push with upstream tracking
-            push_info = repo.remotes.origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
+            push_info = repo.remotes.origin.push(
+                refspec=f"{branch_name}:{branch_name}", set_upstream=True
+            )
 
             # Check push results for any failures
             for info in push_info:
@@ -488,13 +492,15 @@ class GitOperations:
 
                     # If it's a non-fast-forward error, try force-with-lease
                     if "non-fast-forward" in error_msg.lower() or "rejected" in error_msg.lower():
-                        logger.warning(f"Push rejected (non-fast-forward). Retrying with force-with-lease...")
+                        logger.warning(
+                            f"Push rejected (non-fast-forward). Retrying with force-with-lease..."
+                        )
                         try:
                             # Retry with force-with-lease to safely overwrite remote branch
                             push_info_retry = repo.remotes.origin.push(
-                                refspec=f"{branch_name}:{branch_name}", 
+                                refspec=f"{branch_name}:{branch_name}",
                                 set_upstream=True,
-                                force_with_lease=True
+                                force_with_lease=True,
                             )
 
                             # Check if the retry succeeded
@@ -505,10 +511,14 @@ class GitOperations:
                                     break
 
                             if not retry_failed:
-                                logger.info(f"Successfully pushed with force-with-lease to origin/{branch_name}")
+                                logger.info(
+                                    f"Successfully pushed with force-with-lease to origin/{branch_name}"
+                                )
                                 return True
                             else:
-                                logger.error(f"Force-with-lease push also failed for origin/{branch_name}")
+                                logger.error(
+                                    f"Force-with-lease push also failed for origin/{branch_name}"
+                                )
                                 return False
                         except Exception as retry_e:
                             logger.error(f"Force-with-lease push failed: {retry_e}")
@@ -1040,7 +1050,9 @@ class GitOperations:
                             "- Map components: CommonTheme map references present but no map shortcodes/template usage; migration skipped."
                         )
                     else:
-                        what_items.append("- Map components: No map shortcodes detected; migration skipped.")
+                        what_items.append(
+                            "- Map components: No map shortcodes detected; migration skipped."
+                        )
                 elif shortcodes and not imports:
                     what_items.append(
                         "- Map components: Map shortcodes detected but no CommonTheme map assets found; migration skipped."
@@ -1054,8 +1066,14 @@ class GitOperations:
                         if scss_targets:
                             parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
                         if partials_copied:
-                            parts.append(f"Partials copied {', '.join(sorted(set(partials_copied)))}")
-                        detail = "; ".join(parts) if parts else "Map shortcodes detected; assets migrated."
+                            parts.append(
+                                f"Partials copied {', '.join(sorted(set(partials_copied)))}"
+                            )
+                        detail = (
+                            "; ".join(parts)
+                            if parts
+                            else "Map shortcodes detected; assets migrated."
+                        )
                         if skipped_reason == "migration_issue":
                             detail = f"{detail} (check logs for issues)"
                         what_items.append(f"- Map components: {detail}")
@@ -1312,4 +1330,5 @@ def create_pr(slug, branch_name=None, **kwargs):
         "git": {"default_reviewers": ["carsdotcom/fe-dev"], "default_labels": ["fe-dev"]},
     }
     git_ops = GitOperations(Config(config_dict))
-    return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)
+    result = git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)
+    return result.get("success", False), result.get("pr_url")

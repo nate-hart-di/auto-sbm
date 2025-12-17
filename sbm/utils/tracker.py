@@ -208,7 +208,7 @@ def get_migration_stats() -> dict:
         "global_metrics": global_stats,
         "last_updated": local_data.get("last_updated"),
         "path": str(TRACKER_FILE),
-        "user_id": _get_user_id()
+        "user_id": _get_user_id(),
     }
 
 
@@ -247,14 +247,21 @@ def _aggregate_global_stats() -> dict:
     total_lines_migrated = 0
     user_count = 0
 
+    user_counts = {}
     for stats_file in GLOBAL_STATS_DIR.glob("*.json"):
+        if stats_file.name.startswith("."):
+            continue
         try:
             with stats_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 user_count += 1
 
+                user_id = data.get("user", stats_file.stem)
+                user_migrations = data.get("migrations", [])
+                user_counts[user_id] = len(user_migrations)
+
                 # Combined unique migrations
-                all_migrations.update(data.get("migrations", []))
+                all_migrations.update(user_migrations)
 
                 # Sum metrics
                 runs = data.get("runs", [])
@@ -272,6 +279,9 @@ def _aggregate_global_stats() -> dict:
     # Mathematical time saved: 1 hour per 400 lines migrated
     time_saved_hours = total_lines_migrated / 400.0
 
+    # Top contributors (top 3)
+    top_contributors = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+
     return {
         "total_users": user_count,
         "total_migrations": len(all_migrations),
@@ -279,17 +289,18 @@ def _aggregate_global_stats() -> dict:
         "total_lines_migrated": total_lines_migrated,
         "total_time_saved_h": round(time_saved_hours, 1),
         "total_automation_time_h": round(total_automation_seconds / 3600, 2),
+        "top_contributors": top_contributors,
     }
 
 
 def sync_global_stats() -> None:
     """Background sync: Commit and push the current user's stats file with file locking."""
     lock_file = GLOBAL_STATS_DIR / ".sync.lock"
-    
+
     try:
         # Create lock file if it doesn't exist
         lock_file.touch(exist_ok=True)
-        
+
         with lock_file.open("w") as lock_f:
             try:
                 # Exclusive non-blocking lock
@@ -310,10 +321,7 @@ def sync_global_stats() -> None:
 
                 # Add the file
                 subprocess.run(
-                    ["git", "add", rel_path],
-                    check=False,
-                    cwd=str(REPO_ROOT),
-                    capture_output=True
+                    ["git", "add", rel_path], check=False, cwd=str(REPO_ROOT), capture_output=True
                 )
 
                 # Check commit status
@@ -322,7 +330,7 @@ def sync_global_stats() -> None:
                     capture_output=True,
                     text=True,
                     check=False,
-                    cwd=str(REPO_ROOT)
+                    cwd=str(REPO_ROOT),
                 )
 
                 if not status_check.stdout.strip():
@@ -333,7 +341,7 @@ def sync_global_stats() -> None:
                     ["git", "commit", "-m", f"docs: update global stats for {user_id}"],
                     check=False,
                     cwd=str(REPO_ROOT),
-                    capture_output=True
+                    capture_output=True,
                 )
 
                 # Push (Removed --no-verify for security)
@@ -342,7 +350,7 @@ def sync_global_stats() -> None:
                     check=False,
                     cwd=str(REPO_ROOT),
                     capture_output=True,
-                    timeout=15
+                    timeout=15,
                 )
             finally:
                 # Always release lock
@@ -360,6 +368,6 @@ def trigger_background_stats_update() -> None:
     try:
         # Trigger command in background
         run_background_task([os.sys.executable, "-m", "sbm.cli", "internal-refresh-stats"])
-        
+
     except Exception as e:
         logger.debug(f"Failed to trigger background stats update: {e}")

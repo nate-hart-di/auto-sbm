@@ -837,66 +837,28 @@ def reprocess_manual_changes(slug: str) -> bool:
         return False
 
 
-def _handle_manual_review_and_git(
-    slug: str, branch_name: str, interactive_git: bool, skip_git: bool
-) -> bool:
-    """Handle the manual review and git commit/push steps."""
-    if not interactive_git:
-        if not skip_git:
-            with timer_segment("Git Operations"):
-                commit_changes(slug)
-                push_changes(branch_name)
-        return True
-
-    if Confirm.ask(f"Commit and push all changes for {slug}?", default=True):
-        with timer_segment("Git Operations"):
-            if not commit_changes(slug):
-                return False
-            if not push_changes(branch_name):
-                return False
-    return True
-
-
-def _handle_pr_creation(
-    slug: str, branch_name: str | None, create_pr: bool, interactive_pr: bool
-) -> bool:
-    """Handle pulling request creation logic."""
-    if not create_pr:
-        return True
-
-    if interactive_pr and not Confirm.ask(f"Create PR for {slug}?"):
-        return True
-
-    logger.info(f"Creating PR for {slug}...")
-    success, pr_url = git_create_pr(slug, branch_name)
-    if success:
-        logger.info(f"PR created: {pr_url}")
-        return True
-    return False
-
-
 def run_post_migration_workflow(
     slug: str,
     branch_name: str | None,
     skip_git: bool = False,
     create_pr: bool = True,
     _interactive_review: bool = True,  # Deprecated
-    interactive_git: bool = True,
-    interactive_pr: bool = True,
+    _interactive_git: bool = True,  # Deprecated
+    _interactive_pr: bool = True,  # Deprecated
     skip_reprocessing: bool = False,
     console: SBMConsole | None = None,
 ) -> bool:
     """
-    Run the post-migration workflow including manual review, git operations, and PR creation.
+    Run the post-migration workflow including git operations and PR creation.
 
     Args:
         slug: Dealer theme slug
         branch_name: Git branch name
         skip_git: Whether to skip git operations
         create_pr: Whether to create a pull request
-        _interactive_review: DEPRECATED - manual review step removed
-        interactive_git: Whether to prompt for git operations
-        interactive_pr: Whether to prompt for PR creation
+        _interactive_review: DEPRECATED
+        _interactive_git: DEPRECATED
+        _interactive_pr: DEPRECATED
         skip_reprocessing: Whether to skip reprocessing manual changes
         console: Optional console instance for unified UI
 
@@ -921,14 +883,27 @@ def run_post_migration_workflow(
 
     _cleanup_snapshot_files(slug)
 
-    if not _handle_manual_review_and_git(slug, branch_name, interactive_git, skip_git):
-        return False
+    # Automated Git operations
+    if not skip_git:
+        with timer_segment("Git Operations"):
+            if not commit_changes(slug):
+                return False
+            if not push_changes(branch_name):
+                return False
 
-    if not _handle_pr_creation(slug, branch_name, create_pr, interactive_pr):
-        return False
+    # Automated PR creation
+    pr_url = None
+    if create_pr:
+        logger.info(f"Creating PR for {slug}...")
+        success, pr_url = git_create_pr(slug, branch_name)
+        if success:
+            logger.info(f"PR created: {pr_url}")
+        else:
+            logger.error(f"Failed to create PR for {slug}")
+            return False
 
     logger.info(f"Migration completed successfully for {slug}")
-    console.print_migration_complete(slug, elapsed_time=0.0)
+    console.print_migration_complete(slug, elapsed_time=0.0, pr_url=pr_url)
     return True
 
 
@@ -994,7 +969,6 @@ def migrate_dealer_theme(
     if console is None:
         console = get_console()
 
-    console.print_migration_header(slug)
     logger.info(f"Starting migration for {slug}")
 
     if oem_handler is None:
