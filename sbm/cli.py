@@ -20,6 +20,7 @@ from pathlib import Path
 import click
 from git import Repo
 
+from sbm.utils.processes import run_background_task
 from sbm.utils.tracker import (
     get_migration_stats,
     record_migration,
@@ -203,111 +204,101 @@ def auto_update_repo() -> None:
         if not git_dir.exists():
             return  # Not a git repo, skip update
 
-        # Check if we have network connectivity by testing git remote
-        connectivity_check = subprocess.run(
+        # Check connectivity
+        if subprocess.run(
             ["git", "ls-remote", "--exit-code", "origin", "HEAD"],
             check=False,
             cwd=str(REPO_ROOT),
             capture_output=True,
-            text=True,
             timeout=5,
-        )
-
-        if connectivity_check.returncode != 0:
-            # No network or remote access, skip silently
+        ).returncode != 0:
             return
 
-        # Check current branch and stash any local changes
-        current_branch_result = subprocess.run(
-            ["git", "branch", "--show-current"],
+        # Check strictly for detached HEAD
+        # git symbolic-ref -q HEAD returns 0 if on branch, 1 if detached
+        if subprocess.run(
+            ["git", "symbolic-ref", "-q", "HEAD"],
+            check=False,
+            cwd=str(REPO_ROOT),
+            capture_output=True
+        ).returncode != 0:
+            logger.debug("Detached HEAD detected; skipping auto-update.")
+            return
+
+        # Get current branch name
+        branch_res = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             check=False,
             cwd=str(REPO_ROOT),
             capture_output=True,
-            text=True,
-            timeout=5,
+            text=True
         )
-
-        if current_branch_result.returncode != 0:
-            return  # Can't determine branch, skip
-
-        current_branch = current_branch_result.stdout.strip()
-
-        # Only auto-update if we're on main/master branch
+        if branch_res.returncode != 0:
+            return
+        
+        current_branch = branch_res.stdout.strip()
         if current_branch not in ["main", "master"]:
-            return  # Don't auto-update on feature branches
+            return
 
-        # Check if there are uncommitted changes
-        status_result = subprocess.run(
+        # Check for uncommitted changes
+        status_res = subprocess.run(
             ["git", "status", "--porcelain"],
             check=False,
             cwd=str(REPO_ROOT),
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=5
         )
-
-        has_changes = bool(status_result.stdout.strip())
+        has_changes = bool(status_res.stdout.strip())
         stash_created = False
 
         if has_changes:
-            # Stash local changes
-            stash_result = subprocess.run(
+            stash_res = subprocess.run(
                 ["git", "stash", "push", "-m", "SBM auto-update stash"],
                 check=False,
                 cwd=str(REPO_ROOT),
                 capture_output=True,
-                text=True,
-                timeout=10,
+                timeout=10
             )
-            stash_created = stash_result.returncode == 0
+            stash_created = stash_res.returncode == 0
 
-        # Perform git pull
-        pull_result = subprocess.run(
-            ["git", "pull", "--quiet", "origin", current_branch],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
+        try:
+            # Perform pull
+            pull_res = subprocess.run(
+                ["git", "pull", "--quiet", "origin", current_branch],
+                check=False,
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
 
-        if pull_result.returncode == 0:
-            # Check if there were actual updates
-            if pull_result.stdout.strip() and "Already up to date" not in pull_result.stdout:
-                logger.info("Auto-updated to latest version.")
-
-            # Check if we need to run full setup (if >8 hours since last setup)
-            _check_and_run_setup_if_needed()
-
-            # Restore stashed changes if we created a stash
+            if pull_res.returncode == 0:
+                if pull_res.stdout.strip() and "Already up to date" not in pull_res.stdout:
+                    logger.debug("Auto-updated to latest version.")
+                _check_and_run_setup_if_needed()
+        finally:
+            # ALWAYS attempt to restore stash if we created one
             if stash_created:
-                restore_result = subprocess.run(
+                restore_res = subprocess.run(
                     ["git", "stash", "pop"],
                     check=False,
                     cwd=str(REPO_ROOT),
                     capture_output=True,
                     text=True,
-                    timeout=10,
+                    timeout=10
                 )
-                if restore_result.returncode != 0:
-                    logger.warning("Could not restore local changes. Check 'git stash list'.")
-        # Pull failed, restore stash if we created one
-        elif stash_created:
-            subprocess.run(
-                ["git", "stash", "pop"],
-                check=False,
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+                if restore_res.returncode != 0:
+                    logger.warning(
+                        "⚠️ Could not restore local changes due to conflicts. "
+                        "Your changes are saved in stash. Run 'git stash list' and "
+                        "'git stash pop' manually after resolving conflicts."
+                    )
 
-    except subprocess.TimeoutExpired:
-        # Network timeout, skip silently
-        pass
     except Exception as e:
-        # Any other error, fail silently to not interrupt user workflow
         logger.debug(f"Auto-update failed silently: {e}")
+
+
 
 
 def _check_and_run_setup_if_needed() -> None:
@@ -1708,6 +1699,24 @@ def auto_update(action: str) -> None:
             click.echo("✅ Auto-updates are ENABLED")
             click.echo("   SBM will automatically update to the latest version at startup")
             click.echo("   Run 'sbm auto-update disable' to disable automatic updates")
+
+
+@cli.command(hidden=True)
+def internal_refresh_stats() -> None:
+    """
+    Internal command used for background stats refresh.
+    Runs the backfill script and then syncs global stats.
+    """
+    try:
+        # 1. Run backfill script
+        backfill_script = REPO_ROOT / "scripts" / "stats" / "backfill_stats_v3.py"
+        subprocess.run([os.sys.executable, str(backfill_script)], check=False, capture_output=True)
+
+        # 2. Sync global stats (git push)
+        from .utils.tracker import sync_global_stats
+        sync_global_stats()
+    except Exception as e:
+        logger.debug(f"Internal stats refresh failed: {e}")
 
 
 if __name__ == "__main__":

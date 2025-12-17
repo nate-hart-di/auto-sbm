@@ -1,7 +1,12 @@
 import json
 import re
+from pathlib import Path
 
-def extract_slug(title):
+# Find project root (2 levels up from scripts/stats/)
+ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
+RAW_DATA_DIR = ROOT_DIR / "stats" / "raw"
+
+def extract_slug(title: str) -> str | None:
     # Pattern 1: PCON-727: {slug} SBM FE Audit
     match1 = re.search(r"PCON-727:\s+([a-zA-Z0-9_-]+)\s+SBM FE Audit", title, re.IGNORECASE)
     if match1:
@@ -22,9 +27,18 @@ def extract_slug(title):
         
     return None
 
-def main():
-    with open("nate_all_prs.json", "r") as f:
-        data = json.load(f)
+def main() -> None:
+    filepath = RAW_DATA_DIR / "nate_all_prs.json"
+    if not filepath.exists():
+        print(f"File not found: {filepath}")
+        return
+        
+    try:
+        with filepath.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return
         
     slugs = {}
     for entry in data:

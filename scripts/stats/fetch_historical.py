@@ -1,8 +1,12 @@
 import json
 import subprocess
-import os
+from pathlib import Path
 
-def get_pr_data(url):
+# Find project root (2 levels up from scripts/stats/)
+ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
+RAW_DATA_DIR = ROOT_DIR / "stats" / "raw"
+
+def get_pr_data(url: str) -> dict | None:
     try:
         result = subprocess.run(
             ["gh", "pr", "view", url, "--json", "additions,author,createdAt,title"],
@@ -22,9 +26,18 @@ def get_pr_data(url):
         print(f"Error fetching {url}: {e}")
         return None
 
-def main():
-    with open("merged_prs.json", "r") as f:
-        all_prs = json.load(f)
+def main() -> None:
+    input_file = RAW_DATA_DIR / "merged_prs.json"
+    if not input_file.exists():
+        print(f"File not found: {input_file}")
+        return
+        
+    try:
+        with input_file.open("r", encoding="utf-8") as f:
+            all_prs = json.load(f)
+    except Exception as e:
+        print(f"Error reading {input_file}: {e}")
+        return
     
     automated_prs = [
         pr for pr in all_prs 
@@ -40,9 +53,10 @@ def main():
         if data:
             results.append(data)
     
-    with open("historical_data.json", "w") as f:
+    output_file = RAW_DATA_DIR / "historical_data.json"
+    with output_file.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-    print(f"Done! Saved {len(results)} PRs to historical_data.json")
+    print(f"Done! Saved {len(results)} PRs to {output_file}")
 
 if __name__ == "__main__":
     main()

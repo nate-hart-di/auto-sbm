@@ -7,22 +7,28 @@ This module handles the main migration logic for dealer themes.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import time
+import traceback
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import click  # Import click for interactive prompts
+import click
+from rich.prompt import Confirm
 
 from sbm.oem.factory import OEMFactory
 from sbm.scss.processor import SCSSProcessor
-from sbm.ui.simple_rich import print_migration_complete
+from sbm.ui.console import get_console
 from sbm.utils.command import execute_command, execute_interactive_command
 from sbm.utils.logger import logger
-from sbm.utils.path import get_dealer_theme_dir
+from sbm.utils.path import get_dealer_theme_dir, get_platform_dir
+from sbm.utils.timer import timer_segment
+from sbm.oem.stellantis import StellantisHandler
 
-from .git import commit_changes, git_operations, push_changes  # Import git functions
-from .git import create_pr as git_create_pr  # Import with alias to avoid naming conflicts
+from .git import commit_changes, git_operations, push_changes
+from .git import create_pr as git_create_pr
 from .maps import migrate_map_components
 
 if TYPE_CHECKING:
@@ -32,66 +38,27 @@ if TYPE_CHECKING:
 def _cleanup_exclusion_comments(slug: str) -> None:
     """
     Remove any existing EXCLUDED RULE comments from SCSS files to prevent compilation errors.
-    
     Args:
-        slug (str): Dealer theme slug
+        slug: Dealer theme slug
     """
     try:
-        theme_dir = get_dealer_theme_dir(slug)
+        theme_dir = Path(get_dealer_theme_dir(slug))
         scss_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
 
         total_cleaned = 0
         for scss_file in scss_files:
-            file_path = os.path.join(theme_dir, scss_file)
-            if os.path.exists(file_path):
-                with open(file_path) as f:
-                    content = f.read()
-
-                # Remove EXCLUDED RULE comments and fix dangling commas
-                lines = content.split("\n")
-                cleaned_lines = []
-                i = 0
-                while i < len(lines):
-                    line = lines[i]
-
-                    # Check for dangling comma followed by EXCLUDED comment
-                    if (
-                        line.strip().endswith(",") and
-                        i + 1 < len(lines) and
-                        "EXCLUDED" in lines[i + 1] and
-                        "RULE:" in lines[i + 1]
-                    ):
-                        # Remove comma and add cleaned line
-                        cleaned_line = line.strip().rstrip(",")
-                        if cleaned_line:  # Only add if not empty
-                            cleaned_lines.append(f"// CLEANED: {cleaned_line}")
-                        # Skip the EXCLUDED comment line
-                        i += 2
-                        total_cleaned += 1
-                        continue
-
-                    # Remove standalone EXCLUDED comments
-                    if "EXCLUDED" in line and "RULE:" in line:
-                        # Skip this line entirely
-                        i += 1
-                        total_cleaned += 1
-                        continue
-
-                    # Keep regular lines
-                    cleaned_lines.append(line)
-                    i += 1
-
-                # Write back if changes were made
-                if total_cleaned > 0:
-                    with open(file_path, "w") as f:
-                        f.write("\n".join(cleaned_lines))
-                    logger.info(f"Cleaned {total_cleaned} exclusion comments from {scss_file}")
+            file_path = theme_dir / scss_file
+            if file_path.exists():
+                content = file_path.read_text(encoding="utf-8", errors="ignore")
+                if "/* EXCLUDED RULE" in content:
+                    new_content = re.sub(r"/\* EXCLUDED RULE.*?\*/", "", content, flags=re.DOTALL)
+                    file_path.write_text(new_content, encoding="utf-8")
+                    total_cleaned += 1
 
         if total_cleaned > 0:
-            logger.info(f"Total cleaned exclusion comments from {slug}: {total_cleaned}")
-
+            logger.info(f"Cleaned {total_cleaned} exclusion comments from {slug}")
     except Exception as e:
-        logger.warning(f"Error cleaning exclusion comments for {slug}: {e}")
+        logger.error(f"Error cleaning up exclusion comments for {slug}: {e}")
 
 
 def _cleanup_snapshot_files(slug: str) -> None:
@@ -102,24 +69,20 @@ def _cleanup_snapshot_files(slug: str) -> None:
         slug (str): Dealer theme slug
     """
     try:
-        theme_dir = get_dealer_theme_dir(slug)
-        snapshot_dir = os.path.join(theme_dir, ".sbm-snapshots")
+        theme_dir = Path(get_dealer_theme_dir(slug))
+        snapshot_dir = theme_dir / ".sbm-snapshots"
 
-        if os.path.exists(snapshot_dir):
-            import shutil
-
+        if snapshot_dir.exists():
             shutil.rmtree(snapshot_dir)
             logger.debug(f"Cleaned up snapshot directory: {snapshot_dir}")
         else:
             logger.debug(f"No snapshot directory found at: {snapshot_dir}")
 
         # Also clean up any individual .automated files that might exist
-        import glob
-
-        automated_files = glob.glob(os.path.join(theme_dir, "**", "*.automated"), recursive=True)
+        automated_files = list(theme_dir.rglob("*.automated"))
         for file_path in automated_files:
             try:
-                os.remove(file_path)
+                file_path.unlink()
                 logger.info(f"Removed automated file: {file_path}")
             except Exception as e:
                 logger.warning(f"Could not remove automated file {file_path}: {e}")
@@ -136,27 +99,26 @@ def _create_automation_snapshots(slug: str) -> None:
         slug (str): Dealer theme slug
     """
     try:
-        theme_dir = get_dealer_theme_dir(slug)
-        snapshot_dir = os.path.join(theme_dir, ".sbm-snapshots")
+        theme_dir = Path(get_dealer_theme_dir(slug))
+        snapshot_dir = theme_dir / ".sbm-snapshots"
 
         # Create snapshot directory
-        os.makedirs(snapshot_dir, exist_ok=True)
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
 
         # List of Site Builder files to snapshot
         sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
 
         snapshots_created = 0
         for sb_file in sb_files:
-            source_path = os.path.join(theme_dir, sb_file)
-            if os.path.exists(source_path):
-                snapshot_path = os.path.join(snapshot_dir, f"{sb_file}.automated")
+            source_path = theme_dir / sb_file
+            if source_path.exists():
+                snapshot_path = snapshot_dir / f"{sb_file}.automated"
 
                 # Copy the automated output to snapshot
-                with open(source_path) as source:
-                    content = source.read()
-
-                with open(snapshot_path, "w") as snapshot:
-                    snapshot.write(content)
+                snapshot_path.write_text(
+                    source_path.read_text(encoding="utf-8", errors="ignore"),
+                    encoding="utf-8",
+                )
 
                 snapshots_created += 1
                 logger.debug(f"Created snapshot: {snapshot_path}")
@@ -258,14 +220,17 @@ def _process_docker_output(output_line: str) -> None:
         logger.debug(f"Docker: {output_line.strip()}")
 
 
-def run_just_start(slug, suppress_output=False) -> bool:
+def run_just_start(
+    slug: str, suppress_output: bool = False, console: SBMConsole | None = None
+) -> bool:
     """
     Run the 'just start' command for the given slug (automatically chooses dev/prod database).
     Uses interactive execution to allow password prompts and user input.
 
     Args:
-        slug (str): Dealer theme slug
-        suppress_output (bool): Whether to suppress verbose Docker output (default: False)
+        slug: Dealer theme slug
+        suppress_output: Whether to suppress verbose Docker output (default: False)
+        console: Optional console instance for unified UI.
 
     Returns:
         bool: True if successful, False otherwise
@@ -278,15 +243,13 @@ def run_just_start(slug, suppress_output=False) -> bool:
         logger.error("Please install 'just' or ensure it's in your PATH.")
         return False
 
-    # Get the platform directory for running the command
-    from sbm.utils.path import get_platform_dir
-
     platform_dir = get_platform_dir()
 
     # AWS authentication (simplified to avoid subprocess tracking issues)
-    from sbm.ui.simple_rich import print_step_success, print_step_warning
-
-    print_step_warning("Ensuring AWS authentication before Docker startup...")
+    if console:
+        console.print_warning("Ensuring AWS authentication before Docker startup...")
+    else:
+        logger.info("Ensuring AWS authentication before Docker startup...")
 
     aws_login_success = execute_interactive_command(
         "saml2aws login -a inventory-non-prod-423154430651-developer",
@@ -296,9 +259,14 @@ def run_just_start(slug, suppress_output=False) -> bool:
     )
 
     if not aws_login_success:
-        print_step_warning("AWS login failed - continuing anyway (Docker may fail)")
+        if console:
+            console.print_warning("AWS login failed - continuing anyway (Docker may fail)")
+        else:
+            logger.warning("AWS login failed - continuing anyway (Docker may fail)")
+    elif console:
+        console.print_info("AWS authentication completed")
     else:
-        print_step_success("AWS authentication completed")
+        logger.info("AWS authentication completed")
 
     # Run the 'just start' command (let it choose dev/prod automatically)
     if suppress_output:
@@ -316,9 +284,12 @@ def run_just_start(slug, suppress_output=False) -> bool:
     if success:
         logger.debug("'just start' command completed successfully.")
         return True
-    from sbm.ui.simple_rich import print_step_error
 
-    print_step_error("Docker startup failed!")
+    if console:
+        console.print_error("Docker startup failed!")
+    else:
+        logger.error("Docker startup failed!")
+
     logger.error("'just start' command failed.")
     logger.error("Common causes:")
     logger.error("  - AWS authentication expired")
@@ -353,21 +324,24 @@ def _wait_for_gulp_idle(timeout: int = 20) -> None:
                     cleanup_process_done = True
 
                 if cleanup_sass_done and cleanup_process_done:
-                    logger.debug("Docker Gulp watcher reports sass/processcss completed")
-                    break
+                    logger.debug("Docker Gulp watcher is idle")
+                    return
 
             time.sleep(1)
 
-    except Exception as e:
-        logger.warning(f"Could not monitor Docker Gulp logs for idle state: {e}")
+        logger.warning(f"Gulp idle wait timed out after {timeout} seconds")
 
-def create_sb_files(slug, force_reset=False) -> bool | None:
+    except Exception as e:
+        logger.warning(f"Error waiting for Gulp idle: {e}")
+
+
+def create_sb_files(slug: str, force_reset: bool = False) -> bool:
     """
     Create necessary Site Builder SCSS files if they don't exist.
 
     Args:
-        slug (str): Dealer theme slug
-        force_reset (bool): Whether to reset existing files
+        slug: Dealer theme slug
+        force_reset: Whether to reset existing files
 
     Returns:
         bool: True if successful, False otherwise
@@ -375,22 +349,21 @@ def create_sb_files(slug, force_reset=False) -> bool | None:
     logger.info(f"Creating Site Builder files for {slug}")
 
     try:
-        theme_dir = get_dealer_theme_dir(slug)
+        theme_dir = Path(get_dealer_theme_dir(slug))
 
         # List of Site Builder files to create
         sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
 
         for file in sb_files:
-            file_path = os.path.join(theme_dir, file)
+            file_path = theme_dir / file
 
             # Skip if file exists and we're not forcing reset
-            if os.path.exists(file_path) and not force_reset:
+            if file_path.exists() and not force_reset:
                 logger.info(f"File {file} already exists, skipping creation")
                 continue
 
             # Create or reset the file
-            with open(file_path, "w") as f:
-                f.write("")
+            file_path.write_text("", encoding="utf-8")
 
             logger.info(f"Created {file}")
 
@@ -402,43 +375,38 @@ def create_sb_files(slug, force_reset=False) -> bool | None:
 
 
 def migrate_styles(slug: str) -> bool:
-    """
-    Orchestrates the SCSS migration for a given theme.
-    1. Finds the theme directory.
-    2. Initializes the SCSS processor.
-    3. Processes the main SCSS files (style.scss, inside.scss, _support-requests.scss, lvdp.scss, lvrp.scss).
-    4. Writes the transformed files to the target directory.
-    """
+    # 3. Processes main SCSS files (style.scss, inside.scss, etc.)
+    # 4. Writes transformed files to target directory.
     logger.debug(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
     try:
-        theme_dir = get_dealer_theme_dir(slug)
-        source_scss_dir = os.path.join(theme_dir, "css")
+        theme_dir = Path(get_dealer_theme_dir(slug))
+        source_scss_dir = theme_dir / "css"
 
-        if not os.path.isdir(source_scss_dir):
+        if not source_scss_dir.is_dir():
             logger.error(f"Source SCSS directory not found: {source_scss_dir}")
             return False
 
         processor = SCSSProcessor(slug, exclude_nav_styles=True)
 
-        # Define source files - include style.scss, inside.scss, and _support-requests.scss for sb-inside
+        # Define source files for sb-inside
         inside_sources = [
-            os.path.join(source_scss_dir, "style.scss"),
-            os.path.join(source_scss_dir, "inside.scss"),
-            os.path.join(source_scss_dir, "_support-requests.scss"),
+            source_scss_dir / "style.scss",
+            source_scss_dir / "inside.scss",
+            source_scss_dir / "_support-requests.scss",
         ]
         # Only use lvdp.scss and lvrp.scss, not vdp.scss and vrp.scss
-        vdp_sources = [os.path.join(source_scss_dir, "lvdp.scss")]
-        vrp_sources = [os.path.join(source_scss_dir, "lvrp.scss")]
+        vdp_sources = [source_scss_dir / "lvdp.scss"]
+        vrp_sources = [source_scss_dir / "lvrp.scss"]
 
         # Process each category
         inside_content = "\n".join(
-            [processor.process_scss_file(f) for f in inside_sources if os.path.exists(f)]
+            [processor.process_scss_file(str(f)) for f in inside_sources if f.exists()]
         )
         vdp_content = "\n".join(
-            [processor.process_scss_file(f) for f in vdp_sources if os.path.exists(f)]
+            [processor.process_scss_file(str(f)) for f in vdp_sources if f.exists()]
         )
         vrp_content = "\n".join(
-            [processor.process_scss_file(f) for f in vrp_sources if os.path.exists(f)]
+            [processor.process_scss_file(str(f)) for f in vrp_sources if f.exists()]
         )
 
         # Combine results
@@ -448,17 +416,23 @@ def migrate_styles(slug: str) -> bool:
             "sb-vrp.scss": vrp_content,
         }
 
-        # Write the resulting CSS to files
-        success = processor.write_files_atomically(theme_dir, results)
+        # Write the resulting SCSS to files
+        success = processor.write_files_atomically(str(theme_dir), results)
 
         if success:
             generated_files = []
+            total_lines_processed = 0
             for filename, content in results.items():
                 if content:
                     lines = len(content.splitlines())
+                    total_lines_processed += lines
                     generated_files.append(f"{filename} ({lines} lines)")
             if generated_files:
-                logger.info(f"Successfully wrote: {', '.join(generated_files)}")
+                msg = (
+                    f"Successfully reprocessed {total_lines_processed} lines. "
+                    "SCSS files should compile now. Please start Docker for verification."
+                )
+                logger.info(msg)
         else:
             logger.error("SCSS migration failed during file writing.")
 
@@ -469,208 +443,157 @@ def migrate_styles(slug: str) -> bool:
         return False
 
 
-def add_predetermined_styles(slug, oem_handler=None) -> bool | None:
+def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None) -> bool:
+    """Add cookie disclaimer styles for Stellantis dealers."""
+    if not isinstance(oem_handler, StellantisHandler):
+        return True
+
+    auto_sbm_dir = Path(__file__).parent.parent.parent
+    source = auto_sbm_dir / "stellantis/add-to-sb-inside/stellantis-cookie-banner-styles.scss"
+    if not source.exists():
+        logger.warning(f"Cookie banner source not found: {source}")
+        return False
+
+    styles = source.read_text(encoding="utf-8", errors="ignore")
+    for sb_file in ["sb-inside.scss", "sb-home.scss"]:
+        file_path = theme_path / sb_file
+        if not file_path.exists():
+            continue
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+        if ".cookie-banner" not in content:
+            with file_path.open("a", encoding="utf-8") as f:
+                f.write("\n\n/* Cookie Banner Styles */\n" + styles)
+            logger.info(f"Added cookie banner styles to {sb_file}")
+    return True
+
+
+def _add_directions_row_styles(theme_path: Path, oem_handler: object | None) -> bool:
+    """Add directions row styles for Stellantis dealers."""
+    if not isinstance(oem_handler, StellantisHandler):
+        return True
+
+    auto_sbm_dir = Path(__file__).parent.parent.parent
+    source = auto_sbm_dir / "stellantis/add-to-sb-inside/stellantis-directions-row-styles.scss"
+    if not source.exists():
+        logger.warning(f"Directions row source not found: {source}")
+        return False
+
+    styles = source.read_text(encoding="utf-8", errors="ignore")
+    inside_path = theme_path / "sb-inside.scss"
+    if inside_path.exists():
+        content = inside_path.read_text(encoding="utf-8", errors="ignore")
+        if ".directions-row" not in content:
+            with inside_path.open("a", encoding="utf-8") as f:
+                f.write("\n\n/* Directions Row Styles */\n" + styles)
+            logger.info("Added directions row styles to sb-inside.scss")
+    return True
+
+
+def add_predetermined_styles(slug: str, oem_handler: dict | object | None = None) -> bool:
     """
     Add predetermined styles for cookie disclaimer and directions row.
 
     Args:
-        slug (str): Dealer theme slug
-        oem_handler (BaseOEMHandler, optional): OEM handler for the dealer
-
-    Returns:
-        bool: True if successful, False otherwise
+        slug: Dealer theme slug
+        oem_handler: OEM handler for the dealer
     """
     logger.info(f"Adding predetermined styles for {slug}")
+    theme_path = Path(get_dealer_theme_dir(slug))
 
+    # Use OEM factory to get handler if not provided
+    if oem_handler is None:
+        oem_handler = OEMFactory.detect_from_theme(slug)
+
+    success = True
+    if not _add_cookie_disclaimer_styles(theme_path, oem_handler):
+        success = False
+    if not _add_directions_row_styles(theme_path, oem_handler):
+        success = False
+    return success
+
+
+def _check_prettier_available() -> bool:
+    """Check if prettier is available on the system."""
     try:
-        theme_dir = get_dealer_theme_dir(slug)
-
-        # Paths to the SCSS files
-        sb_inside_path = os.path.join(theme_dir, "sb-inside.scss")
-        sb_home_path = os.path.join(theme_dir, "sb-home.scss")
-
-        if not os.path.exists(sb_inside_path):
-            logger.warning(f"sb-inside.scss not found for {slug}")
-            return False
-
-        if not os.path.exists(sb_home_path):
-            logger.warning(f"sb-home.scss not found for {slug}")
-            return False
-
-        # Use OEM factory to get handler if not provided
-        if oem_handler is None:
-            oem_handler = OEMFactory.detect_from_theme(slug)
-            logger.info(f"Using {oem_handler} for {slug}")
-
-        # Only add Stellantis styles for Stellantis dealers
-        from sbm.oem.stellantis import StellantisHandler
-
-        if not isinstance(oem_handler, StellantisHandler):
-            logger.info(f"Skipping Stellantis-specific styles for non-Stellantis dealer: {slug}")
-            return True
-
-        # 1. Add cookie banner styles to both sb-inside.scss and sb-home.scss (directly from source file)
-        # Get the auto-sbm directory path
-        auto_sbm_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        cookie_banner_source = os.path.join(
-            auto_sbm_dir, "stellantis", "add-to-sb-inside", "stellantis-cookie-banner-styles.scss"
-        )
-        if os.path.exists(cookie_banner_source):
-            with open(cookie_banner_source) as f:
-                cookie_styles = f.read()
-
-            # Add to sb-inside.scss
-            with open(sb_inside_path) as f:
-                inside_content = f.read()
-
-            if ".cookie-banner" not in inside_content:
-                with open(sb_inside_path, "a") as f:
-                    f.write("\n\n/* Cookie Banner Styles */\n")
-                    f.write(cookie_styles)
-                logger.info("Added cookie banner styles to sb-inside.scss")
-            else:
-                logger.info("Cookie banner styles already exist in sb-inside.scss")
-
-            # Add to sb-home.scss
-            with open(sb_home_path) as f:
-                home_content = f.read()
-
-            if ".cookie-banner" not in home_content:
-                with open(sb_home_path, "a") as f:
-                    f.write("\n\n/* Cookie Banner Styles */\n")
-                    f.write(cookie_styles)
-                logger.info("Added cookie banner styles to sb-home.scss")
-            else:
-                logger.info("Cookie banner styles already exist in sb-home.scss")
-        else:
-            logger.warning(f"Cookie banner source file not found: {cookie_banner_source}")
-
-        # 2. Add directions row styles (directly from source file)
-        directions_row_source = os.path.join(
-            auto_sbm_dir, "stellantis", "add-to-sb-inside", "stellantis-directions-row-styles.scss"
-        )
-        if os.path.exists(directions_row_source):
-            with open(directions_row_source) as f:
-                directions_styles = f.read()
-
-            # Check if directions row styles already exist
-            with open(sb_inside_path) as f:
-                content = f.read()
-
-            if ".directions-row" not in content:
-                # Append the directions styles
-                with open(sb_inside_path, "a") as f:
-                    f.write("\n\n/* Directions Row Styles */\n")
-                    f.write(directions_styles)
-                logger.info("Added directions row styles")
-            else:
-                logger.info("Directions row styles already exist")
-        else:
-            logger.warning(f"Directions row source file not found: {directions_row_source}")
-
-        return True
-
-    except Exception as e:
-        logger.error(f"Error adding predetermined styles: {e}")
-        return False
-
-
-def _check_prettier_available() -> bool | None:
-    """
-    Check if prettier is available on the system.
-
-    Returns:
-        bool: True if prettier is available, False otherwise
-    """
-    try:
-        # Try different ways to find prettier with extended PATH
-        import os
-        
         # Common paths where npm global packages are installed
         extended_paths = [
             "/usr/local/bin",
-            "/opt/homebrew/bin", 
-            os.path.expanduser("~/.nvm/versions/node/*/bin"),
-            os.path.expanduser("~/.npm-global/bin")
+            "/opt/homebrew/bin",
+            str(Path.home() / ".nvm/versions/node/*/bin"),
+            str(Path.home() / ".npm-global/bin"),
         ]
-        
+
         current_path = os.environ.get("PATH", "")
         extended_path = ":".join(extended_paths) + ":" + current_path
-        
+
         # Set environment with extended PATH
         env = os.environ.copy()
         env["PATH"] = extended_path
-        
+
         # First check if prettier command exists
-        success, stdout, stderr, _ = execute_command(
-            "prettier --version", 
-            "Checking prettier availability", 
+        success, stdout, _, _ = execute_command(
+            "prettier --version",
+            "Checking prettier availability",
             wait_for_completion=True,
-            env=env
+            env=env,
         )
 
         if success and stdout:
-            # Parse version to ensure it's actually prettier
             version_output = "".join(stdout).strip()
             if version_output and any(char.isdigit() for char in version_output):
-                logger.debug(f"Prettier version detected: {version_output}")
                 return True
 
-        # If that fails, try which command to find prettier
-        success, stdout, stderr, _ = execute_command(
-            "which prettier", 
-            "Finding prettier location", 
+        # If that fails, try which command
+        success, stdout, _, _ = execute_command(
+            "which prettier",
+            "Finding prettier location",
             wait_for_completion=True,
-            env=env
+            env=env,
         )
-        
+
         if success and stdout:
-            prettier_path = "".join(stdout).strip()
-            if prettier_path and os.path.isfile(prettier_path):
-                logger.debug(f"Prettier found at: {prettier_path}")
+            prettier_path = Path("".join(stdout).strip())
+            if prettier_path.exists() and prettier_path.is_file():
                 return True
-
         return False
-    except Exception as e:
-        logger.debug(f"Prettier not available: {e}")
+    except Exception:
         return False
 
 
-def _format_scss_with_prettier(file_path) -> bool | None:
+def _format_scss_with_prettier(file_path: str | Path) -> bool:
     """
     Format an SCSS file with prettier if available.
 
     Args:
-        file_path (str): Path to the SCSS file to format
+        file_path: Path to the SCSS file to format
 
     Returns:
         bool: True if formatting succeeded, False otherwise
     """
     try:
+        path = Path(file_path)
+
         # Setup extended PATH for prettier
-        import os
-        
-        # Common paths where npm global packages are installed
         extended_paths = [
             "/usr/local/bin",
-            "/opt/homebrew/bin", 
-            os.path.expanduser("~/.nvm/versions/node/*/bin"),
-            os.path.expanduser("~/.npm-global/bin")
+            "/opt/homebrew/bin",
+            str(Path.home() / ".nvm/versions/node/*/bin"),
+            str(Path.home() / ".npm-global/bin"),
         ]
-        
+
         current_path = os.environ.get("PATH", "")
         extended_path = ":".join(extended_paths) + ":" + current_path
-        
+
         # Set environment with extended PATH
         env = os.environ.copy()
         env["PATH"] = extended_path
-        
+
         # Use prettier to format the file in place
         success, stdout, stderr, _ = execute_command(
-            f"prettier --write '{file_path}'",
-            f"Failed to format {os.path.basename(file_path)} with prettier",
+            f"prettier --write '{path}'",
+            f"Failed to format {path.name} with prettier",
             wait_for_completion=True,
-            env=env
+            env=env,
         )
 
         if success:
@@ -678,34 +601,36 @@ def _format_scss_with_prettier(file_path) -> bool | None:
         # Log stderr for debugging if formatting failed
         if stderr:
             error_msg = "".join(stderr).strip()
-            logger.debug(
-                f"Prettier formatting error for {os.path.basename(file_path)}: {error_msg}"
-            )
+            logger.debug(f"Prettier formatting error for {path.name}: {error_msg}")
         return False
 
     except Exception as e:
-        logger.warning(f"Could not format {os.path.basename(file_path)} with prettier: {e}")
+        logger.warning(f"Could not format {Path(file_path).name} with prettier: {e}")
         return False
 
 
-def _format_all_scss_with_prettier(slug) -> bool | None:
+def _format_all_scss_with_prettier(slug: str) -> bool:
     """
     Format all SCSS files in the theme directory with prettier using glob pattern.
 
     Args:
-        slug (str): Dealer theme slug
+        slug: Dealer theme slug
 
     Returns:
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        import glob
-
-        home_dir = os.path.expanduser("~")
-        pattern = f"{home_dir}/di-websites-platform/dealer-themes/{slug}/sb-*.scss"
+        home_dir = Path.home()
+        pattern = home_dir / "di-websites-platform" / "dealer-themes" / slug / "sb-*.scss"
         logger.info(f"Prettier: Looking for files with pattern: {pattern}")
 
-        files = glob.glob(pattern, recursive=True)
+        # Use rglob or glob from Path
+        parent_dir = pattern.parent
+        if not parent_dir.exists():
+            logger.warning(f"Theme directory not found for prettier: {parent_dir}")
+            return False
+
+        files = list(parent_dir.glob("sb-*.scss"))
         logger.info(f"Prettier: Found {len(files)} files:")
         for file in files:
             logger.info(f"  - {file}")
@@ -715,17 +640,18 @@ def _format_all_scss_with_prettier(slug) -> bool | None:
             return False
 
         # Use prettier from auto-sbm venv to ensure it's always available
-        auto_sbm_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        prettier_path = os.path.join(auto_sbm_dir, ".venv", "bin", "prettier")
+        auto_sbm_dir = Path(__file__).parent.parent.parent
+        prettier_path = auto_sbm_dir / ".venv" / "bin" / "prettier"
 
         # Fallback to system prettier if venv prettier doesn't exist
-        if not os.path.exists(prettier_path):
-            prettier_path = "prettier"
+        if not prettier_path.exists():
+            final_prettier_cmd = "prettier"
             logger.info("Prettier: Using system prettier (venv prettier not found)")
         else:
+            final_prettier_cmd = str(prettier_path)
             logger.info(f"Prettier: Using venv prettier at {prettier_path}")
 
-        command = [prettier_path, "--write", *files]
+        command = [final_prettier_cmd, "--write", *[str(f) for f in files]]
         logger.info(f"Prettier: Running command: {' '.join(command)}")
 
         result = subprocess.run(
@@ -747,13 +673,11 @@ def _format_all_scss_with_prettier(slug) -> bool | None:
 
     except Exception as e:
         logger.error(f"Prettier: Exception occurred: {e}")
-        import traceback
-
         logger.error(f"Prettier: Traceback: {traceback.format_exc()}")
         return False
 
 
-def test_compilation_recovery(slug):
+def test_compilation_recovery(slug: str) -> bool:
     """
     Test compilation error handling on an existing theme without doing migration.
 
@@ -762,7 +686,7 @@ def test_compilation_recovery(slug):
     the original theme files.
 
     Args:
-        slug (str): Dealer theme slug
+        slug: Dealer theme slug
 
     Returns:
         bool: True if compilation succeeds or errors are handled, False otherwise
@@ -770,10 +694,10 @@ def test_compilation_recovery(slug):
     logger.info(f"Testing compilation error recovery for {slug}")
 
     try:
-        theme_dir = get_dealer_theme_dir(slug)
-        css_dir = os.path.join(theme_dir, "css")
+        theme_dir = Path(get_dealer_theme_dir(slug))
+        css_dir = theme_dir / "css"
 
-        if not os.path.exists(css_dir):
+        if not css_dir.exists():
             logger.error(f"CSS directory not found: {css_dir}")
             return False
 
@@ -783,14 +707,14 @@ def test_compilation_recovery(slug):
 
         # Copy existing SCSS files to CSS directory for testing
         for sb_file in sb_files:
-            scss_path = os.path.join(theme_dir, sb_file)
-            if os.path.exists(scss_path):
+            scss_path = theme_dir / sb_file
+            if scss_path.exists():
                 test_filename = f"test-{sb_file}"
-                test_path = os.path.join(css_dir, test_filename)
+                test_path = css_dir / test_filename
 
                 # Copy file for testing
                 shutil.copy2(scss_path, test_path)
-                test_files.append((test_filename, scss_path))
+                test_files.append((test_filename, str(scss_path)))
                 logger.info(f"Copied {sb_file} to {test_filename} for testing")
 
         if not test_files:
@@ -802,12 +726,12 @@ def test_compilation_recovery(slug):
 
         # Test compilation with error recovery
         success, _, _ = _handle_compilation_with_error_recovery(
-            css_dir, test_files, theme_dir, slug
+            str(css_dir), test_files, str(theme_dir), slug
         )
 
         # Clean up test files
         click.echo("\n🧹 Cleaning up test files...")
-        _cleanup_compilation_test_files(css_dir, test_files)
+        _cleanup_compilation_test_files(str(css_dir), test_files)
 
         if success:
             click.echo("✅ Compilation test completed successfully")
@@ -824,7 +748,7 @@ def test_compilation_recovery(slug):
         return False
 
 
-def reprocess_manual_changes(slug) -> bool | None:
+def reprocess_manual_changes(slug: str) -> bool:
     """
     Reprocess Site Builder SCSS files after manual review to ensure consistency.
 
@@ -833,7 +757,7 @@ def reprocess_manual_changes(slug) -> bool | None:
     and other SCSS patterns are properly processed.
 
     Args:
-        slug (str): Dealer theme slug
+        slug: Dealer theme slug
 
     Returns:
         bool: True if reprocessing was successful, False otherwise
@@ -841,7 +765,7 @@ def reprocess_manual_changes(slug) -> bool | None:
     logger.debug(f"Reprocessing manual changes for {slug}")
 
     try:
-        theme_dir = get_dealer_theme_dir(slug)
+        theme_dir = Path(get_dealer_theme_dir(slug))
         processor = SCSSProcessor(slug, exclude_nav_styles=True)
 
         # List of Site Builder files to reprocess
@@ -858,12 +782,11 @@ def reprocess_manual_changes(slug) -> bool | None:
             logger.info("Prettier not available - using default formatting")
 
         for sb_file in sb_files:
-            file_path = os.path.join(theme_dir, sb_file)
+            file_path = theme_dir / sb_file
 
-            if os.path.exists(file_path):
+            if file_path.exists():
                 # Read the current manually-edited content
-                with open(file_path, encoding="utf-8") as f:
-                    original_content = f.read()
+                original_content = file_path.read_text(encoding="utf-8", errors="ignore")
 
                 # Skip if file is empty
                 if not original_content.strip():
@@ -876,11 +799,8 @@ def reprocess_manual_changes(slug) -> bool | None:
 
                 # Check if any changes were made
                 if processed_content != original_content:
-                    # Write the processed content back with explicit flushing
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(processed_content)
-                        f.flush()  # Ensure content is written to disk
-                        os.fsync(f.fileno())  # Force write to disk
+                    # Write the processed content back
+                    file_path.write_text(processed_content, encoding="utf-8")
 
                     changes_made = True
                     processed_files.append(sb_file)
@@ -908,7 +828,7 @@ def reprocess_manual_changes(slug) -> bool | None:
             else:
                 logger.warning("Prettier formatting failed, using default formatting")
 
-        # Note: SCSS compilation verification moved to separate timer segment 
+        # Note: SCSS compilation verification moved to separate timer segment
         # to avoid including long sleep/user interaction time in reprocessing timer
         return True
 
@@ -917,563 +837,478 @@ def reprocess_manual_changes(slug) -> bool | None:
         return False
 
 
+def _handle_manual_review_and_git(
+    slug: str, branch_name: str, interactive_git: bool, skip_git: bool
+) -> bool:
+    """Handle the manual review and git commit/push steps."""
+    if not interactive_git:
+        if not skip_git:
+            with timer_segment("Git Operations"):
+                commit_changes(slug)
+                push_changes(branch_name)
+        return True
+
+    if Confirm.ask(f"Commit and push all changes for {slug}?", default=True):
+        with timer_segment("Git Operations"):
+            if not commit_changes(slug):
+                return False
+            if not push_changes(branch_name):
+                return False
+    return True
+
+
+def _handle_pr_creation(
+    slug: str, branch_name: str | None, create_pr: bool, interactive_pr: bool
+) -> bool:
+    """Handle pulling request creation logic."""
+    if not create_pr:
+        return True
+
+    if interactive_pr and not Confirm.ask(f"Create PR for {slug}?"):
+        return True
+
+    logger.info(f"Creating PR for {slug}...")
+    success, pr_url = git_create_pr(slug, branch_name)
+    if success:
+        logger.info(f"PR created: {pr_url}")
+        return True
+    return False
+
+
 def run_post_migration_workflow(
-    slug,
-    branch_name,
-    skip_git=False,
-    create_pr=True,
-    interactive_review=True,
-    interactive_git=True,
-    interactive_pr=True,
-    skip_reprocessing=False,
+    slug: str,
+    branch_name: str | None,
+    skip_git: bool = False,
+    create_pr: bool = True,
+    _interactive_review: bool = True,  # Deprecated
+    interactive_git: bool = True,
+    interactive_pr: bool = True,
+    skip_reprocessing: bool = False,
+    console: SBMConsole | None = None,
 ) -> bool:
     """
     Run the post-migration workflow including manual review, git operations, and PR creation.
 
     Args:
-        slug (str): Dealer theme slug
-        branch_name (str): Git branch name
-        skip_git (bool): Whether to skip git operations
-        create_pr (bool): Whether to create a pull request
-        interactive_review (bool): DEPRECATED - manual review step removed
-        interactive_git (bool): Whether to prompt for git operations
-        interactive_pr (bool): Whether to prompt for PR creation
+        slug: Dealer theme slug
+        branch_name: Git branch name
+        skip_git: Whether to skip git operations
+        create_pr: Whether to create a pull request
+        _interactive_review: DEPRECATED - manual review step removed
+        interactive_git: Whether to prompt for git operations
+        interactive_pr: Whether to prompt for PR creation
+        skip_reprocessing: Whether to skip reprocessing manual changes
+        console: Optional console instance for unified UI
 
     Returns:
         bool: True if all steps are successful, False otherwise.
     """
+    if console is None:
+        console = get_console()
+
     logger.debug(f"Starting post-migration workflow for {slug} on branch {branch_name}")
 
-    # Manual review - disabled by default for streamlined workflow
-    if False:  # interactive_review disabled
-        # Clear the terminal to ensure clean display
-        import os
-        import sys
-        import time
-
-        # Force close any active Rich contexts
-        try:
-            from rich.console import Console
-            console = Console()
-            console.clear()
-        except (ImportError, AttributeError):
-            # Console clearing failed, not critical for functionality
-            pass
-
-        # Clear terminal using system command
-        os.system("clear" if os.name == "posix" else "cls")
-
-        # Brief pause to ensure terminal is clear
-        time.sleep(0.1)
-
-        # Force flush any remaining Rich output
-        sys.stdout.flush()
-        sys.stderr.flush()
-
-        # Use direct sys.stdout.write to bypass any Rich interference
-        message = f"""🎉 MIGRATION COMPLETED SUCCESSFULLY! 🎉
-
-================================================================================
-Manual Review Required for {slug}
-Please review the migrated SCSS files in your theme directory:
-  - {get_dealer_theme_dir(slug)}/sb-inside.scss
-  - {get_dealer_theme_dir(slug)}/sb-vdp.scss
-  - {get_dealer_theme_dir(slug)}/sb-vrp.scss
-  - {get_dealer_theme_dir(slug)}/sb-home.scss
-
-Verify the content and make any necessary manual adjustments.
-Once you are satisfied, proceed to the next step.
-================================================================================
-
-"""
-        sys.stdout.write(message)
-        sys.stdout.flush()
-
-        # Use basic input() for maximum compatibility - no Rich, no Click interference
-        from sbm.utils.timer import timer_pause
-        while True:
-            try:
-                with timer_pause("Manual review confirmation"):
-                    sys.stdout.write("Continue with the migration after manual review? [Y/n]: ")
-                    sys.stdout.flush()
-                    response = input().strip().lower()
-                if response in ("", "y", "yes"):
-                    break
-                if response in ("n", "no"):
-                    logger.info("Post-migration workflow stopped by user after manual review.")
-                    return False
-                with timer_pause("Invalid input clarification"):
-                    sys.stdout.write("Please enter 'y' or 'n': ")
-                    sys.stdout.flush()
-            except (EOFError, KeyboardInterrupt):
-                logger.info("Post-migration workflow stopped by user after manual review.")
+    if not skip_reprocessing:
+        with timer_segment("Reprocessing Manual Changes"):
+            if not reprocess_manual_changes(slug):
                 return False
 
-        # Reprocess manual changes to ensure consistency (skip if already verified)
-        if not skip_reprocessing:
-            logger.debug(f"Reprocessing manual changes for {slug} to ensure consistency...")
-            from sbm.utils.timer import timer_segment
-            with timer_segment("Reprocessing Manual Changes"):
-                if not reprocess_manual_changes(slug):
-                    logger.error("Failed to reprocess manual changes.")
-                    return False
-            
-            # Verify SCSS compilation in separate timer to avoid including long sleep/user interaction time
-            with timer_segment("SCSS Compilation Verification"):
-                theme_dir = get_dealer_theme_dir(slug)
-                sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
-                compilation_result = _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
-                if not compilation_result:
-                    logger.error("SCSS compilation verification failed - files do not compile with Docker Gulp")
-                    logger.error("This may indicate syntax errors in the generated SCSS files.")
-                    logger.error("You may need to manually review and fix the Site Builder files.")
-                    # Don't throw exception - let the process continue and user can fix manually
-                    return False
-                logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
-        else:
-            logger.info("Skipping reprocessing - files were already manually fixed and verified")
-
-        # Clean up snapshot files after manual review phase
-        logger.info("Cleaning up automation snapshots after manual review")
-        _cleanup_snapshot_files(slug)
-    else:
-        # If no interactive review, still do cleanup and reprocessing
-        if not skip_reprocessing:
-            logger.debug(f"Reprocessing manual changes for {slug} to ensure consistency...")
-            from sbm.utils.timer import timer_segment
-            with timer_segment("Reprocessing Manual Changes"):
-                if not reprocess_manual_changes(slug):
-                    logger.error("Failed to reprocess manual changes.")
-                    return False
-            
-            # Verify SCSS compilation in separate timer to avoid including long sleep/user interaction time
-            with timer_segment("SCSS Compilation Verification"):
-                theme_dir = get_dealer_theme_dir(slug)
-                sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
-                compilation_result = _verify_scss_compilation_with_docker(theme_dir, slug, sb_files)
-                if not compilation_result:
-                    logger.error("SCSS compilation verification failed - files do not compile with Docker Gulp")
-                    logger.error("This may indicate syntax errors in the generated SCSS files.")
-                    logger.error("You may need to manually review and fix the Site Builder files.")
-                    # Don't throw exception - let the process continue and user can fix manually
-                    return False
-                logger.info("✅ All SCSS files verified to compile successfully with Docker Gulp")
-        logger.debug("Cleaning up automation snapshots")
-        _cleanup_snapshot_files(slug)
-
-    # Git commit and push prompt combined into single confirmation
-    git_response = "y"  # Default to yes
-    if interactive_git:
-        import sys
-        # Ensure all previous output is flushed before showing prompt
-        sys.stdout.flush()
-        sys.stderr.flush()
-        sys.stdout.write(f"Commit and push all changes for {slug}? [Y/n]: ")
-        sys.stdout.flush()
-        git_response = input().strip().lower()
-        if git_response in ("n", "no"):
-            logger.info("Skipping commit and push.")
-            return True
-
-    if not interactive_git or git_response in ("", "y", "yes"):
-        # Clean up any snapshot files before committing - do this right before git operations
-        _cleanup_snapshot_files(slug)
-
-        from sbm.utils.timer import timer_segment
-        with timer_segment("Git Commit Operations"):
-            if not commit_changes(slug):
-                logger.error("Failed to commit changes.")
+        with timer_segment("SCSS Compilation Verification"):
+            theme_dir = Path(get_dealer_theme_dir(slug))
+            sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
+            if not _verify_scss_compilation_with_docker(theme_dir, slug, sb_files, console=console):
                 return False
 
-        # Clean up snapshots again after commit in case they were recreated
-        _cleanup_snapshot_files(slug)
+    _cleanup_snapshot_files(slug)
 
-        # Push changes immediately after successful commit
-        with timer_segment("Git Push Operations"):
-            if not push_changes(branch_name):
-                logger.error("Failed to push changes.")
-                return False
-    else:
-        logger.info("Skipping commit and push.")
-        return True  # End workflow if user skips commit and push
+    if not _handle_manual_review_and_git(slug, branch_name, interactive_git, skip_git):
+        return False
 
-    if create_pr:
-        # PR creation prompt with consistent input handling
-        pr_response = "y"  # Default to yes
-        if interactive_pr:
-            sys.stdout.write("Create a pull request? [Y/n]: ")
-            sys.stdout.flush()
-            pr_response = input().strip().lower()
-            if pr_response in ("n", "no"):
-                logger.info("Skipping pull request creation.")
-                return True
+    if not _handle_pr_creation(slug, branch_name, create_pr, interactive_pr):
+        return False
 
-        if not interactive_pr or pr_response in ("", "y", "yes"):
-            logger.info("Creating pull request...")
-            try:
-                from sbm.utils.timer import timer_segment
-                with timer_segment("GitHub PR Creation"):
-                    pr_result = git_create_pr(slug=slug, branch_name=branch_name)
-
-                if pr_result and pr_result.get("success"):
-                    pr_url = pr_result.get("pr_url")
-                    logger.info(f"Successfully created PR: {pr_url}")
-
-                    # PR created successfully
-                else:
-                    error_message = pr_result.get("error", "Unknown error")
-                    logger.error(f"Failed to create PR: {error_message}")
-                    return False
-
-            except Exception as e:
-                logger.error(f"An exception occurred while creating PR: {e}")
-                return False
-        else:
-            logger.info("Skipping pull request creation.")
-
-    # Migration workflow completed successfully 
     logger.info(f"Migration completed successfully for {slug}")
-    
-    # Show beautiful completion message
-    print_migration_complete(slug)
-    
+    console.print_migration_complete(slug, elapsed_time=0.0)
+    return True
+
+
+def _perform_core_migration(
+    slug: str, force_reset: bool, oem_handler: object | None, skip_maps: bool, console: SBMConsole
+) -> bool:
+    """Run core transformation steps."""
+    console.print_step("Creating Site Builder SCSS files")
+    with timer_segment("Site Builder File Creation"):
+        if not create_sb_files(slug, force_reset):
+            return False
+
+    console.print_step("Migrating SCSS styles and transforming syntax")
+    with timer_segment("SCSS Migration"):
+        if not migrate_styles(slug):
+            return False
+
+    _cleanup_exclusion_comments(slug)
+    console.print_step("Adding predetermined OEM-specific styles")
+    add_predetermined_styles(slug, oem_handler)
+
+    if not skip_maps:
+        console.print_step("Migrating map components")
+        if not migrate_map_components(slug, oem_handler, interactive=False, console=console):
+            return False
     return True
 
 
 def migrate_dealer_theme(
-    slug,
-    skip_just=False,
-    force_reset=False,
-    skip_git=False,
-    skip_maps=False,
-    oem_handler=None,
-    create_pr=True,
-    interactive_review=True,
-    interactive_git=True,
-    interactive_pr=True,
-    verbose_docker=False,
-):
+    slug: str,
+    skip_just: bool = False,
+    force_reset: bool = False,
+    skip_git: bool = False,
+    skip_maps: bool = False,
+    oem_handler: object | None = None,
+    create_pr: bool = True,
+    _interactive_review: bool = True,  # Deprecated
+    interactive_git: bool = True,
+    interactive_pr: bool = True,
+    _verbose_docker: bool = False,  # Unused
+    console: SBMConsole | None = None,
+) -> bool:
     """
     Migrate a dealer theme to the Site Builder platform.
 
     Args:
-        slug (str): Dealer theme slug
-        skip_just (bool): Whether to skip the 'just start' command
-        force_reset (bool): Whether to reset existing Site Builder files
-        skip_git (bool): Whether to skip Git operations
-        skip_maps (bool): Whether to skip map components migration
-        oem_handler (BaseOEMHandler, optional): Manually specified OEM handler
-        create_pr (bool): Whether to create a GitHub Pull Request after successful migration (default: True).
-        interactive_review (bool): DEPRECATED - manual review step removed and re-validation.
-        interactive_git (bool): Whether to prompt for Git add, commit, push.
-        interactive_pr (bool): Whether to prompt for PR creation.
+        slug: Dealer theme slug
+        skip_just: Whether to skip the 'just start' command
+        force_reset: Whether to reset existing Site Builder files
+        skip_git: Whether to skip Git operations
+        skip_maps: Whether to skip map components migration
+        oem_handler: Manually specified OEM handler
+        create_pr: Whether to create a GitHub Pull Request
+        _interactive_review: DEPRECATED
+        interactive_git: Whether to prompt for Git operations
+        interactive_pr: Whether to prompt for PR creation
+        _verbose_docker: Whether to show verbose Docker output
+        console: Optional console instance for unified UI
 
     Returns:
         bool: True if all steps are successful, False otherwise.
     """
-    # Use simple Rich UI for beautiful output
-    from sbm.ui.simple_rich import (
-        print_migration_complete,
-        print_migration_header,
-        print_step,
-        print_step_success,
-    )
+    if console is None:
+        console = get_console()
 
-    print_migration_header(slug)
+    console.print_migration_header(slug)
     logger.info(f"Starting migration for {slug}")
 
-    # Create the appropriate OEM handler for this slug if not provided
     if oem_handler is None:
         oem_handler = OEMFactory.detect_from_theme(slug)
 
-    logger.info(f"Using {oem_handler} for {slug}")
-
-    branch_name = None  # Initialize branch_name
-
-    # Perform Git operations if not skipped
+    branch_name = None
     if not skip_git:
-        print_step(1, 6, "Setting up Git branch and repository", slug)
-
-        from sbm.utils.timer import timer_segment
+        console.print_step("Setting up Git branch and repository")
         with timer_segment("Git Operations"):
             success, branch_name = git_operations(slug)
         if not success:
-            logger.error(f"Git operations failed for {slug}")
             return False
 
-        print_step_success(f"Git operations completed: branch {branch_name}")
-        logger.info(f"Git operations completed successfully, branch: {branch_name}")
-
-    # Run 'just start' if not skipped
     if not skip_just:
-        print_step(2, 6, "Starting Docker environment (just start)", slug)
-
-        # Temporarily pause progress tracking during Docker startup to avoid output interference
-        from sbm.utils.timer import timer_segment
+        console.print_step("Starting Docker environment (just start)")
         with timer_segment("Docker Startup"):
-            just_start_success = run_just_start(
-                slug,
-                suppress_output=False,  # Never suppress Docker output - user needs to see what's happening
-            )
+            if not run_just_start(slug, suppress_output=False):
+                return False
 
-        if not just_start_success:
-            logger.error(f"Failed to start site for {slug}")
-            return False
+    if not _perform_core_migration(slug, force_reset, oem_handler, skip_maps, console):
+        return False
 
-        print_step_success("Docker environment started successfully")
-
-    # Create Site Builder files
-    print_step(3, 6, "Creating Site Builder SCSS files", slug)
-
-    from sbm.utils.timer import timer_segment
-    with timer_segment("Site Builder File Creation"):
-        if not create_sb_files(slug, force_reset):
-            logger.error(f"Failed to create Site Builder files for {slug}")
-            return False
-
-    print_step_success("Site Builder files created successfully")
-
-    # Migrate styles
-    print_step(4, 6, "Migrating SCSS styles and transforming syntax", slug)
-
-    from sbm.utils.timer import timer_segment
-    with timer_segment("SCSS Migration"):
-        if not migrate_styles(slug):
-            logger.error(f"Failed to migrate styles for {slug}")
-            return False
-
-    print_step_success("SCSS styles migrated and transformed successfully")
-
-    # Clean up any existing EXCLUDED RULE comments that could break compilation
-    logger.info(f"Cleaning up exclusion comments for {slug}...")
-    _cleanup_exclusion_comments(slug)
-
-    # Add cookie banner and directions row styles as a separate step (after style migration)
-    # This ensures these predetermined styles are not affected by the validators and parsers
-    print_step(5, 6, "Adding predetermined OEM-specific styles", slug)
-    if not add_predetermined_styles(slug, oem_handler):
-        logger.warning(f"Could not add all predetermined styles for {slug}")
-
-    print_step_success("Predetermined styles added successfully")
-
-    # Migrate map components if not skipped
-    if not skip_maps:
-        print_step(6, 6, "Migrating map components and PHP partials", slug)
-        if not migrate_map_components(slug, oem_handler, interactive=False):
-            logger.error(f"Failed to migrate map components for {slug}")
-            return False
-
-        print_step_success("Map components migrated successfully")
-        logger.info(f"Map components migrated successfully for {slug}")
-    else:
-        print_step(6, 6, "Skipping map components migration", slug)
-        print_step_success("Map components skipped")
-
-    logger.debug(f"Core migration steps completed for {slug}")
-
-    # Core migration complete - proceeding to manual review and finalization
-    print_step_success("Core migration steps completed")
-
-    # Create snapshots of the automated migration output for comparison
     _create_automation_snapshots(slug)
 
-    # Always run post-migration workflow (git operations, PR creation)
-    # Interactive flags control prompting behavior, not whether operations run
     return run_post_migration_workflow(
         slug,
         branch_name,
         skip_git=skip_git,
         create_pr=create_pr,
-        interactive_review=interactive_review,
+        _interactive_review=_interactive_review,
         interactive_git=interactive_git,
         interactive_pr=interactive_pr,
+        console=console,
     )
 
 
+def _prepare_test_scaffolding(
+    theme_path: Path, css_dir: Path, sb_files: list[str]
+) -> list[tuple[str, str]]:
+    """Copy original source files to test files in the monitoring directory."""
+    test_files = []
+    for sb_file in sb_files:
+        src_path = theme_path / sb_file
+        if src_path.exists():
+            test_filename = f"test-{sb_file}"
+            dst_path = css_dir / test_filename
+            try:
+                shutil.copy2(src_path, dst_path)
+                test_files.append((test_filename, str(dst_path)))
+                logger.debug(f"Created test file: {test_filename}")
+            except Exception as e:
+                logger.warning(f"Could not create test file for {sb_file}: {e}")
+    return test_files
+
+
+def _cleanup_verification_artifacts(
+    css_dir: Path, _test_files: list[tuple[str, str]], skip_git_checkout: bool, theme_path: Path
+) -> None:
+    """Remove test files and generated CSS, optionally resetting git state."""
+    logger.debug("Cleaning up verification artifacts...")
+    for test_filename, _ in _test_files:
+        try:
+            (css_dir / test_filename).unlink(missing_ok=True)
+            css_filename = test_filename.replace(".scss", ".css")
+            (css_dir / css_filename).unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Error removing test file {test_filename}: {e}")
+
+    time.sleep(1)
+    _wait_for_gulp_idle(timeout=10)
+
+    if not skip_git_checkout:
+        try:
+            subprocess.run(
+                ["git", "checkout", "HEAD", "css/"],
+                cwd=str(theme_path),
+                check=False,
+                capture_output=True,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to reset CSS directory: {e}")
+
+
 def _verify_scss_compilation_with_docker(
-    theme_dir: str,
+    theme_dir: str | Path,
     slug: str,
-    sb_files: list,
+    sb_files: list[str],
     skip_git_checkout: bool = False,
+    console: SBMConsole | None = None,
 ) -> bool:
     """
-    Verify SCSS compilation by copying files to CSS directory and monitoring Docker Gulp compilation.
+    Verify SCSS compilation by copying files to CSS directory and monitoring Docker logs.
 
     Args:
         theme_dir: Path to dealer theme directory
         slug: Dealer theme slug
         sb_files: List of Site Builder SCSS files to verify
-        skip_git_checkout: When True, skip resetting tracked css/ files during cleanup
+        skip_git_checkout: Whether to skip resetting git state
+        console: Optional console instance for unified UI
 
     Returns:
         bool: True if all files compile successfully, False otherwise
     """
-    css_dir = os.path.join(theme_dir, "css")
+    theme_path = Path(theme_dir)
+    css_dir = theme_path / "css"
     manual_fix_attempted = False
-    cleanup_skip_git_checkout = skip_git_checkout
 
     while True:
-        test_files = []
-        rerun_requested = False
-        compilation_success = False
+        logger.info(f"Testing SCSS compilation for {slug}...")
+        test_files = _prepare_test_scaffolding(theme_path, css_dir, sb_files)
 
-        try:
-            logger.info("Testing SCSS compilation...")
+        if not test_files:
+            logger.warning("No Site Builder files found to test")
+            return True
 
-            # Step 1: Copy sb-*.scss files to CSS directory with test prefix
-            for sb_file in sb_files:
-                src_path = os.path.join(theme_dir, sb_file)
-                if os.path.exists(src_path):
-                    test_filename = f"test-{sb_file}"
-                    dst_path = os.path.join(css_dir, test_filename)
+        # Wait for compilation to trigger
+        _wait_for_gulp_idle(timeout=20)
 
-                    shutil.copy2(src_path, dst_path)
-                    test_files.append((test_filename, dst_path))
-                    logger.debug(f"Copied {sb_file} to {test_filename} for compilation test")
+        # Handle compilation and interactive recovery
+        success, recovery_manual, rerun_requested = _handle_compilation_with_error_recovery(
+            css_dir, test_files, theme_path, slug, console=console
+        )
 
-            if not test_files:
-                logger.warning("No Site Builder files found to test")
-                return True
-
-            # Step 2: Wait for Docker Gulp to process the files
-            logger.debug("Monitoring Docker Gulp compilation...")
-            time.sleep(1)
-
-            # Step 3: Check for corresponding CSS files
-            max_wait = 5
-            start_time = time.time()
-            compiled_files = []
-            first_compile_time = None
-
-            while (time.time() - start_time) < max_wait and len(compiled_files) < len(test_files):
-                for test_filename, _ in test_files:
-                    if test_filename in compiled_files:
-                        continue
-
-                    css_filename = test_filename.replace(".scss", ".css")
-                    css_path = os.path.join(css_dir, css_filename)
-
-                    if os.path.exists(css_path):
-                        compiled_files.append(test_filename)
-                        logger.debug(f"✅ {test_filename} compiled successfully to {css_filename}")
-
-                        if first_compile_time is None:
-                            first_compile_time = time.time()
-
-                if first_compile_time and (time.time() - first_compile_time) >= 2:
-                    break
-
-                if len(compiled_files) < len(test_files):
-                    time.sleep(0.2)
-
-            # Step 4: Monitor compilation with iterative error handling
-            try:
-                (
-                    recovery_success,
-                    recovery_manual_fix,
-                    recovery_rerun_requested,
-                ) = _handle_compilation_with_error_recovery(
-                    css_dir, test_files, theme_dir, slug
-                )
-
-                manual_fix_attempted = manual_fix_attempted or recovery_manual_fix
-                cleanup_skip_git_checkout = cleanup_skip_git_checkout or manual_fix_attempted
-
-                if recovery_rerun_requested:
-                    rerun_requested = True
-                    logger.info("Manual fixes applied to source SCSS. Restarting verification...")
-                    continue
-
-                if not recovery_success:
-                    logger.error("❌ SCSS compilation failed after error recovery attempts")
-                    return False
-
-                # Step 5: Re-verify compilation success after error recovery
-                final_compiled_files = []
-                for test_filename, _ in test_files:
-                    css_filename = test_filename.replace(".scss", ".css")
-                    css_path = os.path.join(css_dir, css_filename)
-                    if os.path.exists(css_path):
-                        final_compiled_files.append(test_filename)
-
-                compilation_success = len(final_compiled_files) == len(test_files)
-
-                if compilation_success:
-                    logger.info(
-                        f"✅ All {len(test_files)} SCSS files compiled successfully with Docker Gulp"
-                    )
-                else:
-                    failed_files = [f for f, _ in test_files if f not in final_compiled_files]
-                    logger.error(
-                        f"❌ Docker Gulp compilation failed for: {', '.join(failed_files)}"
-                    )
-
-            except Exception as e:
-                logger.error(f"Critical error during compilation monitoring: {e}")
-                return False
-
-        except Exception as e:
-            logger.error(f"Error during Docker Gulp compilation verification: {e}")
-            return False
-
-        finally:
-            # Step 6: Cleanup sequence to avoid triggering additional compilations
-            try:
-                logger.debug("Cleaning up test files...")
-                for test_filename, scss_path in test_files:
-                    try:
-                        if os.path.exists(scss_path):
-                            os.remove(scss_path)
-                            logger.debug(f"Removed test SCSS file: {test_filename}")
-
-                        css_filename = test_filename.replace(".scss", ".css")
-                        css_path = os.path.join(css_dir, css_filename)
-                        if os.path.exists(css_path):
-                            os.remove(css_path)
-                            logger.debug(f"Removed generated CSS file: {css_filename}")
-
-                    except Exception as cleanup_error:
-                        logger.warning(
-                            f"Error removing test file {test_filename}: {cleanup_error}"
-                        )
-
-                logger.debug("Waiting for Gulp cleanup cycle to complete...")
-                time.sleep(2)
-                _wait_for_gulp_idle(timeout=10)
-
-                if not cleanup_skip_git_checkout:
-                    result = subprocess.run(
-                        ["git", "checkout", "HEAD", "css/"],
-                        check=False,
-                        cwd=theme_dir,
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-
-                    if result.returncode == 0:
-                        logger.info("✅ CSS directory reset to original state using git checkout")
-                    else:
-                        logger.warning(
-                            f"Git checkout of CSS directory failed: {result.stderr}"
-                        )
-                else:
-                    logger.debug("Skipping git checkout of css/ due to manual fix mode")
-
-            except Exception as cleanup_exception:
-                logger.warning(f"Error during CSS directory cleanup: {cleanup_exception}")
+        manual_fix_attempted = manual_fix_attempted or recovery_manual
 
         if rerun_requested:
-            logger.debug(
-                "Manual fixes applied to source files. Starting a fresh compilation verification cycle..."
-            )
+            logger.info("Manual fixes applied. Restarting verification cycle...")
+            _cleanup_verification_artifacts(css_dir, test_files, True, theme_path)
             continue
 
-        return compilation_success
+        _cleanup_verification_artifacts(
+            css_dir, test_files, skip_git_checkout or manual_fix_attempted, theme_path
+        )
+        return success
+
+
+def _extract_error_details_from_logs(logs: str) -> tuple[str | None, int | None, str | None]:
+    """
+    Extract error file, line, and message from Docker logs.
+
+    Args:
+        logs: Docker log output
+
+    Returns:
+        tuple: (error_file, error_line, error_message)
+    """
+    error_file = None
+    error_line = None
+    error_message = None
+
+    for line in logs.split("\n"):
+        # Look for error message lines
+        if "Error:" in line and any(
+            keyword in line.lower() for keyword in ["invalid", "undefined", "expected", "syntax"]
+        ):
+            error_message = line.strip()
+        # Look for "on line X of file" patterns
+        elif "on line" in line and "test-sb-" in line:
+            # Parse: "on line 40 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
+            match = re.search(r"on line (\d+) of [^/]*/(test-sb-[^/]+\.scss)", line)
+            if match:
+                error_line = int(match.group(1))
+                test_file = match.group(2)
+                # Convert test-sb-inside.scss -> sb-inside.scss
+                error_file = test_file.replace("test-", "")
+                break
+
+    return error_file, error_line, error_message
+
+
+def _prompt_user_for_manual_fix(
+    logs: str,
+    theme_path: Path,
+    test_files: list[tuple[str, str]],
+    console: SBMConsole | None = None,
+) -> bool:
+    """
+    Prompt the user to manually fix compilation errors.
+
+    Args:
+        logs: Docker log output
+        theme_path: Path to theme directory
+        test_files: List of test files
+        console: Optional console instance
+    Returns:
+        bool: True if user wants to continue after fixing
+    """
+    error_file, error_line, error_message = _extract_error_details_from_logs(logs)
+
+    if console:
+        console.print_error("❌ SCSS Compilation Error")
+    else:
+        click.echo("\n❌ SCSS Compilation Error")
+        click.echo("=" * 50)
+
+    if error_file and error_line:
+        if console:
+            console.print_error(f"Error: {error_message}")
+            console.print_error(f"File: {error_file}")
+            console.print_error(f"Line: {error_line}")
+            console.print_info(f"Opening {error_file} for editing...")
+        else:
+            click.echo(f"Error: {error_message}")
+            click.echo(f"File: {error_file}")
+            click.echo(f"Line: {error_line}")
+            click.echo()
+            click.echo(f"Opening {error_file} for editing...")
+
+        try:
+            subprocess.run(["open", str(theme_path / error_file)], check=False)
+        except Exception as e:
+            logger.warning(f"Could not open file: {e}")
+            if console:
+                console.print_warning(f"Please manually open: {theme_path / error_file}")
+            else:
+                click.echo(f"Please manually open: {theme_path / error_file}")
+    else:
+        # Fallback to raw error display
+        if error_message:
+            if console:
+                console.print_error(f"Error: {error_message}")
+            else:
+                click.echo(f"Error: {error_message}")
+        else:
+            # Show generic error info
+            error_lines = [
+                line for line in logs.split("\n") if "error" in line.lower() and line.strip()
+            ]
+            if error_lines:
+                if console:
+                    console.print_error("Recent errors from Gulp:")
+                    for line in error_lines[-3:]:
+                        console.print_info(f"  {line.strip()}")
+                else:
+                    click.echo("Recent errors from Gulp:")
+                    for line in error_lines[-3:]:
+                        click.echo(f"  {line.strip()}")
+
+        if console:
+            console.print_info(f"Please check these files in: {theme_path}")
+            for test_filename, _ in test_files:
+                original_file = test_filename.replace("test-", "")
+                console.print_info(f"  - {original_file}")
+        else:
+            click.echo(f"Please check these files in: {theme_path}")
+            for test_filename, _ in test_files:
+                original_file = test_filename.replace("test-", "")
+                click.echo(f"  - {original_file}")
+
+    return Confirm.ask("Continue after fixing the errors?", default=True)
+
+
+def _handle_migration_restart(
+    slug: str,
+    css_path_dir: Path,
+    theme_path: Path,
+    test_files: list[tuple[str, str]],
+) -> bool:
+    """
+    Clean up and restart the migration pipeline after manual fixes.
+
+    Args:
+        slug: Dealer theme slug
+        css_path_dir: CSS directory path
+        theme_path: Theme directory path
+        test_files: List of test files
+
+    Returns:
+        bool: True if restart was successful
+    """
+    # Clean up existing test files and CSS outputs
+    for test_filename, _ in test_files:
+        test_file_path = css_path_dir / test_filename
+        if test_file_path.exists():
+            test_file_path.unlink()
+
+        css_filename = test_filename.replace(".scss", ".css")
+        css_path = css_path_dir / css_filename
+        if css_path.exists():
+            css_path.unlink()
+
+    logger.debug("Waiting for Gulp and Docker to settle...")
+    time.sleep(2)
+    _wait_for_gulp_idle(timeout=20)
+
+    # Remove Site Builder outputs
+    sb_outputs = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
+    for sb_file in sb_outputs:
+        sb_path = theme_path / sb_file
+        if sb_path.exists():
+            sb_path.unlink()
+
+    _cleanup_snapshot_files(slug)
+
+    # Re-run migration pipeline
+    if not create_sb_files(slug, force_reset=True):
+        return False
+    if not migrate_styles(slug):
+        return False
+
+    _cleanup_exclusion_comments(slug)
+    add_predetermined_styles(slug)
+    reprocess_manual_changes(slug)
+    _create_automation_snapshots(slug)
+
+    return True
 
 
 def _handle_compilation_with_error_recovery(
-    css_dir: str, test_files: list, theme_dir: str, slug: str
+    css_dir: str | Path,
+    test_files: list[tuple[str, str]],
+    theme_dir: str | Path,
+    slug: str,
+    console: SBMConsole | None = None,
 ) -> tuple[bool, bool, bool]:
     """
     Handle SCSS compilation with comprehensive error recovery and iterative fixing.
@@ -1483,24 +1318,22 @@ def _handle_compilation_with_error_recovery(
         test_files: List of (test_filename, scss_path) tuples
         theme_dir: Path to dealer theme directory
         slug: Dealer theme slug
+        console: Optional console instance for unified UI
 
     Returns:
         tuple[bool, bool, bool]: (compilation_success, manual_fix_attempted, rerun_requested)
     """
     max_iterations = 5
     iteration = 0
-
-    logger.debug("Starting compilation monitoring with error recovery...")
     manual_fix_attempted = False
+    css_path_dir = Path(css_dir)
+    theme_path = Path(theme_dir)
 
     while iteration < max_iterations:
         iteration += 1
         logger.debug(f"🔄 Compilation attempt {iteration}/{max_iterations}")
-
-        # Wait for compilation cycle
         time.sleep(1)
 
-        # Check Docker Gulp logs for errors
         try:
             result = subprocess.run(
                 ["docker", "logs", "--tail", "50", "dealerinspire_legacy_assets"],
@@ -1512,68 +1345,40 @@ def _handle_compilation_with_error_recovery(
 
             if result.returncode == 0 and result.stdout:
                 logs = result.stdout.lower()
-
-                # Look for compilation success indicators
                 if "finished 'sass'" in logs and "finished 'processcss'" in logs:
-                    # Check if any errors in recent logs (check original case-sensitive logs)
-                    original_logs = result.stdout
                     if not any(
-                        error_indicator in original_logs
-                        for error_indicator in ["Error:", "gulp-notify: [Error running Gulp]"]
+                        err in result.stdout
+                        for err in ["Error:", "gulp-notify: [Error running Gulp]"]
                     ):
                         logger.info("✅ Compilation completed successfully")
                         return True, manual_fix_attempted, False
 
-                # Parse and handle specific errors
-                errors_found = _parse_compilation_errors(logs, test_files)
-
+                errors_found = _parse_compilation_errors(logs)
                 if errors_found:
-                    logger.warning(f"Found {len(errors_found)} compilation errors")
-
-                    # Attempt to fix each error
                     fixes_applied = 0
                     for error_info in errors_found:
-                        if _attempt_error_fix(error_info, css_dir, theme_dir):
+                        if _attempt_error_fix(error_info, str(css_path_dir), str(theme_path)):
                             fixes_applied += 1
 
                     if fixes_applied > 0:
-                        logger.info(
-                            f"Applied {fixes_applied} automated fixes, retrying compilation..."
-                        )
-                        # Prompt user about changes
-                        click.echo(f"\n🔧 Applied {fixes_applied} automated SCSS fixes")
-                        click.echo(
-                            "Files have been automatically repaired. Retrying compilation..."
-                        )
+                        msg = f"🔧 Applied {fixes_applied} automated SCSS fixes"
+                        if console:
+                            console.print_info(msg)
+                            console.print_info("Retrying compilation...")
+                        else:
+                            click.echo(f"\n{msg}\nRetrying compilation...")
                         continue
-                    logger.warning("No automated fixes available for detected errors")
                     break
-                # No specific errors found, but compilation may still be in progress
-                logger.info("No specific errors detected, waiting for compilation...")
-
-        except subprocess.TimeoutExpired:
-            logger.warning("Docker logs command timed out")
         except Exception as e:
-            logger.warning(f"Error checking Docker logs: {e}")
+            logger.warning(f"Error checking logs: {e}")
 
-        # Check for successful CSS file generation
-        success_count = 0
-        for test_filename, _ in test_files:
-            css_filename = test_filename.replace(".scss", ".css")
-            css_path = os.path.join(css_dir, css_filename)
-            if os.path.exists(css_path):
-                success_count += 1
-
+        success_count = sum(
+            1 for f, _ in test_files if (css_path_dir / f.replace(".scss", ".css")).exists()
+        )
         if success_count == len(test_files):
-            logger.info("✅ All CSS files generated successfully")
             return True, manual_fix_attempted, False
 
-        logger.info(f"Compilation status: {success_count}/{len(test_files)} files compiled")
-
-    # Final attempt - show user the exact error and let them fix it
-    logger.error(f"❌ Compilation failed after {max_iterations} attempts")
-
-    # Get the exact error details
+    # Handle final failure and manual fix
     try:
         result = subprocess.run(
             ["docker", "logs", "--tail", "20", "dealerinspire_legacy_assets"],
@@ -1582,179 +1387,24 @@ def _handle_compilation_with_error_recovery(
             text=True,
             timeout=10,
         )
-
-        if result.returncode == 0 and result.stdout:
-            logs = result.stdout
-            _parse_compilation_errors(logs, test_files)
-
-            click.echo("\n❌ SCSS Compilation Error")
-            click.echo("=" * 50)
-
-            # Parse the specific error from logs
-            error_file = None
-            error_line = None
-            error_message = None
-
-            # Extract error details from Docker logs
-            for line in logs.split("\n"):
-                # Look for error message lines
-                if "Error:" in line and any(
-                    keyword in line.lower()
-                    for keyword in ["invalid", "undefined", "expected", "syntax"]
-                ):
-                    error_message = line.strip()
-                # Look for "on line X of file" patterns
-                elif "on line" in line and "test-sb-" in line:
-                    # Parse: "on line 40 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
-                    import re
-
-                    match = re.search(r"on line (\d+) of [^/]*/(test-sb-[^/]+\.scss)", line)
-                    if match:
-                        error_line = int(match.group(1))
-                        test_file = match.group(2)
-                        # Convert test-sb-inside.scss -> sb-inside.scss
-                        error_file = test_file.replace("test-", "")
-                        break
-
-            if error_file and error_line:
-                click.echo(f"Error: {error_message}")
-                click.echo(f"File: {error_file}")
-                click.echo(f"Line: {error_line}")
-                click.echo()
-
-                # Open the file in default editor
-                file_path = os.path.join(theme_dir, error_file)
-                click.echo(f"Opening {error_file} for editing...")
-
-                try:
-                    subprocess.run(["open", file_path], check=False)
-                except Exception as e:
-                    logger.warning(f"Could not open file: {e}")
-                    click.echo(f"Please manually open: {file_path}")
-            else:
-                # Fallback to raw error display
-                if error_message:
-                    click.echo(f"Error: {error_message}")
-                else:
-                    # Show more comprehensive error information
-                    error_lines = [
-                        line
-                        for line in logs.split("\n")
-                        if "error" in line.lower() and line.strip()
-                    ]
-                    if error_lines:
-                        click.echo("Recent errors from Gulp:")
-                        for line in error_lines[-3:]:  # Show last 3 error lines
-                            click.echo(f"  {line.strip()}")
-                    else:
-                        # Show last few lines of logs for context
-                        recent_lines = [line for line in logs.split("\n")[-10:] if line.strip()]
-                        if recent_lines:
-                            click.echo("Recent Gulp output:")
-                            for line in recent_lines:
-                                click.echo(f"  {line.strip()}")
-
-                click.echo(f"Please check these files in: {theme_dir}")
-                for test_filename, _ in test_files:
-                    original_file = test_filename.replace("test-", "")
-                    click.echo(f"  - {original_file}")
-
-            click.echo("=" * 50)
-
-            # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
-            from rich.prompt import Confirm
-
-            user_wants_to_continue = Confirm.ask("Continue after fixing the errors?", default=True)
-
-            if user_wants_to_continue:
-                # User fixed the errors manually; prepare updated files and retry
-                manual_fix_attempted = True
-                logger.info(
-                    "User confirmed manual fixes. Cleaning up test artifacts before retrying..."
-                )
-
-                # Clean up existing test files and CSS outputs
-                for test_filename, _ in test_files:
-                    test_file_path = os.path.join(css_dir, test_filename)
-                    if os.path.exists(test_file_path):
-                        os.remove(test_file_path)
-
-                    # Also clean up any CSS output files
-                    css_filename = test_filename.replace(".scss", ".css")
-                    css_file_path = os.path.join(css_dir, css_filename)
-                    if os.path.exists(css_file_path):
-                        os.remove(css_file_path)
-
-                logger.info("Waiting for Docker Gulp to finish processing removed test assets...")
-                _wait_for_gulp_idle(timeout=20)
-
-                # Remove Site Builder outputs so we can regenerate from updated sources
-                sb_outputs = [
-                    "sb-inside.scss",
-                    "sb-vdp.scss",
-                    "sb-vrp.scss",
-                    "sb-home.scss",
-                ]
-                for sb_file in sb_outputs:
-                    sb_path = os.path.join(theme_dir, sb_file)
-                    if os.path.exists(sb_path):
-                        os.remove(sb_path)
-                        logger.debug(f"Removed stale Site Builder file: {sb_file}")
-
-                # Remove any previous automation snapshots so they can be recreated
-                _cleanup_snapshot_files(slug)
-
-                # Re-run the core migration steps against the updated theme sources
-                logger.info("Re-running migration pipeline using manually updated theme assets...")
-
-                if not create_sb_files(slug, force_reset=True):
-                    logger.error("Failed to recreate Site Builder scaffolding after manual fixes")
-                    return False, manual_fix_attempted, False
-
-                if not migrate_styles(slug):
-                    logger.error("Regenerating Site Builder styles failed after manual fixes")
-                    return False, manual_fix_attempted, False
-
-                _cleanup_exclusion_comments(slug)
-
-                if not add_predetermined_styles(slug):
-                    logger.warning("Could not reapply predetermined styles during manual fix retry")
-
-                reprocess_result = reprocess_manual_changes(slug)
-                if reprocess_result is False:
-                    logger.error("Reprocessing manual changes failed during manual fix retry")
-                    return False, manual_fix_attempted, False
-
-                _create_automation_snapshots(slug)
-
-                logger.info(
-                    "Regenerated Site Builder files created. Requesting fresh compilation verification cycle..."
-                )
+        logs = result.stdout if result.returncode == 0 else ""
+        if _prompt_user_for_manual_fix(logs, theme_path, test_files, console):
+            manual_fix_attempted = True
+            if _handle_migration_restart(slug, css_path_dir, theme_path, test_files):
                 return False, manual_fix_attempted, True
-            return False, manual_fix_attempted, False
 
     except Exception as e:
-        logger.warning(f"Error getting compilation details: {e}")
-        click.echo("\n❌ SCSS Compilation failed")
-        click.echo("Check Docker logs: docker logs dealerinspire_legacy_assets")
-        click.echo(f"Theme directory: {theme_dir}")
-
-        # CRITICAL FIX: Use Rich Prompt instead of click.confirm for visible input
-        from rich.prompt import Confirm
-
-        if Confirm.ask("Continue anyway?", default=False):
-            return True, manual_fix_attempted, False
+        logger.warning(f"Error in failure recovery: {e}")
 
     return False, manual_fix_attempted, False
 
 
-def _parse_compilation_errors(logs: str, test_files: list) -> list:
+def _parse_compilation_errors(logs: str) -> list[dict]:
     """
     Parse Docker Gulp logs to extract specific compilation error information.
 
     Args:
         logs: Docker Gulp log output
-        test_files: List of test files being compiled
 
     Returns:
         list: List of error dictionaries with file, line, and error details
@@ -1776,8 +1426,6 @@ def _parse_compilation_errors(logs: str, test_files: list) -> list:
 
     for line in lines:
         for pattern_info in error_patterns:
-            import re
-
             match = re.search(pattern_info["pattern"], line, re.IGNORECASE)
             if match:
                 error = {
@@ -1800,32 +1448,33 @@ def _parse_compilation_errors(logs: str, test_files: list) -> list:
     return errors
 
 
-def _attempt_error_fix(error_info: dict, css_dir: str, theme_dir: str) -> bool:
+def _attempt_error_fix(error_info: dict, css_dir: str | Path, _theme_dir: str | Path) -> bool:
     """
     Attempt to automatically fix a specific compilation error.
 
     Args:
         error_info: Error information dictionary
         css_dir: CSS directory path
-        theme_dir: Theme directory path
+        _theme_dir: Theme directory path (unused)
 
     Returns:
         bool: True if fix was applied, False otherwise
     """
     error_type = error_info.get("type")
+    css_path = Path(css_dir)
 
     try:
         if error_type == "undefined_variable":
-            return _fix_undefined_variable(error_info, css_dir)
+            return _fix_undefined_variable(error_info, css_path)
 
         if error_type == "undefined_mixin":
-            return _fix_undefined_mixin(error_info, css_dir)
+            return _fix_undefined_mixin(error_info, css_path)
 
         if error_type == "syntax_error":
-            return _fix_syntax_error(error_info, css_dir)
+            return _fix_syntax_error(error_info, css_path)
 
         if error_type == "invalid_css":
-            return _fix_invalid_css(error_info, css_dir)
+            return _fix_invalid_css(error_info, css_path)
 
         logger.info(f"No automated fix available for error type: {error_type}")
         return False
@@ -1835,8 +1484,8 @@ def _attempt_error_fix(error_info: dict, css_dir: str, theme_dir: str) -> bool:
         return False
 
 
-def _fix_undefined_variable(error_info: dict, css_dir: str) -> bool:
-    """Fix undefined SCSS variables by uncommenting them in _variables.scss or replacing with CSS variables."""
+def _fix_undefined_variable(error_info: dict, css_dir: Path) -> bool:
+    """Fix undefined SCSS variables by uncommenting or replacing with CSS variables."""
     variable_name = error_info["match_groups"][0] if error_info["match_groups"] else None
 
     if not variable_name:
@@ -1845,63 +1494,57 @@ def _fix_undefined_variable(error_info: dict, css_dir: str) -> bool:
     logger.info(f"Attempting to fix undefined variable: ${variable_name}")
 
     # First, try to uncomment the variable in _variables.scss
-    variables_file = os.path.join(css_dir, "_variables.scss")
-    if os.path.exists(variables_file):
+    variables_file = css_dir / "_variables.scss"
+    if variables_file.exists():
         try:
-            with open(variables_file) as f:
-                content = f.read()
-
+            content = variables_file.read_text()
             lines = content.splitlines()
             modified = False
 
             for i, line in enumerate(lines):
                 # Look for commented variable definition
-                if (f"${variable_name}:" in line and
-                    line.strip().startswith("//") and
-                    not line.strip().startswith("// SCSS CONVERTED:")):
+                if (
+                    f"${variable_name}:" in line
+                    and line.strip().startswith("//")
+                    and not line.strip().startswith("// SCSS CONVERTED:")
+                ):
                     # Uncomment the line
-                    uncommented_line = line.lstrip("/ ").strip()
-                    if uncommented_line.startswith("$"):
-                        lines[i] = uncommented_line
+                    _uncommented_line = line.lstrip("/ ").strip()
+                    if _uncommented_line.startswith("$"):
+                        lines[i] = _uncommented_line
                         modified = True
                         logger.info(f"Uncommented variable definition: ${variable_name}")
                         break
 
             if modified:
-                with open(variables_file, "w") as f:
-                    f.write("\n".join(lines))
+                variables_file.write_text("\n".join(lines) + "\n")
                 return True
 
         except Exception as e:
             logger.warning(f"Error fixing variable in _variables.scss: {e}")
 
     # Fallback: Replace undefined variable with CSS variable equivalent in test files
-    for file_name in os.listdir(css_dir):
-        if file_name.startswith("test-") and file_name.endswith(".scss"):
-            file_path = os.path.join(css_dir, file_name)
-
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_path.suffix == ".scss":
             try:
-                with open(file_path) as f:
-                    content = f.read()
+                content = file_path.read_text()
 
                 # Replace undefined variable with CSS variable equivalent
                 original_content = content
                 content = content.replace(f"${variable_name}", f"var(--{variable_name})")
 
                 if content != original_content:
-                    with open(file_path, "w") as f:
-                        f.write(content)
-
-                    logger.info(f"Fixed undefined variable ${variable_name} in {file_name}")
+                    file_path.write_text(content)
+                    logger.info(f"Fixed undefined variable ${variable_name} in {file_path.name}")
                     return True
 
             except Exception as e:
-                logger.warning(f"Error fixing variable in {file_name}: {e}")
+                logger.warning(f"Error fixing variable in {file_path.name}: {e}")
 
     return False
 
 
-def _fix_undefined_mixin(error_info: dict, css_dir: str) -> bool:
+def _fix_undefined_mixin(error_info: dict, css_dir: Path) -> bool:
     """Fix undefined mixins by commenting them out."""
     if "match_groups" not in error_info or not error_info["match_groups"]:
         return False
@@ -1910,13 +1553,11 @@ def _fix_undefined_mixin(error_info: dict, css_dir: str) -> bool:
     logger.info(f"Attempting to fix undefined mixin: {mixin_name}")
 
     # Find and comment out mixin usage
-    for file_name in os.listdir(css_dir):
-        if file_name.startswith("test-") and file_name.endswith(".scss"):
-            file_path = os.path.join(css_dir, file_name)
-
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_path.suffix == ".scss":
             try:
-                with open(file_path) as f:
-                    lines = f.readlines()
+                content = file_path.read_text()
+                lines = content.splitlines(keepends=True)
 
                 modified = False
                 for i, line in enumerate(lines):
@@ -1926,76 +1567,28 @@ def _fix_undefined_mixin(error_info: dict, css_dir: str) -> bool:
                         logger.info(f"Commented out mixin usage: {mixin_name}")
 
                 if modified:
-                    with open(file_path, "w") as f:
-                        f.writelines(lines)
+                    file_path.write_text("".join(lines))
                     return True
 
             except Exception as e:
-                logger.warning(f"Error fixing mixin in {file_name}: {e}")
+                logger.warning(f"Error fixing mixin in {file_path.name}: {e}")
 
     return False
 
 
-def _fix_syntax_error(error_info: dict, css_dir: str) -> bool:
-    """Fix common SCSS syntax errors."""
-    if "file" not in error_info or "line_number" not in error_info:
-        return False
-
-    file_name = error_info["file"]
-    line_number = error_info["line_number"]
-
-    # Find the test file
-    test_file_path = None
-    for fname in os.listdir(css_dir):
-        if fname.startswith("test-") and file_name in fname:
-            test_file_path = os.path.join(css_dir, fname)
-            break
-
-    if not test_file_path or not os.path.exists(test_file_path):
-        return False
-
-    try:
-        with open(test_file_path) as f:
-            lines = f.readlines()
-
-        if line_number <= len(lines):
-            problematic_line = lines[line_number - 1]
-
-            # Common syntax fixes
-            fixed_line = problematic_line
-
-            # Fix missing semicolons
-            if not problematic_line.strip().endswith((";", "{", "}")) and ":" in problematic_line:
-                fixed_line = problematic_line.rstrip() + ";\n"
-
-            # Fix lighten/darken functions with CSS variables
-            import re
-
-            fixed_line = re.sub(
-                r"(lighten|darken)\(var\([^)]+\),\s*\d+%\)", lambda m: "var(--primary)", fixed_line
-            )
-
-            if fixed_line != problematic_line:
-                lines[line_number - 1] = fixed_line
-
-                with open(test_file_path, "w") as f:
-                    f.writelines(lines)
-
-                logger.info(f"Applied syntax fix at line {line_number} in {file_name}")
-                return True
-
-    except Exception as e:
-        logger.warning(f"Error applying syntax fix: {e}")
-
-    return False
+def _fix_syntax_error(_error_info: dict, scss_content: str) -> str | None:
+    """Comment out lines with syntax errors."""
+    return _comment_out_error_line(_error_info, scss_content)
 
 
-def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
+def _fix_invalid_css(error_info: dict, css_dir: Path) -> bool:
     """Fix invalid CSS syntax errors."""
     error_message = error_info.get("message", "")
 
     # Handle dangling comma selectors (like .navbar .navbar-inner ul.nav li a,)
-    if "expected 1 selector or at-rule" in error_message and (".navbar" in error_message or "navbar-inn" in error_message):
+    if "expected 1 selector or at-rule" in error_message and (
+        ".navbar" in error_message or "navbar-inn" in error_message
+    ):
         return _fix_dangling_comma_selector(error_info, css_dir)
 
     # Handle specific mixin parameter syntax errors
@@ -2010,112 +1603,104 @@ def _fix_invalid_css(error_info: dict, css_dir: str) -> bool:
     return _comment_out_error_line(error_info, css_dir)
 
 
-def _fix_dangling_comma_selector(error_info: dict, css_dir: str) -> bool:
+def _fix_dangling_comma_selector(_error_info: dict, css_dir: Path) -> bool:
     """Fix dangling comma selectors followed by comments that break SCSS compilation."""
-    for file_name in os.listdir(css_dir):
-        if file_name.startswith("test-") and file_name.endswith(".scss"):
-            file_path = os.path.join(css_dir, file_name)
-
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_path.suffix == ".scss":
             try:
-                with open(file_path) as f:
-                    lines = f.readlines()
+                content = file_path.read_text()
+                lines = content.splitlines(keepends=True)
 
                 modified = False
                 for i, line in enumerate(lines):
                     # Look for lines ending with comma followed by EXCLUDED comments
                     if (
-                        line.strip().endswith(",") and
-                        i + 1 < len(lines) and
-                        "EXCLUDED" in lines[i + 1] and
-                        "RULE:" in lines[i + 1]
+                        line.strip().endswith(",")
+                        and i + 1 < len(lines)
+                        and "EXCLUDED" in lines[i + 1]
+                        and "RULE:" in lines[i + 1]
                     ):
                         # Remove the comma and comment out the problematic line
                         lines[i] = f"// FIXED DANGLING COMMA: {line.strip().rstrip(',')}"
                         # Also comment out the EXCLUDED comment line
                         lines[i + 1] = f"// REMOVED EXCLUSION COMMENT: {lines[i + 1].strip()}\n"
                         modified = True
-                        logger.info(f"Fixed dangling comma selector in {file_name} at line {i + 1}")
+                        logger.info(
+                            f"Fixed dangling comma selector in {file_path.name} at line {i + 1}"
+                        )
 
                 if modified:
-                    with open(file_path, "w") as f:
-                        f.writelines(lines)
+                    file_path.write_text("".join(lines))
                     return True
 
             except Exception as e:
-                logger.warning(f"Error fixing dangling comma in {file_name}: {e}")
+                logger.warning(f"Error fixing dangling comma in {file_path.name}: {e}")
 
     return False
 
 
-def _fix_mixin_parameter_syntax(error_info: dict, css_dir: str) -> bool:
+def _fix_mixin_parameter_syntax(_error_info: dict, css_dir: Path) -> bool:
     """Fix mixin parameter syntax errors like fade-transition(var(--element))."""
-    for file_name in os.listdir(css_dir):
-        if file_name.startswith("test-") and file_name.endswith(".scss"):
-            file_path = os.path.join(css_dir, file_name)
-
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_path.suffix == ".scss":
             try:
-                with open(file_path) as f:
-                    content = f.read()
+                content = file_path.read_text()
 
                 # Fix fade-transition mixin with double closing parentheses
-                import re
-
                 fixed_content = re.sub(
                     r"fade-transition\(var\(--([^)]+)\)\)", r"fade-transition(var(--\1))", content
                 )
 
                 if fixed_content != content:
-                    with open(file_path, "w") as f:
-                        f.write(fixed_content)
-                    logger.info(f"Fixed mixin parameter syntax in {file_name}")
+                    file_path.write_text(fixed_content)
+                    logger.info(f"Fixed mixin parameter syntax in {file_path.name}")
                     return True
 
             except Exception as e:
-                logger.warning(f"Error fixing mixin parameters in {file_name}: {e}")
+                logger.warning(f"Error fixing mixin parameters in {file_path.name}: {e}")
 
     return False
 
 
-def _fix_parenthesis_mismatch(error_info: dict, css_dir: str) -> bool:
+def _fix_parenthesis_mismatch(_error_info: dict, css_dir: Path) -> bool:
     """Fix parenthesis mismatch errors."""
-    for file_name in os.listdir(css_dir):
-        if file_name.startswith("test-") and file_name.endswith(".scss"):
-            file_path = os.path.join(css_dir, file_name)
-
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_path.suffix == ".scss":
             try:
-                with open(file_path) as f:
-                    lines = f.readlines()
+                content = file_path.read_text()
+                lines = content.splitlines(keepends=True)
 
                 modified = False
-                for i, line in enumerate(lines):
+                for i, _line in enumerate(lines):
                     # Fix common parenthesis issues
-                    if ")" in line and "(" in line:
+                    if ")" in _line and "(" in _line:
                         # Count parentheses
-                        open_count = line.count("(")
-                        close_count = line.count(")")
+                        open_count = _line.count("(")
+                        close_count = _line.count(")")
 
                         if close_count > open_count:
                             # Remove extra closing parentheses
-                            while close_count > open_count and ")" in line:
-                                line = line.replace(")", "", 1)
+                            while close_count > open_count and ")" in _line:
+                                _line = _line.replace(")", "", 1)
                                 close_count -= 1
 
-                            lines[i] = line
+                            lines[i] = _line
                             modified = True
-                            logger.info(f"Fixed parenthesis mismatch in {file_name} line {i + 1}")
+                            logger.info(
+                                f"Fixed parenthesis mismatch in {file_path.name} line {i + 1}"
+                            )
 
                 if modified:
-                    with open(file_path, "w") as f:
-                        f.writelines(lines)
+                    file_path.write_text("".join(lines))
                     return True
 
             except Exception as e:
-                logger.warning(f"Error fixing parentheses in {file_name}: {e}")
+                logger.warning(f"Error fixing parentheses in {file_path.name}: {e}")
 
     return False
 
 
-def _comment_out_error_line(error_info: dict, css_dir: str) -> bool:
+def _comment_out_error_line(error_info: dict, css_dir: Path) -> bool:
     """Comment out a problematic line of code."""
     if "file" not in error_info or "line_number" not in error_info:
         return False
@@ -2125,24 +1710,23 @@ def _comment_out_error_line(error_info: dict, css_dir: str) -> bool:
 
     # Find the test file
     test_file_path = None
-    for fname in os.listdir(css_dir):
-        if fname.startswith("test-") and file_name in fname:
-            test_file_path = os.path.join(css_dir, fname)
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_name in file_path.name:
+            test_file_path = file_path
             break
 
-    if not test_file_path or not os.path.exists(test_file_path):
+    if not test_file_path or not test_file_path.exists():
         return False
 
     try:
-        with open(test_file_path) as f:
-            lines = f.readlines()
+        content = test_file_path.read_text()
+        lines = content.splitlines(keepends=True)
 
         if line_number <= len(lines):
             original_line = lines[line_number - 1]
             lines[line_number - 1] = f"// ERROR COMMENTED OUT: {original_line.strip()}\n"
 
-            with open(test_file_path, "w") as f:
-                f.writelines(lines)
+            test_file_path.write_text("".join(lines))
 
             logger.info(f"Commented out problematic line {line_number} in {file_name}")
             return True
@@ -2153,7 +1737,7 @@ def _comment_out_error_line(error_info: dict, css_dir: str) -> bool:
     return False
 
 
-def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
+def _cleanup_compilation_test_files(css_dir: str | Path, test_files: list[tuple[str, str]]) -> None:
     """
     Clean up test files created during compilation testing.
 
@@ -2161,19 +1745,20 @@ def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
         css_dir: Path to CSS directory
         test_files: List of (test_filename, scss_path) tuples
     """
+    css_path_dir = Path(css_dir)
     for test_filename, _ in test_files:
-        test_path = os.path.join(css_dir, test_filename)
+        test_path = css_path_dir / test_filename
         css_filename = test_filename.replace(".scss", ".css")
-        css_path = os.path.join(css_dir, css_filename)
+        css_path = css_path_dir / css_filename
 
         # Remove test SCSS file
-        if os.path.exists(test_path):
-            os.remove(test_path)
+        if test_path.exists():
+            test_path.unlink()
             logger.info(f"Removed test file: {test_filename}")
 
         # Remove generated CSS file
-        if os.path.exists(css_path):
-            os.remove(css_path)
+        if css_path.exists():
+            css_path.unlink()
             logger.info(f"Removed generated CSS: {css_filename}")
 
     # Wait for cleanup cycle to complete
@@ -2184,7 +1769,7 @@ def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
         subprocess.run(
             ["git", "reset", "--hard"],
             check=False,
-            cwd=os.path.dirname(css_dir),
+            cwd=str(css_path_dir.parent),
             capture_output=True,
             timeout=10,
         )
@@ -2193,7 +1778,9 @@ def _cleanup_compilation_test_files(css_dir: str, test_files: list) -> None:
         logger.warning(f"Could not reset git directory: {e}")
 
 
-def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
+def _comment_out_problematic_code(
+    test_files: list[tuple[str, str]], css_dir: str | Path
+) -> list[dict]:
     """
     Systematically comment out problematic SCSS code based on actual compilation errors.
 
@@ -2207,6 +1794,7 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
     logger.warning("Systematically commenting out problematic SCSS code...")
 
     commented_lines = []
+    css_path = Path(css_dir)
 
     # Get current Docker logs to identify specific errors
     docker_errors = _get_current_compilation_errors()
@@ -2216,7 +1804,7 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
         for error in docker_errors:
             if "fade-transition" in error.get("message", ""):
                 lines_commented = _comment_lines_containing(
-                    test_files, css_dir, "fade-transition", "fade-transition mixin"
+                    test_files, css_path, "fade-transition", "fade-transition mixin"
                 )
                 commented_lines.extend(lines_commented)
             elif "undefined mixin" in error.get("message", "").lower():
@@ -2224,14 +1812,14 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
                 if mixin_name:
                     lines_commented = _comment_lines_containing(
                         test_files,
-                        css_dir,
+                        css_path,
                         f"@include {mixin_name}",
                         f"undefined mixin: {mixin_name}",
                     )
                     commented_lines.extend(lines_commented)
             elif "lighten(" in error.get("message", "") or "darken(" in error.get("message", ""):
                 lines_commented = _comment_lines_containing(
-                    test_files, css_dir, ["lighten(", "darken("], "SCSS color functions"
+                    test_files, css_path, ["lighten(", "darken("], "SCSS color functions"
                 )
                 commented_lines.extend(lines_commented)
     else:
@@ -2245,14 +1833,14 @@ def _comment_out_problematic_code(test_files: list, css_dir: str) -> list:
         ]
 
         for pattern, description in fallback_patterns:
-            lines_commented = _comment_lines_containing(test_files, css_dir, pattern, description)
+            lines_commented = _comment_lines_containing(test_files, css_path, pattern, description)
             commented_lines.extend(lines_commented)
             if lines_commented:  # Stop after first successful comment
                 break
     return commented_lines
 
 
-def _get_current_compilation_errors():
+def _get_current_compilation_errors() -> list[dict]:
     """Get current compilation errors from Docker logs."""
     try:
         result = subprocess.run(
@@ -2281,17 +1869,20 @@ def _get_current_compilation_errors():
     return []
 
 
-def _extract_mixin_name_from_error(error):
+def _extract_mixin_name_from_error(error: dict) -> str | None:
     """Extract mixin name from error message."""
     message = error.get("message", "")
     # Look for patterns like "Undefined mixin 'fade-transition'"
-    import re
-
     match = re.search(r"mixin['\s]+([a-zA-Z_-]+)", message)
     return match.group(1) if match else None
 
 
-def _comment_lines_containing(test_files, css_dir, patterns, description):
+def _comment_lines_containing(
+    test_files: list[tuple[str, str]],
+    css_dir: Path,
+    patterns: str | list[str],
+    description: str,
+) -> list[dict]:
     """Comment out lines containing specific patterns."""
     if isinstance(patterns, str):
         patterns = [patterns]
@@ -2299,15 +1890,13 @@ def _comment_lines_containing(test_files, css_dir, patterns, description):
     commented_lines = []
 
     for test_filename, _ in test_files:
-        test_file_path = os.path.join(css_dir, test_filename)
+        test_file_path = css_dir / test_filename
 
-        if not os.path.exists(test_file_path):
+        if not test_file_path.exists():
             continue
 
         try:
-            with open(test_file_path) as f:
-                content = f.read()
-
+            content = test_file_path.read_text()
             lines = content.split("\n")
             modified = False
 
@@ -2337,9 +1926,7 @@ def _comment_lines_containing(test_files, css_dir, patterns, description):
                         break
 
             if modified:
-                with open(test_file_path, "w") as f:
-                    f.write("\n".join(lines))
-
+                test_file_path.write_text("\n".join(lines))
                 logger.info(f"Commented out {description} in {test_filename}")
 
         except Exception as e:
@@ -2349,7 +1936,7 @@ def _comment_lines_containing(test_files, css_dir, patterns, description):
 
 
 def _copy_successful_test_files_to_originals(
-    test_files: list, css_dir: str, theme_dir: str
+    test_files: list[tuple[str, str]], css_dir: str | Path, theme_dir: str | Path
 ) -> None:
     """
     Copy successful test files back to original locations.
@@ -2360,13 +1947,15 @@ def _copy_successful_test_files_to_originals(
         theme_dir: Theme directory path
     """
     logger.info("Copying successful test files back to original locations...")
+    css_path_dir = Path(css_dir)
+    theme_path = Path(theme_dir)
 
     for test_filename, _ in test_files:
-        test_file_path = os.path.join(css_dir, test_filename)
+        test_file_path = css_path_dir / test_filename
         original_filename = test_filename.replace("test-", "")
-        original_path = os.path.join(theme_dir, original_filename)
+        original_path = theme_path / original_filename
 
-        if os.path.exists(test_file_path):
+        if test_file_path.exists():
             try:
                 shutil.copy2(test_file_path, original_path)
                 logger.info(f"Copied {test_filename} back to {original_filename}")
@@ -2374,7 +1963,7 @@ def _copy_successful_test_files_to_originals(
                 logger.warning(f"Error copying {test_filename} to {original_filename}: {e}")
 
 
-def _report_commented_code(commented_lines: list, slug: str) -> None:
+def _report_commented_code(commented_lines: list[dict], slug: str) -> None:
     """
     Report what code was commented out to the user.
 
@@ -2390,7 +1979,8 @@ def _report_commented_code(commented_lines: list, slug: str) -> None:
     click.echo("=" * 60)
     click.echo("✅ SCSS files now compile successfully!")
     click.echo(
-        f"🔧 {len(commented_lines)} lines of code were automatically commented out to fix compilation errors:"
+        f"🔧 {len(commented_lines)} lines of code were automatically commented out to fix "
+        "compilation errors:"
     )
     click.echo()
 

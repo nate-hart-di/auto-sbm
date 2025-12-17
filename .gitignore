@@ -96,8 +96,7 @@ PRPs/
 issue-tracker/
 docs/
 config.json
-auto-sbm.code-workspace
-scripts/
+!sbm/scripts/
 
 # Test output files (but NOT the tests/ directory itself)
 *.log
@@ -116,3 +115,7 @@ uv.lock
 .mcp.json
 .agentvibes/
 .vscode/
+
+# AI Assistant files (Keep these tracked for collaboration)
+!CLAUDE.md
+!GEMINI.md

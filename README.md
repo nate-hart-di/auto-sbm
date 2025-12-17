@@ -11,13 +11,9 @@
 ## ✨ Features
 
 - **🔄 Automated SCSS Migration**: Converts legacy SCSS to Site Builder format with intelligent variable processing
+- **🚀 Background Automation**: Silent background auto-updates and stats refresh tracking
 - **🎨 Rich UI**: Beautiful terminal interface with progress tracking and status panels
-- **🔒 Type Safety**: Full Pydantic v2 validation and mypy type checking
-- **⚡ Performance**: Optimized processing with concurrent file handling
-- **🛡️ Security**: Environment-based configuration with no hardcoded secrets
-- **🧪 Comprehensive Testing**: 90%+ test coverage with robust validation
-- **📊 Detailed Reporting**: Complete migration logs and validation reports
-- **💻 Code Formatting**: Integrated prettier for consistent code formatting
+- **📊 Stats Tracking**: Automatic aggregation of migration statistics and GitHub PR data
 
 ---
 
@@ -250,52 +246,20 @@ sbm migrate {theme-slug} --no-rich
 Auto-SBM v2.0 uses a modern **vertical slice architecture** organized by business capability:
 
 ```
-auto-sbm/
-├── sbm/                      # Main package
-│   ├── __init__.py          # Package initialization
-│   ├── main.py              # CLI entry point
-│   ├── config.py            # Configuration management
-│   │
-│   ├── core/                # Core business logic
-│   │   ├── migration.py     # Migration orchestration
-│   │   ├── git.py           # Git operations
-│   │   ├── maps.py          # Map component migration
-│   │   └── validation.py    # Post-migration validation
-│   │
-│   ├── scss/                # SCSS processing engine
-│   │   ├── processor.py     # Core SCSS transformation
-│   │   ├── mixin_parser.py  # CommonTheme mixin conversion
-│   │   └── validator.py     # SCSS validation
-│   │
-│   ├── ui/                  # Rich UI components
-│   │   ├── console.py       # Console management
-│   │   ├── progress.py      # Progress tracking
-│   │   ├── panels.py        # Status panels
-│   │   └── prompts.py       # Interactive prompts
-│   │
-│   ├── oem/                 # OEM-specific handling
-│   │   ├── stellantis.py    # Stellantis customizations
-│   │   ├── factory.py       # OEM handler factory
-│   │   └── base.py          # Base OEM handler
-│   │
-│   └── utils/               # Utilities and helpers
-│       ├── logger.py        # Rich-enhanced logging
-│       ├── path.py          # Path utilities
-│       └── command.py       # Command execution
-│
-├── tests/                   # 🚨 ALL TESTS GO HERE 🚨
-│   ├── test_*.py           # Unit tests
-│   ├── integration/        # Integration tests
-│   └── fixtures/           # Test data
-│
-├── PRPs/                   # 🚨 ALL PRP DOCUMENTS GO HERE 🚨
-│   ├── *.md               # Project requirements and planning
-│   └── code_reviews/      # Code quality analysis
-│
-├── pyproject.toml         # Modern Python packaging
-├── .env.example          # Environment template
-├── setup.sh              # Development setup script
-└── CLAUDE.md             # AI assistant context
+├── scripts/                   # Specialized automation scripts
+│   └── stats/                 # Stats aggregation and backfill
+├── sbm/                       # Core package (migration logic, utils)
+├── stats/                     # Statistical data and reports
+│   └── raw/                   # Raw JSON data (GitHub/Local)
+├── tests/                     # 🚨 ALL TESTS GO HERE 🚨
+│   ├── integration/
+│   └── fixtures/
+├── PRPs/                      # 🚨 ALL PRP DOCUMENTS GO HERE 🚨
+│   └── code_reviews/
+├── pyproject.toml             # Modern Python packaging
+├── setup.sh                  # Development setup script
+├── CLAUDE.md                 # AI assistant context
+└── README.md                 # User documentation
 ```
 
 ### **Key Architectural Principles**

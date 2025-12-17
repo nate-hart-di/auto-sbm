@@ -11,8 +11,10 @@ import json
 import os
 import socket
 import subprocess
+import fcntl
 from datetime import datetime, timezone
 from pathlib import Path
+from .processes import run_background_task
 
 from .logger import logger
 
@@ -183,6 +185,10 @@ def record_run(
 
     _write_tracker(data)
 
+    # Trigger silent background stats refresh if this was a successful run
+    if status == "success":
+        trigger_background_stats_update()
+
 
 def get_migration_stats() -> dict:
     """Return tracker stats with local and global aggregated metrics."""
@@ -277,54 +283,83 @@ def _aggregate_global_stats() -> dict:
 
 
 def sync_global_stats() -> None:
-    """Background sync: Commit and push the current user's stats file."""
+    """Background sync: Commit and push the current user's stats file with file locking."""
+    lock_file = GLOBAL_STATS_DIR / ".sync.lock"
+    
     try:
-        user_id = _get_user_id()
-        stats_file = GLOBAL_STATS_DIR / f"{user_id}.json"
+        # Create lock file if it doesn't exist
+        lock_file.touch(exist_ok=True)
+        
+        with lock_file.open("w") as lock_f:
+            try:
+                # Exclusive non-blocking lock
+                fcntl.flock(lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except IOError:
+                # Another process is syncing, skip
+                return
 
-        if not stats_file.exists():
-            return
+            try:
+                user_id = _get_user_id()
+                stats_file = GLOBAL_STATS_DIR / f"{user_id}.json"
 
-        # Check if we have uncommitted changes in the stats file
-        rel_path = f"stats/{user_id}.json"
+                if not stats_file.exists():
+                    return
 
-        # Add the file
-        subprocess.run(
-            ["git", "add", rel_path],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True
-        )
+                # Check if we have uncommitted changes in the stats file
+                rel_path = f"stats/{user_id}.json"
 
-        # Check if there's anything to commit
-        status = subprocess.run(
-            ["git", "status", "--porcelain", rel_path],
-            capture_output=True,
-            text=True,
-            check=False,
-            cwd=str(REPO_ROOT)
-        )
+                # Add the file
+                subprocess.run(
+                    ["git", "add", rel_path],
+                    check=False,
+                    cwd=str(REPO_ROOT),
+                    capture_output=True
+                )
 
-        if not status.stdout.strip():
-            return  # No changes
+                # Check commit status
+                status_check = subprocess.run(
+                    ["git", "status", "--porcelain", rel_path],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    cwd=str(REPO_ROOT)
+                )
 
-        # Commit
-        subprocess.run(
-            ["git", "commit", "-m", f"docs: update global stats for {user_id}", "--no-verify"],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True
-        )
+                if not status_check.stdout.strip():
+                    return  # No changes
 
-        # Push in background (non-blocking if possible, but we'll just run it)
-        # sbm cli logic already does pulls, so we just need to push
-        subprocess.run(
-            ["git", "push", "origin", "HEAD", "--no-verify"],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            timeout=10
-        )
+                # Commit (Removed --no-verify for security)
+                subprocess.run(
+                    ["git", "commit", "-m", f"docs: update global stats for {user_id}"],
+                    check=False,
+                    cwd=str(REPO_ROOT),
+                    capture_output=True
+                )
+
+                # Push (Removed --no-verify for security)
+                subprocess.run(
+                    ["git", "push", "origin", "HEAD"],
+                    check=False,
+                    cwd=str(REPO_ROOT),
+                    capture_output=True,
+                    timeout=15
+                )
+            finally:
+                # Always release lock
+                fcntl.flock(lock_f, fcntl.LOCK_UN)
 
     except Exception as e:
         logger.debug(f"Global stats sync failed: {e}")
+
+
+def trigger_background_stats_update() -> None:
+    """
+    Trigger a silent background refresh of statistics.
+    Uses the sbm cli to run the backfill script and sync global stats.
+    """
+    try:
+        # Trigger command in background
+        run_background_task([os.sys.executable, "-m", "sbm.cli", "internal-refresh-stats"])
+        
+    except Exception as e:
+        logger.debug(f"Failed to trigger background stats update: {e}")

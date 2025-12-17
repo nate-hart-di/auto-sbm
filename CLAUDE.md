@@ -7,8 +7,9 @@
 1. **Tests** → `tests/test_*.py` (NEVER in root or sbm/)
 2. **PRP docs** → `PRPs/*.md` (NEVER in root)
 3. **Source code** → `sbm/*.py` (Python modules)
-4. **Documentation** → `*.md` (root directory only)
-5. **Scripts** → `setup*.sh` (root directory only)
+4. **Scripts** → `sbm/scripts/` (Specialized scripts)
+5. **Documentation** → `*.md` (root directory only)
+6. **Data** → `stats/raw/` (Raw statistical data)
 
 **Common mistakes to AVOID:**
 
@@ -116,11 +117,13 @@ python -m auto_sbm.main migrate <theme-name>
 
 **ALWAYS follow these rules when creating new files:**
 
-1. **Tests MUST go in `tests/`** - Never create test files in root or other directories
-2. **PRP documents MUST go in `PRPs/`** - All project planning and requirements docs
-3. **Source code MUST go in `sbm/`** - All Python modules and packages
-4. **Scripts MUST go in root** - Only setup scripts like `setup.sh`
-5. **Documentation MUST go in root** - README.md, CLAUDE.md, etc.
+1. **Tests MUST go in `tests/`**
+2. **PRP documents MUST go in `PRPs/`**
+3. **Source code MUST go in `sbm/`**
+4. **Specialized scripts MUST go in `scripts/stats/`**
+5. **Raw data MUST go in `stats/raw/`**
+6. **Setup scripts MUST go in root**
+7. **Documentation MUST go in root**
 
 **Examples of CORRECT file placement:**
 
@@ -154,64 +157,21 @@ python -m auto_sbm.main migrate <theme-name>
 
 ```
 auto-sbm/
-├── src/auto_sbm/              # Main package (src layout for editable installs)
-│   ├── __init__.py           # Package initialization and exports
-│   ├── config.py             # Pydantic BaseSettings with env validation
-│   │
-│   ├── models/               # Shared Pydantic models for type safety
-│   │   ├── __init__.py
-│   │   ├── theme.py          # Theme data structures and validation
-│   │   ├── migration.py      # Migration state and result models
-│   │   ├── scss.py           # SCSS processing data models
-│   │   └── tests/            # Model validation tests
-│   │
-│   ├── features/             # Vertical slices by business capability
-│   │   ├── migration/        # Migration orchestration and workflow
-│   │   │   ├── __init__.py
-│   │   │   ├── service.py    # Core migration business logic
-│   │   │   ├── models.py     # Migration-specific models
-│   │   │   ├── cli.py        # Migration CLI commands
-│   │   │   └── tests/        # Migration feature tests
-│   │   │
-│   │   ├── scss_processing/  # SCSS transformation engine
-│   │   │   ├── __init__.py
-│   │   │   ├── processor.py  # Core SCSS transformation logic
-│   │   │   ├── mixin_parser.py # SCSS mixin conversion
-│   │   │   ├── validator.py  # SCSS syntax validation
-│   │   │   ├── models.py     # SCSS-specific data models
-│   │   │   └── tests/        # SCSS processing tests
-│   │   │
-│   │   ├── git_operations/   # Git workflow automation
-│   │   │   ├── __init__.py
-│   │   │   ├── service.py    # Git operations (add, commit, push, PR)
-│   │   │   ├── models.py     # Git state and operation models
-│   │   │   └── tests/        # Git operation tests
-│   │   │
-│   │   └── oem_handling/     # OEM-specific customizations
-│   │       ├── __init__.py
-│   │       ├── service.py    # OEM-specific business logic
-│   │       ├── models.py     # OEM configuration models
-│   │       └── tests/        # OEM handling tests
-│   │
-│   └── shared/               # Cross-cutting concerns and utilities
-│       ├── ui/               # Rich UI components and theming
-│       │   ├── __init__.py
-│       │   ├── console.py    # Console management and output
-│       │   ├── progress.py   # Progress tracking and status
-│       │   ├── panels.py     # Status panels and layout
-│       │   ├── models.py     # UI state models
-│       │   └── tests/        # UI component tests
-│       │
-│       ├── validation/       # Validation utilities and patterns
-│       │   ├── __init__.py
-│       │   ├── service.py    # Common validation logic
-│       │   └── tests/        # Validation tests
-│       │
-│       └── utils/            # Common utilities and helpers
-│           ├── __init__.py
-│           ├── file_operations.py # File system utilities
-│           └── tests/        # Utility tests
-│
+├── scripts/                   # Specialized automation scripts
+│   └── stats/                 # Stats aggregation and backfill
+├── sbm/                       # Core package
+│   ├── core/                  # Core migration logic
+│   ├── utils/                 # Shared utilities (tracker, logger)
+│   └── ...
+├── stats/                     # Statistical data and reports
+│   └── raw/                   # Raw JSON data from GitHub/Local
+├── tests/                     # 🚨 ALL TESTS GO HERE 🚨
+├── PRPs/                      # 🚨 ALL PRP DOCUMENTS GO HERE 🚨
+├── pyproject.toml             # Modern Python packaging configuration
+├── .env.example              # Environment variable template
+├── setup.sh                  # Development setup script
+├── CLAUDE.md                 # This file - AI assistant context
+└── README.md                 # User documentation
 ├── tests/                    # 🚨 ALL TESTS GO HERE 🚨
 │   ├── conftest.py          # Shared pytest fixtures
 │   ├── integration/         # Full workflow integration tests

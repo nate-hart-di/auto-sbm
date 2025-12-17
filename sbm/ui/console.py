@@ -47,6 +47,8 @@ class SBMConsole:
             width=None,  # Auto-detect terminal width
             legacy_windows=False,
         )
+        self.total_steps = 0
+        self.current_step = 0
 
     def _create_theme(self) -> Theme:
         """
@@ -123,16 +125,26 @@ class SBMConsole:
 
         return any(os.getenv(var) for var in ci_indicators) or os.getenv("TERM") == "dumb"
 
-    def print_step(self, step_num: int, total_steps: int, description: str) -> None:
+    def set_total_steps(self, total: int) -> None:
+        """Set the total number of steps for the current process."""
+        self.total_steps = total
+        self.current_step = 0
+
+    def print_step(self, description: str, step_num: int | None = None) -> None:
         """
         Print step header with consistent formatting.
 
         Args:
-            step_num: Current step number
-            total_steps: Total number of steps
             description: Description of the step
+            step_num: Optional step number (auto-increments if not provided)
         """
-        self.console.print(f"\n[step]Step {step_num}/{total_steps}:[/] {description}")
+        if step_num is not None:
+            self.current_step = step_num
+        else:
+            self.current_step += 1
+
+        total_str = f"/{self.total_steps}" if self.total_steps > 0 else ""
+        self.console.print(f"\n[step]Step {self.current_step}{total_str}:[/] {description}")
 
     def print_status(self, message: str, style: str = "info") -> None:
         """
