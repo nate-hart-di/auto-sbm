@@ -469,35 +469,37 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
     logger.info(f"Using {oem_handler} for {theme_name}")
 
     total_steps = 3 if skip_maps else 4
+    from sbm.ui.console import get_console
+    console = get_console()
 
     # Step 1: Create Site Builder files
-    from sbm.ui.console import get_console
-    console = get_console()
-    console.print_step(1, total_steps, "Creating Site Builder files")
-    if not create_sb_files(theme_name, force_reset):
-        logger.error(f"Failed to create Site Builder files for {theme_name}")
-        return False
+    with console.status(f"Step 1/{total_steps}: Creating Site Builder files"):
+        if not create_sb_files(theme_name, force_reset):
+            logger.error(f"Failed to create Site Builder files for {theme_name}")
+            return False
+    console.print_success("Site Builder files created")
 
     # Step 2: Migrate styles
-    from sbm.ui.console import get_console
-    console = get_console()
-    console.print_step(2, total_steps, "Migrating styles")
-    if not migrate_styles(theme_name):
-        logger.error(f"Failed to migrate styles for {theme_name}")
-        return False
+    with console.status(f"Step 2/{total_steps}: Migrating styles"):
+        if not migrate_styles(theme_name):
+            logger.error(f"Failed to migrate styles for {theme_name}")
+            return False
+    console.print_success("Styles migrated")
 
     # Step 3: Add predetermined styles
-    console.print_step(3, total_steps, "Adding predetermined styles")
-    if not add_predetermined_styles(theme_name):
-        logger.error(f"Failed to add predetermined styles for {theme_name}")
-        return False
+    with console.status(f"Step 3/{total_steps}: Adding predetermined styles"):
+        if not add_predetermined_styles(theme_name):
+            logger.error(f"Failed to add predetermined styles for {theme_name}")
+            return False
+    console.print_success("Predetermined styles added")
 
     # Step 4: Migrate map components if not skipped
     if not skip_maps:
-        console.print_step(4, total_steps, "Migrating map components")
-        if not migrate_map_components(theme_name, oem_handler):
-            logger.error(f"Failed to migrate map components for {theme_name}")
-            return False
+        with console.status(f"Step 4/{total_steps}: Migrating map components"):
+            if not migrate_map_components(theme_name, oem_handler):
+                logger.error(f"Failed to migrate map components for {theme_name}")
+                return False
+        console.print_success("Map components migrated")
     else:
         logger.debug(f"Skipping map components migration for {theme_name}")
 
@@ -555,6 +557,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
     console.print_migration_complete(
         theme_name,
         elapsed_time=get_total_duration(),
+        files_processed=len(files_to_review), # Proxy for now or we could count actual files
     )
 
     try:

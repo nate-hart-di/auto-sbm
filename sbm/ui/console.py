@@ -8,7 +8,7 @@ ensuring consistent styling across all CLI components.
 from __future__ import annotations
 
 import os
-from typing import Optional
+from typing import Any, Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -17,6 +17,7 @@ from rich.text import Text
 from rich.theme import Theme
 
 from sbm.config import Config
+from sbm.ui.panels import StatusPanels
 
 
 class SBMConsole:
@@ -143,6 +144,15 @@ class SBMConsole:
         """
         self.console.print(f"[{style}]{message}[/{style}]")
 
+    def status(self, message: str) -> Any:
+        """
+        Create a status context manager with a spinner.
+
+        Args:
+            message: Status message to display with the spinner
+        """
+        return self.console.status(f"[bold info]{message}[/]", spinner="dots")
+
     def print_header(self, title: str, subtitle: str | None = None) -> None:
         """
         Print section header with consistent formatting.
@@ -204,8 +214,6 @@ class SBMConsole:
 
     def print_manual_review_prompt(self, theme_name: str, files: list[str]) -> None:
         """Print a premium manual review prompt using StatusPanels."""
-        from sbm.ui.panels import StatusPanels
-
         table = StatusPanels.create_file_review_table(theme_name, files)
 
         prompt_panel = Panel(
@@ -219,40 +227,25 @@ class SBMConsole:
         self.console.print(prompt_panel)
 
     def print_migration_complete(
-        self, theme_name: str, elapsed_time: float, timing_summary: dict | None = None
+        self,
+        theme_name: str,
+        elapsed_time: float,
+        files_processed: int = 0,
+        warnings: int = 0,
+        errors: int = 0,
+        pr_url: str | None = None,
     ) -> None:
-        """Print migration completion with premium styling and global impact summary."""
-        from sbm.utils.tracker import get_migration_stats
-
-        # Timing Display
-        if elapsed_time is None or elapsed_time <= 0:
-            time_display = "N/A"
-        elif elapsed_time < 60:
-            time_display = f"{elapsed_time:.1f}s"
-        else:
-            time_display = f"{elapsed_time / 60:.1f}m"
-
-        stats_table = Table.grid(padding=(0, 2))
-        stats_table.add_column(style="bold")
-        stats_table.add_column(style="info")
-        stats_table.add_row("Theme:", theme_name)
-        stats_table.add_row("Total Duration:", time_display)
-
-        # Global Impact Snippet
-        global_stats = get_migration_stats().get("global_metrics", {})
-        if global_stats:
-            stats_table.add_row(
-                "Team Impact:", f"{global_stats.get('total_time_saved_h', 0)}h saved"
-            )
-
-        panel = Panel(
-            stats_table,
-            title="[sbm.success]SUCCESS[/]",
-            border_style="green",
-            padding=(1, 2),
+        """Print migration completion with premium styling and summary panel."""
+        summary_panel = StatusPanels.create_completion_summary_panel(
+            theme_name=theme_name,
+            elapsed_time=elapsed_time,
+            files_processed=files_processed,
+            warnings=warnings,
+            errors=errors,
+            pr_url=pr_url,
         )
         self.console.print("\n")
-        self.console.print(panel)
+        self.console.print(summary_panel)
 
 
 # Global console instance for consistency
