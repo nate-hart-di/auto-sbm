@@ -72,6 +72,7 @@
     "moorechryslerdodgejeepramofparis",
     "newcarlislechryslerjeepdodge",
     "nixchryslerdodgejeepram",
+    "northlandchryslerdodgejeepramphase2",
     "pettijohnautocentercdjr",
     "pinebeltcdjr",
     "rainbowchryslerdodgejeep",
@@ -1193,6 +1194,17 @@
       "historical": true
     },
     {
+      "timestamp": "2025-11-14T18:10:34Z",
+      "slug": "northlandchryslerdodgejeepramphase2",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 12,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
       "timestamp": "2025-11-17T16:14:16Z",
       "slug": "shavercdjr",
       "command": "auto",
@@ -1336,5 +1348,5 @@
       "historical": true
     }
   ],
-  "last_updated": "2025-12-17T14:30:27.092262Z"
+  "last_updated": "2025-12-17T14:47:18.426319Z"
 }

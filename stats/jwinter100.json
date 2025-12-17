@@ -1,6 +1,7 @@
 {
   "user": "jwinter100",
   "migrations": [
+    "acemotorsllc",
     "airportchryslerdodgejeepram1",
     "allensamuelschryslerdodgejeepramjackson",
     "bachmancdjr",
@@ -8,6 +9,8 @@
     "brownswestbranchchryslerdodgejeepram",
     "capitalcdjrofindiantrail",
     "carolinacdjr1",
+    "clearshifthighlandsranch1",
+    "clearshiftloveland",
     "cornerstonechryslerdodgejeepram",
     "crosschryslerjeepfiat",
     "fredmartinsuperstore",
@@ -38,10 +41,12 @@
     "stetlerdodgechryslerjeepram",
     "susquehannacdjr",
     "tannermotors",
+    "vasschryslerdodgejeepram",
     "waxahachiedodgechryslerjeep",
     "westherrchryslerdodgejeepramoflockport",
     "westherrchryslerdodgeram",
     "winnerscirclechryslerdodgejeepramoffranklinva",
+    "wyattford",
     "zeiglerchryslerdodgejeepramofschaumburg"
   ],
   "runs": [
@@ -497,6 +502,61 @@
       "historical": true
     },
     {
+      "timestamp": "2025-11-17T16:22:40Z",
+      "slug": "acemotorsllc",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 26,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-17T17:48:38Z",
+      "slug": "clearshifthighlandsranch1",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 75,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-18T17:33:01Z",
+      "slug": "vasschryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 10,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-19T16:21:17Z",
+      "slug": "clearshiftloveland",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 74,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-24T17:09:01Z",
+      "slug": "wyattford",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 4,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
       "timestamp": "2025-12-12T16:57:05Z",
       "slug": "merchantsauto",
       "command": "auto",
@@ -506,7 +566,18 @@
       "lines_migrated": 358,
       "manual_estimate_seconds": 14400,
       "historical": true
+    },
+    {
+      "timestamp": "2025-12-16T19:31:44Z",
+      "slug": "merchantsauto",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 12,
+      "manual_estimate_seconds": 14400,
+      "historical": true
     }
   ],
-  "last_updated": "2025-12-17T14:30:27.091681Z"
+  "last_updated": "2025-12-17T14:47:18.425663Z"
 }

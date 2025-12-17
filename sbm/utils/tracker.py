@@ -25,9 +25,23 @@ GLOBAL_STATS_DIR = REPO_ROOT / "stats"
 
 
 def _get_user_id() -> str:
-    """Generate a unique ID for the current user based on git config or hostname."""
+    """Generate a unique ID for the user based on GitHub username, git config, or hostname."""
+    # 1. Try to get GitHub username (most preferred)
     try:
-        # Try to get git email
+        result = subprocess.run(
+            ["gh", "api", "user", "-q", ".login"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        username = result.stdout.strip()
+        if username:
+            return username
+    except Exception as e:
+        logger.debug(f"Could not get GitHub username via gh cli: {e}")
+
+    # 2. Try to get git email (fallback)
+    try:
         result = subprocess.run(
             ["git", "config", "user.email"],
             capture_output=True,
@@ -39,11 +53,9 @@ def _get_user_id() -> str:
         if email:
             return email.replace("@", "_").replace(".", "_")
     except Exception as e:
-        import logging
-        logging.debug(f"Could not get git email: {e}")
-        pass
+        logger.debug(f"Could not get git email: {e}")
 
-    # Fallback to hostname + username
+    # 3. Fallback to hostname + username
     try:
         return f"{socket.gethostname()}_{os.getlogin()}"
     except Exception:
@@ -205,8 +217,8 @@ def _calculate_metrics(data: dict) -> dict:
     total_automation_seconds = sum(r.get("automation_seconds", 0) for r in successful_runs)
     total_lines_migrated = sum(r.get("lines_migrated", 0) for r in successful_runs)
 
-    # Mathematical time saved: 1 hour per 100 lines migrated
-    time_saved_hours = total_lines_migrated / 100.0
+    # Mathematical time saved: 1 hour per 400 lines migrated
+    time_saved_hours = total_lines_migrated / 400.0
 
     return {
         "total_runs": total_runs,
@@ -251,8 +263,8 @@ def _aggregate_global_stats() -> dict:
             logger.debug(f"Error processing global stats file {stats_file}: {e}")
             continue
 
-    # Mathematical time saved: 1 hour per 100 lines migrated
-    time_saved_hours = total_lines_migrated / 100.0
+    # Mathematical time saved: 1 hour per 400 lines migrated
+    time_saved_hours = total_lines_migrated / 400.0
 
     return {
         "total_users": user_count,
