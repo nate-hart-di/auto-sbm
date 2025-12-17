@@ -5,10 +5,15 @@ This module provides centralized console management with Rich theming support,
 ensuring consistent styling across all CLI components.
 """
 
+from __future__ import annotations
+
 import os
 from typing import Optional
 
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 from rich.theme import Theme
 
 from sbm.config import Config
@@ -22,7 +27,7 @@ class SBMConsole:
     throughout the SBM tool, with configuration-aware theming and fallback support.
     """
 
-    def __init__(self, config: Optional[Config] = None) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         """
         Initialize SBM console with optional configuration.
 
@@ -138,7 +143,7 @@ class SBMConsole:
         """
         self.console.print(f"[{style}]{message}[/{style}]")
 
-    def print_header(self, title: str, subtitle: Optional[str] = None) -> None:
+    def print_header(self, title: str, subtitle: str | None = None) -> None:
         """
         Print section header with consistent formatting.
 
@@ -146,11 +151,10 @@ class SBMConsole:
             title: Main title text
             subtitle: Optional subtitle text
         """
-        from rich.panel import Panel
-
-        content = f"[bold cyan]{title}[/]"
+        content = Text.from_markup(f"[bold cyan]{title}[/]")
         if subtitle:
-            content += f"\n[dim]{subtitle}[/]"
+            content.append("\n")
+            content.append(subtitle, style="dim")
 
         panel = Panel(content, border_style="cyan", padding=(1, 2))
         self.console.print(panel)
@@ -169,20 +173,25 @@ class SBMConsole:
 
     def print_info(self, message: str) -> None:
         """Print info message with info icon."""
-        self.console.print(f"[info]ℹ️  {message}[/]")
+        self.console.print(f"[info]i {message}[/]")
 
     def print_migration_header(self, theme_name: str) -> None:
-        """Print migration header with SBM branding."""
-        from rich.panel import Panel
-
-        content = "[sbm.primary]🚀 Site Builder Migration[/]\n\n"
-        content += f"[bold]Theme:[/] [sbm.migration]{theme_name}[/]\n"
-        content += "[bold]Process:[/] 6-step automated migration\n"
-        content += "[dim]Enhanced progress tracking with real-time Docker monitoring[/]"
+        """Print migration header with premium SBM branding."""
+        metadata = Table.grid(padding=(0, 2))
+        metadata.add_column(style="bold cyan")
+        metadata.add_column()
+        metadata.add_row("Theme:", f"[filename]{theme_name}[/]")
+        metadata.add_row("System:", "[sbm.primary]Auto-SBM v2.0[/]")
+        metadata.add_row("Mode:", "Full Automated Workflow")
 
         panel = Panel(
-            content, title="[sbm.primary]SBM Migration Tool[/]", border_style="blue", padding=(1, 2)
+            metadata,
+            title="[sbm.primary]SBM Migration Tool[/]",
+            subtitle="[dim]Real-time progress tracking enabled[/dim]",
+            border_style="bright_blue",
+            padding=(1, 2),
         )
+        self.console.print("\n")
         self.console.print(panel)
 
     def print_docker_status(self, message: str) -> None:
@@ -193,67 +202,64 @@ class SBMConsole:
         """Print AWS-related status with AWS styling."""
         self.console.print(f"[sbm.aws]☁️  {message}[/]")
 
-    def print_migration_complete(self, theme_name: str, elapsed_time: float, timing_summary: Optional[dict] = None) -> None:
-        """
-        Print migration completion with enhanced styling and timing details.
+    def print_manual_review_prompt(self, theme_name: str, files: list[str]) -> None:
+        """Print a premium manual review prompt using StatusPanels."""
+        from sbm.ui.panels import StatusPanels
 
-        Args:
-            theme_name: Name of the migrated theme
-            elapsed_time: Total elapsed time
-            timing_summary: Optional detailed timing breakdown from MigrationProgress
-        """
-        from rich.panel import Panel
+        table = StatusPanels.create_file_review_table(theme_name, files)
 
-        content = "[sbm.success]🎉 Migration Complete![/]\n\n"
-        content += f"[bold]Theme:[/] [sbm.migration]{theme_name}[/]\n"
-        content += "[bold]Status:[/] [sbm.success]All steps completed successfully[/]\n"
+        prompt_panel = Panel(
+            table,
+            title="[bold yellow]Manual Review Required[/bold yellow]",
+            subtitle="[dim]Check the files above, then confirm to continue[/dim]",
+            border_style="yellow",
+            padding=(1, 2),
+        )
+        self.console.print("\n")
+        self.console.print(prompt_panel)
 
-        # Enhanced timing display
+    def print_migration_complete(
+        self, theme_name: str, elapsed_time: float, timing_summary: dict | None = None
+    ) -> None:
+        """Print migration completion with premium styling and global impact summary."""
+        from sbm.utils.tracker import get_migration_stats
+
+        # Timing Display
         if elapsed_time is None or elapsed_time <= 0:
             time_display = "N/A"
         elif elapsed_time < 60:
             time_display = f"{elapsed_time:.1f}s"
-        elif elapsed_time < 3600:
-            minutes = int(elapsed_time // 60)
-            seconds = elapsed_time % 60
-            time_display = f"{minutes}m {seconds:.1f}s"
         else:
-            hours = int(elapsed_time // 3600)
-            minutes = int((elapsed_time % 3600) // 60)
-            seconds = elapsed_time % 60
-            time_display = f"{hours}h {minutes}m {seconds:.1f}s"
+            time_display = f"{elapsed_time / 60:.1f}m"
 
-        content += f"[bold]Total Time:[/] [sbm.info]{time_display}[/]\n"
+        stats_table = Table.grid(padding=(0, 2))
+        stats_table.add_column(style="bold")
+        stats_table.add_column(style="info")
+        stats_table.add_row("Theme:", theme_name)
+        stats_table.add_row("Total Duration:", time_display)
 
-        # Add step timing breakdown if available
-        if timing_summary and "steps" in timing_summary and timing_summary["steps"]:
-            content += "\n[bold]Step Breakdown:[/]\n"
-            for step_name, step_time in timing_summary["steps"].items():
-                if step_time > 0:
-                    if step_time < 60:
-                        step_display = f"{step_time:.1f}s"
-                    else:
-                        step_mins = int(step_time // 60)
-                        step_secs = step_time % 60
-                        step_display = f"{step_mins}m {step_secs:.1f}s"
-                    content += f"  • {step_name}: [sbm.info]{step_display}[/]\n"
-
-        content += "\n[bold]Next:[/] Review changes and create pull request"
+        # Global Impact Snippet
+        global_stats = get_migration_stats().get("global_metrics", {})
+        if global_stats:
+            stats_table.add_row(
+                "Team Impact:", f"{global_stats.get('total_time_saved_h', 0)}h saved"
+            )
 
         panel = Panel(
-            content,
-            title="[sbm.success]✅ Migration Success[/]",
+            stats_table,
+            title="[sbm.success]SUCCESS[/]",
             border_style="green",
             padding=(1, 2),
         )
+        self.console.print("\n")
         self.console.print(panel)
 
 
 # Global console instance for consistency
-_console_instance = None
+_console_instance: Optional[SBMConsole] = None
 
 
-def get_console(config: Optional[Config] = None) -> SBMConsole:
+def get_console(config: Config | None = None) -> SBMConsole:
     """
     Get global console instance with optional configuration.
 

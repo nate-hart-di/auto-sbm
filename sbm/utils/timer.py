@@ -212,6 +212,24 @@ def get_current_timer() -> Optional[MigrationTimer]:
     return _current_timer
 
 
+def get_total_automation_time() -> float:
+    """Get total automation time from the current timer or global summary."""
+    if _current_timer:
+        return _current_timer.automation_time
+    
+    # Fallback to global summary
+    total = sum(_timing_summary.values())
+    docker_time = _timing_summary.get("Docker Startup", 0)
+    return total - docker_time
+
+
+def get_total_duration() -> float:
+    """Get total wall-clock duration from the current timer or global summary."""
+    if _current_timer:
+        return _current_timer.total_time
+    return sum(_timing_summary.values())
+
+
 def finish_migration_timer():
     """Finish the current migration timer."""
     global _current_timer

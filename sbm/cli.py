@@ -45,7 +45,13 @@ from .ui.panels import StatusPanels
 from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
-from .utils.tracker import get_migration_stats, record_migration
+from .utils.timer import get_total_automation_time, get_total_duration
+from sbm.utils.tracker import (
+    get_migration_stats,
+    record_migration,
+    record_run,
+    sync_global_stats,
+)
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 REPO_ROOT = Path(__file__).parent.parent.resolve()
@@ -375,10 +381,10 @@ def check_and_run_daily_update():
     try:
         # Get current date
         today = datetime.date.today().isoformat()
-        
+
         # Check for last update file
         update_file = Path.home() / ".sbm_last_update"
-        
+
         # Read last update date if file exists
         last_update = None
         if update_file.exists():
@@ -386,11 +392,11 @@ def check_and_run_daily_update():
                 last_update = update_file.read_text().strip()
             except Exception:
                 pass
-        
+
         # If we haven't updated today, run update
         if last_update != today:
             click.echo("🔄 Running daily auto-update...")
-            
+
             # Run sbm update command
             result = subprocess.run(
                 [sys.executable, "-m", "sbm.cli", "update"],
@@ -398,7 +404,7 @@ def check_and_run_daily_update():
                 text=True,
                 cwd=Path(__file__).parent.parent,
             )
-            
+
             if result.returncode == 0:
                 # Update successful - record today's date
                 update_file.write_text(today)
@@ -406,7 +412,7 @@ def check_and_run_daily_update():
             else:
                 # Update failed - continue anyway but warn
                 click.echo(f"⚠️ Auto-update failed: {result.stderr.strip()}")
-                
+
     except Exception as e:
         # Auto-update failure shouldn't break the main command
         click.echo(f"⚠️ Auto-update error (continuing): {e}")
@@ -433,7 +439,7 @@ def cli(ctx: click.Context, verbose: bool, config_path: str) -> None:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
-    
+
     # Run daily auto-update check (unless this is the update command itself)
     if ctx.invoked_subcommand != "update":
         check_and_run_daily_update()
@@ -462,37 +468,38 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
     oem_handler = OEMFactory.detect_from_theme(theme_name)
     logger.info(f"Using {oem_handler} for {theme_name}")
 
+    total_steps = 3 if skip_maps else 4
+
     # Step 1: Create Site Builder files
-    logger.info(f"Step 1/4: Creating Site Builder files for {theme_name}...")
+    from sbm.ui.console import get_console
+    console = get_console()
+    console.print_step(1, total_steps, "Creating Site Builder files")
     if not create_sb_files(theme_name, force_reset):
         logger.error(f"Failed to create Site Builder files for {theme_name}")
-        click.echo(f"❌ Failed to create Site Builder files for {theme_name}.", err=True)
         return False
 
     # Step 2: Migrate styles
-    logger.info(f"Step 2/4: Migrating styles for {theme_name}...")
+    from sbm.ui.console import get_console
+    console = get_console()
+    console.print_step(2, total_steps, "Migrating styles")
     if not migrate_styles(theme_name):
         logger.error(f"Failed to migrate styles for {theme_name}")
-        click.echo(f"❌ Failed to migrate styles for {theme_name}.", err=True)
         return False
 
     # Step 3: Add predetermined styles
-    logger.info(f"Step 3/4: Adding predetermined styles for {theme_name}...")
+    console.print_step(3, total_steps, "Adding predetermined styles")
     if not add_predetermined_styles(theme_name):
         logger.error(f"Failed to add predetermined styles for {theme_name}")
-        click.echo(f"❌ Failed to add predetermined styles for {theme_name}.", err=True)
         return False
 
     # Step 4: Migrate map components if not skipped
     if not skip_maps:
-        logger.info(f"Step 4/4: Migrating map components for {theme_name}...")
+        console.print_step(4, total_steps, "Migrating map components")
         if not migrate_map_components(theme_name, oem_handler):
             logger.error(f"Failed to migrate map components for {theme_name}")
-            click.echo(f"❌ Failed to migrate map components for {theme_name}.", err=True)
             return False
-        logger.info(f"Map components migrated successfully for {theme_name}")
     else:
-        logger.info(f"Step 4/4: Skipping map components migration for {theme_name}")
+        logger.debug(f"Skipping map components migration for {theme_name}")
 
     return True
 
@@ -501,18 +508,15 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
 @click.argument("theme_name")
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option("--skip-maps", is_flag=True, help="Skip map components migration.")
-def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
-    """
-    Migrate a dealer theme SCSS files to Site Builder format.
+@click.pass_context
+def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: bool) -> None:
+    """Migrate a dealer theme SCSS files to Site Builder format."""
+    # Get configuration and initialize SBMConsole
+    config = ctx.obj.get("config", Config({}))
+    from sbm.ui.console import get_console
+    console = get_console(config)
 
-    This command runs the core migration steps (create files, migrate styles, add
-    predetermined styles, migrate maps) followed by manual review and post-migration
-    validation/formatting.
-
-    This does NOT include Git operations, Docker container management, or PR creation.
-    Use 'sbm auto' for the full automated workflow including Git and PR operations.
-    """
-    click.echo(f"Starting SCSS migration for {theme_name}...")
+    console.print_migration_header(theme_name)
 
     if not _perform_migration_steps(theme_name, force_reset, skip_maps):
         sys.exit(1)
@@ -524,37 +528,34 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
     logger.debug("Created automation snapshot before manual review")
 
     # Manual review phase
-    click.echo("\n" + "=" * 80)
-    click.echo(f"Manual Review Required for {theme_name}")
-    click.echo("Please review the migrated SCSS files in your theme directory:")
-    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-inside.scss")
-    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-vdp.scss")
-    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-vrp.scss")
-    click.echo(f"  - {get_dealer_theme_dir(theme_name)}/sb-home.scss")
-    click.echo("\nVerify the content and make any necessary manual adjustments.")
-    click.echo("Once you are satisfied, proceed to the next step.")
-    click.echo("=" * 80 + "\n")
+    files_to_review = [
+        "sb-inside.scss",
+        "sb-vdp.scss",
+        "sb-vrp.scss",
+        "sb-home.scss",
+    ]
+    console.print_manual_review_prompt(theme_name, files_to_review)
 
     if not click.confirm("Continue with the migration after manual review?"):
         logger.info("Migration stopped by user after manual review.")
-        click.echo("Migration stopped by user.")
+        console.print_info("Migration stopped by user.")
         return
 
-    # Reprocess manual changes to ensure consistency (includes validation, fixing issues,
-    # prettier formatting)
+    # Reprocess manual changes to ensure consistency
     logger.debug(f"Reprocessing manual changes for {theme_name} to ensure consistency...")
     if not reprocess_manual_changes(theme_name):
         logger.error("Failed to reprocess manual changes.")
-        click.echo("❌ Failed to reprocess manual changes.", err=True)
+        console.print_error("Failed to reprocess manual changes.")
         sys.exit(1)
 
     # Clean up snapshot files after manual review phase
-    logger.info("Cleaning up automation snapshots after manual review")
+    logger.debug("Cleaning up automation snapshots after manual review")
     _cleanup_snapshot_files(theme_name)
 
-    click.echo(f"✅ SCSS migration completed successfully for {theme_name}!")
-    click.echo("Files have been validated, issues fixed, and formatted with prettier.")
-    click.echo("You can now review the final files and commit them when ready.")
+    console.print_migration_complete(
+        theme_name,
+        elapsed_time=get_total_duration(),
+    )
 
     try:
         added, total = record_migration(theme_name)
@@ -562,6 +563,17 @@ def migrate(theme_name: str, force_reset: bool, skip_maps: bool) -> None:
             logger.info(f"Migration tracker updated: {theme_name} (total: {total})")
         else:
             logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
+
+        # Record detailed run
+        record_run(
+            slug=theme_name,
+            command="migrate",
+            status="success",
+            duration=get_total_duration(),
+            automation_time=get_total_automation_time(),
+        )
+        # Sync stats to GitHub in background
+        sync_global_stats()
     except Exception as tracker_error:
         logger.warning(f"Could not update migration tracker: {tracker_error}")
 
@@ -644,10 +656,10 @@ def auto(
 
     # Initialize timing tracking and patch click.confirm
     from .utils.timer import patch_click_confirm_for_timing, init_timing_summary
-    
+
     # Initialize timing summary for this migration
     init_timing_summary(theme_name)
-    
+
     # Patch click.confirm to pause timer during user interactions
     original_confirm = patch_click_confirm_for_timing()
 
@@ -690,6 +702,17 @@ def auto(
                     logger.info(f"Migration tracker updated: {theme_name} (total: {total})")
                 else:
                     logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
+
+                # Record detailed run
+                record_run(
+                    slug=theme_name,
+                    command="auto",
+                    status="success",
+                    duration=get_total_duration(),
+                    automation_time=get_total_automation_time(),
+                )
+                # Sync stats to GitHub in background
+                sync_global_stats()
             except Exception as tracker_error:
                 logger.warning(f"Could not update migration tracker: {tracker_error}")
             # Migration completed successfully - no overall timer needed
@@ -826,23 +849,111 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
     is_flag=True,
     help="Show the list of migrated slugs in addition to the total count.",
 )
-def stats(show_list: bool) -> None:
+@click.option(
+    "--history",
+    is_flag=True,
+    help="Show the history of recent migration runs.",
+)
+@click.pass_context
+def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
     """Show migration tracker stats (total count and optional slug list)."""
-    stats = get_migration_stats()
+    stats_data = get_migration_stats()
+    config = ctx.obj.get("config", Config({}))
+    console = get_console(config)
+    rich_console = console.console
 
-    click.echo(f"📈 Total migrations recorded: {stats['count']}")
-    click.echo(f"🗂️ Tracker file: {stats['path']}")
-    if stats.get("last_updated"):
-        click.echo(f"⏱️ Last updated: {stats['last_updated']}")
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+    from rich.columns import Columns
+
+    # Header Panel
+    header = Panel(
+        Text.from_markup(
+            f"[bold cyan]Auto-SBM Migration Dashboard[/bold cyan]\n"
+            f"[dim]Tracker: {stats_data['path']}[/dim]"
+        ),
+        border_style="bright_blue",
+    )
+    rich_console.print(header)
+
+    # Metrics Grid
+    metrics_local = stats_data.get("metrics", {})
+
+    def make_metric_panel(label: str, value: str, color: str) -> Panel:
+        return Panel(
+            Text.from_markup(f"[bold {color}]{value}[/bold {color}]\n[dim]{label}[/dim]"),
+            expand=True,
+            border_style=color,
+        )
+
+    metric_panels = [
+        make_metric_panel("Total Migrations", str(stats_data["count"]), "green"),
+        make_metric_panel("Success Rate", f"{metrics_local.get('success_rate', 0):.1f}%", "cyan"),
+        make_metric_panel("Total Time Saved", f"{metrics_local.get('total_time_saved_h', 0)}h", "yellow"),
+        make_metric_panel("Avg. Automation", f"{metrics_local.get('avg_automation_time_m', 0)}m", "magenta"),
+    ]
+
+    rich_console.print(Columns(metric_panels, equal=True))
+
+    # Global Team Impact
+    global_metrics = stats_data.get("global_metrics", {})
+    if global_metrics:
+        rich_console.print("\n[bold cyan]Global Team Impact (Shared)[/bold cyan]")
+
+        global_panels = [
+            make_metric_panel("Total Users", str(global_metrics.get("total_users", 0)), "blue"),
+            make_metric_panel("Collective Migrations", str(global_metrics.get("total_migrations", 0)), "green"),
+            make_metric_panel("Team Time Saved", f"{global_metrics.get('total_time_saved_h', 0)}h", "yellow"),
+            make_metric_panel("Team Success Rate", f"{global_metrics.get('success_rate', 0):.1f}%", "cyan"),
+        ]
+        rich_console.print(Columns(global_panels, equal=True))
+
+    # User ID info
+    current_user = stats_data.get("user_id", "unknown")
+    rich_console.print(f"\n[dim]Contributing as: {current_user}[/dim]")
+
+    if history:
+        runs = stats_data.get("runs", [])
+        if runs:
+            table = Table(title="Recent Migration Runs", title_style="bold cyan", show_header=True, header_style="bold magenta")
+            table.add_column("Timestamp", style="dim")
+            table.add_column("Theme Slug", style="cyan")
+            table.add_column("Command", style="green")
+            table.add_column("Status", style="bold")
+            table.add_column("Time", justify="right")
+
+            for run in reversed(runs[-10:]):  # Show last 10
+                status = run.get("status", "unknown")
+                status_color = "green" if status == "success" else "red"
+
+                duration = run.get("duration_seconds", 0)
+                duration_str = f"{duration:.1f}s" if duration < 60 else f"{duration/60:.1f}m"
+
+                table.add_row(
+                    run.get("timestamp", "")[:19].replace("T", " "),
+                    run.get("slug", "unknown"),
+                    run.get("command", "unknown"),
+                    f"[{status_color}]{status}[/{status_color}]",
+                    duration_str,
+                )
+            rich_console.print(table)
+        else:
+            rich_console.print("[yellow]No run history found.[/yellow]")
 
     if show_list:
-        migrations = stats.get("migrations", [])
+        migrations = stats_data.get("migrations", [])
         if migrations:
-            click.echo("\nMigrated slugs:")
+            table = Table(title="Migrated Theme Slugs", title_style="bold cyan")
+            table.add_column("Slug", style="cyan")
             for slug in migrations:
-                click.echo(f"- {slug}")
+                table.add_row(slug)
+            rich_console.print(table)
         else:
-            click.echo("\nNo migrations have been recorded yet.")
+            rich_console.print("[yellow]No migrations have been recorded yet.[/yellow]")
+
+    if stats_data.get("last_updated"):
+        rich_console.print(f"\n[dim]Last updated: {stats_data['last_updated']}[/dim]")
 
 
 @cli.command()
@@ -1414,8 +1525,8 @@ def version() -> None:
 def doctor() -> None:
     """
     Validate auto-sbm installation and diagnose common issues.
-    
-    This command checks that all dependencies are available and the 
+
+    This command checks that all dependencies are available and the
     environment is properly configured for running migrations.
     """
     console = get_console()
