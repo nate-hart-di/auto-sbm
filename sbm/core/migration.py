@@ -1338,14 +1338,18 @@ def _handle_compilation_with_error_recovery(
     css_path_dir = Path(css_dir)
     theme_path = Path(theme_dir)
 
+    # Capture start time for log filtering - REMOVED, using marker-based filtering instead
+    # start_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
     while iteration < max_iterations:
         iteration += 1
         logger.debug(f"🔄 Compilation attempt {iteration}/{max_iterations}")
         time.sleep(1)
 
         try:
+            # Get substantial tail of logs to ensure we capture the start of the process
             result = subprocess.run(
-                ["docker", "logs", "--tail", "50", "dealerinspire_legacy_assets"],
+                ["docker", "logs", "--tail", "200", "dealerinspire_legacy_assets"],
                 check=False,
                 capture_output=True,
                 text=True,
@@ -1353,16 +1357,36 @@ def _handle_compilation_with_error_recovery(
             )
 
             if result.returncode == 0 and result.stdout:
-                logs = result.stdout.lower()
-                if "finished 'sass'" in logs and "finished 'processcss'" in logs:
+                logs = result.stdout
+                lower_logs = logs.lower()
+
+                # Filter logs to only include the current compilation cycle
+                # We look for the LAST occurrence of "starting 'sass'" to assume that's the current run
+                start_marker = "starting 'sass'..."
+                last_start_idx = lower_logs.rfind(start_marker)
+
+                if last_start_idx != -1:
+                    # Keep logs from the start of the compilation, plus a bit of context if needed
+                    # effectively slicing the string
+                    relevant_logs = logs[last_start_idx:]
+                    relevant_lower_logs = lower_logs[last_start_idx:]
+                else:
+                    # Fallback: use all logs if we can't find the start marker (might have scrolled off)
+                    relevant_logs = logs
+                    relevant_lower_logs = lower_logs
+
+                if (
+                    "finished 'sass'" in relevant_lower_logs
+                    and "finished 'processcss'" in relevant_lower_logs
+                ):
                     if not any(
-                        err in result.stdout
+                        err in relevant_logs
                         for err in ["Error:", "gulp-notify: [Error running Gulp]"]
                     ):
                         logger.info("✅ Compilation completed successfully")
                         return True, manual_fix_attempted, False
 
-                errors_found = _parse_compilation_errors(logs)
+                errors_found = _parse_compilation_errors(relevant_logs)
                 if errors_found:
                     fixes_applied = 0
                     for error_info in errors_found:
@@ -1390,13 +1414,21 @@ def _handle_compilation_with_error_recovery(
     # Handle final failure and manual fix
     try:
         result = subprocess.run(
-            ["docker", "logs", "--tail", "20", "dealerinspire_legacy_assets"],
+            ["docker", "logs", "--tail", "100", "dealerinspire_legacy_assets"],
             check=False,
             capture_output=True,
             text=True,
             timeout=10,
         )
         logs = result.stdout if result.returncode == 0 else ""
+
+        # Apply same filtering logic for manual fix prompt
+        lower_logs = logs.lower()
+        start_marker = "starting 'sass'..."
+        last_start_idx = lower_logs.rfind(start_marker)
+        if last_start_idx != -1:
+            logs = logs[last_start_idx:]
+
         if _prompt_user_for_manual_fix(logs, theme_path, test_files, console):
             manual_fix_attempted = True
             if _handle_migration_restart(slug, css_path_dir, theme_path, test_files):
