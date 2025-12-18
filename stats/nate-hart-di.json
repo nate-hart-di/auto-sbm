@@ -28,6 +28,7 @@
     "dchlexusofoxnard",
     "delaneychryslerdodgejeepram",
     "edwardschryslerdodgejeepramfiat",
+    "edwardschryslerdodgejeepramomaha",
     "executivedodgeandjeep",
     "executivejeep",
     "ezcarautogroup",
@@ -116,17 +117,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-07T22:37:31Z",
-      "slug": "andersonchrysler",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 841,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-07T22:51:49Z",
       "slug": "ronsayerschryslerjeepdodge1",
@@ -1190,7 +1180,17 @@
       "automation_seconds": 9.06,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T23:03:25.223346+00:00Z",
+      "slug": "edwardschryslerdodgejeepramomaha",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 104.05,
+      "automation_seconds": 8.87,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T23:01:23.382460+00:00Z"
+  "last_updated": "2025-12-18T23:03:25.223346+00:00Z"
 }
