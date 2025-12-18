@@ -40,31 +40,16 @@ class InteractivePrompts:
         """
         console = get_console()
 
-        # Show configuration panel
-        config_items = [
-            ("Theme", theme_name, "cyan"),
-            ("Just Start", "Enabled" if not config.get("skip_just") else "Skipped", "white"),
-            ("Clean Reset", "Yes" if config.get("force_reset") else "No", "white"),
-            ("Create PR", "Yes" if config.get("create_pr") else "No", "white"),
-            (
-                "Workflow",
-                "Full Automation"
-                if not config.get("skip_post_migration")
-                else "Transformation Only",
-                "white",
-            ),
-        ]
+        # Consolidate configuration for the single panel
+        config_info = {
+            "Just Start": "Enabled" if not config.get("skip_just") else "Skipped",
+            "Clean Reset": "Yes" if config.get("force_reset") else "No",
+            "Create PR": "Yes" if config.get("create_pr") else "No",
+        }
 
-        text = Text()
-        for label, value, color in config_items:
-            text.append(f"{label:18}: ", style="bold")
-            text.append(f"{value}\n", style=color)
-
-        config_panel = Panel(
-            text,
-            title="Migration Plan",
-            border_style="cyan",
-            padding=(1, 2),
+        # Show the single consolidated panel
+        config_panel = StatusPanels.create_migration_status_panel(
+            theme_name, "Initialization", "in_progress", config_info
         )
         console.console.print(config_panel)
 

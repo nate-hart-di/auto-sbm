@@ -652,23 +652,29 @@ def auto(
         "Skip Post-Migration": skip_post_migration,
     }
 
-    start_panel = StatusPanels.create_migration_status_panel(
-        theme_name, "Initialization", "in_progress", config_info
-    )
-    console.console.print(start_panel)
+    config_dict = {
+        "skip_just": skip_just,
+        "force_reset": force_reset,
+        "create_pr": create_pr,
+        "skip_post_migration": skip_post_migration,
+    }
 
-    # Confirm migration start if not in non-interactive mode
+    # If interactive (not skipping post-migration workflow), let the prompt handle the panel display
     if not skip_post_migration:
-        config_dict = {
-            "skip_just": skip_just,
-            "force_reset": force_reset,
-            "create_pr": create_pr,
-            "skip_post_migration": skip_post_migration,
-        }
-
         if not InteractivePrompts.confirm_migration_start(theme_name, config_dict):
             console.print_info("Migration cancelled by user")
             return
+    else:
+        # Non-interactive mode: just show the config panel once
+        config_info = {
+            "Just Start": "Enabled" if not skip_just else "Skipped",
+            "Clean Reset": "Yes" if force_reset else "No",
+            "Create PR": "Yes" if create_pr else "No",
+        }
+        start_panel = StatusPanels.create_migration_status_panel(
+            theme_name, "Initialization", "in_progress", config_info
+        )
+        console.console.print(start_panel)
 
     console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
 
@@ -915,7 +921,10 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
     # Personal Impact
     current_user = stats_data.get("user_id", "unknown")
     rich_console.print(
-        Text.assemble(f"\n[{current_user}] - Your Auto-SBM Stats", style="bold cyan")
+        Text.assemble(
+            Text("Auto-SBM Stats: ", style="bold cyan"),
+            Text(f"{current_user}", style="bold purple"),
+        )
     )
 
     # Metrics Grid
@@ -947,7 +956,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
     # Global Team Impact
     global_metrics = stats_data.get("global_metrics", {})
     if global_metrics:
-        rich_console.print("\n[bold cyan]Global Team Impact (Shared)[/bold cyan]")
+        rich_console.print("\n[bold cyan]Global Auto-SBM Stats[/bold cyan]")
 
         global_panels = [
             make_metric_panel("Total Users", str(global_metrics.get("total_users", 0)), "blue"),

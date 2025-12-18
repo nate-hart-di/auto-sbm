@@ -53,21 +53,39 @@ class StatusPanels:
         display_theme = theme_name if len(theme_name) <= 40 else f"{theme_name[:37]}..."
 
         content = Text()
-        content.append("Theme: ", style="bold cyan")
+        # Use consistent padding for labels as requested in screenshot
+        content.append("Theme", style="bold cyan")
+        content.append(f"{' ':13}: ", style="bold")
         content.append(f"{display_theme}\n", style="filename")
-        content.append("Current Step: ", style="bold green")
+
+        content.append("Current Step", style="bold green")
+        content.append(f"{' ':6}: ", style="bold")
         content.append(f"{step}\n", style="white")
-        content.append("Status: ", style="bold yellow")
+
+        content.append("Status", style="bold yellow")
+        content.append(f"{' ':12}: ", style="bold")
         content.append(f"{status_icons.get(status, '❓')} {status.title()}", style="white")
 
         if additional_info:
-            content.append("\n")
+            content.append("\n\n")
             for key, value in additional_info.items():
-                content.append(f"\n{key}: ", style="bold")
-                content.append(str(value), style="white")
+                label = key
+                # Calculate padding for alignment (assuming max label width around 18)
+                padding = " " * (18 - len(label))
+                content.append(f"{label}", style="bold")
+                content.append(f"{padding}: ", style="bold")
+
+                # Special styling for values
+                style = "white"
+                if str(value).lower() in ["yes", "enabled", "success"]:
+                    style = "green"
+                elif str(value).lower() in ["no", "skipped", "error"]:
+                    style = "yellow"
+
+                content.append(f"{value}\n", style=style)
 
         return Panel(
-            content, title="Migration Status", border_style="cyan", width=80, padding=(1, 2)
+            content, title="Auto-SBM Config", border_style="cyan", width=80, padding=(1, 2)
         )
 
     @staticmethod
