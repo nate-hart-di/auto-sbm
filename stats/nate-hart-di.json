@@ -15,6 +15,7 @@
     "bmw",
     "bobhowardchryslerjeepdodgeram",
     "bochmaserati",
+    "boggustiptonchryslerdodgejeepram",
     "bonhamchryslerdodgejeepram",
     "brydenmotors",
     "byerscdjr",
@@ -114,17 +115,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-06-30T02:02:26Z",
-      "slug": "normandinchryslerjeepdodgeramfiat",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 2050,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-01T20:10:19Z",
       "slug": "landersmclartycdjr",
@@ -1190,7 +1180,17 @@
       "automation_seconds": 10.44,
       "lines_migrated": 482,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T22:59:22.416447+00:00Z",
+      "slug": "boggustiptonchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 104.39,
+      "automation_seconds": 9.13,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T22:51:09.532842+00:00Z"
+  "last_updated": "2025-12-18T22:59:22.416447+00:00Z"
 }
