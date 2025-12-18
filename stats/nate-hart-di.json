@@ -47,6 +47,7 @@
     "landersmclartycdjr",
     "larryhillischryslerdodgejeepram",
     "lexusoflindon",
+    "lexusofsantabarbara",
     "louis",
     "magicgmccadillac",
     "magmaserati",
@@ -109,17 +110,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-01-17T19:38:17Z",
-      "slug": "southpoint",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-05-01T22:30:17Z",
       "slug": "fiatofportland",
@@ -1202,7 +1192,17 @@
       "automation_seconds": 10.08,
       "lines_migrated": 119,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T04:19:32.604523+00:00Z",
+      "slug": "lexusofsantabarbara",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 168.51,
+      "automation_seconds": 63.82,
+      "lines_migrated": 320,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T04:02:40.172632+00:00Z"
+  "last_updated": "2025-12-18T04:19:32.604523+00:00Z"
 }
