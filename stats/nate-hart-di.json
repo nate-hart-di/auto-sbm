@@ -64,6 +64,7 @@
     "maseratiofpuentehills",
     "mckinney",
     "mcsweeneycdjrclanton",
+    "mcsweeneychryslerdodgejeepram",
     "mercedesbenzoflongbeach",
     "midwaycdjr",
     "millschryslerdodgejeepram",
@@ -120,17 +121,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-08T03:15:13Z",
-      "slug": "premierchryslerdodgejeepramofbuenapark",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1820,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-08T03:25:42Z",
       "slug": "lamesachryslerdodgejeepram",
@@ -1190,7 +1180,17 @@
       "automation_seconds": 9.29,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T23:18:06.067593+00:00Z",
+      "slug": "mcsweeneychryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 105.98,
+      "automation_seconds": 9.58,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T23:12:05.696764+00:00Z"
+  "last_updated": "2025-12-18T23:18:06.067593+00:00Z"
 }
