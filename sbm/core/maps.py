@@ -735,9 +735,11 @@ def migrate_map_partials(
                     find_template_parts_in_file(str(template_file), map_imports, oem_handler)
                 )
 
+        # Guessing logic REMOVED to enforce strict detection.
+        # We only migrate partials if they are explicitly found in templates or shortcodes.
         if not partial_paths:
-            # If no partials found in templates, try to guess based on SCSS paths
-            partial_paths = guess_partial_paths_from_scss(map_imports)
+            # Only rely on extra_partials (from shortcodes) if template scan found nothing
+            pass
 
         # Include any extra partials discovered via shortcodes/functions
         if extra_partials:
