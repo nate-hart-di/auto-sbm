@@ -56,7 +56,13 @@ from .utils.path import get_dealer_theme_dir, get_platform_dir
 from .utils.timer import get_total_automation_time, get_total_duration
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
-REPO_ROOT = Path(__file__).parent.parent.resolve()
+# Use the predictable installation location as the primary root
+REPO_ROOT = Path.home() / "auto-sbm"
+
+# If not found at the legacy location, fallback to the current file's parent
+if not REPO_ROOT.exists():
+    REPO_ROOT = Path(__file__).parent.parent.resolve()
+
 SETUP_MARKER = REPO_ROOT / ".sbm_setup_complete"
 SETUP_SCRIPT = REPO_ROOT / "setup.sh"
 
@@ -481,18 +487,33 @@ def _expand_theme_names(theme_names: tuple[str, ...]) -> list[str]:
     expanded = []
     for name in theme_names:
         if name.startswith("@"):
-            file_path = Path(name[1:])
+            file_path_str = name[1:]
+            file_path = Path(file_path_str)
+
+            # 1. Try relative to CWD
+            # 2. Try relative to REPO_ROOT (fallback for external execution)
             if not file_path.exists():
-                logger.error(f"Theme list file not found: {file_path}")
-                continue
+                fallback_path = REPO_ROOT / file_path_str
+                if fallback_path.exists():
+                    file_path = fallback_path
+                else:
+                    logger.error(
+                        f"Theme list file not found: {file_path_str} (checked CWD and {REPO_ROOT})"
+                    )
+                    continue
 
             try:
-                # Read slugs from file, one per line, ignoring comments/empty lines
+                # Read slugs from file, supporting lines, spaces, or commas as delimiters
                 with file_path.open("r") as f:
                     for line in f:
-                        slug = line.strip()
-                        if slug and not slug.startswith("#"):
-                            expanded.append(slug)
+                        # Ignore comments (anything after #)
+                        clean_line = line.split("#")[0].strip()
+                        if not clean_line:
+                            continue
+
+                        # Treat commas as spaces, then split by whitespace
+                        slugs = clean_line.replace(",", " ").split()
+                        expanded.extend(slugs)
             except Exception as e:
                 logger.error(f"Failed to read theme list file {file_path}: {e}")
         else:

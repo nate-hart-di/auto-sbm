@@ -30,12 +30,12 @@ class TestCLIInput(unittest.TestCase):
         with patch("pathlib.Path.exists") as mock_exists:
             mock_exists.return_value = True
 
-            # Mock the file content
-            file_content = "slug1\n# comment\nslug2\n\nslug3\n"
+            # Mock the file content with spaces, commas, and inline comments
+            file_content = "slug1, slug2 # inline comment\nslug3 slug4\n\nslug5\n"
             with patch("pathlib.Path.open", unittest.mock.mock_open(read_data=file_content)):
-                input_themes = ("@slugs.txt", "slug4")
+                input_themes = ("@slugs.txt", "slug6")
                 result = _expand_theme_names(input_themes)
-                self.assertEqual(result, ["slug1", "slug2", "slug3", "slug4"])
+                self.assertEqual(result, ["slug1", "slug2", "slug3", "slug4", "slug5", "slug6"])
 
     def test_expand_missing_file(self):
         """Test behavior when a theme list file is missing."""
@@ -46,6 +46,22 @@ class TestCLIInput(unittest.TestCase):
             # Should skip the missing file and return only the valid slug
             result = _expand_theme_names(input_themes)
             self.assertEqual(result, ["valid_slug"])
+
+    def test_expand_file_fallback(self):
+        """Test fallback to REPO_ROOT when file is not in CWD."""
+        with patch("pathlib.Path.exists") as mock_exists:
+            # First call for Path(file_path_str) -> False (not in CWD)
+            # Second call for fallback_path -> True (in REPO_ROOT)
+            mock_exists.side_effect = [False, True]
+
+            # Mock the file content
+            file_content = "fallback_slug"
+            with patch("pathlib.Path.open", unittest.mock.mock_open(read_data=file_content)):
+                # Mock REPO_ROOT in sbm.cli
+                with patch("sbm.cli.REPO_ROOT", Path("/mock/repo")):
+                    input_themes = ("@slugs.txt",)
+                    result = _expand_theme_names(input_themes)
+                    self.assertEqual(result, ["fallback_slug"])
 
 
 if __name__ == "__main__":

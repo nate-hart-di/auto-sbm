@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -91,7 +92,7 @@ class AutoSBMSettings(BaseSettings):
     """Unified Pydantic v2 configuration replacing legacy JSON config."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(Path.home() / "auto-sbm" / ".env"),
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,
