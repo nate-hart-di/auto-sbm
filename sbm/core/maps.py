@@ -21,9 +21,8 @@ from typing import Any
 COMMON_THEME_DIR = "/Users/nathanhart/di-websites-platform/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme"
 
 # Map-related keywords pulled from CommonTheme usage (shortcodes and template parts)
+# We use more specific patterns to avoid false positives like "sitemap" or "map-link"
 MAP_KEYWORDS = [
-    "map",
-    "maps",
     "mapsection",
     "section-map",
     "map-row",
@@ -34,8 +33,30 @@ MAP_KEYWORDS = [
     "full-map",
     "get-directions",
     "getdirections",
-    "directions",
 ]
+
+# Shared regex for map shortcodes and template parts
+MAP_REGEX_PATTERN = r"(?i)\W(?:mapsection|section-map|map-row|maprow|map_rt|mapbox|mapboxdirections|full-map|get-directions|getdirections)\W"
+
+
+def remove_php_comments(content: str) -> str:
+    """Remove PHP comments (/* */, //, #) from content."""
+    # Remove block comments
+    content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+    # Remove single line comments (// and #)
+    content = re.sub(r"//.*$", "", content, flags=re.MULTILINE)
+    content = re.sub(r"#.*$", "", content, flags=re.MULTILINE)
+    return content
+
+
+def remove_scss_comments(content: str) -> str:
+    """Remove SCSS comments (/* */, //) from content."""
+    # Remove block comments
+    content = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
+    # Remove single line comments (//)
+    content = re.sub(r"//.*$", "", content, flags=re.MULTILINE)
+    return content
+
 
 _MAP_MIGRATION_REPORT: Dict[str, dict] = {}
 
@@ -228,7 +249,8 @@ def find_commontheme_map_imports(
 
     try:
         path_style_scss = Path(style_scss_path)
-        content = path_style_scss.read_text(encoding="utf-8", errors="ignore")
+        raw_content = path_style_scss.read_text(encoding="utf-8", errors="ignore")
+        content = remove_scss_comments(raw_content)
 
         map_imports = []
 
@@ -238,19 +260,13 @@ def find_commontheme_map_imports(
         is_oem = oem_handler and not isinstance(oem_handler, DefaultHandler)
 
         if is_oem and hasattr(oem_handler, "get_map_partial_patterns"):
-            # OEM mode: Only use OEM-specific patterns (don't use generic keywords)
-            # This ensures we don't pick up unrelated map assets for OEM dealers
-            raw_patterns = oem_handler.get_map_partial_patterns()
-            # Filter out generic patterns from the base class if we want to be strict for OEMs
-            # For Stellantis, the handler provides its own and then appends base.
-            # We'll use the ones provided.
-            search_patterns = [p for p in raw_patterns]
+            search_patterns = oem_handler.get_map_partial_patterns()
             logger.info(f"Using {len(search_patterns)} OEM-specific map patterns")
         else:
-            # Default mode: Use generic keywords
+            # Default mode: Use generic keywords with start-of-segment boundary
             keyword_list = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-            search_patterns = [f"DealerInspireCommonTheme[^'\"]*(?:{keyword_list})"]
-            logger.info("Using generic map keyword patterns")
+            search_patterns = [f"DealerInspireCommonTheme[^'\"]*(?:/|_)\\b(?:{keyword_list})"]
+            logger.info("Using generic map keyword patterns with segment boundary")
 
         for pattern in search_patterns:
             import_pattern = r"@import\s+['\"]([^'\"]*" + pattern + r"[^'\"]*)['\"]"
@@ -360,7 +376,7 @@ def find_map_shortcodes_in_functions(
 
     keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
     shortcode_pattern = (
-        r"add_shortcode\s*\(\s*['\"]([^'\"]*(?:"
+        r"add_shortcode\s*\(\s*['\"]([^'\"]*\\b(?:"
         + keyword_pattern
         + r")[^'\"]*)['\"]\s*,\s*([^\)\s]+)"
     )
@@ -369,7 +385,8 @@ def find_map_shortcodes_in_functions(
         current_file_path, context = files_to_scan.pop(0)
 
         try:
-            content = current_file_path.read_text(encoding="utf-8", errors="ignore")
+            raw_content = current_file_path.read_text(encoding="utf-8", errors="ignore")
+            content = remove_php_comments(raw_content)
         except Exception as e:
             logger.warning(f"Could not read {context}: {e}")
             continue
@@ -406,7 +423,9 @@ def find_map_shortcodes_in_functions(
             body = func_match.group("body")
             # Reuse the template-part detection within the function body
             body_matches = re.finditer(
-                r"get_template_part\s*\(\s*['\"]([^'\"]*(?:" + keyword_pattern + r")[^'\"]*)['\"]",
+                r"get_template_part\s*\(\s*['\"]([^'\"]*\\b(?:"
+                + keyword_pattern
+                + r")[^'\"]*)['\"]",
                 body,
                 re.IGNORECASE,
             )
@@ -780,7 +799,8 @@ def find_template_parts_in_file(
     """
     try:
         path_template = Path(template_file)
-        content = path_template.read_text(encoding="utf-8", errors="ignore")
+        raw_content = path_template.read_text(encoding="utf-8", errors="ignore")
+        content = remove_php_comments(raw_content)
 
         partial_paths = []
 
@@ -793,7 +813,7 @@ def find_template_parts_in_file(
             search_patterns = oem_handler.get_map_partial_patterns()
         else:
             keyword_list = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-            search_patterns = [f"[^'\"]*(?:{keyword_list})[^'\"]*"]
+            search_patterns = [f"[^'\"]*\\b(?:{keyword_list})[^'\"]*"]
 
         for pattern in search_patterns:
             template_part_pattern = r"get_template_part\s*\(\s*['\"](" + pattern + r")['\"]"
@@ -816,10 +836,9 @@ def find_template_parts_in_file(
         # Custom shortcode search is already covered by find_map_shortcodes_in_functions
         # and search_patterns above. Removing redundant keyword-only search.
 
-        # 3. Look for custom shortcode functions that call directions partials
         # Pattern: function xyz_map() { ... get_template_part('...directions...') ... }
         # More flexible pattern to match your full_map() function
-        shortcode_function_pattern = r"function\s+(\w*(?:map|directions)\w*)\s*\([^)]*\)\s*\{[^}]*get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections|map)[^'\"]*)['\"]"
+        shortcode_function_pattern = r"function\s+(\w*(?:mapsection|maprow|mapbox|getdirections)\w*)\s*\([^)]*\)\s*\{[^}]*get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections|mapsection)[^'\"]*)['\"]"
         matches = re.finditer(shortcode_function_pattern, content, re.IGNORECASE | re.DOTALL)
 
         for match in matches:
@@ -838,9 +857,9 @@ def find_template_parts_in_file(
             )
             partial_paths.append(partial_info)
 
-        # 4. Specifically look for homecontent-getdirections pattern
+        # 4. Specifically look for homecontent-getdirections pattern with word boundaries
         homecontent_pattern = (
-            r"get_template_part\s*\(\s*['\"]([^'\"]*homecontent[^'\"]*directions[^'\"]*)['\"]"
+            r"get_template_part\s*\(\s*['\"]([^'\"]*\\bhomecontent[^'\"]*directions\\b[^'\"]*)['\"]"
         )
         matches = re.finditer(homecontent_pattern, content, re.IGNORECASE)
 

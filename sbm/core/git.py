@@ -431,24 +431,16 @@ class GitOperations:
             # Add specific files in the theme directory, excluding snapshots
             logger.info(f"Adding changes in {theme_path}")
 
-            # Add specific SCSS files instead of the entire directory to avoid snapshots
-            scss_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
-            files_added = False
+            # Add changes in the theme directory
+            # We add the entire theme directory to ensure all migrated files (SCSS, PHP partials, etc.) are included.
+            # Snapshots are cleaned up before this step.
+            add_command = f"git add {theme_path}"
+            add_success, _, _, _ = execute_command(
+                add_command, f"Failed to add changes in {theme_path}", cwd=get_platform_dir()
+            )
 
-            for scss_file in scss_files:
-                file_path = os.path.join(theme_path, scss_file)
-                if os.path.exists(os.path.join(get_platform_dir(), file_path)):
-                    add_command = f"git add {file_path}"
-                    add_success, _, _, _ = execute_command(
-                        add_command, f"Failed to add {scss_file}", cwd=get_platform_dir()
-                    )
-                    if add_success:
-                        files_added = True
-                    else:
-                        logger.warning(f"Failed to add {scss_file}, continuing with other files")
-
-            if not files_added:
-                logger.warning("No files were added to git")
+            if not add_success:
+                logger.warning("Failed to add files to git")
                 return True  # Not necessarily a failure if no files to add
 
             # Commit if there are changes to commit
@@ -1066,17 +1058,42 @@ class GitOperations:
                         if scss_targets:
                             parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
                         if partials_copied:
-                            parts.append(
-                                f"Partials copied {', '.join(sorted(set(partials_copied)))}"
+                            # Verify if partials were actually added to git
+                            repo_root = get_platform_dir()
+                            theme_rel = os.path.relpath(get_dealer_theme_dir(slug), repo_root)
+
+                            valid_partials = []
+                            for p in sorted(set(partials_copied)):
+                                # Partial path is like 'partials/map-row'
+                                # Check if the corresponding .php file is in the git index
+                                rel_file = os.path.join(theme_rel, f"{p}.php")
+                                try:
+                                    # Use git ls-files to verify the file is tracked and modified/added
+                                    ls_result = subprocess.run(
+                                        ["git", "ls-files", "--error-unmatch", rel_file],
+                                        cwd=repo_root,
+                                        capture_output=True,
+                                        text=True,
+                                    )
+                                    if ls_result.returncode == 0:
+                                        valid_partials.append(p)
+                                    else:
+                                        logger.debug(
+                                            f"Partial {p} not found in git index, omitting from PR"
+                                        )
+                                except Exception:
+                                    pass
+
+                            if valid_partials:
+                                parts.append(f"Partials copied {', '.join(valid_partials)}")
+                        if parts:
+                            detail = "; ".join(parts)
+                            what_items.append(f"- Map components: {detail}")
+                        elif skipped_reason == "migration_issue":
+                            what_items.append(
+                                "- Map components: Migration issue detected (check logs)"
                             )
-                        detail = (
-                            "; ".join(parts)
-                            if parts
-                            else "Map shortcodes detected; assets migrated."
-                        )
-                        if skipped_reason == "migration_issue":
-                            detail = f"{detail} (check logs for issues)"
-                        what_items.append(f"- Map components: {detail}")
+                        # If everything was already present, we PASS and hide the line completely.
         except Exception as e:
             logger.debug(f"Could not add map migration details to PR: {e}")
 
