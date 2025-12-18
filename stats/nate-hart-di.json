@@ -63,6 +63,7 @@
     "manhattanautogroup",
     "maseratiofpuentehills",
     "mckinney",
+    "mcsweeneycdjrclanton",
     "mercedesbenzoflongbeach",
     "midwaycdjr",
     "millschryslerdodgejeepram",
@@ -118,17 +119,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-08T01:51:56Z",
-      "slug": "allensamuelscdjraransaspass",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 793,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-08T03:08:33Z",
       "slug": "premiercdjrofharvey",
@@ -1190,7 +1180,17 @@
       "automation_seconds": 9.36,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T23:07:59.254422+00:00Z",
+      "slug": "mcsweeneycdjrclanton",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 109.55,
+      "automation_seconds": 8.99,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T23:05:48.405544+00:00Z"
+  "last_updated": "2025-12-18T23:07:59.254422+00:00Z"
 }
