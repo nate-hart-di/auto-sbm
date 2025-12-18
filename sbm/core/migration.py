@@ -13,7 +13,7 @@ import subprocess
 import time
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import click
 from rich.prompt import Confirm
@@ -876,7 +876,7 @@ def run_post_migration_workflow(
     interactive_pr: bool = True,
     skip_reprocessing: bool = False,
     console: SBMConsole | None = None,
-) -> bool:
+) -> tuple[bool, Optional[str]]:
     """
     Run the post-migration workflow including git operations and PR creation.
 
@@ -902,13 +902,13 @@ def run_post_migration_workflow(
     if not skip_reprocessing:
         with timer_segment("Reprocessing Manual Changes"):
             if not reprocess_manual_changes(slug):
-                return False
+                return False, None
 
         with timer_segment("SCSS Compilation Verification"):
             theme_dir = Path(get_dealer_theme_dir(slug))
             sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
             if not _verify_scss_compilation_with_docker(theme_dir, slug, sb_files, console=console):
-                return False
+                return False, None
 
     _cleanup_snapshot_files(slug)
 
@@ -916,9 +916,9 @@ def run_post_migration_workflow(
     if not skip_git:
         with timer_segment("Git Operations"):
             if not commit_changes(slug):
-                return False
+                return False, None
             if not push_changes(branch_name):
-                return False
+                return False, None
 
     # Automated PR creation
     pr_url = None
@@ -929,11 +929,11 @@ def run_post_migration_workflow(
             logger.info(f"PR created: {pr_url}")
         else:
             logger.error(f"Failed to create PR for {slug}")
-            return False
+            return False, None
 
     logger.info(f"Migration completed successfully for {slug}")
-    console.print_migration_complete(slug, elapsed_time=0.0, pr_url=pr_url)
-    return True
+    # Duplicate UI call removed: console.print_migration_complete(slug, elapsed_time=0.0, pr_url=pr_url)
+    return True, pr_url
 
 
 def _perform_core_migration(
@@ -974,7 +974,7 @@ def migrate_dealer_theme(
     interactive_pr: bool = True,
     verbose_docker: bool = False,
     console: SBMConsole | None = None,
-) -> bool:
+) -> tuple[bool, Optional[str]]:
     """
     Migrate a dealer theme to the Site Builder platform.
 
@@ -1009,16 +1009,16 @@ def migrate_dealer_theme(
         with timer_segment("Git Operations"):
             success, branch_name = git_operations(slug)
         if not success:
-            return False
+            return False, None
 
     if not skip_just:
         console.print_step("Starting Docker environment (just start)")
         with timer_segment("Docker Startup"):
             if not run_just_start(slug, suppress_output=False):
-                return False
+                return False, None
 
     if not _perform_core_migration(slug, force_reset, oem_handler, skip_maps, console):
-        return False
+        return False, None
 
     _create_automation_snapshots(slug)
 

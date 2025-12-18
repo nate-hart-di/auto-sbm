@@ -553,18 +553,15 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
     logger.debug("Cleaning up automation snapshots after manual review")
     _cleanup_snapshot_files(theme_name)
 
-    console.print_migration_complete(
-        theme_name,
-        elapsed_time=get_total_duration(),
-        files_processed=len(files_to_review),  # Proxy for now or we could count actual files
-    )
+    # Post-migration workflow is now handled inside migrate_dealer_theme or calling code.
+    # We consolidate the summary call to the very end of the CLI command.
 
     try:
         added, total = record_migration(theme_name)
         if added:
-            logger.info(f"Migration tracker updated: {theme_name} (total: {total})")
+            logger.debug(f"Migration tracker updated: {theme_name} (total: {total})")
         else:
-            logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
+            logger.debug(f"Migration tracker already includes {theme_name} (total: {total})")
 
         # Calculate lines migrated
         try:
@@ -692,6 +689,7 @@ def auto(
     original_confirm = patch_click_confirm_for_timing()
 
     # Use Rich UI for beautiful output WITHOUT progress bars
+    pr_url = None
     try:
         # Beautiful startup panel
         # Enhanced migration header with SBM branding
@@ -699,7 +697,7 @@ def auto(
 
         # Run migration with timer tracking
         try:
-            success = migrate_dealer_theme(
+            success, pr_url = migrate_dealer_theme(
                 theme_name,
                 skip_just=skip_just,
                 force_reset=force_reset,
@@ -729,7 +727,9 @@ def auto(
                 if added:
                     logger.debug(f"Migration tracker updated: {theme_name} (total: {total})")
                 else:
-                    logger.debug(f"Migration tracker already includes {theme_name} (total: {total})")
+                    logger.debug(
+                        f"Migration tracker already includes {theme_name} (total: {total})"
+                    )
 
                 # Calculate lines migrated
                 repo = Repo(get_platform_dir())
@@ -759,11 +759,12 @@ def auto(
                 sync_global_stats()
             except Exception as tracker_error:
                 logger.warning(f"Could not update migration tracker: {tracker_error}")
-            # Migration completed successfully - show summary with duration
+            # Migration completed successfully - show summary with duration and correct PR URL
             console.print_migration_complete(
                 theme_name,
                 elapsed_time=get_total_duration(),
                 files_processed=4,
+                pr_url=pr_url,
             )
 
             # Automatically show stats dashboard after successful migration
@@ -1657,8 +1658,6 @@ def doctor() -> None:
 
     # Check git configuration
     try:
-        from git import Repo
-
         repo = Repo(REPO_ROOT)
         console.console.print(f"✅ Git repository: {repo.active_branch.name}")
     except Exception as e:
