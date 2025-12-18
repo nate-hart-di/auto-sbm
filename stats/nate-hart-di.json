@@ -22,6 +22,7 @@
     "covertchryslerdodgejeeprambeecave",
     "dallasdodgechryslerjeepram",
     "danbury",
+    "dchlexusofoxnard",
     "delaneychryslerdodgejeepram",
     "executivedodgeandjeep",
     "executivejeep",
@@ -106,17 +107,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-01-16T18:09:01Z",
-      "slug": "romeo",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 154,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-01-17T16:40:57Z",
       "slug": "norfolk",
@@ -1203,7 +1193,17 @@
       "automation_seconds": 10.51,
       "lines_migrated": 589,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T03:15:31.110391+00:00Z",
+      "slug": "dchlexusofoxnard",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 123.81,
+      "automation_seconds": 29.81,
+      "lines_migrated": 271,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T00:53:40.067500+00:00Z"
+  "last_updated": "2025-12-18T03:15:31.110391+00:00Z"
 }
