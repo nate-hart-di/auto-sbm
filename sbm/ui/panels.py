@@ -369,14 +369,6 @@ class StatusPanels:
             content.append("\nPull Request: ", style="bold green")
             content.append(f"{pr_url}", style="blue underline")
 
-        from sbm.utils.tracker import get_migration_stats
-
-        global_stats = get_migration_stats().get("global_metrics", {})
-        if global_stats:
-            team_saved = global_stats.get("total_time_saved_h", 0)
-            content.append("\n\nTeam Impact: ", style="bold cyan")
-            content.append(f"{team_saved}h saved total", style="sbm.primary")
-
         return Panel(
             content, title="Migration Summary", border_style="green", width=80, padding=(1, 2)
         )

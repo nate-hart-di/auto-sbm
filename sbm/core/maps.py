@@ -79,10 +79,10 @@ def migrate_map_components(
             return True  # Not an error, just no style.scss to process
 
         # Step 1: Find CommonTheme map imports in style.scss
-        map_imports = find_commontheme_map_imports(style_scss_path)
+        map_imports = find_commontheme_map_imports(style_scss_path, oem_handler)
 
         # Step 1b: Discover map shortcodes/partials in functions.php (fallback path)
-        shortcode_partials = find_map_shortcodes_in_functions(str(theme_dir))
+        shortcode_partials = find_map_shortcodes_in_functions(str(theme_dir), oem_handler)
         shortcode_map_imports = derive_map_imports_from_partials(shortcode_partials)
         if shortcode_map_imports:
             map_imports.extend(shortcode_map_imports)
@@ -107,16 +107,20 @@ def migrate_map_components(
             return True
 
         if not map_imports and not shortcode_map_imports:
-             # Case: Shortcodes found, but no assets found in CommonTheme to migrate
-             # logic handled below...
-             pass
+            # Case: Shortcodes found, but no assets found in CommonTheme to migrate
+            # logic handled below...
+            pass
 
         if not map_imports:
             logger.info("No CommonTheme map imports found; skipping map migration.")
             if console:
-                console.print_info("i Map shortcodes detected but no CommonTheme map assets found; skipping map migration.")
+                console.print_info(
+                    "i Map shortcodes detected but no CommonTheme map assets found; skipping map migration."
+                )
             else:
-                click.echo("i Map shortcodes detected but no CommonTheme map assets found; skipping map migration.")
+                click.echo(
+                    "i Map shortcodes detected but no CommonTheme map assets found; skipping map migration."
+                )
             _set_map_report(
                 slug,
                 {
@@ -134,21 +138,34 @@ def migrate_map_components(
 
         # Step 3: Find and migrate corresponding PHP partials
         partials_success, copied_partials = migrate_map_partials(
-            slug, map_imports, interactive=interactive, extra_partials=shortcode_partials
+            slug,
+            map_imports,
+            interactive=interactive,
+            extra_partials=shortcode_partials,
+            oem_handler=oem_handler,
         )
 
         if scss_targets or copied_partials:
             summary = []
+
+            from sbm.oem.default import DefaultHandler
+
+            is_oem = oem_handler and not isinstance(oem_handler, DefaultHandler)
+            # Use name from handler class or instance
+            oem_name = getattr(oem_handler, "name", "OEM") if is_oem else ""
+            prefix = f"[{oem_name}] " if is_oem else ""
+
             if scss_targets:
                 summary.append(f"SCSS appended to: {', '.join(sorted(scss_targets))}")
             if copied_partials:
                 summary.append(f"Partials copied: {', '.join(sorted(set(copied_partials)))}")
+
             message = " | ".join(summary)
             logger.info(f"Map migration summary for {slug}: {message}")
             if console:
-                console.print_info(f"📍 Map migration summary: {message}")
+                console.print_info(f"📍 {prefix}Map migration summary: {message}")
             else:
-                click.echo(f"📍 Map migration summary: {message}")
+                click.echo(f"📍 {prefix}Map migration summary: {message}")
             _set_map_report(
                 slug,
                 {
@@ -166,7 +183,7 @@ def migrate_map_components(
                 logger.info("Map components already present in dealer theme; no changes needed.")
             else:
                 reason = "migration_issue"
-            
+
             _set_map_report(
                 slug,
                 {
@@ -189,12 +206,15 @@ def migrate_map_components(
         return False
 
 
-def find_commontheme_map_imports(style_scss_path: Union[str, Path]) -> List[dict]:
+def find_commontheme_map_imports(
+    style_scss_path: Union[str, Path], oem_handler: Optional[object] = None
+) -> List[dict]:
     """
     Find CommonTheme @import statements that contain "map" in the filename.
 
     Args:
         style_scss_path: Path to style.scss file
+        oem_handler: Optional OEM handler to use for specific patterns
 
     Returns:
         list: List of dictionaries containing import information
@@ -207,30 +227,45 @@ def find_commontheme_map_imports(style_scss_path: Union[str, Path]) -> List[dict
 
         map_imports = []
 
-        # Look for @import statements with CommonTheme paths containing map-like keywords
-        keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-        import_pattern = (
-            r"@import\s+['\"]([^'\"]*DealerInspireCommonTheme[^'\"]*(?:"
-            + keyword_pattern
-            + r")[^'\"]*)['\"]"
-        )
-        matches = re.finditer(import_pattern, content, re.IGNORECASE)
+        # Determine patterns to search for
+        from sbm.oem.default import DefaultHandler
 
-        for match in matches:
-            import_path = match.group(1)
+        is_oem = oem_handler and not isinstance(oem_handler, DefaultHandler)
 
-            # Convert relative path to absolute CommonTheme path
-            # Remove leading ../../DealerInspireCommonTheme/ to get relative path within CommonTheme
-            commontheme_relative = re.sub(r"^.*?DealerInspireCommonTheme/", "", import_path)
-            commontheme_absolute = Path(COMMON_THEME_DIR) / commontheme_relative
+        if is_oem and hasattr(oem_handler, "get_map_partial_patterns"):
+            # OEM mode: Only use OEM-specific patterns (don't use generic keywords)
+            # This ensures we don't pick up unrelated map assets for OEM dealers
+            raw_patterns = oem_handler.get_map_partial_patterns()
+            # Filter out generic patterns from the base class if we want to be strict for OEMs
+            # For Stellantis, the handler provides its own and then appends base.
+            # We'll use the ones provided.
+            search_patterns = [p for p in raw_patterns]
+            logger.info(f"Using {len(search_patterns)} OEM-specific map patterns")
+        else:
+            # Default mode: Use generic keywords
+            keyword_list = "|".join([re.escape(k) for k in MAP_KEYWORDS])
+            search_patterns = [f"DealerInspireCommonTheme[^'\"]*(?:{keyword_list})"]
+            logger.info("Using generic map keyword patterns")
 
-            map_import = {
-                "original_import": match.group(0),
-                "import_path": import_path,
-                "commontheme_relative": commontheme_relative,
-                "commontheme_absolute": str(commontheme_absolute),
-                "filename": commontheme_absolute.name,
-            }
+        for pattern in search_patterns:
+            import_pattern = r"@import\s+['\"]([^'\"]*" + pattern + r"[^'\"]*)['\"]"
+            matches = re.finditer(import_pattern, content, re.IGNORECASE)
+
+            for match in matches:
+                import_path = match.group(1)
+
+                # Convert relative path to absolute CommonTheme path
+                # Remove leading ../../DealerInspireCommonTheme/ to get relative path within CommonTheme
+                commontheme_relative = re.sub(r"^.*?DealerInspireCommonTheme/", "", import_path)
+                commontheme_absolute = Path(COMMON_THEME_DIR) / commontheme_relative
+
+                map_import = {
+                    "original_import": match.group(0),
+                    "import_path": import_path,
+                    "commontheme_relative": commontheme_relative,
+                    "commontheme_absolute": str(commontheme_absolute),
+                    "filename": commontheme_absolute.name,
+                }
 
             # Verify the file exists in CommonTheme with several fallbacks
             filename = commontheme_absolute.name
@@ -281,7 +316,9 @@ def dedupe_map_imports(map_imports: List[dict]) -> List[dict]:
     return deduped
 
 
-def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
+def find_map_shortcodes_in_functions(
+    theme_dir: str, oem_handler: Optional[object] = None
+) -> List[dict]:
     """
     Scan functions.php AND included shared function files for map/directions shortcodes
     and template parts used within.
@@ -297,9 +334,9 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
     # Queue of files to scan: (Path object, source_context_string)
     files_to_scan = [(start_file, "functions.php")]
     seen_files = {str(start_file.resolve())}
-    
+
     partial_paths = []
-    
+
     # regex for finding include/require statements
     # Matches: require_once( get_template_directory() . '/path/to/file.php' );
     # Matches: include 'path/to/file.php';
@@ -311,18 +348,19 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
     # Matches: require_once( dirname(__FILE__) . '/path/to/file.php' );
     # Matches: require_once( '../../DealerInspireCommonTheme/path/to/file.php' );
     include_pattern = re.compile(
-        r"(?:require_once|include_once|require|include)\s*\(?\s*(.*?)\s*\)?\s*;", 
-        re.IGNORECASE
+        r"(?:require_once|include_once|require|include)\s*\(?\s*(.*?)\s*\)?\s*;", re.IGNORECASE
     )
 
     keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
     shortcode_pattern = (
-        r"add_shortcode\s*\(\s*['\"]([^'\"]*(?:" + keyword_pattern + r")[^'\"]*)['\"]\s*,\s*([^\)\s]+)"
+        r"add_shortcode\s*\(\s*['\"]([^'\"]*(?:"
+        + keyword_pattern
+        + r")[^'\"]*)['\"]\s*,\s*([^\)\s]+)"
     )
 
     while files_to_scan:
         current_file_path, context = files_to_scan.pop(0)
-        
+
         try:
             content = current_file_path.read_text(encoding="utf-8", errors="ignore")
         except Exception as e:
@@ -337,10 +375,12 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
             shortcode = match.group(1)
             handler = match.group(2).strip().strip(",")
             shortcodes.append((shortcode, handler))
-            logger.info(f"Found shortcode registration in {current_file_path.name}: {shortcode} -> {handler}")
+            logger.info(
+                f"Found shortcode registration in {current_file_path.name}: {shortcode} -> {handler}"
+            )
 
         # 2. Find get_template_part calls in this file (top-level)
-        partial_paths.extend(find_template_parts_in_file(str(current_file_path), []))
+        partial_paths.extend(find_template_parts_in_file(str(current_file_path), [], oem_handler))
 
         # 3. Look inside handler functions for template parts
         for shortcode, handler in shortcodes:
@@ -350,9 +390,7 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
 
             # Basic function body match for the handler
             function_pattern = (
-                r"function\s+"
-                + re.escape(handler_name)
-                + r"\s*\([^)]*\)\s*\{(?P<body>.*?)\}"
+                r"function\s+" + re.escape(handler_name) + r"\s*\([^)]*\)\s*\{(?P<body>.*?)\}"
             )
             func_match = re.search(function_pattern, content, re.IGNORECASE | re.DOTALL)
             if not func_match:
@@ -361,9 +399,7 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
             body = func_match.group("body")
             # Reuse the template-part detection within the function body
             body_matches = re.finditer(
-                r"get_template_part\s*\(\s*['\"]([^'\"]*(?:"
-                + keyword_pattern
-                + r")[^'\"]*)['\"]",
+                r"get_template_part\s*\(\s*['\"]([^'\"]*(?:" + keyword_pattern + r")[^'\"]*)['\"]",
                 body,
                 re.IGNORECASE,
             )
@@ -387,7 +423,7 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
         include_matches = include_pattern.finditer(content)
         for match in include_matches:
             raw_path_statement = match.group(1)
-            
+
             # Simple heuristic cleaning of PHP string concatenation
             # Remove get_template_directory(), dirname(__FILE__), quotes, dots, parens
             clean_path = raw_path_statement
@@ -400,44 +436,44 @@ def find_map_shortcodes_in_functions(theme_dir: str) -> List[dict]:
 
             # Resolve the path
             resolved_path = None
-            
+
             # Case A: Relative to theme (often starts with slash after removal of get_template_directory)
             candidate_theme = Path(theme_dir) / clean_path
-            
+
             # Case B: Relative to CommonTheme (explicit relative path ../..)
             # Only if clean_path starts with ../ or includes DealerInspireCommonTheme
             candidate_common = None
             if "DealerInspireCommonTheme" in clean_path or clean_path.startswith(".."):
                 # Try to resolve relative to current file's directory first
                 candidate_common = (current_file_path.parent / clean_path).resolve()
-            
+
             if candidate_theme.exists() and candidate_theme.is_file():
                 resolved_path = candidate_theme
             elif candidate_common and candidate_common.exists() and candidate_common.is_file():
                 resolved_path = candidate_common
-            
+
             # If we found a file, check if we should scan it
             if resolved_path:
                 resolved_str = str(resolved_path.resolve())
                 if resolved_str in seen_files:
                     continue
-                
+
                 # Filter: Only scan if it looks like a shared function/dealer-group file
                 # The user specifically mentioned "dealer-groups" and "function" (filename/path)
                 # Loose check: "dealer-groups" in path OR "function" in filename
                 tags = ["dealer-groups", "shared-functions", "functions"]
-                
+
                 # Check 1: Is it in a 'dealer-groups' directory?
                 is_dealer_group = "dealer-groups" in str(resolved_path)
-                
+
                 # Check 2: Does filename have 'functions' in it?
                 has_function_name = "function" in resolved_path.name.lower()
-                
+
                 if is_dealer_group or has_function_name:
                     logger.debug(f"Queuing shared function file for scan: {resolved_path.name}")
                     seen_files.add(resolved_str)
                     files_to_scan.append((resolved_path, f"included from {current_file_path.name}"))
-        
+
         # Safety break to prevent infinite loops if something goes wrong with path resolution
         if len(seen_files) > 100:
             logger.warning("Scanned more than 100 function files, stopping recursion for safety.")
@@ -497,9 +533,7 @@ def derive_map_imports_from_partials(partial_paths: List[dict]) -> List[dict]:
     return imports
 
 
-def migrate_map_scss_content(
-    slug: str, map_imports: List[dict]
-) -> tuple[bool, List[str]]:
+def migrate_map_scss_content(slug: str, map_imports: List[dict]) -> tuple[bool, List[str]]:
     """
     Migrate SCSS content from CommonTheme map files to sb-inside.scss and sb-home.scss.
 
@@ -554,16 +588,16 @@ def migrate_map_scss_content(
         filtered_imports = []
         for map_import in map_imports:
             # Check if this import is already present
-            filename = map_import.get("filename", "") 
+            filename = map_import.get("filename", "")
             # filename is like "map-row-2.scss" or "_map-row-2.scss"
             base = filename.replace(".scss", "")
             if base.startswith("_"):
                 base = base[1:]
-            
+
             if base in existing_imports:
                 logger.info(f"Skipping SCSS migration for {base} (already imported)")
                 continue
-            
+
             filtered_imports.append(map_import)
 
         if not filtered_imports:
@@ -631,6 +665,7 @@ def migrate_map_partials(
     map_imports: List[dict],
     interactive: bool = False,
     extra_partials: Optional[List[dict]] = None,
+    oem_handler: Optional[object] = None,
 ) -> tuple[bool, List[str]]:
     """
     Find and migrate corresponding PHP partials for map components.
@@ -640,6 +675,7 @@ def migrate_map_partials(
         map_imports: List of map import dictionaries
         interactive: Whether to prompt for user confirmation (default: False)
         extra_partials: Optional list of additional partials to migrate.
+        oem_handler: Optional OEM handler to use for specific patterns
 
     Returns:
         tuple[bool, list]: (success, list of copied partials)
@@ -671,7 +707,9 @@ def migrate_map_partials(
         # Scan template files for get_template_part calls
         for template_file in template_files:
             if template_file.exists():
-                partial_paths.extend(find_template_parts_in_file(str(template_file), map_imports))
+                partial_paths.extend(
+                    find_template_parts_in_file(str(template_file), map_imports, oem_handler)
+                )
 
         if not partial_paths:
             # If no partials found in templates, try to guess based on SCSS paths
@@ -705,7 +743,7 @@ def migrate_map_partials(
 
 
 def find_template_parts_in_file(
-    template_file: str, map_imports: List[dict]
+    template_file: str, map_imports: List[dict], oem_handler: Optional[object] = None
 ) -> List[dict]:
     """
     Find get_template_part calls and custom map functions that might correspond to map imports.
@@ -713,6 +751,7 @@ def find_template_parts_in_file(
     Args:
         template_file: Path to template file
         map_imports: List of map import dictionaries
+        oem_handler: Optional OEM handler to use for specific patterns
 
     Returns:
         list: List of partial path dictionaries
@@ -723,51 +762,37 @@ def find_template_parts_in_file(
 
         partial_paths = []
 
-        keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
+        # Determine patterns to search for
+        from sbm.oem.default import DefaultHandler
 
-        # 1. Look for get_template_part calls that contain map keywords
-        template_part_pattern = (
-            r"get_template_part\s*\(\s*['\"]([^'\"]*(?:"
-            + keyword_pattern
-            + r")[^'\"]*)['\"]"
-        )
-        matches = re.finditer(template_part_pattern, content, re.IGNORECASE)
+        is_oem = oem_handler and not isinstance(oem_handler, DefaultHandler)
 
-        for match in matches:
-            partial_path = match.group(1)
+        if is_oem and hasattr(oem_handler, "get_map_partial_patterns"):
+            search_patterns = oem_handler.get_map_partial_patterns()
+        else:
+            keyword_list = "|".join([re.escape(k) for k in MAP_KEYWORDS])
+            search_patterns = [f"[^'\"]*(?:{keyword_list})[^'\"]*"]
 
-            partial_info = {
-                "template_file": template_file,
-                "partial_path": partial_path,
-                "source": "found_in_template",
-            }
+        for pattern in search_patterns:
+            template_part_pattern = r"get_template_part\s*\(\s*['\"](" + pattern + r")['\"]"
+            matches = re.finditer(template_part_pattern, content, re.IGNORECASE)
 
-            logger.info(
-                f"Found map template part: {partial_path} in {Path(template_file).name}"
-            )
-            partial_paths.append(partial_info)
+            for match in matches:
+                partial_path = match.group(1)
 
-        # 2. Look for get_template_part calls with "directions" or "getdirections"
-        directions_pattern = (
-            r"get_template_part\s*\(\s*['\"]([^'\"]*(?:"
-            + keyword_pattern
-            + r")[^'\"]*)['\"]"
-        )
-        matches = re.finditer(directions_pattern, content, re.IGNORECASE)
+                partial_info = {
+                    "template_file": template_file,
+                    "partial_path": partial_path,
+                    "source": "found_in_template",
+                }
 
-        for match in matches:
-            partial_path = match.group(1)
+                logger.info(
+                    f"Found map template part: {partial_path} in {Path(template_file).name}"
+                )
+                partial_paths.append(partial_info)
 
-            partial_info = {
-                "template_file": template_file,
-                "partial_path": partial_path,
-                "source": "found_directions_partial",
-            }
-
-            logger.info(
-                f"Found directions template part: {partial_path} in {Path(template_file).name}"
-            )
-            partial_paths.append(partial_info)
+        # Custom shortcode search is already covered by find_map_shortcodes_in_functions
+        # and search_patterns above. Removing redundant keyword-only search.
 
         # 3. Look for custom shortcode functions that call directions partials
         # Pattern: function xyz_map() { ... get_template_part('...directions...') ... }
@@ -792,7 +817,9 @@ def find_template_parts_in_file(
             partial_paths.append(partial_info)
 
         # 4. Specifically look for homecontent-getdirections pattern
-        homecontent_pattern = r"get_template_part\s*\(\s*['\"]([^'\"]*homecontent[^'\"]*directions[^'\"]*)['\"]"
+        homecontent_pattern = (
+            r"get_template_part\s*\(\s*['\"]([^'\"]*homecontent[^'\"]*directions[^'\"]*)['\"]"
+        )
         matches = re.finditer(homecontent_pattern, content, re.IGNORECASE)
 
         for match in matches:
@@ -855,9 +882,7 @@ def guess_partial_paths_from_scss(map_imports: List[dict]) -> List[dict]:
     return partial_paths
 
 
-def copy_partial_to_dealer_theme(
-    slug: str, partial_info: dict, interactive: bool = False
-) -> bool:
+def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: bool = False) -> bool:
     """
     Copy a PHP partial from CommonTheme to DealerTheme with proper directory structure.
 
@@ -974,9 +999,7 @@ def find_map_shortcodes(slug: str, shortcode_patterns: Optional[list] = None) ->
     return []
 
 
-def identify_map_partials(
-    slug: str, oem_handler: Optional[Union[dict, object]] = None
-) -> list:
+def identify_map_partials(slug: str, oem_handler: Optional[Union[dict, object]] = None) -> list:
     """Legacy function - kept for backward compatibility."""
     logger.info("Using legacy map partial identification")
     return []

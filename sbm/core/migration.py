@@ -468,24 +468,51 @@ def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None) 
 
 
 def _add_directions_row_styles(theme_path: Path, oem_handler: object | None) -> bool:
-    """Add directions row styles for Stellantis dealers."""
-    if not isinstance(oem_handler, StellantisHandler):
+    """Add directions row styles from OEM handler."""
+    if not oem_handler:
         return True
 
-    auto_sbm_dir = Path(__file__).parent.parent.parent
-    source = auto_sbm_dir / "stellantis/add-to-sb-inside/stellantis-directions-row-styles.scss"
-    if not source.exists():
-        logger.warning(f"Directions row source not found: {source}")
-        return False
+    # Get styles from handler
+    try:
+        styles = oem_handler.get_directions_styles()
+    except (NotImplementedError, AttributeError):
+        return True
 
-    styles = source.read_text(encoding="utf-8", errors="ignore")
+    if not styles:
+        return True
+
     inside_path = theme_path / "sb-inside.scss"
     if inside_path.exists():
         content = inside_path.read_text(encoding="utf-8", errors="ignore")
-        if ".directions-row" not in content:
+        # Check for marker or class name to avoid duplicates
+        if "/* Directions Row Styles */" not in content and ".directions-row" not in content:
             with inside_path.open("a", encoding="utf-8") as f:
                 f.write("\n\n/* Directions Row Styles */\n" + styles)
             logger.info("Added directions row styles to sb-inside.scss")
+    return True
+
+
+def _add_map_styles(theme_path: Path, oem_handler: object | None) -> bool:
+    """Add map styles from OEM handler."""
+    if not oem_handler:
+        return True
+
+    # Get styles from handler
+    try:
+        styles = oem_handler.get_map_styles()
+    except (NotImplementedError, AttributeError):
+        return True
+
+    if not styles:
+        return True
+
+    inside_path = theme_path / "sb-inside.scss"
+    if inside_path.exists():
+        content = inside_path.read_text(encoding="utf-8", errors="ignore")
+        if "/* Map Styles */" not in content and "#mapRow" not in content:
+            with inside_path.open("a", encoding="utf-8") as f:
+                f.write("\n\n/* Map Styles */\n" + styles)
+            logger.info("Added map styles to sb-inside.scss")
     return True
 
 
@@ -508,6 +535,8 @@ def add_predetermined_styles(slug: str, oem_handler: dict | object | None = None
     if not _add_cookie_disclaimer_styles(theme_path, oem_handler):
         success = False
     if not _add_directions_row_styles(theme_path, oem_handler):
+        success = False
+    if not _add_map_styles(theme_path, oem_handler):
         success = False
     return success
 

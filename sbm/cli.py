@@ -727,9 +727,9 @@ def auto(
             try:
                 added, total = record_migration(theme_name)
                 if added:
-                    logger.info(f"Migration tracker updated: {theme_name} (total: {total})")
+                    logger.debug(f"Migration tracker updated: {theme_name} (total: {total})")
                 else:
-                    logger.info(f"Migration tracker already includes {theme_name} (total: {total})")
+                    logger.debug(f"Migration tracker already includes {theme_name} (total: {total})")
 
                 # Calculate lines migrated
                 repo = Repo(get_platform_dir())
@@ -1034,15 +1034,11 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
                 status = run.get("status", "unknown")
                 status_color = "green" if status == "success" else "red"
 
-                duration = run.get("duration_seconds", 0)
-                duration_str = f"{duration:.1f}s" if duration < 60 else f"{duration / 60:.1f}m"
-
                 table.add_row(
                     run.get("timestamp", "")[:19].replace("T", " "),
                     run.get("slug", "unknown"),
                     run.get("command", "unknown"),
                     f"[{status_color}]{status}[/{status_color}]",
-                    duration_str,
                 )
             rich_console.print(table)
         else:
