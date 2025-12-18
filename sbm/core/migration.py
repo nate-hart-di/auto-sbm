@@ -842,9 +842,9 @@ def run_post_migration_workflow(
     branch_name: str | None,
     skip_git: bool = False,
     create_pr: bool = True,
-    _interactive_review: bool = True,  # Deprecated
-    _interactive_git: bool = True,  # Deprecated
-    _interactive_pr: bool = True,  # Deprecated
+    interactive_review: bool = True,
+    interactive_git: bool = True,
+    interactive_pr: bool = True,
     skip_reprocessing: bool = False,
     console: SBMConsole | None = None,
 ) -> bool:
@@ -940,10 +940,10 @@ def migrate_dealer_theme(
     skip_maps: bool = False,
     oem_handler: object | None = None,
     create_pr: bool = True,
-    _interactive_review: bool = True,  # Deprecated
+    interactive_review: bool = True,
     interactive_git: bool = True,
     interactive_pr: bool = True,
-    _verbose_docker: bool = False,  # Unused
+    verbose_docker: bool = False,
     console: SBMConsole | None = None,
 ) -> bool:
     """
@@ -998,7 +998,7 @@ def migrate_dealer_theme(
         branch_name,
         skip_git=skip_git,
         create_pr=create_pr,
-        _interactive_review=_interactive_review,
+        interactive_review=interactive_review,
         interactive_git=interactive_git,
         interactive_pr=interactive_pr,
         console=console,
