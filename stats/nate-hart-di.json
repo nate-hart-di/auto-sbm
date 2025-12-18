@@ -122,17 +122,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-07-08T03:25:42Z",
-      "slug": "lamesachryslerdodgejeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1657,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-07-08T19:37:38Z",
       "slug": "advantagedodgechryslerjeep",
       "command": "auto",
@@ -1190,7 +1179,17 @@
       "automation_seconds": 9.58,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T23:20:35.158049+00:00Z",
+      "slug": "edwardschryslerdodgejeepramomaha",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 110.6,
+      "automation_seconds": 9.1,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T23:18:06.067593+00:00Z"
+  "last_updated": "2025-12-18T23:20:35.158049+00:00Z"
 }
