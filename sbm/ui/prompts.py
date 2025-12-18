@@ -16,6 +16,7 @@ from sbm.utils.path import get_dealer_theme_dir
 
 from .console import get_console
 from .panels import StatusPanels
+from sbm.config import get_settings
 
 
 class InteractivePrompts:
@@ -38,6 +39,9 @@ class InteractivePrompts:
         Returns:
             True if user confirms, False otherwise
         """
+        if get_settings().non_interactive:
+            return True
+
         console = get_console()
 
         # Consolidate configuration for the single panel
@@ -111,6 +115,9 @@ class InteractivePrompts:
         Returns:
             Dictionary with user choices for Git operations
         """
+        if get_settings().non_interactive:
+            return {"commit": True, "push": True, "create_pr": True}
+
         console = get_console()
 
         # Show branch information
@@ -156,6 +163,11 @@ class InteractivePrompts:
         Returns:
             User's choice for error recovery
         """
+        if get_settings().non_interactive:
+            # Default to original prompt default which is usually "retry" or "skip" depending on context
+            # But let's look at the actual prompt content if possible
+            return "retry"
+
         console = get_console()
 
         # Show error details
@@ -249,6 +261,9 @@ class InteractivePrompts:
         Returns:
             Selected variant or None if cancelled
         """
+        if get_settings().non_interactive:
+            return variants[0] if variants else None
+
         if not variants:
             return None
 
@@ -307,6 +322,9 @@ class InteractivePrompts:
         Returns:
             True if user wants to retry, False otherwise
         """
+        if get_settings().non_interactive:
+            return True
+
         console = get_console()
 
         retry_panel = Panel(
@@ -349,6 +367,15 @@ class InteractivePrompts:
         Returns:
             Dictionary with PR configuration
         """
+        if get_settings().non_interactive:
+            return {
+                "title": f"SBM: Migrate {theme_name} to Site Builder format",
+                "draft": False,
+                "add_reviewers": True,
+                "reviewers": ["carsdotcom/fe-dev"],
+                "labels": ["fe-dev"],
+            }
+
         console = get_console()
 
         pr_panel = Panel(

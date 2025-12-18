@@ -15,6 +15,7 @@ import click
 from sbm.ui.console import SBMConsole
 from sbm.utils.logger import logger
 from sbm.utils.path import get_dealer_theme_dir
+from typing import Any
 
 # CommonTheme directory path
 COMMON_THEME_DIR = "/Users/nathanhart/di-websites-platform/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme"
@@ -54,6 +55,7 @@ def migrate_map_components(
     oem_handler: Optional[Union[dict, object]] = None,
     interactive: bool = False,
     console: Optional[SBMConsole] = None,
+    processor: Optional[Any] = None,
 ) -> bool:
     """
     Enhanced map components migration that scans for CommonTheme @import statements
@@ -64,6 +66,7 @@ def migrate_map_components(
         oem_handler: OEM handler for the dealer
         interactive: Whether to prompt for user confirmation (default: False)
         console: Optional console instance for unified UI.
+        processor: Optional SCSSProcessor instance for content transformation.
 
     Returns:
         bool: True if migration was successful, False otherwise
@@ -134,7 +137,9 @@ def migrate_map_components(
             return True
 
         # Step 2: Migrate SCSS content to sb-inside.scss and sb-home.scss
-        scss_success, scss_targets = migrate_map_scss_content(slug, map_imports)
+        scss_success, scss_targets = migrate_map_scss_content(
+            slug, map_imports, processor=processor
+        )
 
         # Step 3: Find and migrate corresponding PHP partials
         partials_success, copied_partials = migrate_map_partials(
@@ -533,13 +538,16 @@ def derive_map_imports_from_partials(partial_paths: List[dict]) -> List[dict]:
     return imports
 
 
-def migrate_map_scss_content(slug: str, map_imports: List[dict]) -> tuple[bool, List[str]]:
+def migrate_map_scss_content(
+    slug: str, map_imports: List[dict], processor: Optional[Any] = None
+) -> tuple[bool, List[str]]:
     """
     Migrate SCSS content from CommonTheme map files to sb-inside.scss and sb-home.scss.
 
     Args:
         slug: Dealer theme slug
         map_imports: List of map import dictionaries
+        processor: Optional SCSSProcessor instance for content transformation.
 
     Returns:
         tuple[bool, list]: (success, list of modified files)
@@ -614,6 +622,12 @@ def migrate_map_scss_content(slug: str, map_imports: List[dict]) -> tuple[bool, 
 
                 # Add header comment
                 map_import_path = map_import.get("commontheme_relative", map_import["filename"])
+
+                # Transform content if processor is available
+                if processor:
+                    logger.debug(f"Transforming map SCSS content for {map_import['filename']}...")
+                    scss_content = processor.transform_scss_content(scss_content)
+
                 map_section = f"""
 /* Migrated from CommonTheme: {map_import_path} */
 {scss_content}

@@ -101,13 +101,18 @@ class AutoSBMSettings(BaseSettings):
     # WordPress debug fields (ignored by auto-sbm)
     wp_debug: bool | None = Field(None, exclude=True, description="WP debug (ignored)")
     wp_debug_log: bool | None = Field(None, exclude=True, description="WP debug log (ignored)")
-    wp_debug_display: bool | None = Field(None, exclude=True, description="WP debug display (ignored)")
+    wp_debug_display: bool | None = Field(
+        None, exclude=True, description="WP debug display (ignored)"
+    )
 
     # PATTERN: Nested models for complex configuration
     progress: ProgressSettings = Field(default_factory=lambda: ProgressSettings())
     logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
     git: GitSettings = Field(default_factory=lambda: GitSettings())
     migration: MigrationSettings = Field(default_factory=lambda: MigrationSettings())
+
+    # Global CLI behavior
+    non_interactive: bool = Field(default=False, description="Disable interactive prompts")
 
     def is_ci_environment(self) -> bool:
         """Detect if running in CI/CD environment."""

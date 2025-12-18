@@ -28,6 +28,7 @@ from sbm.utils.timer import timer_segment
 from sbm.oem.stellantis import StellantisHandler
 
 from .git import commit_changes, git_operations, push_changes
+from .maps import migrate_map_components
 from .git import create_pr as git_create_pr
 from .maps import migrate_map_components
 
@@ -374,7 +375,7 @@ def create_sb_files(slug: str, force_reset: bool = False) -> bool:
         return False
 
 
-def migrate_styles(slug: str) -> bool:
+def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool:
     # 3. Processes main SCSS files (style.scss, inside.scss, etc.)
     # 4. Writes transformed files to target directory.
     logger.debug(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
@@ -386,7 +387,8 @@ def migrate_styles(slug: str) -> bool:
             logger.error(f"Source SCSS directory not found: {source_scss_dir}")
             return False
 
-        processor = SCSSProcessor(slug, exclude_nav_styles=True)
+        if processor is None:
+            processor = SCSSProcessor(slug, exclude_nav_styles=True)
 
         # Define source files for sb-inside
         inside_sources = [
@@ -946,8 +948,9 @@ def _perform_core_migration(
             return False
 
     console.print_step("Migrating SCSS styles and transforming syntax")
+    processor = SCSSProcessor(slug, exclude_nav_styles=True)
     with timer_segment("SCSS Migration"):
-        if not migrate_styles(slug):
+        if not migrate_styles(slug, processor=processor):
             return False
 
     _cleanup_exclusion_comments(slug)
@@ -956,7 +959,10 @@ def _perform_core_migration(
 
     if not skip_maps:
         console.print_step("Migrating map components")
-        if not migrate_map_components(slug, oem_handler, interactive=False, console=console):
+        # Pass the same processor to map components migration to ensure consistent variable transformation
+        if not migrate_map_components(
+            slug, oem_handler, interactive=False, console=console, processor=processor
+        ):
             return False
     return True
 
@@ -1727,7 +1733,30 @@ def _comment_out_error_line(error_info: dict, css_dir: Path) -> bool:
 
         if line_number <= len(lines):
             original_line = lines[line_number - 1]
-            lines[line_number - 1] = f"// ERROR COMMENTED OUT: {original_line.strip()}\n"
+            stripped_line = original_line.strip()
+
+            # CRITICAL FIX: Don't comment out lines that only contain a closing brace
+            # or preserve the brace if it's part of the line.
+            if stripped_line == "}":
+                logger.info(
+                    f"Skipping commenting out line {line_number} in {file_name} because it is just a closing brace."
+                )
+                return False
+
+            if "}" in stripped_line and not any(c.isalnum() for c in stripped_line.split("}")[0]):
+                # If the line looks like "  }" or similar, don't comment it out
+                logger.info(
+                    f"Skipping commenting out line {line_number} in {file_name} to preserve block structure."
+                )
+                return False
+
+            # If there's a brace at the end of the line, try to preserve it
+            if stripped_line.endswith("}") and not stripped_line.startswith("}"):
+                lines[line_number - 1] = (
+                    f"// ERROR COMMENTED OUT: {stripped_line.rstrip('}')}\n}}\n"
+                )
+            else:
+                lines[line_number - 1] = f"// ERROR COMMENTED OUT: {stripped_line}\n"
 
             test_file_path.write_text("".join(lines))
 

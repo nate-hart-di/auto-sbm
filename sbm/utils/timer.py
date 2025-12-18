@@ -21,6 +21,7 @@ _current_theme: Optional[str] = None
 @dataclass
 class TimerSegment:
     """Represents a timed segment of the migration process."""
+
     name: str
     start_time: float
     end_time: Optional[float] = None
@@ -42,7 +43,7 @@ class TimerSegment:
 class MigrationTimer:
     """
     Tracks timing for migration processes with pause/resume capabilities.
-    
+
     This timer can pause during user interactions and resume for automated
     tasks, allowing separate tracking of automation time vs total time.
     """
@@ -50,7 +51,7 @@ class MigrationTimer:
     def __init__(self, theme_name: str):
         """
         Initialize the migration timer.
-        
+
         Args:
             theme_name: Name of the theme being migrated
         """
@@ -68,7 +69,7 @@ class MigrationTimer:
     def start_segment(self, name: str):
         """
         Start a new timed segment.
-        
+
         Args:
             name: Name of the segment (e.g., "Git Operations", "SCSS Migration")
         """
@@ -97,7 +98,7 @@ class MigrationTimer:
     def pause(self, reason: str = "User interaction"):
         """
         Pause the timer (e.g., during user prompts).
-        
+
         Args:
             reason: Reason for pausing (for logging)
         """
@@ -109,7 +110,7 @@ class MigrationTimer:
     def resume(self, reason: str = "Resuming automation"):
         """
         Resume the timer after a pause.
-        
+
         Args:
             reason: Reason for resuming (for logging)
         """
@@ -157,7 +158,7 @@ class MigrationTimer:
     def get_summary(self) -> Dict[str, float]:
         """
         Get a summary of timing information.
-        
+
         Returns:
             Dictionary with timing breakdown
         """
@@ -165,8 +166,10 @@ class MigrationTimer:
             "total_time": self.total_time,
             "automation_time": self.automation_time,
             "user_interaction_time": self.user_interaction_time,
-            "automation_percentage": (self.automation_time / self.total_time * 100) if self.total_time > 0 else 0,
-            "segments": {seg.name: seg.duration for seg in self.segments}
+            "automation_percentage": (self.automation_time / self.total_time * 100)
+            if self.total_time > 0
+            else 0,
+            "segments": {seg.name: seg.duration for seg in self.segments},
         }
 
     def print_summary(self):
@@ -195,10 +198,10 @@ _current_timer: Optional[MigrationTimer] = None
 def start_migration_timer(theme_name: str) -> MigrationTimer:
     """
     Start a new migration timer.
-    
+
     Args:
         theme_name: Name of the theme being migrated
-        
+
     Returns:
         MigrationTimer instance
     """
@@ -216,7 +219,7 @@ def get_total_automation_time() -> float:
     """Get total automation time from the current timer or global summary."""
     if _current_timer:
         return _current_timer.automation_time
-    
+
     # Fallback to global summary
     total = sum(_timing_summary.values())
     docker_time = _timing_summary.get("Docker Startup", 0)
@@ -244,7 +247,7 @@ def timer_segment(name: str):
     """
     Context manager for timing a segment of work.
     Creates standalone segment timer if no main timer exists.
-    
+
     Args:
         name: Name of the segment
     """
@@ -265,7 +268,7 @@ def timer_segment(name: str):
         finally:
             duration = time.time() - start_time
             logger.info(f"✅ Completed: {name} ({duration:.2f}s)")
-            
+
             # Add to global timing summary
             global _timing_summary
             _timing_summary[name] = duration
@@ -275,7 +278,7 @@ def timer_segment(name: str):
 def timer_pause(reason: str = "User interaction"):
     """
     Context manager for pausing the timer.
-    
+
     Args:
         reason: Reason for pausing
     """
@@ -299,6 +302,11 @@ def patch_click_confirm_for_timing():
 
     def timed_confirm(*args, **kwargs):
         """Wrapper that pauses timer during confirmation."""
+        from sbm.config import get_settings
+
+        if get_settings().non_interactive:
+            return kwargs.get("default", True)
+
         with timer_pause("User confirmation prompt"):
             return original_confirm(*args, **kwargs)
 
@@ -309,6 +317,7 @@ def patch_click_confirm_for_timing():
 def restore_click_confirm(original_confirm):
     """Restore the original click.confirm function."""
     import click
+
     click.confirm = original_confirm
 
 
@@ -328,32 +337,32 @@ def print_timing_summary():
     """Print a beautiful Rich timing summary box."""
     if not _timing_summary or not _current_theme:
         return
-        
+
     try:
         from rich.console import Console
         from rich.panel import Panel
         from rich.table import Table
         from rich.text import Text
-        
+
         console = Console()
-        
+
         # Calculate totals
         total_time = sum(_timing_summary.values())
-        
+
         # Calculate automation time (exclude Docker time as requested)
         docker_time = _timing_summary.get("Docker Startup", 0)
         automation_time = total_time - docker_time
-        
+
         # Create timing table
         table = Table(show_header=True, header_style="bold cyan")
         table.add_column("Step", style="white", width=25)
         table.add_column("Duration", style="green", justify="right", width=12)
         table.add_column("Percentage", style="yellow", justify="right", width=10)
-        
+
         # Add each segment to the table
         for segment_name, duration in _timing_summary.items():
             percentage = (duration / total_time * 100) if total_time > 0 else 0
-            
+
             # Format duration
             if duration < 60:
                 duration_str = f"{duration:.2f}s"
@@ -366,13 +375,9 @@ def print_timing_summary():
                 minutes = int((duration % 3600) // 60)
                 seconds = duration % 60
                 duration_str = f"{hours}h {minutes}m {seconds:.1f}s"
-            
-            table.add_row(
-                segment_name,
-                duration_str,
-                f"{percentage:.1f}%"
-            )
-        
+
+            table.add_row(segment_name, duration_str, f"{percentage:.1f}%")
+
         # Format total time
         if total_time < 60:
             total_str = f"{total_time:.2f} seconds"
@@ -385,14 +390,14 @@ def print_timing_summary():
             minutes = int((total_time % 3600) // 60)
             seconds = total_time % 60
             total_str = f"{hours}h {minutes}m {seconds:.1f}s"
-        
+
         # Create summary content
         summary_content = Text()
         summary_content.append("🎯 ", style="bold blue")
         summary_content.append("Migration Timing Summary for ", style="white")
         summary_content.append(_current_theme, style="bold cyan")
         summary_content.append("\n\n")
-        
+
         # Format automation time
         if automation_time < 60:
             automation_str = f"{automation_time:.2f} seconds"
@@ -405,7 +410,7 @@ def print_timing_summary():
             minutes = int((automation_time % 3600) // 60)
             seconds = automation_time % 60
             automation_str = f"{hours}h {minutes}m {seconds:.1f}s"
-        
+
         # Format docker time
         if docker_time < 60:
             docker_str = f"{docker_time:.2f} seconds"
@@ -418,36 +423,40 @@ def print_timing_summary():
             minutes = int((docker_time % 3600) // 60)
             seconds = docker_time % 60
             docker_str = f"{hours}h {minutes}m {seconds:.1f}s"
-        
+
         summary_content.append("📊 Total Time: ", style="bold white")
         summary_content.append(total_str, style="bold green")
         summary_content.append("\n")
-        
-        summary_content.append("🤖 Automation Time: ", style="bold white") 
+
+        summary_content.append("🤖 Automation Time: ", style="bold white")
         summary_content.append(automation_str, style="bold green")
         summary_content.append("\n")
-        
+
         summary_content.append("🐳 Docker Setup Time: ", style="bold white")
         summary_content.append(docker_str, style="bold blue")
-        
+
         # Print the main panel
-        console.print(Panel(
-            summary_content,
-            title="⏱️  Migration Timer Results",
-            title_align="center",
-            border_style="bright_blue",
-            padding=(1, 2)
-        ))
-        
+        console.print(
+            Panel(
+                summary_content,
+                title="⏱️  Migration Timer Results",
+                title_align="center",
+                border_style="bright_blue",
+                padding=(1, 2),
+            )
+        )
+
         # Print the detailed breakdown table
-        console.print(Panel(
-            table,
-            title="📋 Segment Breakdown",
-            title_align="center", 
-            border_style="bright_green",
-            padding=(1, 1)
-        ))
-        
+        console.print(
+            Panel(
+                table,
+                title="📋 Segment Breakdown",
+                title_align="center",
+                border_style="bright_green",
+                padding=(1, 1),
+            )
+        )
+
     except ImportError:
         # Fallback to plain text if Rich is not available
         print(f"\n⏱️  Migration Timing Summary for {_current_theme}")
@@ -455,12 +464,12 @@ def print_timing_summary():
         print(f"Total Time:           {total_time:.2f} seconds")
         print(f"Automation Time:      {automation_time:.2f} seconds")
         print(f"Docker Setup Time:    {docker_time:.2f} seconds")
-        
+
         if _timing_summary:
             print("\nSegment Breakdown:")
             for segment_name, duration in _timing_summary.items():
                 print(f"  {segment_name:<25} {duration:.2f}s")
-        
+
         print("=" * 60)
 
 

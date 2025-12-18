@@ -421,9 +421,10 @@ def check_and_run_daily_update():
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+@click.option("--yes", "-y", is_flag=True, help="Auto-confirm all prompts (non-interactive mode)")
 @click.option("--config", "config_path", default="config.json", help="Path to config file.")
 @click.pass_context
-def cli(ctx: click.Context, verbose: bool, config_path: str) -> None:
+def cli(ctx: click.Context, verbose: bool, yes: bool, config_path: str) -> None:
     """Auto-SBM: Automated Site Builder Migration Tool
 
     The main command for SBM migration with GitHub PR creation support.
@@ -431,11 +432,18 @@ def cli(ctx: click.Context, verbose: bool, config_path: str) -> None:
     and labels (fe-dev). Use 'sbm pr <theme-name>' for manual PR creation or
     --no-create-pr to skip.
     """
+    from sbm.config import get_settings
+
     # Set logger level based on verbose flag
     if verbose:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
+
+    # Set non-interactive mode if --yes is passed
+    if yes:
+        get_settings().non_interactive = True
+        logger.info("Non-interactive mode enabled via --yes flag")
 
     # Run daily auto-update check (unless this is the update command itself)
     if ctx.invoked_subcommand != "update":
@@ -599,6 +607,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
 
 @cli.command()
 @click.argument("theme_name")
+@click.option("--yes", "-y", is_flag=True, help="Auto-confirm all prompts.")
 @click.option("--skip-just", is_flag=True, help="Skip running the 'just start' command.")
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option(
@@ -621,6 +630,7 @@ def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: b
 def auto(
     ctx: click.Context,
     theme_name: str,
+    yes: bool,
     skip_just: bool,
     force_reset: bool,
     create_pr: bool,
@@ -637,6 +647,10 @@ def auto(
 
     Use --skip-just to skip running the 'just start' command (if the site is already started).
     """
+    from sbm.config import get_settings
+
+    if yes:
+        get_settings().non_interactive = True
     # Get configuration and initialize Rich console
     config = ctx.obj.get("config", Config({}))
     console = get_console(config)

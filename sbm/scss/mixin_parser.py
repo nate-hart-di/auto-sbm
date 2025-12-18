@@ -1309,7 +1309,7 @@ class CommonThemeMixinParser:
     def fix_placeholder_syntax(self, content: str) -> str:
         """Fix invalid placeholder selector syntax."""
         # Fix %# {$var} to %#{$var}
-        content = re.sub(r'%#\s*\{([^}]+)\}', r'%#{\1}', content)
+        content = re.sub(r"%#\s*\{([^}]+)\}", r"%#{\1}", content)
         return content
 
     def _load_commontheme_mixins(self) -> Dict[str, str]:
@@ -1358,15 +1358,15 @@ class CommonThemeMixinParser:
 
         return current_content, self.converted_mixins, self.unconverted_mixins
 
-    def _find_mixin_with_args(self, content: str, start: int = 0) -> Tuple[int, str, str, str]:
+    def _find_mixin_with_args(self, content: str, start: int = 0) -> Tuple[int, str, str, str, int]:
         """
         Find the next mixin call with proper nested parentheses handling.
-        Returns: (start_index, mixin_name, args_string, content_block)
+        Returns: (start_index, mixin_name, args_string, content_block, end_index)
         """
         # Find @include pattern
         include_match = re.search(r"@include\s+([\w-]+)\s*", content[start:])
         if not include_match:
-            return -1, "", "", ""
+            return -1, "", "", "", start
 
         abs_start = start + include_match.start()
         mixin_name = include_match.group(1)
@@ -1391,7 +1391,7 @@ class CommonThemeMixinParser:
                 i += 1
             else:
                 # No matching parenthesis found
-                return -1, "", "", ""
+                return -1, "", "", "", start
         else:
             args_string = ""
             after_args = after_name
@@ -1402,6 +1402,7 @@ class CommonThemeMixinParser:
 
         # Check for content block
         content_block = ""
+        end_index = after_args  # Default end_index if no content block
         if after_args < len(content) and content[after_args] == "{":
             brace_count = 0
             i = after_args
@@ -1414,10 +1415,15 @@ class CommonThemeMixinParser:
                     brace_count -= 1
                     if brace_count == 0:
                         content_block = content[block_start:i]
+                        end_index = i + 1  # End after the closing brace
                         break
                 i += 1
 
-        return abs_start, mixin_name, args_string, content_block
+        # If there's no content block, check for a semicolon
+        elif after_args < len(content) and content[after_args] == ";":
+            end_index = after_args + 1
+
+        return abs_start, mixin_name, args_string, content_block, end_index
 
     def _find_and_replace_mixins(self, content: str) -> str:
         """Recursively finds and replaces mixins in the content with proper nested parentheses handling."""
@@ -1426,17 +1432,34 @@ class CommonThemeMixinParser:
         last_index = 0
 
         while True:
-            start_index, mixin_name, args_string, content_block = self._find_mixin_with_args(
-                content, last_index
+            start_index, mixin_name, args_string, content_block, end_index = (
+                self._find_mixin_with_args(content, last_index)
             )
 
             if start_index == -1:
                 # No more mixins found
-                output += content[last_index:]
+                remaining = content[last_index:]
+                # print(f"DEBUG: Finishing loop. Appending remaining {len(remaining)} chars.")
+                output += remaining
                 break
 
             # Add content before the mixin
-            output += content[last_index:start_index]
+            pre_mixin_content = content[last_index:start_index]
+            # print(
+            #     f"DEBUG: Converting mixin: {mixin_name} at {start_index}. Previous index: {last_index}. Appending {len(pre_mixin_content)} chars before mixin."
+            # )
+            output += pre_mixin_content
+            # Check if this mixin call is commented out to propagate the comment to multi-line replacements
+            line_start = content.rfind("\n", 0, start_index) + 1
+            line_prefix = content[line_start:start_index]
+            is_commented = "//" in line_prefix
+
+            # If commented, extract the comment prefix (e.g., "// " or "//")
+            comment_prefix = ""
+            if is_commented:
+                comment_match = re.search(r"//\s*", line_prefix)
+                if comment_match:
+                    comment_prefix = comment_match.group(0)
 
             # Parse arguments
             args = _parse_mixin_arguments(args_string)
@@ -1451,29 +1474,33 @@ class CommonThemeMixinParser:
             if mixin_name in MIXIN_TRANSFORMATIONS:
                 handler = MIXIN_TRANSFORMATIONS[mixin_name]
                 replacement = handler(mixin_name, args, processed_content_block)
-                # Track successful conversion
-                original_call = self._reconstruct_mixin_call(mixin_name, args_string, content_block)
-                self.converted_mixins.append(original_call)
             elif mixin_name in self.mixin_definitions:
                 template = self.mixin_definitions[mixin_name]
                 param_str = ", ".join(args)
                 replacement = template.format(param=param_str)
-                # Track successful conversion
-                original_call = self._reconstruct_mixin_call(mixin_name, args_string, content_block)
-                self.converted_mixins.append(original_call)
             else:
                 # Unknown mixin, keep original
-                original_text = self._reconstruct_mixin_call(
+                replacement = self._reconstruct_mixin_call(
                     mixin_name, args_string, processed_content_block
                 )
-                self.logger.warning(f"Unknown mixin: {original_text}")
-                self.unconverted_mixins.append(original_text)
-                replacement = original_text
+                self.logger.warning(f"Unknown mixin: {replacement}")
+                self.unconverted_mixins.append(replacement)
+
+            # Track successful conversion if we found a handler or definition
+            if mixin_name in MIXIN_TRANSFORMATIONS or mixin_name in self.mixin_definitions:
+                original_call = self._reconstruct_mixin_call(mixin_name, args_string, content_block)
+                self.converted_mixins.append(original_call)
+
+            # PROPAGATE COMMENTS: If the original call was commented out and the replacement has multiple lines,
+            # ensure all subsequent lines are also commented out.
+            if is_commented and "\n" in replacement:
+                # Replace each newline with newline + comment_prefix
+                replacement = replacement.replace("\n", f"\n{comment_prefix}")
 
             output += replacement
 
             # Update last_index to skip past this mixin
-            last_index = self._find_mixin_end(content, start_index, args_string, content_block)
+            last_index = end_index
 
         return output
 
