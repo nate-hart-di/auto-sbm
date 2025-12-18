@@ -49,6 +49,7 @@
     "lexusoflindon",
     "lexusofmurray",
     "lexusofsantabarbara",
+    "loufuszcdjrvincennes",
     "louis",
     "magicgmccadillac",
     "magmaserati",
@@ -111,17 +112,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-05-02T21:46:47Z",
-      "slug": "bochmaserati",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 253,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-05-07T23:47:01Z",
       "slug": "lafayette",
@@ -1198,7 +1188,17 @@
       "automation_seconds": 7.28,
       "lines_migrated": 1015,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T15:45:40.244454+00:00Z",
+      "slug": "loufuszcdjrvincennes",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 105.33,
+      "automation_seconds": 10.46,
+      "lines_migrated": 746,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T15:17:50.629942+00:00Z"
+  "last_updated": "2025-12-18T15:45:40.244454+00:00Z"
 }
