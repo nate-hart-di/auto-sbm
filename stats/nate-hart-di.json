@@ -112,17 +112,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-05-02T02:13:54Z",
-      "slug": "oxmoorcdjr",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 97,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-05-02T02:48:15Z",
       "slug": "mullaheychryslerdodgejeepram",
       "command": "auto",
@@ -1200,7 +1189,17 @@
       "automation_seconds": 7.96,
       "lines_migrated": 1015,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T15:17:09.202721+00:00Z",
+      "slug": "daviddodge",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 7.32,
+      "automation_seconds": 7.32,
+      "lines_migrated": 1015,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T15:14:29.902148+00:00Z"
+  "last_updated": "2025-12-18T15:17:09.202721+00:00Z"
 }
