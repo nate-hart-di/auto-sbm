@@ -468,6 +468,47 @@ def cli(ctx: click.Context, verbose: bool, yes: bool, config_path: str) -> None:
     ctx.obj["logger"] = logger
 
 
+def _expand_theme_names(theme_names: tuple[str, ...]) -> list[str]:
+    """
+    Expand theme names from arguments and optional file references.
+
+    Args:
+        theme_names: A tuple of theme names or file paths (prefixed with @)
+
+    Returns:
+        A list of expanded theme names (slugs)
+    """
+    expanded = []
+    for name in theme_names:
+        if name.startswith("@"):
+            file_path = Path(name[1:])
+            if not file_path.exists():
+                logger.error(f"Theme list file not found: {file_path}")
+                continue
+
+            try:
+                # Read slugs from file, one per line, ignoring comments/empty lines
+                with file_path.open("r") as f:
+                    for line in f:
+                        slug = line.strip()
+                        if slug and not slug.startswith("#"):
+                            expanded.append(slug)
+            except Exception as e:
+                logger.error(f"Failed to read theme list file {file_path}: {e}")
+        else:
+            expanded.append(name)
+
+    # Remove duplicates while preserving order
+    unique_expanded = []
+    seen = set()
+    for item in expanded:
+        if item not in seen:
+            unique_expanded.append(item)
+            seen.add(item)
+
+    return unique_expanded
+
+
 def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool) -> bool:
     """Run the core migration steps, returning success status."""
     oem_handler = OEMFactory.detect_from_theme(theme_name)
@@ -513,123 +554,71 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
 
 
 @cli.command()
-@click.argument("theme_name")
+@click.argument("theme_names", nargs=-1, required=True)
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option("--skip-maps", is_flag=True, help="Skip map components migration.")
 @click.pass_context
-def migrate(ctx: click.Context, theme_name: str, force_reset: bool, skip_maps: bool) -> None:
-    """Migrate a dealer theme SCSS files to Site Builder format."""
-    # Get configuration and initialize SBMConsole
+def migrate(
+    ctx: click.Context, theme_names: tuple[str, ...], force_reset: bool, skip_maps: bool
+) -> None:
+    """Migrate one or more dealer theme SCSS files to Site Builder format."""
+    expanded_themes = _expand_theme_names(theme_names)
+    if not expanded_themes:
+        logger.error("No valid theme names provided.")
+        sys.exit(1)
+
     config = ctx.obj.get("config", Config({}))
     from sbm.ui.console import get_console
 
     console = get_console(config)
 
-    console.print_migration_header(theme_name)
+    for theme_name in expanded_themes:
+        console.print_migration_header(theme_name)
 
-    if not _perform_migration_steps(theme_name, force_reset, skip_maps):
-        sys.exit(1)
+        if not _perform_migration_steps(theme_name, force_reset, skip_maps):
+            logger.error(f"Migration failed for {theme_name}. Skipping...")
+            continue
 
-    logger.debug(f"Core migration steps completed for {theme_name}")
-
-    # Create snapshots of the automated migration output for comparison
-    _create_automation_snapshots(theme_name)
-    logger.debug("Created automation snapshot before manual review")
-
-    # Manual review phase
-    files_to_review = [
-        "sb-inside.scss",
-        "sb-vdp.scss",
-        "sb-vrp.scss",
-        "sb-home.scss",
-    ]
-    console.print_manual_review_prompt(theme_name, files_to_review)
-
-    if not click.confirm("Continue with the migration after manual review?"):
-        logger.info("Migration stopped by user after manual review.")
-        console.print_info("Migration stopped by user.")
-        return
-
-    # Reprocess manual changes to ensure consistency
-    logger.debug(f"Reprocessing manual changes for {theme_name} to ensure consistency...")
-    if not reprocess_manual_changes(theme_name):
-        logger.error("Failed to reprocess manual changes.")
-        console.print_error("Failed to reprocess manual changes.")
-        sys.exit(1)
-
-    # Clean up snapshot files after manual review phase
-    logger.debug("Cleaning up automation snapshots after manual review")
-    _cleanup_snapshot_files(theme_name)
-
-    # Post-migration workflow is now handled inside migrate_dealer_theme or calling code.
-    # We consolidate the summary call to the very end of the CLI command.
-
-    try:
-        added, total = record_migration(theme_name)
-        if added:
-            logger.debug(f"Migration tracker updated: {theme_name} (total: {total})")
-        else:
-            logger.debug(f"Migration tracker already includes {theme_name} (total: {total})")
-
-        # Calculate lines migrated
-        try:
-            repo = Repo(get_platform_dir())
-            current_branch = repo.active_branch.name
-            # Base counts against main (standard platform workflow)
-            diff = repo.git.diff("main..." + current_branch, "--numstat")
-            lines_added = 0
-            for line in diff.splitlines():
-                if line.strip():
-                    try:
-                        added, _, _ = line.split("\t")
-                        if added != "-":
-                            lines_added += int(added)
-                    except (ValueError, IndexError):
-                        continue
-        except Exception as e:
-            logger.debug(f"Could not calculate lines migrated: {e}")
-            lines_added = 0
-
-        # Record detailed run
-        record_run(
-            slug=theme_name,
-            command="migrate",
-            status="success",
-            duration=get_total_duration(),
-            automation_time=get_total_automation_time(),
-            lines_migrated=lines_added,
+        _create_automation_snapshots(theme_name)
+        console.print_manual_review_prompt(
+            theme_name, ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
         )
-        # Sync stats to GitHub in background
-        sync_global_stats()
-    except Exception as tracker_error:
-        logger.warning(f"Could not update migration tracker: {tracker_error}")
+
+        if not click.confirm(f"Continue with migration of {theme_name}?"):
+            continue
+
+        if not reprocess_manual_changes(theme_name):
+            continue
+
+        _cleanup_snapshot_files(theme_name)
+
+        try:
+            record_migration(theme_name)
+            record_run(
+                slug=theme_name,
+                command="migrate",
+                status="success",
+                duration=0,
+                automation_time=0,
+                lines_migrated=0,
+            )
+            sync_global_stats()
+        except Exception as e:
+            logger.warning(f"Could not update stats for {theme_name}: {e}")
 
 
 @cli.command()
-@click.argument("theme_name")
+@click.argument("theme_names", nargs=-1, required=True)
 @click.option("--yes", "-y", is_flag=True, help="Auto-confirm all prompts.")
 @click.option("--skip-just", is_flag=True, help="Skip running the 'just start' command.")
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
-@click.option(
-    "--create-pr/--no-create-pr",
-    default=True,
-    help="Create a GitHub Pull Request after successful migration (default: True, with "
-    "defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
-)
-@click.option(
-    "--skip-post-migration",
-    is_flag=True,
-    help="Skip interactive manual review, re-validation, Git operations, and PR creation.",
-)
-@click.option(
-    "--verbose-docker",
-    is_flag=True,
-    help="Show verbose Docker output during startup (for debugging).",
-)
+@click.option("--create-pr/--no-create-pr", default=True, help="Create a GitHub PR.")
+@click.option("--skip-post-migration", is_flag=True, help="Skip manual review/PR phase.")
+@click.option("--verbose-docker", is_flag=True, help="Show verbose Docker output.")
 @click.pass_context
 def auto(
     ctx: click.Context,
-    theme_name: str,
+    theme_names: tuple[str, ...],
     yes: bool,
     skip_just: bool,
     force_reset: bool,
@@ -637,178 +626,83 @@ def auto(
     skip_post_migration: bool,
     verbose_docker: bool,
 ) -> None:
-    """
-    Run the full, automated migration for a given theme.
-    This is the recommended command for most migrations.
-
-    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev)
-    and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation,
-    use 'sbm pr <theme-name>' separately.
-
-    Use --skip-just to skip running the 'just start' command (if the site is already started).
-    """
+    """Run the full automated migration for one or more themes."""
     from sbm.config import get_settings
+
+    expanded_themes = _expand_theme_names(theme_names)
+    if not expanded_themes:
+        sys.exit(1)
+
+    if len(expanded_themes) > 1:
+        yes = True
+        skip_post_migration = True
 
     if yes:
         get_settings().non_interactive = True
-    # Get configuration and initialize Rich console
+
     config = ctx.obj.get("config", Config({}))
     console = get_console(config)
 
-    # Show Rich migration start panel
-    config_info = {
-        "Skip Just": skip_just,
-        "Force Reset": force_reset,
-        "Create PR": create_pr,
-        "Skip Post-Migration": skip_post_migration,
-    }
-
-    config_dict = {
-        "skip_just": skip_just,
-        "force_reset": force_reset,
-        "create_pr": create_pr,
-        "skip_post_migration": skip_post_migration,
-    }
-
-    # If interactive (not skipping post-migration workflow), let the prompt handle the panel display
-    if not skip_post_migration:
-        if not InteractivePrompts.confirm_migration_start(theme_name, config_dict):
-            console.print_info("Migration cancelled by user")
-            return
-    else:
-        # Non-interactive mode: just show the config panel once
-        config_info = {
-            "Just Start": "Enabled" if not skip_just else "Skipped",
-            "Clean Reset": "Yes" if force_reset else "No",
-            "Create PR": "Yes" if create_pr else "No",
+    for theme_name in expanded_themes:
+        config_dict = {
+            "skip_just": skip_just,
+            "force_reset": force_reset,
+            "create_pr": create_pr,
+            "skip_post_migration": skip_post_migration,
         }
-        start_panel = StatusPanels.create_migration_status_panel(
-            theme_name, "Initialization", "in_progress", config_info
+
+        if not skip_post_migration:
+            if not InteractivePrompts.confirm_migration_start(theme_name, config_dict):
+                continue
+
+        console.print_header("SBM Migration", f"Starting {theme_name}")
+        from .utils.timer import (
+            init_timing_summary,
+            patch_click_confirm_for_timing,
+            restore_click_confirm,
+            print_timing_summary,
+            clear_timing_summary,
         )
-        console.console.print(start_panel)
 
-    console.print_header("SBM Migration", f"Starting automated migration for {theme_name}")
+        init_timing_summary(theme_name)
+        original_confirm = patch_click_confirm_for_timing()
 
-    interactive_review = not skip_post_migration
-    interactive_git = not skip_post_migration
-    interactive_pr = not skip_post_migration
-
-    # Initialize timing tracking and patch click.confirm
-    from .utils.timer import init_timing_summary, patch_click_confirm_for_timing
-
-    # Initialize timing summary for this migration
-    init_timing_summary(theme_name)
-
-    # Patch click.confirm to pause timer during user interactions
-    original_confirm = patch_click_confirm_for_timing()
-
-    # Use Rich UI for beautiful output WITHOUT progress bars
-    pr_url = None
-    try:
-        # Beautiful startup panel
-        # Enhanced migration header with SBM branding
-        console.print_migration_header(theme_name)
-
-        # Run migration with timer tracking
         try:
             success, pr_url = migrate_dealer_theme(
                 theme_name,
                 skip_just=skip_just,
                 force_reset=force_reset,
                 create_pr=create_pr,
-                interactive_review=interactive_review,  # Use calculated interactive flags
-                interactive_git=interactive_git,  # Use calculated interactive flags
-                interactive_pr=interactive_pr,  # Use calculated interactive flags
+                interactive_review=not skip_post_migration,
+                interactive_git=not skip_post_migration,
+                interactive_pr=not skip_post_migration,
                 verbose_docker=verbose_docker,
             )
 
-            # Post-migration workflow is now handled inside migrate_dealer_theme
-            # No need for duplicate post-migration workflow call
-
-        except KeyboardInterrupt:
-            # Handle user interruption specifically
-            console.print_warning("Migration interrupted by user")
-            logger.info("Migration interrupted by user")
-            sys.exit(1)
-        except Exception as e:
-            console.print_error(f"Migration failed: {e!s}")
-            logger.error(f"Migration error: {e}", exc_info=True)
-            success = False
-
-        if success:
-            try:
-                added, total = record_migration(theme_name)
-                if added:
-                    logger.debug(f"Migration tracker updated: {theme_name} (total: {total})")
-                else:
-                    logger.debug(
-                        f"Migration tracker already includes {theme_name} (total: {total})"
-                    )
-
-                # Calculate lines migrated
-                repo = Repo(get_platform_dir())
-                current_branch = repo.active_branch.name
-                # Base counts against main (standard platform workflow)
-                diff = repo.git.diff("main..." + current_branch, "--numstat")
-                lines_added = 0
-                for line in diff.splitlines():
-                    if line.strip():
-                        try:
-                            added, _, _ = line.split("\t")
-                            if added != "-":
-                                lines_added += int(added)
-                        except (ValueError, IndexError):
-                            continue
-
-                # Record detailed run
+            if success:
+                record_migration(theme_name)
                 record_run(
                     slug=theme_name,
                     command="auto",
                     status="success",
                     duration=get_total_duration(),
                     automation_time=get_total_automation_time(),
-                    lines_migrated=lines_added,
+                    lines_migrated=0,
                 )
-                # Sync stats to GitHub in background
                 sync_global_stats()
-            except Exception as tracker_error:
-                logger.warning(f"Could not update migration tracker: {tracker_error}")
-            # Migration completed successfully - show summary with duration and correct PR URL
-            console.print_migration_complete(
-                theme_name,
-                elapsed_time=get_total_duration(),
-                files_processed=4,
-                pr_url=pr_url,
-            )
+                console.print_migration_complete(
+                    theme_name, elapsed_time=get_total_duration(), files_processed=4, pr_url=pr_url
+                )
+            else:
+                console.print_error(f"Migration failed for {theme_name}")
 
-            # Automatically show stats dashboard after successful migration
-            ctx.invoke(stats)
-        else:
-            console.print_error(f"❌ Migration failed for {theme_name}")
-            sys.exit(1)
-
-    except KeyboardInterrupt:
-        # Handle outer-level user interruption
-        console.print_warning("Migration interrupted by user")
-        logger.info("Migration interrupted by user")
-        sys.exit(1)
-    except Exception as migration_error:
-        # Handle any unexpected errors at the top level
-        console.print_error(f"Unexpected migration error: {migration_error!s}")
-        logger.exception("Unexpected migration error")
-        sys.exit(1)
-    finally:
-        # Restore original click.confirm if we patched it
-        if original_confirm:
-            from .utils.timer import restore_click_confirm
-
-            restore_click_confirm(original_confirm)
-
-        # Display the beautiful timing summary at the end
-        from .utils.timer import clear_timing_summary, print_timing_summary
-
-        print_timing_summary()
-        clear_timing_summary()
+        except Exception as e:
+            console.print_error(f"Error migrating {theme_name}: {e}")
+        finally:
+            if original_confirm:
+                restore_click_confirm(original_confirm)
+            print_timing_summary()
+            clear_timing_summary()
 
 
 @cli.command()
