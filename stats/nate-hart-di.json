@@ -113,17 +113,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-05-07T23:47:01Z",
-      "slug": "lafayette",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1223,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-05-07T23:56:44Z",
       "slug": "ponce",
       "command": "auto",
@@ -1198,7 +1187,17 @@
       "automation_seconds": 10.46,
       "lines_migrated": 746,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T15:47:24.313230+00:00Z",
+      "slug": "loufuszcdjrvincennes",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 7.67,
+      "automation_seconds": 7.67,
+      "lines_migrated": 746,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T15:45:40.244454+00:00Z"
+  "last_updated": "2025-12-18T15:47:24.313230+00:00Z"
 }
