@@ -223,8 +223,8 @@ def _calculate_metrics(data: dict) -> dict:
     total_automation_seconds = sum(r.get("automation_seconds", 0) for r in successful_runs)
     total_lines_migrated = sum(r.get("lines_migrated", 0) for r in successful_runs)
 
-    # Mathematical time saved: 1 hour per 400 lines migrated
-    time_saved_hours = total_lines_migrated / 400.0
+    # Mathematical time saved: 1 hour per 800 lines migrated
+    time_saved_hours = total_lines_migrated / 800.0
 
     return {
         "total_runs": total_runs,
@@ -293,8 +293,8 @@ def _aggregate_global_stats() -> dict:
             logger.debug(f"Error processing global stats file {stats_file}: {e}")
             continue
 
-    # Mathematical time saved: 1 hour per 400 lines migrated
-    time_saved_hours = total_lines_migrated / 400.0
+    # Mathematical time saved: 1 hour per 800 lines migrated
+    time_saved_hours = total_lines_migrated / 800.0
 
     # Top contributors (top 3)
     top_contributors = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[:3]
