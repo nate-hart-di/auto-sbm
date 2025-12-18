@@ -870,6 +870,7 @@ def guess_partial_paths_from_scss(map_imports: List[dict]) -> List[dict]:
         list: List of guessed partial path dictionaries
     """
     partial_paths = []
+    seen_paths = set()
 
     for map_import in map_imports:
         # Convert SCSS path to potential partial path
@@ -885,6 +886,10 @@ def guess_partial_paths_from_scss(map_imports: List[dict]) -> List[dict]:
         if not partial_path.startswith("partials/"):
             partial_path = f"partials/{partial_path}"
 
+        if partial_path in seen_paths:
+            continue
+        seen_paths.add(partial_path)
+
         partial_info = {
             "partial_path": partial_path,
             "template_file": "guessed_from_scss",
@@ -893,7 +898,7 @@ def guess_partial_paths_from_scss(map_imports: List[dict]) -> List[dict]:
         }
 
         partial_paths.append(partial_info)
-        logger.info(f"Guessed partial path: {partial_path}")
+        logger.debug(f"Guessed partial path: {partial_path}")
 
     return partial_paths
 
