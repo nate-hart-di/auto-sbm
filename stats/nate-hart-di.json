@@ -109,17 +109,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-01-17T16:50:13Z",
-      "slug": "romeo",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 104,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-01-17T17:14:01Z",
       "slug": "minneapolis",
       "command": "auto",
@@ -1203,7 +1192,17 @@
       "automation_seconds": 8.97,
       "lines_migrated": 1015,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T03:58:55.017453+00:00Z",
+      "slug": "daviddodge",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 123.51,
+      "automation_seconds": 9.49,
+      "lines_migrated": 1015,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T03:55:38.592610+00:00Z"
+  "last_updated": "2025-12-18T03:58:55.017453+00:00Z"
 }
