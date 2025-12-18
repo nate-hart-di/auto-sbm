@@ -759,8 +759,15 @@ def auto(
                 sync_global_stats()
             except Exception as tracker_error:
                 logger.warning(f"Could not update migration tracker: {tracker_error}")
-            # Migration completed successfully - no overall timer needed
-            console.print_migration_complete(theme_name, elapsed_time=None, timing_summary=None)
+            # Migration completed successfully - show summary with duration
+            console.print_migration_complete(
+                theme_name,
+                elapsed_time=get_total_duration(),
+                files_processed=4,
+            )
+
+            # Automatically show stats dashboard after successful migration
+            ctx.invoke(stats)
         else:
             console.print_error(f"❌ Migration failed for {theme_name}")
             sys.exit(1)
@@ -1739,11 +1746,7 @@ def internal_refresh_stats() -> None:
     Runs the backfill script and then syncs global stats.
     """
     try:
-        # 1. Run backfill script
-        backfill_script = REPO_ROOT / "scripts" / "stats" / "backfill_stats_v3.py"
-        subprocess.run([os.sys.executable, str(backfill_script)], check=False, capture_output=True)
-
-        # 2. Sync global stats (git push)
+        # Sync global stats (git push)
         from .utils.tracker import sync_global_stats
 
         sync_global_stats()

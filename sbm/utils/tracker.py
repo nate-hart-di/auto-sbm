@@ -240,23 +240,40 @@ def _aggregate_global_stats() -> dict:
     if not GLOBAL_STATS_DIR.exists():
         return {}
 
-    all_migrations = set()
-    total_runs = 0
+    local_data = _read_tracker()
+    local_runs = local_data.get("runs", [])
+    local_migrations = set(local_data.get("migrations", []))
+    current_user_id = _get_user_id()
+
+    all_migrations = set(local_migrations)
+    total_runs = len(local_runs)
     total_success = 0
     total_automation_seconds = 0.0
     total_lines_migrated = 0
-    user_count = 0
+    user_count = 1  # Start with the current user
 
-    user_counts = {}
+    # Process local successes
+    for run in local_runs:
+        if run.get("status") == "success":
+            total_success += 1
+            total_automation_seconds += run.get("automation_seconds", 0)
+            total_lines_migrated += run.get("lines_migrated", 0)
+
+    user_counts = {current_user_id: len(local_migrations)}
+
     for stats_file in GLOBAL_STATS_DIR.glob("*.json"):
         if stats_file.name.startswith("."):
             continue
+
+        user_id = stats_file.stem
+        if user_id == current_user_id:
+            continue  # Already processed local live data
+
         try:
             with stats_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 user_count += 1
 
-                user_id = data.get("user", stats_file.stem)
                 user_migrations = data.get("migrations", [])
                 user_counts[user_id] = len(user_migrations)
 
