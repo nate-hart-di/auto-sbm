@@ -276,9 +276,9 @@ def auto_update_repo() -> None:
             stash_created = stash_res.returncode == 0
 
         try:
-            # Perform pull
+            # Perform pull with rebase to handle divergent branches seamlessly
             pull_res = subprocess.run(
-                ["git", "pull", "--quiet", "origin", current_branch],
+                ["git", "pull", "--rebase", "--quiet", "origin", current_branch],
                 check=False,
                 cwd=str(REPO_ROOT),
                 capture_output=True,
@@ -290,6 +290,17 @@ def auto_update_repo() -> None:
                 if pull_res.stdout.strip() and "Already up to date" not in pull_res.stdout:
                     logger.debug("Auto-updated to latest version.")
                 _check_and_run_setup_if_needed()
+            else:
+                # Log error but don't block tool execution
+                error_msg = pull_res.stderr.strip() if pull_res.stderr else "Unknown error"
+                if "reconcile divergent branches" in error_msg:
+                    logger.warning(
+                        "⚠️ Auto-update failed: Divergent branches detected. "
+                        "The tool will continue, but you may be on an outdated version. "
+                        "Try running: 'git pull --rebase origin master' manually in ~/auto-sbm"
+                    )
+                else:
+                    logger.debug(f"Auto-update pull failed: {error_msg}")
         finally:
             # ALWAYS attempt to restore stash if we created one
             if stash_created:
@@ -624,6 +635,8 @@ def migrate(
                 lines_migrated=0,
             )
             sync_global_stats()
+            # Show updated stats after each migration
+            ctx.invoke(stats)
         except Exception as e:
             logger.warning(f"Could not update stats for {theme_name}: {e}")
 
@@ -711,6 +724,8 @@ def auto(
                     lines_migrated=0,
                 )
                 sync_global_stats()
+                # Show updated stats after each migration
+                ctx.invoke(stats)
                 console.print_migration_complete(
                     theme_name, elapsed_time=get_total_duration(), files_processed=4, pr_url=pr_url
                 )
