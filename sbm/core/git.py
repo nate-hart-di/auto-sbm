@@ -1219,7 +1219,7 @@ PR: {pr_url}"""
                 labels=pr_labels,
             )
 
-            logger.info(f"Successfully created PR: {pr_url}")
+            logger.debug(f"Successfully created PR: {pr_url}")
 
             # Open the PR in browser after creation
             self._open_pr_in_browser(pr_url)

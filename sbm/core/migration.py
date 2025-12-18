@@ -928,7 +928,7 @@ def run_post_migration_workflow(
         logger.info(f"Creating PR for {slug}...")
         success, pr_url = git_create_pr(slug, branch_name)
         if success:
-            logger.info(f"PR created: {pr_url}")
+            logger.debug(f"PR created: {pr_url}")
         else:
             logger.error(f"Failed to create PR for {slug}")
             return False, None

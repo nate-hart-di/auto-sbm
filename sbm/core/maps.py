@@ -293,7 +293,9 @@ def find_commontheme_map_imports(
                 if actual_file_path:
                     map_import["commontheme_absolute"] = str(actual_file_path)
                     map_imports.append(map_import)
-                    logger.info(f"Found map import: {map_import['filename']} at {actual_file_path}")
+                    logger.debug(
+                        f"Found map import: {map_import['filename']} at {actual_file_path}"
+                    )
                 else:
                     logger.debug(f"CommonTheme file not found (skipping): {commontheme_absolute}")
 
@@ -633,7 +635,7 @@ def migrate_map_scss_content(
 {scss_content}
 """
                 all_map_content.append(map_section)
-                logger.info(f"Read SCSS content from {map_import['filename']}")
+                logger.debug(f"Read SCSS content from {map_import['filename']}")
 
             except Exception as e:
                 logger.warning(
