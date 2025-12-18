@@ -737,7 +737,7 @@ def migrate_map_partials(
 
         # Copy partials from CommonTheme to DealerTheme
         success_count = 0
-        copied = []
+        actually_copied = []
         processed_paths = set()
 
         for partial_info in partial_paths:
@@ -746,12 +746,18 @@ def migrate_map_partials(
                 continue
             processed_paths.add(p_path)
 
-            if copy_partial_to_dealer_theme(slug, partial_info, interactive=interactive):
+            status = copy_partial_to_dealer_theme(slug, partial_info, interactive=interactive)
+            if status == "copied":
                 success_count += 1
-                copied.append(p_path)
+                actually_copied.append(p_path)
+            elif status == "already_exists":
+                success_count += 1
+            elif status == "skipped_missing":
+                # Missing but acknowledged/skipped (e.g. in interactive or is a guess)
+                success_count += 1
 
         logger.info(f"Successfully migrated {success_count}/{len(partial_paths)} map partials")
-        return (success_count > 0 or len(partial_paths) == 0), copied
+        return (success_count > 0 or len(partial_paths) == 0), actually_copied
 
     except Exception as e:
         logger.error(f"Error migrating map partials: {e}")
@@ -903,7 +909,7 @@ def guess_partial_paths_from_scss(map_imports: List[dict]) -> List[dict]:
     return partial_paths
 
 
-def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: bool = False) -> bool:
+def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: bool = False) -> str:
     """
     Copy a PHP partial from CommonTheme to DealerTheme with proper directory structure.
 
@@ -913,7 +919,7 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
         interactive: Whether to prompt for user confirmation (default: False)
 
     Returns:
-        bool: True if successful, False otherwise
+        str: Status of the operation: "copied", "already_exists", "not_found", or "skipped_missing"
     """
     try:
         theme_dir = Path(get_dealer_theme_dir(slug))
@@ -930,7 +936,7 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
             logger.info(
                 f"✅ Partial already exists in dealer theme: {dealer_dest_file.relative_to(theme_dir)}"
             )
-            return True
+            return "already_exists"
 
         # 2. If not in dealer theme, THEN check CommonTheme
         commontheme_source = Path(COMMON_THEME_DIR) / f"{commontheme_partial_path}.php"
@@ -952,12 +958,14 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
                         for similar_file in similar_files[:3]:  # Show top 3
                             click.echo(f"  - {similar_file}")
 
-                    return click.confirm("Skip this partial?", default=True)
+                    if click.confirm("Skip this partial?", default=True):
+                        return "skipped_missing"
+                    return "not_found"
                 # In non-interactive mode, automatically skip missing guessed partials
                 logger.warning(f"Skipping missing guessed partial: {commontheme_partial_path}.php")
-                return True
+                return "skipped_missing"
 
-            return False
+            return "not_found"
 
         # Create directory structure only if it doesn't exist
         dealer_dest_dir.mkdir(parents=True, exist_ok=True)
@@ -969,7 +977,7 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
         logger.info(f"   From: {commontheme_source}")
         logger.info(f"   To: {dealer_dest_file}")
 
-        return True
+        return "copied"
 
     except Exception as e:
         logger.error(f"Error copying partial {partial_info['partial_path']}: {e}")
