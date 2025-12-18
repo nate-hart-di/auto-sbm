@@ -267,30 +267,30 @@ def find_commontheme_map_imports(
                     "filename": commontheme_absolute.name,
                 }
 
-            # Verify the file exists in CommonTheme with several fallbacks
-            filename = commontheme_absolute.name
-            directory = commontheme_absolute.parent
+                # Verify the file exists in CommonTheme with several fallbacks
+                filename = commontheme_absolute.name
+                directory = commontheme_absolute.parent
 
-            candidate_paths = [commontheme_absolute]
+                candidate_paths = [commontheme_absolute]
 
-            # Underscore prefix
-            if not filename.startswith("_"):
-                candidate_paths.append(directory / f"_{filename}")
-
-            # Add .scss if missing
-            if not filename.lower().endswith(".scss"):
-                candidate_paths.append(commontheme_absolute.with_suffix(".scss"))
+                # Underscore prefix
                 if not filename.startswith("_"):
-                    candidate_paths.append(directory / f"_{filename}.scss")
+                    candidate_paths.append(directory / f"_{filename}")
 
-            actual_file_path = next((p for p in candidate_paths if p.exists()), None)
+                # Add .scss if missing
+                if not filename.lower().endswith(".scss"):
+                    candidate_paths.append(commontheme_absolute.with_suffix(".scss"))
+                    if not filename.startswith("_"):
+                        candidate_paths.append(directory / f"_{filename}.scss")
 
-            if actual_file_path:
-                map_import["commontheme_absolute"] = str(actual_file_path)
-                map_imports.append(map_import)
-                logger.info(f"Found map import: {map_import['filename']} at {actual_file_path}")
-            else:
-                logger.debug(f"CommonTheme file not found (skipping): {commontheme_absolute}")
+                actual_file_path = next((p for p in candidate_paths if p.exists()), None)
+
+                if actual_file_path:
+                    map_import["commontheme_absolute"] = str(actual_file_path)
+                    map_imports.append(map_import)
+                    logger.info(f"Found map import: {map_import['filename']} at {actual_file_path}")
+                else:
+                    logger.debug(f"CommonTheme file not found (skipping): {commontheme_absolute}")
 
         if map_imports:
             logger.info(f"Found {len(map_imports)} CommonTheme map imports")
