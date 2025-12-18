@@ -907,10 +907,16 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
 
     # Header Panel
     header = Panel(
-        Text.from_markup(f"[bold cyan]Auto-SBM Migration Dashboard[/bold cyan]"),
+        Text.from_markup(f"[bold cyan]Global Auto-SBM Stats[/bold cyan]"),
         border_style="bright_blue",
     )
     rich_console.print(header)
+
+    # Personal Impact
+    current_user = stats_data.get("user_id", "unknown")
+    rich_console.print(
+        Text.assemble(f"\n[{current_user}] - Your Auto-SBM Stats", style="bold cyan")
+    )
 
     # Metrics Grid
     metrics_local = stats_data.get("metrics", {})
@@ -966,7 +972,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
         # Top Contributors
         top_contributors = global_metrics.get("top_contributors", [])
         if top_contributors:
-            rich_console.print("\n[bold cyan]Top Contributors[/bold cyan]")
+            rich_console.print("\n[bold cyan]Top Contributors:[/bold cyan]")
             contrib_table = Table(show_header=False, box=None, padding=(0, 2))
             contrib_table.add_column("Rank", style="dim", width=4)
             contrib_table.add_column("User", style="bold cyan")
@@ -974,7 +980,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
 
             for i, (user, count) in enumerate(top_contributors, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"#{i}"
-                contrib_table.add_row(medal, user, f"{count} sites")
+                contrib_table.add_row(f"  {medal}", f"{user}", f"{count} sites")
             rich_console.print(contrib_table)
 
     # User ID info
@@ -982,14 +988,12 @@ def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
 
     last_updated_str = "Never"
     if stats_data.get("last_updated"):
-        try:
-            ts = stats_data["last_updated"]
-            if ts.endswith("Z"):
-                ts = ts[:-1] + "+00:00"
-            dt = datetime.fromisoformat(ts)
-            last_updated_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            last_updated_str = stats_data["last_updated"]
+        # Simple robust formatting for YYYY-MM-DD HH:MM:SS
+        ts = stats_data["last_updated"]
+        if len(ts) >= 19:
+            last_updated_str = ts[:19].replace("T", " ")
+        else:
+            last_updated_str = ts
 
     rich_console.print(
         f"\n[dim]Contributing as: {current_user} | Last updated: {last_updated_str}[/dim]"
