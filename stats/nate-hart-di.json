@@ -52,6 +52,7 @@
     "lamesachryslerdodgejeepram",
     "landersmclartycdjr",
     "larryhillischryslerdodgejeepram",
+    "lexusofcerritos",
     "lexusoflindon",
     "lexusofmurray",
     "lexusofsantabarbara",
@@ -123,17 +124,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-08T22:46:44Z",
-      "slug": "allensamuelschryslerdodgejeepramhutchinson",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1132,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-08T23:06:03Z",
       "slug": "jamesriverchryslerdodgejeepram",
@@ -1189,7 +1179,17 @@
       "automation_seconds": 9.14,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T23:33:44.551590+00:00Z",
+      "slug": "lexusofcerritos",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 104.95,
+      "automation_seconds": 9.35,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T23:31:10.330013+00:00Z"
+  "last_updated": "2025-12-18T23:33:44.551590+00:00Z"
 }
