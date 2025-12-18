@@ -136,26 +136,17 @@ def migrate_map_components(
             pass
 
         if not map_imports:
-            logger.info("No CommonTheme map imports found; skipping map migration.")
+            logger.info(
+                "No CommonTheme map imports found, but shortcodes detected. Proceeding with partial migration."
+            )
             if console:
                 console.print_info(
-                    "i Map shortcodes detected but no CommonTheme map assets found; skipping map migration."
+                    "i Map shortcodes detected but no CommonTheme map assets found; checking for partials..."
                 )
             else:
                 click.echo(
-                    "i Map shortcodes detected but no CommonTheme map assets found; skipping map migration."
+                    "i Map shortcodes detected but no CommonTheme map assets found; checking for partials..."
                 )
-            _set_map_report(
-                slug,
-                {
-                    "shortcodes_found": True,
-                    "imports_found": False,
-                    "scss_targets": [],
-                    "partials_copied": [],
-                    "skipped_reason": "shortcodes_without_assets",
-                },
-            )
-            return True
 
         # Step 2: Migrate SCSS content to sb-inside.scss and sb-home.scss
         scss_success, scss_targets = migrate_map_scss_content(
@@ -500,6 +491,78 @@ def find_map_shortcodes_in_functions(
         if len(seen_files) > 100:
             logger.warning("Scanned more than 100 function files, stopping recursion for safety.")
             break
+
+    # FALLBACK: If no shortcodes found in dealer theme, check CommonTheme dealer-group shared functions
+    if not partial_paths:
+        logger.debug(
+            "No shortcodes found in dealer theme; checking CommonTheme dealer-group shared functions"
+        )
+        commontheme_includes = Path(COMMON_THEME_DIR) / "includes" / "dealer-groups"
+
+        if commontheme_includes.exists():
+            # Find all shared-functions.php files in dealer-group subdirectories
+            shared_function_files = list(commontheme_includes.rglob("*shared-functions.php"))
+
+            for shared_file in shared_function_files:
+                if str(shared_file.resolve()) in seen_files:
+                    continue
+
+                logger.debug(
+                    f"Scanning CommonTheme shared functions: {shared_file.relative_to(COMMON_THEME_DIR)}"
+                )
+
+                try:
+                    raw_content = shared_file.read_text(encoding="utf-8", errors="ignore")
+                    content = remove_php_comments(raw_content)
+
+                    # Search for full-map shortcode
+                    shortcodes = []
+                    for match in re.finditer(shortcode_pattern, content, re.IGNORECASE):
+                        shortcode = "full-map"
+                        handler = match.group(1).strip().strip(",")
+                        shortcodes.append((shortcode, handler))
+                        logger.info(
+                            f"Found shortcode registration in {shared_file.name}: {shortcode} -> {handler}"
+                        )
+
+                    # Look inside handler functions for template parts
+                    for shortcode, handler in shortcodes:
+                        handler_name = handler.strip("'\"")
+                        if not handler_name:
+                            continue
+
+                        function_pattern = (
+                            r"function\s+"
+                            + re.escape(handler_name)
+                            + r"\s*\([^)]*\)\s*\{(?P<body>.*?)\}"
+                        )
+                        func_match = re.search(function_pattern, content, re.IGNORECASE | re.DOTALL)
+                        if not func_match:
+                            continue
+
+                        body = func_match.group("body")
+                        body_matches = re.finditer(
+                            r"get_template_part\s*\(\s*['\"]([^'\"]+)['\"]",
+                            body,
+                            re.IGNORECASE,
+                        )
+                        for bm in body_matches:
+                            partial_path = bm.group(1)
+                            partial_info = {
+                                "template_file": f"{shared_file.name} (shortcode {shortcode})",
+                                "partial_path": partial_path,
+                                "source": "found_in_shortcode_handler",
+                                "shortcode": shortcode,
+                                "handler": handler_name,
+                            }
+                            logger.info(
+                                f"Found map template part via shortcode {shortcode}: {partial_path} (handler {handler_name})"
+                            )
+                            partial_paths.append(partial_info)
+
+                except Exception as e:
+                    logger.warning(f"Could not scan {shared_file.name}: {e}")
+                    continue
 
     return partial_paths
 
@@ -967,20 +1030,26 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
 
                 if len(matches) == 1:
                     commontheme_source = matches[0]
-                    logger.info(f"🔍 Fuzzy matched: {commontheme_source.name} (from pattern *{keyword}*.php)")
+                    logger.info(
+                        f"🔍 Fuzzy matched: {commontheme_source.name} (from pattern *{keyword}*.php)"
+                    )
                 elif len(matches) > 1:
                     # Prefer exact stem match
                     exact = [m for m in matches if m.stem == keyword]
                     if exact:
                         commontheme_source = exact[0]
                     else:
-                        logger.warning(f"Multiple matches for *{keyword}*.php: {[m.name for m in matches]}")
+                        logger.warning(
+                            f"Multiple matches for *{keyword}*.php: {[m.name for m in matches]}"
+                        )
                         commontheme_source = matches[0]
                         logger.info(f"Using first match: {commontheme_source.name}")
 
         # Verify source exists after fuzzy matching attempt
         if not commontheme_source.exists():
-            logger.warning(f"CommonTheme partial not found: {commontheme_partial_path}.php (or fuzzy matches)")
+            logger.warning(
+                f"CommonTheme partial not found: {commontheme_partial_path}.php (or fuzzy matches)"
+            )
 
             # If it's a guess, ask user for confirmation (only in interactive mode)
             if partial_info.get("is_guess"):
