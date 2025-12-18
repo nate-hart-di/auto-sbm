@@ -112,17 +112,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-05-02T01:39:06Z",
-      "slug": "quirkcdfjrofbangor",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 195,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-05-02T01:50:03Z",
       "slug": "quirkcdjrbelfast",
       "command": "auto",
@@ -1202,7 +1191,17 @@
       "automation_seconds": 9.32,
       "lines_migrated": 119,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-18T14:29:49.753281+00:00Z",
+      "slug": "daviddodge",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 147.63,
+      "automation_seconds": 9.93,
+      "lines_migrated": 1015,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-18T04:21:54.260285+00:00Z"
+  "last_updated": "2025-12-18T14:29:49.753281+00:00Z"
 }
