@@ -375,11 +375,8 @@ def find_map_shortcodes_in_functions(
     )
 
     keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-    shortcode_pattern = (
-        r"add_shortcode\s*\(\s*['\"]([^'\"]*\\b(?:"
-        + keyword_pattern
-        + r")[^'\"]*)['\"]\s*,\s*([^\)\s]+)"
-    )
+    # Search specifically for 'full-map' shortcode (AC1: Fix map detection)
+    shortcode_pattern = r"add_shortcode\s*\(\s*['\"]full-map['\"]\s*,\s*([^\)\s]+)"
 
     while files_to_scan:
         current_file_path, context = files_to_scan.pop(0)
@@ -396,8 +393,9 @@ def find_map_shortcodes_in_functions(
         # 1. Find shortcode registrations in this file
         shortcodes = []
         for match in re.finditer(shortcode_pattern, content, re.IGNORECASE):
-            shortcode = match.group(1)
-            handler = match.group(2).strip().strip(",")
+            # Pattern now matches 'full-map' specifically, so shortcode is always 'full-map'
+            shortcode = "full-map"
+            handler = match.group(1).strip().strip(",")
             shortcodes.append((shortcode, handler))
             logger.info(
                 f"Found shortcode registration in {current_file_path.name}: {shortcode} -> {handler}"
@@ -421,11 +419,9 @@ def find_map_shortcodes_in_functions(
                 continue
 
             body = func_match.group("body")
-            # Reuse the template-part detection within the function body
+            # Extract ANY get_template_part() path (AC2: Remove keyword filtering)
             body_matches = re.finditer(
-                r"get_template_part\s*\(\s*['\"]([^'\"]*\\b(?:"
-                + keyword_pattern
-                + r")[^'\"]*)['\"]",
+                r"get_template_part\s*\(\s*['\"]([^'\"]+)['\"]",
                 body,
                 re.IGNORECASE,
             )
@@ -957,12 +953,34 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
             )
             return "already_exists"
 
-        # 2. If not in dealer theme, THEN check CommonTheme
+        # 2. Try exact match in CommonTheme first
         commontheme_source = Path(COMMON_THEME_DIR) / f"{commontheme_partial_path}.php"
 
-        # Verify source exists
+        # 3. If exact match fails, try fuzzy matching (AC4)
         if not commontheme_source.exists():
-            logger.warning(f"CommonTheme partial not found: {commontheme_source}")
+            path_parts = Path(commontheme_partial_path)
+            directory = Path(COMMON_THEME_DIR) / path_parts.parent
+            keyword = path_parts.name
+
+            if directory.exists():
+                matches = list(directory.glob(f"*{keyword}*.php"))
+
+                if len(matches) == 1:
+                    commontheme_source = matches[0]
+                    logger.info(f"🔍 Fuzzy matched: {commontheme_source.name} (from pattern *{keyword}*.php)")
+                elif len(matches) > 1:
+                    # Prefer exact stem match
+                    exact = [m for m in matches if m.stem == keyword]
+                    if exact:
+                        commontheme_source = exact[0]
+                    else:
+                        logger.warning(f"Multiple matches for *{keyword}*.php: {[m.name for m in matches]}")
+                        commontheme_source = matches[0]
+                        logger.info(f"Using first match: {commontheme_source.name}")
+
+        # Verify source exists after fuzzy matching attempt
+        if not commontheme_source.exists():
+            logger.warning(f"CommonTheme partial not found: {commontheme_partial_path}.php (or fuzzy matches)")
 
             # If it's a guess, ask user for confirmation (only in interactive mode)
             if partial_info.get("is_guess"):
