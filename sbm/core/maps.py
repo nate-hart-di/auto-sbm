@@ -149,8 +149,15 @@ def migrate_map_components(
                 )
 
         # Step 2: Migrate SCSS content to sb-inside.scss and sb-home.scss
+        # CHANGE: We ONLY migrate SCSS for 'implicit' imports (derived from shortcodes) here.
+        # 'Explicit' imports found in style.scss (map_imports detected above) are handled
+        # by the main migrate_styles process (which inlines them into style.scss).
+        # Migrating them here again would cause duplication (once in style.scss, once in sb-inside.scss).
+
+        scss_targets_to_migrate = shortcode_map_imports if shortcode_map_imports else []
+
         scss_success, scss_targets = migrate_map_scss_content(
-            slug, map_imports, processor=processor
+            slug, scss_targets_to_migrate, processor=processor
         )
 
         # Step 3: Find and migrate corresponding PHP partials

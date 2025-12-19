@@ -17,6 +17,66 @@ from sbm.utils.path import get_common_theme_path, get_dealer_theme_dir
 from .classifiers import ProfessionalStyleClassifier, StyleClassifier, robust_css_processing
 from .mixin_parser import CommonThemeMixinParser
 
+# Mapping of Classic SCSS variables to Site Builder compatible names to prevent overrides
+VARIABLE_MAPPING = {
+    "primary-button-bg": "primarybutton-bg",
+    "primary-button-color": "primarybutton-color",
+    "primary-button-hover-bg": "primarybutton-hover-bg",
+    "primary-button-hover-color": "primarybutton-hover-color",
+    "secondary-button-bg": "secondarybutton-bg",
+    "secondary-button-color": "secondarybutton-color",
+    "secondary-button-hover-bg": "secondarybutton-hover-bg",
+    "secondary-button-hover-color": "secondarybutton-hover-color",
+    "cta-button-bg": "ctabutton-bg",
+    "cta-button-color": "ctabutton-color",
+    "cta-button-hover-bg": "ctabutton-hover-bg",
+    "cta-button-hover-color": "ctabutton-hover-color",
+    "outline-button-color": "outlinebutton-color",
+    "outline-button-hoverbg": "outlinebutton-hoverbg",
+    "outline-button-hovercolor": "outlinebutton-hovercolor",
+    "small-button-weight": "smallbutton-weight",
+    "small-button-size": "smallbutton-size",
+    "small-button-padding": "smallbutton-padding",
+    "large-button-weight": "largebutton-weight",
+    "large-button-size": "largebutton-size",
+    "large-button-padding": "largebutton-padding",
+    "dark-button-bg": "darkbutton-bg",
+    "dark-button-color": "darkbutton-color",
+}
+
+# Special mappings that require joining multiple Classic variables
+# Format: { SB_VAR: [CLASSIC_VAR1, CLASSIC_VAR2, ...] }
+COMPLEX_MAPPINGS = {
+    "primarybutton-border": ["button-border", "primary-button-border-color"],
+    "primarybutton-hover-border": ["button-border", "primary-button-hover-border-color"],
+    "secondarybutton-border": ["button-border", "secondary-button-border-color"],
+    "secondarybutton-hover-border": ["button-border", "secondary-button-hover-border-color"],
+    "ctabutton-border": ["button-border", "cta-button-bg"],
+    "ctabutton-hover-border": ["button-border", "cta-button-hover-bg"],
+    "outlinebutton-border": ["button-border", "outline-button-border-color"],
+    "outlinebutton-hoverborder": ["button-border", "outline-button-hover-border-color"],
+}
+
+# Group mappings (apply one Classic value to multiple SB variables)
+GROUP_MAPPINGS = {
+    "heading-text-transform": [
+        "h1-text-transform",
+        "h2-text-transform",
+        "h3-text-transform",
+        "h4-text-transform",
+        "h5-text-transform",
+        "h6-text-transform",
+    ],
+    "heading-letter-spacing": [
+        "h1-letter-spacing",
+        "h2-letter-spacing",
+        "h3-letter-spacing",
+        "h4-letter-spacing",
+        "h5-letter-spacing",
+        "h6-letter-spacing",
+    ],
+}
+
 
 class SCSSProcessor:
     """
@@ -37,7 +97,9 @@ class SCSSProcessor:
             try:
                 # Use professional parser for better accuracy with comma-separated selectors
                 self.style_classifier = ProfessionalStyleClassifier(strict_mode=True)
-                logger.debug("Professional style exclusion enabled for header/footer/navigation components")
+                logger.debug(
+                    "Professional style exclusion enabled for header/footer/navigation components"
+                )
             except Exception as e:
                 # Fallback to original classifier if professional parser not available
                 self.style_classifier = StyleClassifier(strict_mode=True)
@@ -47,6 +109,7 @@ class SCSSProcessor:
     def _process_scss_variables(self, content: str) -> str:
         """
         Processes SCSS variables by moving them to a :root block as CSS custom properties.
+        Also handles mapping Classic variables to Site Builder equivalents to prevent overrides.
         """
         logger.debug("Processing SCSS variables into CSS custom properties...")
 
@@ -58,18 +121,41 @@ class SCSSProcessor:
 
         root_properties = []
         if declarations:
+            # Create a lookup for variable values (for complex mappings)
+            var_lookup = {name.replace("$", ""): value for name, value in declarations}
+
             for var_name, var_value in declarations:
                 # CRITICAL FIX: Don't convert SCSS functions to CSS custom properties
                 # Skip variables that contain SCSS functions like map_keys(), map-get()
-                if any(func in var_value for func in ['map_keys', 'map-get', 'map-']):
+                if any(func in var_value for func in ["map_keys", "map-get", "map-"]):
                     logger.warning(f"Skipping variable with SCSS function: {var_name}")
                     continue
-                
+
+                clean_name = var_name.replace("$", "")
+
                 # Convert to CSS custom property format (e.g., --primary: #000;)
                 prop_name = var_name.replace("$", "--")
                 # Important: Convert any variables used in the value of another variable
-                var_value = re.sub(r"\$([\w-]+)", r"var(--\1)", var_value)
-                root_properties.append(f"  {prop_name}: {var_value};")
+                transformed_value = re.sub(r"\$([\w-]+)", r"var(--\1)", var_value)
+                root_properties.append(f"  {prop_name}: {transformed_value};")
+
+                # Handle 1-to-1 SB Mappings
+                if clean_name in VARIABLE_MAPPING:
+                    sb_name = VARIABLE_MAPPING[clean_name]
+                    root_properties.append(f"  --{sb_name}: var({prop_name});")
+
+                # Handle Group Mappings (e.g., headings)
+                if clean_name in GROUP_MAPPINGS:
+                    for sb_name in GROUP_MAPPINGS[clean_name]:
+                        root_properties.append(f"  --{sb_name}: var({prop_name});")
+
+            # Handle Complex Mappings (e.g., borders)
+            for sb_name, classic_parts in COMPLEX_MAPPINGS.items():
+                if all(part in var_lookup for part in classic_parts):
+                    # Combine variables for the complex property
+                    # e.g., --secondarybutton-border: var(--button-border) var(--secondary-button-border-color);
+                    value_parts = [f"var(--{part})" for part in classic_parts]
+                    root_properties.append(f"  --{sb_name}: {' '.join(value_parts)};")
 
             # Assemble the final :root block
             root_block = ":root {\n" + "\n".join(root_properties) + "\n}\n\n"
@@ -125,7 +211,10 @@ class SCSSProcessor:
 
             # Skip conversion for SCSS internal logic BUT allow variable conversion inside maps
             if (
-                inside_mixin or stripped.startswith(("@each", "@for", "@if", "@else", "%#")) or "map-get(" in stripped or "map-keys(" in stripped
+                inside_mixin
+                or stripped.startswith(("@each", "@for", "@if", "@else", "%#"))
+                or "map-get(" in stripped
+                or "map-keys(" in stripped
             ):
                 continue
 
@@ -213,87 +302,76 @@ class SCSSProcessor:
         pattern1 = r'url\("\.\.\/images\/([^"]+)"\)'
         matches_count = len(re.findall(pattern1, content))
         content = re.sub(
-            pattern1,
-            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
-            content
+            pattern1, r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")', content
         )
-        logger.debug(f"Matched and converted double-quoted DealerTheme paths: {matches_count} instances")
+        logger.debug(
+            f"Matched and converted double-quoted DealerTheme paths: {matches_count} instances"
+        )
 
         # Pattern 2: Single-quoted relative DealerTheme paths
         pattern2 = r"url\('\.\.\/images\/([^']+)'\)"
         matches_count = len(re.findall(pattern2, content))
         content = re.sub(
-            pattern2,
-            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
-            content
+            pattern2, r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")', content
         )
-        logger.debug(f"Matched and converted single-quoted DealerTheme paths: {matches_count} instances")
+        logger.debug(
+            f"Matched and converted single-quoted DealerTheme paths: {matches_count} instances"
+        )
 
         # Pattern 3: Unquoted relative DealerTheme paths
-        pattern3 = r'url\(\.\.\/images\/([^)]+)\)'
+        pattern3 = r"url\(\.\.\/images\/([^)]+)\)"
         matches_count = len(re.findall(pattern3, content))
         content = re.sub(
-            pattern3,
-            r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")',
-            content
+            pattern3, r'url("/wp-content/themes/DealerInspireDealerTheme/images/\1")', content
         )
         logger.debug(f"Matched and converted unquoted DealerTheme paths: {matches_count} instances")
 
         # Pattern 4: Double-quoted CommonTheme paths
         pattern4 = r'url\("\.\.\/\.\.\/([^"]+)"\)'
         matches_count = len(re.findall(pattern4, content))
-        content = re.sub(
-            pattern4,
-            r'url("/wp-content/themes/\1")',
-            content
+        content = re.sub(pattern4, r'url("/wp-content/themes/\1")', content)
+        logger.debug(
+            f"Matched and converted double-quoted CommonTheme paths: {matches_count} instances"
         )
-        logger.debug(f"Matched and converted double-quoted CommonTheme paths: {matches_count} instances")
 
         # Pattern 5: Single-quoted CommonTheme paths
         pattern5 = r"url\('\.\.\/\.\.\/([^']+)'\)"
         matches_count = len(re.findall(pattern5, content))
-        content = re.sub(
-            pattern5,
-            r'url("/wp-content/themes/\1")',
-            content
+        content = re.sub(pattern5, r'url("/wp-content/themes/\1")', content)
+        logger.debug(
+            f"Matched and converted single-quoted CommonTheme paths: {matches_count} instances"
         )
-        logger.debug(f"Matched and converted single-quoted CommonTheme paths: {matches_count} instances")
 
         # Pattern 6: Unquoted CommonTheme paths
-        pattern6 = r'url\(\.\.\/\.\.\/([^)]+)\)'
+        pattern6 = r"url\(\.\.\/\.\.\/([^)]+)\)"
         matches_count = len(re.findall(pattern6, content))
-        content = re.sub(
-            pattern6,
-            r'url("/wp-content/themes/\1")',
-            content
-        )
+        content = re.sub(pattern6, r'url("/wp-content/themes/\1")', content)
         logger.debug(f"Matched and converted unquoted CommonTheme paths: {matches_count} instances")
 
         # Pattern 7: Second pass to ensure all absolute paths are double-quoted
-        unquoted_pattern = r'url\((/wp-content/themes/[^)]+)\)'
+        unquoted_pattern = r"url\((/wp-content/themes/[^)]+)\)"
         matches_count = len(re.findall(unquoted_pattern, content))
-        content = re.sub(
-            unquoted_pattern,
-            r'url("\1")',
-            content
-        )
+        content = re.sub(unquoted_pattern, r'url("\1")', content)
         logger.debug(f"Ensured double-quoting for absolute paths: {matches_count} instances")
 
         # Final validation: Check for any remaining relative paths
         remaining_relative = re.findall(r'url\([\'"]?\.\.(?:\/\.\.)?\/[^)]+\)', content)
         if remaining_relative:
-            logger.warning(f"Found {len(remaining_relative)} unconverted relative paths: {remaining_relative}")
+            logger.warning(
+                f"Found {len(remaining_relative)} unconverted relative paths: {remaining_relative}"
+            )
         else:
             logger.debug("No remaining relative paths found after conversion")
 
         return content
-    
+
     def _remove_imports(self, content: str) -> str:
         """
         Removes all @import statements from the SCSS content.
         """
         # Logic to remove all @import lines
-        return re.sub(r"@import\s+.*?;", "", content)
+        # Logic to remove all @import lines, handling multi-line imports
+        return re.sub(r"@import\s+[^;]+;\s*", "", content, flags=re.MULTILINE | re.DOTALL)
 
     def _convert_scss_functions(self, content: str) -> str:
         """
@@ -308,17 +386,17 @@ class SCSSProcessor:
         # CRITICAL FIX: Handle color keywords in SCSS functions
         # Replace color keywords with variables before processing
         color_mappings = {
-            'green': '#008000',
-            'red': '#ff0000', 
-            'blue': '#0000ff',
-            'black': '#000000',
-            'white': '#ffffff'
+            "green": "#008000",
+            "red": "#ff0000",
+            "blue": "#0000ff",
+            "black": "#000000",
+            "white": "#ffffff",
         }
 
         for color_name, hex_value in color_mappings.items():
             # Fix darken(green,10%) -> darken(#008000,10%)
-            content = content.replace(f'darken({color_name}', f'darken({hex_value}')
-            content = content.replace(f'lighten({color_name}', f'lighten({hex_value}')
+            content = content.replace(f"darken({color_name}", f"darken({hex_value}")
+            content = content.replace(f"lighten({color_name}", f"lighten({hex_value}")
 
         # Normalize named arguments for lighten/darken so downstream conversion works
         def _normalize_named_color_functions(match: re.Match) -> str:
@@ -351,7 +429,9 @@ class SCSSProcessor:
         ]
 
         for pattern in named_arg_patterns:
-            content = re.sub(pattern, _normalize_named_color_functions, content, flags=re.IGNORECASE)
+            content = re.sub(
+                pattern, _normalize_named_color_functions, content, flags=re.IGNORECASE
+            )
 
         # Handle named arguments that already passed through variable conversion
         var_named_patterns = [
@@ -360,7 +440,9 @@ class SCSSProcessor:
         ]
 
         for pattern in var_named_patterns:
-            content = re.sub(pattern, _normalize_named_color_functions, content, flags=re.IGNORECASE)
+            content = re.sub(
+                pattern, _normalize_named_color_functions, content, flags=re.IGNORECASE
+            )
 
         # Case 1: SCSS functions with CSS variables - convert to CSS-compatible equivalents
         # These appear in raw SCSS content (not from mixins) and need to be handled
@@ -415,7 +497,6 @@ class SCSSProcessor:
 
         # Remove any commented-out broken code patterns
         return re.sub(r"//\s*background:\s*rgba\(var\(--[^)]+\),\s*[\d.]+\);", "", content)
-
 
     def _verify_scss_compilation(self, content: str) -> bool:
         """
@@ -498,7 +579,9 @@ class SCSSProcessor:
             # Step 0: Utility functions removed - Site Builder has its own utilities
             # Step 0: Filter out header/footer/navigation styles (CRITICAL for Site Builder)
             if self.exclude_nav_styles:
-                logger.debug("Filtering header/footer/navigation styles for Site Builder compatibility...")
+                logger.debug(
+                    "Filtering header/footer/navigation styles for Site Builder compatibility..."
+                )
 
                 try:
                     # Try the configured classifier first
@@ -512,7 +595,9 @@ class SCSSProcessor:
                     categories = []
                     for category, count in exclusion_result.patterns_matched.items():
                         categories.append(f"{category}: {count}")
-                    logger.debug(f"Excluded {exclusion_result.excluded_count} rules ({', '.join(categories)})")
+                    logger.debug(
+                        f"Excluded {exclusion_result.excluded_count} rules ({', '.join(categories)})"
+                    )
                 else:
                     logger.debug("No header/footer/navigation styles found to exclude")
 
@@ -546,7 +631,6 @@ class SCSSProcessor:
             # Step 6: Trim whitespace for a clean final output
             return self._trim_whitespace(processed_content)
 
-
         except Exception as e:
             logger.error(
                 f"An unexpected error occurred during SCSS processing for {self.slug}.",
@@ -571,10 +655,10 @@ class SCSSProcessor:
         """
         Apply minimal cleanup to manually-edited SCSS content without reprocessing from source.
         This preserves manual fixes while ensuring consistent formatting.
-        
+
         Args:
             content: The manually-edited SCSS content
-            
+
         Returns:
             str: Lightly cleaned SCSS content
         """
@@ -589,7 +673,9 @@ class SCSSProcessor:
             processed_content = processed_content.replace("\r\n", "\n").replace("\r", "\n")
 
             # 2. Remove excessive whitespace (but preserve intentional spacing)
-            processed_content = re.sub(r"\n\s*\n\s*\n", "\n\n", processed_content)  # Max 2 consecutive newlines
+            processed_content = re.sub(
+                r"\n\s*\n\s*\n", "\n\n", processed_content
+            )  # Max 2 consecutive newlines
 
             # 3. Ensure proper spacing around braces (but preserve SCSS interpolation #{...})
             # First protect SCSS interpolation completely by temporarily replacing it
@@ -597,11 +683,11 @@ class SCSSProcessor:
             protected_content = processed_content
             for i, match in enumerate(interpolation_matches):
                 protected_content = protected_content.replace(match, f"SCSS_INTERPOLATION_{i}", 1)
-            
+
             # Apply spacing rules to protected content
             protected_content = re.sub(r"(\S)\{", r"\1 {", protected_content)  # Space before {
-            protected_content = re.sub(r"\}(\S)", r"} \1", protected_content)   # Space after }
-            
+            protected_content = re.sub(r"\}(\S)", r"} \1", protected_content)  # Space after }
+
             # Restore SCSS interpolation
             for i, match in enumerate(interpolation_matches):
                 protected_content = protected_content.replace(f"SCSS_INTERPOLATION_{i}", match)
@@ -613,7 +699,9 @@ class SCSSProcessor:
 
             # 5. Basic variable cleanup (only if they look malformed)
             # Convert any obvious SCSS variable syntax errors
-            processed_content = re.sub(r"\$([a-zA-Z-_]+)\s*=\s*", r"$\1: ", processed_content)  # Fix = to :
+            processed_content = re.sub(
+                r"\$([a-zA-Z-_]+)\s*=\s*", r"$\1: ", processed_content
+            )  # Fix = to :
 
             # 7. Remove trailing whitespace from lines
             lines = processed_content.split("\n")
@@ -623,7 +711,9 @@ class SCSSProcessor:
             # 8. Ensure file ends with single newline
             processed_content = processed_content.rstrip() + "\n"
 
-            logger.debug(f"Light cleanup applied to SCSS content ({len(content)} → {len(processed_content)} chars)")
+            logger.debug(
+                f"Light cleanup applied to SCSS content ({len(content)} → {len(processed_content)} chars)"
+            )
             return processed_content
 
         except Exception as e:
@@ -655,22 +745,22 @@ class SCSSProcessor:
         without resetting from source. This is specifically for the reprocess workflow.
         """
         logger.debug("Applying reprocess transformations to existing SB content...")
-        
+
         try:
             # Step 1: Remove duplicate utility functions first
             content = self._remove_duplicate_functions(content)
-            
+
             # Step 2: Utility functions removed - Site Builder has its own utilities
-            
+
             # Step 3: Process SCSS variables (handles both new and partially processed content)
             content = self._process_scss_variables(content)
-            
-            # Step 4: Convert relative image paths to absolute paths  
+
+            # Step 4: Convert relative image paths to absolute paths
             content = self._convert_image_paths(content)
-            
+
             # Step 5: Convert SCSS functions to CSS-compatible equivalents
             content = self._convert_scss_functions(content)
-            
+
             # Step 6: Convert mixins using the intelligent parser
             logger.debug("Converting mixins to CSS for reprocess...")
             content, errors, unconverted = self.mixin_parser.parse_and_convert_mixins(content)
@@ -678,89 +768,93 @@ class SCSSProcessor:
                 logger.debug(f"Mixin conversion errors during reprocess: {len(errors)}")
             if unconverted:
                 logger.debug(f"Unconverted mixins during reprocess: {len(unconverted)}")
-            
+
             # Step 7: Final cleanup of any remaining SCSS variable references
             content = self._final_reprocess_cleanup(content)
-            
+
             # Step 8: Basic formatting cleanup
             content = self._trim_whitespace(content)
-            
+
             return content
-            
+
         except Exception as e:
             logger.warning(f"Reprocess transformations failed, using light cleanup: {e}")
             # Fallback to light cleanup if reprocess fails
             return self.light_cleanup_scss_content(content)
-    
+
     def _final_reprocess_cleanup(self, content: str) -> str:
         """
         Final cleanup specifically for reprocessing to catch any remaining SCSS variables.
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
         processed_lines = []
-        
+
         for line in lines:
             # Skip SCSS internal logic
-            if ('#{' in line or line.strip().startswith('@mixin') or 
-                line.strip().startswith('@function') or line.strip().startswith('@each')):
+            if (
+                "#{" in line
+                or line.strip().startswith("@mixin")
+                or line.strip().startswith("@function")
+                or line.strip().startswith("@each")
+            ):
                 processed_lines.append(line)
                 continue
-            
+
             # Convert remaining SCSS variables in CSS property contexts
-            if ':' in line and '$' in line and not line.strip().startswith('$'):
+            if ":" in line and "$" in line and not line.strip().startswith("$"):
                 # Convert $variable to var(--variable) in CSS values
-                line = re.sub(r'\$([a-zA-Z][\w-]*)', r'var(--\1)', line)
-            
+                line = re.sub(r"\$([a-zA-Z][\w-]*)", r"var(--\1)", line)
+
             processed_lines.append(line)
-        
-        return '\n'.join(processed_lines)
-    
+
+        return "\n".join(processed_lines)
+
     def _remove_duplicate_functions(self, content: str) -> str:
         """
         Remove duplicate utility function definitions, keeping only the first occurrence.
         """
-        lines = content.split('\n')
-        
+        lines = content.split("\n")
+
         # Track if we've seen em/rem functions
         seen_em_function = False
         seen_rem_function = False
         skip_until_end = False
         brace_count = 0
-        
+
         filtered_lines = []
-        
+
         i = 0
         while i < len(lines):
             line = lines[i]
             stripped = line.strip()
-            
+
             # Check for start of em function
-            if stripped.startswith('@function em(') and seen_em_function:
+            if stripped.startswith("@function em(") and seen_em_function:
                 # Skip this duplicate function definition
-                brace_count = line.count('{') - line.count('}')
+                brace_count = line.count("{") - line.count("}")
                 i += 1
                 while i < len(lines) and brace_count > 0:
                     line = lines[i]
-                    brace_count += line.count('{') - line.count('}')
+                    brace_count += line.count("{") - line.count("}")
                     i += 1
                 continue
-            elif stripped.startswith('@function em('):
+            elif stripped.startswith("@function em("):
                 seen_em_function = True
-            
+
             # Check for start of rem function
-            elif stripped.startswith('@function rem(') and seen_rem_function:
+            elif stripped.startswith("@function rem(") and seen_rem_function:
                 # Skip this duplicate function definition
-                brace_count = line.count('{') - line.count('}')
+                brace_count = line.count("{") - line.count("}")
                 i += 1
                 while i < len(lines) and brace_count > 0:
                     line = lines[i]
-                    brace_count += line.count('{') - line.count('}')
+                    brace_count += line.count("{") - line.count("}")
                     i += 1
                 continue
-            elif stripped.startswith('@function rem('):
+            elif stripped.startswith("@function rem("):
                 seen_rem_function = True
-            
+
             filtered_lines.append(line)
             i += 1
-        
-        return '\n'.join(filtered_lines)
+
+        return "\n".join(filtered_lines)

@@ -74,7 +74,7 @@ class OEMFactory:
     def detect_from_theme(cls, slug, platform_dir=None):
         """
         Detect the OEM from the dealer slug first, then fallback to theme content analysis.
-        
+
         Priority order:
         1. Slug-based detection (most reliable)
         2. Theme content analysis (fallback for ambiguous cases)
@@ -86,16 +86,18 @@ class OEMFactory:
         Returns:
             BaseOEMHandler: An instance of the appropriate OEM handler
         """
-        
+
         # PRIORITY 1: Try slug-based detection first (most reliable)
         slug_based_handler = cls.create_handler(slug)
         if slug_based_handler.__class__.__name__ != "DefaultHandler":
-            logger.info(f"Detected OEM for {slug} based on slug: {slug_based_handler.__class__.__name__}")
+            logger.info(
+                f"Detected OEM for {slug} based on slug: {slug_based_handler.__class__.__name__}"
+            )
             return slug_based_handler
-        
+
         # PRIORITY 2: Slug didn't match known patterns, try theme content analysis as fallback
         logger.debug(f"Slug '{slug}' didn't match known patterns, analyzing theme content...")
-        
+
         if not platform_dir:
             platform_dir = os.environ.get("DI_WEBSITES_PLATFORM_DIR", "")
             if not platform_dir:
@@ -119,7 +121,7 @@ class OEMFactory:
         if functions_file.exists():
             with open(functions_file, encoding="utf-8", errors="ignore") as f:
                 content = f.read().lower()
-                
+
                 # Filter out migration-generated content to avoid false positives
                 content = cls._filter_migration_content(content)
 
@@ -140,12 +142,12 @@ class OEMFactory:
         # Also check other theme files (excluding sb-* migration files)
         theme_files = [
             "style.scss",
-            "inside.scss", 
+            "inside.scss",
             "_support-requests.scss",
             "lvdp.scss",
-            "lvrp.scss"
+            "lvrp.scss",
         ]
-        
+
         css_dir = theme_dir / "css"
         for filename in theme_files:
             file_path = css_dir / filename
@@ -153,16 +155,18 @@ class OEMFactory:
                 try:
                     with open(file_path, encoding="utf-8", errors="ignore") as f:
                         content = f.read().lower()
-                        original_content_preview = content[:200].replace('\n', ' ')
+                        original_content_preview = content[:200].replace("\n", " ")
                         content = cls._filter_migration_content(content)
-                        filtered_content_preview = content[:200].replace('\n', ' ')
-                        
-                        logger.debug(f"OEM Detection for {filename}: Original='{original_content_preview}...' Filtered='{filtered_content_preview}...'")
-                        
+                        filtered_content_preview = content[:200].replace("\n", " ")
+
+                        logger.debug(
+                            f"OEM Detection for {filename}: Original='{original_content_preview}...' Filtered='{filtered_content_preview}...'"
+                        )
+
                         for handler_class in cls._handlers:
                             handler = handler_class(slug)
                             patterns = handler.get_brand_match_patterns()
-                            
+
                             matches = 0
                             matched_patterns = []
                             for pattern in patterns:
@@ -172,13 +176,15 @@ class OEMFactory:
                                     matched_patterns.append(f"{pattern}: {pattern_matches}")
 
                             if matches > 0:
-                                logger.debug(f"OEM Detection: {handler_class.__name__} found {matches} matches in {filename}: {matched_patterns}")
+                                logger.debug(
+                                    f"OEM Detection: {handler_class.__name__} found {matches} matches in {filename}: {matched_patterns}"
+                                )
                                 indicators[handler_class.__name__] = (
                                     indicators.get(handler_class.__name__, 0) + matches
                                 )
                 except Exception as e:
                     logger.debug(f"Could not read {filename}: {e}")
-        
+
         # Re-evaluate best match after checking all files (fallback only)
         if indicators:
             best_match = max(indicators.items(), key=lambda x: x[1])
@@ -196,34 +202,41 @@ class OEMFactory:
     def _filter_migration_content(cls, content: str) -> str:
         """
         Filter out migration-generated content that could cause false OEM detection.
-        
+
         Args:
             content: File content to filter
-            
+
         Returns:
             Filtered content with migration artifacts removed
         """
         # Remove git commit messages and references that contain FCA/Stellantis keywords
-        content = re.sub(r'(?i)added fca[^\n]*', '', content)
-        content = re.sub(r'(?i)fca direction row styles[^\n]*', '', content)  
-        content = re.sub(r'(?i)fca cookie banner[^\n]*', '', content)
-        
+        content = re.sub(r"(?i)added fca[^\n]*", "", content)
+        content = re.sub(r"(?i)fca direction row styles[^\n]*", "", content)
+        content = re.sub(r"(?i)fca cookie banner[^\n]*", "", content)
+
         # Remove Site Builder file references
-        content = re.sub(r'sb-[a-z]+\.scss', '', content)
-        
+        content = re.sub(r"sb-[a-z]+\.scss", "", content)
+
         # Remove migration tool comments and artifacts
-        content = re.sub(r'(?i)auto-generated[^\n]*', '', content)
-        
+        content = re.sub(r"(?i)auto-generated[^\n]*", "", content)
+
         # Remove SCSS import statements that contain Stellantis/FCA paths (major contamination source)
-        content = re.sub(r'@import[^;]*dealer-groups/fca[^;]*;', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'@import[^;]*dealer-groups/cdjr[^;]*;', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'@import[^;]*dealer-groups/stellantis[^;]*;', '', content, flags=re.IGNORECASE)
-        
+        content = re.sub(r"@import[^;]*dealer-groups/fca[^;]*;", "", content, flags=re.IGNORECASE)
+        content = re.sub(r"@import[^;]*dealer-groups/cdjr[^;]*;", "", content, flags=re.IGNORECASE)
+        content = re.sub(
+            r"@import[^;]*dealer-groups/stellantis[^;]*;", "", content, flags=re.IGNORECASE
+        )
+
         # Remove any remaining references to stellantis, fca, cdjr patterns that are migration artifacts
-        content = re.sub(r'(?i)\bstellantis\b[^\n]*migration[^\n]*', '', content)
-        content = re.sub(r'(?i)\bfca\b[^\n]*migration[^\n]*', '', content)
-        content = re.sub(r'(?i)\bcdjr\b[^\n]*migration[^\n]*', '', content)
-        content = re.sub(r'(?i)migration tool[^\n]*', '', content)
-        content = re.sub(r'(?i)site builder[^\n]*', '', content)
-        
+        content = re.sub(r"(?i)\bstellantis\b[^\n]*migration[^\n]*", "", content)
+        content = re.sub(r"(?i)\bfca\b[^\n]*migration[^\n]*", "", content)
+        content = re.sub(r"(?i)\bcdjr\b[^\n]*migration[^\n]*", "", content)
+        content = re.sub(r"(?i)migration tool[^\n]*", "", content)
+        content = re.sub(r"(?i)site builder[^\n]*", "", content)
+        content = re.sub(r"(?i)\bstellantis\b[^\n]*migration[^\n]*", "", content)
+        content = re.sub(r"(?i)\bfca\b[^\n]*migration[^\n]*", "", content)
+        content = re.sub(r"(?i)\bcdjr\b[^\n]*migration[^\n]*", "", content)
+        content = re.sub(r"(?i)migration tool[^\n]*", "", content)
+        content = re.sub(r"(?i)site builder[^\n]*", "", content)
+
         return content
