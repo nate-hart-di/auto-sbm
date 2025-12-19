@@ -435,8 +435,8 @@ python -m pytest tests/test_migration.py -v
 ## 📚 Additional Resources
 
 - **[CLAUDE.md](./CLAUDE.md)** - AI assistant context and development guide
-- **[Code Reviews](./PRPs/code_reviews/)** - Quality analysis and improvements
-- **[Architecture Docs](./PRPs/)** - Detailed technical documentation
+- **[Code Reviews](./docs/PRPs/code_reviews)** - Quality analysis and improvements
+- **[Architecture Docs](./docs/PRPs)** - Detailed technical documentation
 - **GitHub Issues** - Bug reports and feature requests
 - **Team Chat** - Real-time support and discussions
 

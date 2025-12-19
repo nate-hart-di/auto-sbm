@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2025-12-19
+
+### Added
+
+- **Workflow Enforcement**: Injected mandatory git workflow steps (Branch/Version/Changelog) into all Agent definitions and critical workflows to enforce strict development process adherence.
+
 ## [2.1.1] - 2025-12-19
 
 ### Fixed
@@ -43,5 +49,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial v2.0.0 release of `auto-sbm`.
 - New migration engine for DealerInspire Site Builder.
 - Support for SCSS/CSS variable mapping.
-- Desktop header hamburger support.
 - Configurable environment-based settings via Pydantic.

@@ -1,23 +1,42 @@
 <workflow>
   <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
-  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>
+    Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}
+  </critical>
   <critical>Generate all documents in {document_output_language}</critical>
-  <critical>Only modify the story file in these areas: Tasks/Subtasks checkboxes, Dev Agent Record (Debug Log, Completion Notes), File List,
-    Change Log, and Status</critical>
+  <critical>
+    Only modify the story file in these areas: Tasks/Subtasks checkboxes, Dev Agent Record (Debug Log, Completion
+    Notes), File List,
+    Change Log, and Status
+  </critical>
   <critical>Execute ALL steps in exact order; do NOT skip steps</critical>
-  <critical>Absolutely DO NOT stop because of "milestones", "significant progress", or "session boundaries". Continue in a single execution
-    until the story is COMPLETE (all ACs satisfied and all tasks/subtasks checked) UNLESS a HALT condition is triggered or the USER gives
-    other instruction.</critical>
-  <critical>Do NOT schedule a "next session" or request review pauses unless a HALT condition applies. Only Step 6 decides completion.</critical>
+  <critical>
+    Absolutely DO NOT stop because of "milestones", "significant progress", or "session boundaries". Continue in a
+    single execution
+    until the story is COMPLETE (all ACs satisfied and all tasks/subtasks checked) UNLESS a HALT condition is triggered
+    or the USER gives
+    other instruction.
+  </critical>
+  <critical>
+    Do NOT schedule a "next session" or request review pauses unless a HALT condition applies. Only Step 6 decides
+    completion.
+  </critical>
   <critical>User skill level ({user_skill_level}) affects conversation style ONLY, not code updates.</critical>
+  <critical>
+    🔴 MANDATORY GIT WORKFLOW:
+    1. NEVER commit to 'master'/'main'. ALWAYS use a feature branch.
+    2. ALWAYS bump 'version' in 'pyproject.toml' before finishing.
+    3. ALWAYS update 'CHANGELOG.md' before finishing.
+    4. FAILURE TO DO THIS = IMMEDIATE FAILURE.
+  </critical>
 
-  <step n="1" goal="Find next ready story and load it" tag="sprint-status">
+  <step goal="Find next ready story and load it" n="1" tag="sprint-status">
     <check if="{{story_path}} is provided">
       <action>Use {{story_path}} directly</action>
       <action>Read COMPLETE story file</action>
       <action>Extract story_key from filename or metadata</action>
-      <goto> anchor with id task_check</goto>
+      <goto>anchor with id task_check</goto>
     </check>
 
     <!-- Sprint-based story discovery -->
@@ -27,14 +46,16 @@
       <action>Read ALL lines from beginning to end - do not skip any content</action>
       <action>Parse the development_status section completely to understand story order</action>
 
-      <action>Find the FIRST story (by reading in order from top to bottom) where:
+      <action>
+        Find the FIRST story (by reading in order from top to bottom) where:
         - Key matches pattern: number-number-name (e.g., "1-2-user-auth")
         - NOT an epic key (epic-X) or retrospective (epic-X-retrospective)
         - Status value equals "ready-for-dev"
       </action>
 
       <check if="no ready-for-dev or in-progress story found">
-        <output>📋 No ready-for-dev stories found in sprint-status.yaml
+        <output>
+          📋 No ready-for-dev stories found in sprint-status.yaml
 
           **Current Sprint Status:** {{sprint_status_summary}}
 
@@ -44,7 +65,8 @@
           3. Specify a particular story file to develop (provide full path)
           4. Check {{sprint_status}} file to see current sprint status
 
-          💡 **Tip:** Stories in `ready-for-dev` may not have been validated. Consider running `validate-create-story` first for a quality
+          💡 **Tip:** Stories in `ready-for-dev` may not have been validated. Consider
+          running `validate-create-story` first for a quality
           check.
         </output>
         <ask>Choose option [1], [2], [3], or [4], or specify story file path:</ask>
@@ -84,7 +106,8 @@
       <action>Read each candidate story file to check Status section</action>
 
       <check if="no ready-for-dev stories found in story files">
-        <output>📋 No ready-for-dev stories found
+        <output>
+          📋 No ready-for-dev stories found
 
           **Available Options:**
           1. Run `create-story` to create next story from epics with comprehensive context
@@ -119,10 +142,15 @@
 
     <anchor id="task_check" />
 
-    <action>Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change Log, Status</action>
+    <action>
+      Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change
+      Log, Status
+    </action>
 
     <action>Load comprehensive context from story file's Dev Notes section</action>
-    <action>Extract developer guidance from Dev Notes: architecture requirements, previous learnings, technical specifications</action>
+    <action>
+      Extract developer guidance from Dev Notes: architecture requirements, previous learnings, technical specifications
+    </action>
     <action>Use enhanced story context to inform implementation decisions and approaches</action>
 
     <action>Identify first incomplete task (unchecked [ ]) in Tasks/Subtasks</action>
@@ -134,20 +162,26 @@
     <action if="incomplete task or subtask requirements ambiguous">ASK user to clarify or HALT</action>
   </step>
 
-  <step n="2" goal="Load project context and story information">
+  <step goal="Load project context and story information" n="2">
     <critical>Load all available context to inform implementation</critical>
 
     <action>Load {project_context} for coding standards and project-wide patterns (if exists)</action>
-    <action>Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change Log, Status</action>
+    <action>
+      Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Dev Agent Record, File List, Change
+      Log, Status
+    </action>
     <action>Load comprehensive context from story file's Dev Notes section</action>
-    <action>Extract developer guidance from Dev Notes: architecture requirements, previous learnings, technical specifications</action>
+    <action>
+      Extract developer guidance from Dev Notes: architecture requirements, previous learnings, technical specifications
+    </action>
     <action>Use enhanced story context to inform implementation decisions and approaches</action>
-    <output>✅ **Context Loaded**
+    <output>
+      ✅ **Context Loaded**
       Story and project context available for implementation
     </output>
   </step>
 
-  <step n="3" goal="Detect review continuation and extract review context">
+  <step goal="Detect review continuation and extract review context" n="3">
     <critical>Determine if this is a fresh start or continuation after code review</critical>
 
     <action>Check if "Senior Developer Review (AI)" section exists in the story file</action>
@@ -155,7 +189,8 @@
 
     <check if="Senior Developer Review section exists">
       <action>Set review_continuation = true</action>
-      <action>Extract from "Senior Developer Review (AI)" section:
+      <action>
+        Extract from "Senior Developer Review (AI)" section:
         - Review outcome (Approve/Changes Requested/Blocked)
         - Review date
         - Total action items with checkboxes (count checked vs unchecked)
@@ -164,7 +199,8 @@
       <action>Count unchecked [ ] review follow-up tasks in "Review Follow-ups (AI)" subsection</action>
       <action>Store list of unchecked review items as {{pending_review_items}}</action>
 
-      <output>⏯️ **Resuming Story After Code Review** ({{review_date}})
+      <output>
+        ⏯️ **Resuming Story After Code Review** ({{review_date}})
 
         **Review Outcome:** {{review_outcome}}
         **Action Items:** {{unchecked_review_count}} remaining to address
@@ -178,7 +214,8 @@
       <action>Set review_continuation = false</action>
       <action>Set {{pending_review_items}} = empty</action>
 
-      <output>🚀 **Starting Fresh Implementation**
+      <output>
+        🚀 **Starting Fresh Implementation**
 
         Story: {{story_key}}
         Story Status: {{current_status}}
@@ -187,7 +224,7 @@
     </check>
   </step>
 
-  <step n="4" goal="Mark story in-progress" tag="sprint-status">
+  <step goal="Mark story in-progress" n="4" tag="sprint-status">
     <check if="{{sprint_status}} file exists">
       <action>Load the FULL file: {{sprint_status}}</action>
       <action>Read all development_status entries to find {{story_key}}</action>
@@ -195,19 +232,22 @@
 
       <check if="current status == 'ready-for-dev' OR review_continuation == true">
         <action>Update the story in the sprint status report to = "in-progress"</action>
-        <output>🚀 Starting work on story {{story_key}}
+        <output>
+          🚀 Starting work on story {{story_key}}
           Status updated: ready-for-dev → in-progress
         </output>
       </check>
 
       <check if="current status == 'in-progress'">
-        <output>⏯️ Resuming work on story {{story_key}}
+        <output>
+          ⏯️ Resuming work on story {{story_key}}
           Story is already marked in-progress
         </output>
       </check>
 
       <check if="current status is neither ready-for-dev nor in-progress">
-        <output>⚠️ Unexpected story status: {{current_status}}
+        <output>
+          ⚠️ Unexpected story status: {{current_status}}
           Expected ready-for-dev or in-progress. Continuing anyway...
         </output>
       </check>
@@ -221,10 +261,18 @@
     </check>
   </step>
 
-  <step n="5" goal="Implement task following red-green-refactor cycle">
+  <step goal="Implement task following red-green-refactor cycle" n="5">
     <critical>FOLLOW THE STORY FILE TASKS/SUBTASKS SEQUENCE EXACTLY AS WRITTEN - NO DEVIATION</critical>
 
-    <action>Review the current task/subtask from the story file - this is your authoritative implementation guide</action>
+    <!-- GIT WORKFLOW ENFORCEMENT -->
+    <action>
+      VERIFY you are NOT on 'main' or 'master' branch. If so, create/checkout a feature branch (e.g. fix/... or
+      feat/...) NOW.
+    </action>
+
+    <action>
+      Review the current task/subtask from the story file - this is your authoritative implementation guide
+    </action>
     <action>Plan implementation following red-green-refactor cycle</action>
 
     <!-- RED PHASE -->
@@ -242,34 +290,40 @@
 
     <action>Document technical approach and decisions in Dev Agent Record → Implementation Plan</action>
 
-    <action if="new dependencies required beyond story specifications">HALT: "Additional dependencies need user approval"</action>
+    <action if="new dependencies required beyond story specifications">
+      HALT: "Additional dependencies need user approval"
+    </action>
     <action if="3 consecutive implementation failures occur">HALT and request guidance</action>
     <action if="required configuration is missing">HALT: "Cannot proceed without necessary configuration files"</action>
 
     <critical>NEVER implement anything not mapped to a specific task/subtask in the story file</critical>
     <critical>NEVER proceed to next task until current task/subtask is complete AND tests pass</critical>
-    <critical>Execute continuously without pausing until all tasks/subtasks are complete or explicit HALT condition</critical>
+    <critical>
+      Execute continuously without pausing until all tasks/subtasks are complete or explicit HALT condition
+    </critical>
     <critical>Do NOT propose to pause for review until Step 9 completion gates are satisfied</critical>
   </step>
 
-  <step n="6" goal="Author comprehensive tests">
+  <step goal="Author comprehensive tests" n="6">
     <action>Create unit tests for business logic and core functionality introduced/changed by the task</action>
     <action>Add integration tests for component interactions specified in story requirements</action>
     <action>Include end-to-end tests for critical user flows when story requirements demand them</action>
     <action>Cover edge cases and error handling scenarios identified in story Dev Notes</action>
   </step>
 
-  <step n="7" goal="Run validations and tests">
+  <step goal="Run validations and tests" n="7">
     <action>Determine how to run tests for this repo (infer test framework from project structure)</action>
     <action>Run all existing tests to ensure no regressions</action>
     <action>Run the new tests to verify implementation correctness</action>
     <action>Run linting and code quality checks if configured in project</action>
-    <action>Validate implementation meets ALL story acceptance criteria; enforce quantitative thresholds explicitly</action>
+    <action>
+      Validate implementation meets ALL story acceptance criteria; enforce quantitative thresholds explicitly
+    </action>
     <action if="regression tests fail">STOP and fix before continuing - identify breaking changes immediately</action>
     <action if="new tests fail">STOP and fix before continuing - ensure implementation correctness</action>
   </step>
 
-  <step n="8" goal="Validate and mark task complete ONLY when fully done">
+  <step goal="Validate and mark task complete ONLY when fully done" n="8">
     <critical>NEVER mark a task complete unless ALL conditions are met - NO LYING OR CHEATING</critical>
 
     <!-- VALIDATION GATES -->
@@ -287,10 +341,14 @@
       <action>Mark task checkbox [x] in "Tasks/Subtasks → Review Follow-ups (AI)" section</action>
 
       <!-- CRITICAL: Also mark corresponding action item in review section -->
-      <action>Find matching action item in "Senior Developer Review (AI) → Action Items" section by matching description</action>
+      <action>
+        Find matching action item in "Senior Developer Review (AI) → Action Items" section by matching description
+      </action>
       <action>Mark that action item checkbox [x] as resolved</action>
 
-      <action>Add to Dev Agent Record → Completion Notes: "✅ Resolved review finding [{{severity}}]: {{description}}"</action>
+      <action>
+        Add to Dev Agent Record → Completion Notes: "✅ Resolved review finding [{{severity}}]: {{description}}"
+      </action>
     </check>
 
     <!-- ONLY MARK COMPLETE IF ALL VALIDATION PASS -->
@@ -307,7 +365,9 @@
 
     <check if="review_continuation == true and {{resolved_review_items}} is not empty">
       <action>Count total resolved review items in this session</action>
-      <action>Add Change Log entry: "Addressed code review findings - {{resolved_count}} items resolved (Date: {{date}})"</action>
+      <action>
+        Add Change Log entry: "Addressed code review findings - {{resolved_count}} items resolved (Date: {{date}})"
+      </action>
     </check>
 
     <action>Save the story file</action>
@@ -320,7 +380,12 @@
     </action>
   </step>
 
-  <step n="9" goal="Story completion and mark for review" tag="sprint-status">
+  <step goal="Story completion and mark for review" n="9" tag="sprint-status">
+    <!-- MANDATORY GIT WORKFLOW FINALIZATION -->
+    <action>BUMP the version in 'pyproject.toml' (or equivalent) following semantic versioning rules</action>
+    <action>UPDATE 'CHANGELOG.md' with a summary of changes under the new version header</action>
+    <action>COMMIT these administrative changes if not already done</action>
+
     <action>Verify ALL tasks and subtasks are marked [x] (re-scan the story document now)</action>
     <action>Run the full regression suite (do not skip)</action>
     <action>Confirm File List includes every changed file</action>
@@ -328,7 +393,8 @@
     <action>Update the story Status to: "review"</action>
 
     <!-- Enhanced Definition of Done Validation -->
-    <action>Validate definition-of-done checklist with essential requirements:
+    <action>
+      Validate definition-of-done checklist with essential requirements:
       - All tasks/subtasks marked complete with [x]
       - Implementation satisfies every Acceptance Criterion
       - Unit tests for core functionality added/updated
@@ -357,7 +423,8 @@
     </check>
 
     <check if="story key not found in sprint status">
-      <output>⚠️ Story file updated, but sprint-status update failed: {{story_key}} not found
+      <output>
+        ⚠️ Story file updated, but sprint-status update failed: {{story_key}} not found
 
         Story status is set to "review" in file, but sprint-status.yaml may be out of sync.
       </output>
@@ -370,15 +437,18 @@
     <action if="definition-of-done validation fails">HALT - Address DoD failures before completing</action>
   </step>
 
-  <step n="10" goal="Completion communication and user support">
+  <step goal="Completion communication and user support" n="10">
     <action>Execute the enhanced definition-of-done checklist using the validation framework</action>
     <action>Prepare a concise summary in Dev Agent Record → Completion Notes</action>
 
     <action>Communicate to {user_name} that story implementation is complete and ready for review</action>
-    <action>Summarize key accomplishments: story ID, story key, title, key changes made, tests added, files modified</action>
+    <action>
+      Summarize key accomplishments: story ID, story key, title, key changes made, tests added, files modified
+    </action>
     <action>Provide the story file path and current status (now "review")</action>
 
-    <action>Based on {user_skill_level}, ask if user needs any explanations about:
+    <action>
+      Based on {user_skill_level}, ask if user needs any explanations about:
       - What was implemented and how it works
       - Why certain technical decisions were made
       - How to test or verify the changes
@@ -392,18 +462,21 @@
     </check>
 
     <action>Once explanations are complete (or user indicates no questions), suggest logical next steps</action>
-    <action>Recommended next steps (flexible based on project setup):
+    <action>
+      Recommended next steps (flexible based on project setup):
       - Review the implemented story and test the changes
       - Verify all acceptance criteria are met
       - Ensure deployment readiness if applicable
       - Run `code-review` workflow for peer review
     </action>
 
-    <output>💡 **Tip:** For best results, run `code-review` using a **different** LLM than the one that implemented this story.</output>
+    <output>
+      💡 **Tip:** For best results, run `code-review` using a **different** LLM than the one that implemented this
+      story.
+    </output>
     <check if="{sprint_status} file exists">
       <action>Suggest checking {sprint_status} to see project progress</action>
     </check>
     <action>Remain flexible - allow user to choose their own path or ask for other assistance</action>
   </step>
-
 </workflow>

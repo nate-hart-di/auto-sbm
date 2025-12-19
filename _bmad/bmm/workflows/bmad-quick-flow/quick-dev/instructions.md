@@ -7,6 +7,14 @@
 <critical>Flexible - handles tech-specs OR direct instructions</critical>
 <critical>ALWAYS respect {project_context} if it exists - it defines project standards</critical>
 
+<critical>🔴 MANDATORY GIT WORKFLOW:
+
+1. NEVER commit to 'master'/'main'. ALWAYS use a feature branch.
+2. ALWAYS bump 'version' in 'pyproject.toml' before finishing.
+3. ALWAYS update 'CHANGELOG.md' before finishing.
+4. FAILURE TO DO THIS = IMMEDIATE FAILURE.
+   </critical>
+
 <checkpoint-handlers>
   <on-select key="a">Load and execute {advanced_elicitation}, then return</on-select>
   <on-select key="p">Load and execute {party_mode_workflow}, then return</on-select>
@@ -155,6 +163,8 @@ Use holistic judgment, not mechanical keyword matching.</action>
 
 <step n="3" goal="Execute implementation" id="step_3">
 
+<action>VERIFY you are NOT on 'main' or 'master' branch. If so, create/checkout a feature branch (e.g. fix/... or feat/...) NOW.</action>
+
 <action>For each task:
 
 1. **Load Context** - read files from spec or relevant to change
@@ -171,6 +181,12 @@ Use holistic judgment, not mechanical keyword matching.</action>
 </step>
 
 <step n="4" goal="Verify and complete">
+
+<!-- MANDATORY GIT WORKFLOW FINALIZATION -->
+
+<action>BUMP the version in 'pyproject.toml' (or equivalent) following semantic versioning rules</action>
+<action>UPDATE 'CHANGELOG.md' with a summary of changes under the new version header</action>
+<action>COMMIT these administrative changes if not already done</action>
 
 <action>Verify: all tasks [x], tests passing, AC satisfied, patterns followed</action>
 
