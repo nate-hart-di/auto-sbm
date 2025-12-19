@@ -300,9 +300,99 @@ def auto_update_repo() -> None:
         logger.debug(f"Auto-update failed silently: {e}")
 
 
+def _regenerate_wrapper_script() -> None:
+    """
+    Regenerate the global sbm wrapper script with latest environment isolation fixes.
+    This ensures users get updates to the wrapper logic during auto-updates.
+    """
+    import os
+    from pathlib import Path
+
+    try:
+        project_root = REPO_ROOT
+        venv_python = project_root / ".venv" / "bin" / "python"
+        wrapper_path = Path.home() / ".local" / "bin" / "sbm"
+
+        # Ensure ~/.local/bin exists
+        wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create wrapper script with environment isolation
+        wrapper_content = f"""#!/bin/bash
+# Enhanced wrapper script for auto-sbm v2.0
+# Auto-generated with environment isolation for multi-venv compatibility
+
+VENV_PYTHON="{venv_python}"
+PROJECT_ROOT="{project_root}"
+PROJECT_CLI_MODULE="sbm.cli"
+
+# Check if the venv python exists
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "❌ Auto-SBM virtual environment not found at $PROJECT_ROOT" >&2
+    echo "🔧 Please run: cd $PROJECT_ROOT && bash setup.sh" >&2
+    exit 1
+fi
+
+# Check if project root exists
+if [ ! -d "$PROJECT_ROOT" ]; then
+    echo "❌ Auto-SBM project directory not found at $PROJECT_ROOT" >&2
+    echo "🔧 Please clone the repository or run setup.sh from the correct directory" >&2
+    exit 1
+fi
+
+# Validate critical modules are available (quick check for common issues)
+if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
+    IMPORT_ERROR=$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+    echo "WARNING  Environment health check failed: $IMPORT_ERROR" >&2
+    echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
+    cd "$PROJECT_ROOT" && bash setup.sh
+
+    # Re-check after setup
+    if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
+        IMPORT_ERROR_2=$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+        echo "❌ Setup failed after retry: $IMPORT_ERROR_2" >&2
+        echo "Please run manually: cd $PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
+        exit 1
+    fi
+    echo "INFO     Setup complete. Continuing with SBM command..." >&2
+fi
+
+# Change to project directory to ensure proper imports
+cd "$PROJECT_ROOT" || {{
+    echo "❌ Failed to change to project directory $PROJECT_ROOT" >&2
+    exit 1
+}}
+
+# Clean environment from any active venv to prevent conflicts
+# This ensures auto-sbm runs in isolation even when called from another venv
+unset VIRTUAL_ENV
+unset PYTHONPATH
+unset PYTHONHOME
+
+# Remove any other venv's bin directory from PATH and add auto-sbm's venv
+export PATH="$PROJECT_ROOT/.venv/bin:$(echo $PATH | tr ':' '\\n' | grep -v '/\\.venv/bin' | tr '\\n' ':' | sed 's/:$//')"
+
+# Execute the command from the project's venv, passing all arguments
+"$VENV_PYTHON" -m "$PROJECT_CLI_MODULE" "$@"
+"""
+
+        # Write the wrapper script
+        with wrapper_path.open("w") as f:
+            f.write(wrapper_content)
+
+        # Make it executable
+        os.chmod(wrapper_path, 0o755)
+
+        logger.debug(f"Regenerated wrapper script at {wrapper_path}")
+
+    except Exception as e:
+        # Don't fail the entire update if wrapper regeneration fails
+        logger.debug(f"Failed to regenerate wrapper script: {e}")
+
+
 def _check_and_run_setup_if_needed() -> None:
     """
     Check if setup needs to be run (if >8 hours since last setup) and run it silently.
+    Also regenerates the wrapper script to ensure latest environment isolation fixes.
     """
     setup_complete_file = REPO_ROOT / ".sbm_setup_complete"
 
@@ -331,6 +421,9 @@ def _check_and_run_setup_if_needed() -> None:
         )
 
         if pip_result.returncode == 0:
+            # Regenerate wrapper script to get latest environment isolation fixes
+            _regenerate_wrapper_script()
+
             # Create the setup complete marker
             with setup_complete_file.open("w") as f:
                 f.write(f"Setup completed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")

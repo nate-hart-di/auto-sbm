@@ -374,28 +374,27 @@ ZSHRC_EOF
       log "✅ Homebrew configuration already present"
   fi
   
-  # Add essential development aliases if not already present  
+  # Add essential development aliases if not already present
   if ! grep -q "##### AUTO-SBM DEVELOPMENT ALIASES #####" "$ZSHRC_FILE"; then
       log "Adding development aliases to $ZSHRC_FILE"
-      cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
+      # Use current directory as project root for aliases
+      local PROJECT_ROOT=$(pwd)
+      cat >> "$ZSHRC_FILE" << ZSHRC_EOF
 
-##### AUTO-SBM DEVELOPMENT ALIASES #####
-# Git shortcuts
-alias gs="git status"
-alias ga="git add"
-alias gc="git commit"
-alias gp="git push"
-alias gl="git log --oneline -10"
+##### ADDED BY AUTO-SBM #####
+alias gs='git status'
+alias ga='git addall'
+alias gp='git push --set-upstream origin HEAD'
+alias gpo='git push --set-upstream origin HEAD'
+alias gb='git branch'
+alias gpl='git pull'
+alias gr='git restore'
+alias grh='git reset --hard'
+alias gco='git checkout'
 
-# Development shortcuts
-alias ll="ls -la"
-alias la="ls -la"
-alias ..="cd .."
-alias ...="cd ../.."
-
-# Auto-SBM specific
-alias sbm-dev="cd ~/auto-sbm && source .venv/bin/activate"
-alias sbm-test="cd ~/auto-sbm && source .venv/bin/activate && python -m pytest tests/ -v"
+# Auto-SBM specific (using actual installation directory)
+alias sbm-dev="cd $PROJECT_ROOT && source .venv/bin/activate"
+alias sbm-test="cd $PROJECT_ROOT && source .venv/bin/activate && python -m pytest tests/ -v"
 ZSHRC_EOF
       log "✅ Development aliases added"
   else
@@ -531,6 +530,15 @@ cd "\$PROJECT_ROOT" || {
     exit 1
 }
 
+# Clean environment from any active venv to prevent conflicts
+# This ensures auto-sbm runs in isolation even when called from another venv
+unset VIRTUAL_ENV
+unset PYTHONPATH
+unset PYTHONHOME
+
+# Remove any other venv's bin directory from PATH and add auto-sbm's venv
+export PATH="\$PROJECT_ROOT/.venv/bin:\$(echo \$PATH | tr ':' '\n' | grep -v '/\.venv/bin' | tr '\n' ':' | sed 's/:$//')"
+
 # Execute the command from the project's venv, passing all arguments
 "\$VENV_PYTHON" -m "\$PROJECT_CLI_MODULE" "\$@"
 EOF
@@ -604,10 +612,6 @@ echo "🔄 IMPORTANT: Restart your terminal or run:"
 echo "   source ~/.zshrc"
 echo ""
 echo "📋 Next steps:"
-echo "1. Verify installation:"
-echo "   sbm --help"
-echo "   prettier --version"
-echo "   node --version"
 echo ""
 echo "2. Run your first migration:"
 echo "   sbm your-theme-name"
