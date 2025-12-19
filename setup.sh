@@ -2,7 +2,8 @@
 set -e
 
 LOGFILE="setup.log"
-echo "[INFO] Auto-SBM v2.0 Setup - Logging all actions to $LOGFILE"
+SBM_VERSION=$(.venv/bin/python -c "import sbm; print(sbm.__version__)" 2> /dev/null || echo "2.0")
+echo "[INFO] Auto-SBM v$SBM_VERSION Setup - Logging all actions to $LOGFILE"
 exec > >(tee -a "$LOGFILE") 2>&1
 
 function log() { echo "[INFO] $1"; }
@@ -374,35 +375,49 @@ ZSHRC_EOF
     log "✅ Homebrew configuration already present"
   fi
 
-  # Add essential development aliases if not already present
+  # Add essential development aliases - only if not already present
+  # This check ensures we don't duplicate the entire block on re-runs
   if ! grep -q "##### AUTO-SBM DEVELOPMENT ALIASES #####" "$ZSHRC_FILE"; then
     log "Adding development aliases to $ZSHRC_FILE"
     # Use current directory as project root for aliases
     local PROJECT_ROOT=$(pwd)
-    cat >> "$ZSHRC_FILE" << ZSHRC_EOF
+
+    # Add aliases conditionally - won't override user's existing aliases
+    cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
 
 ##### AUTO-SBM DEVELOPMENT ALIASES #####
-# GIT ALIASES
-alias gs='git status'
-alias ga='git addall'
-alias gp='git push --set-upstream origin HEAD'
-alias gb='git branch'
-alias gpl='git pull'
-alias gr='git restore'
-alias grh='git reset --hard'
-alias gco='git checkout'
-# Misc aliases
-unalias gc 2> /dev/null
-gc() {
-  git commit -m "$*"
-}
-# Auto-SBM specific
-alias sbm-dev="cd $PROJECT_ROOT && source .venv/bin/activate"
-alias sbm-test="cd $PROJECT_ROOT && source .venv/bin/activate && python -m pytest tests/ -v"
+# Git shortcuts - only set if not already defined by user
+if ! alias gs &>/dev/null; then alias gs='git status'; fi
+if ! alias ga &>/dev/null; then alias ga='git add'; fi
+if ! alias gp &>/dev/null; then alias gp='git push --set-upstream origin HEAD'; fi
+if ! alias gb &>/dev/null; then alias gb='git branch'; fi
+if ! alias gpl &>/dev/null; then alias gpl='git pull'; fi
+if ! alias gr &>/dev/null; then alias gr='git restore'; fi
+if ! alias gco &>/dev/null; then alias gco='git checkout'; fi
+
+# Git commit function - only if not already defined
+if ! type gc &>/dev/null; then
+  gc() {
+    git commit -m "$*"
+  }
+fi
 ZSHRC_EOF
-    log "✅ Development aliases added"
+
+    # Add sbm-specific aliases with dynamic PROJECT_ROOT
+    cat >> "$ZSHRC_FILE" << ZSHRC_EOF
+
+# Auto-SBM development helpers
+if ! alias sbm-dev &>/dev/null; then
+  alias sbm-dev="cd $PROJECT_ROOT && source .venv/bin/activate"
+fi
+if ! alias sbm-test &>/dev/null; then
+  alias sbm-test="cd $PROJECT_ROOT && source .venv/bin/activate && python -m pytest tests/ -v"
+fi
+ZSHRC_EOF
+
+    log "✅ Development aliases added (respecting existing aliases)"
   else
-    log "✅ Development aliases already present"
+    log "✅ Development aliases already present (skipping)"
   fi
 }
 
@@ -609,12 +624,11 @@ validate_installation
 sh -c ". ~/.zshrc"
 
 echo ""
-SBM_VERSION=$(.venv/bin/python -c "import sbm; print(sbm.__version__)" 2> /dev/null || echo "2.0")
 echo " 🚀 Auto-SBM Setup Complete!"
 echo ""
 echo "   🛠 Current build: v$SBM_VERSION"
 echo "   ✅ Auto-SBM CLI globally available"
-echo "   ✅ Run your first migrationsbm [slug]"
+echo "   ✅ Run your first migration with: sbm [slug]"
 echo ""
 
 touch .sbm_setup_complete
