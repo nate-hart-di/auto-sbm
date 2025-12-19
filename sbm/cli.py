@@ -1819,5 +1819,17 @@ def internal_refresh_stats() -> None:
         logger.debug(f"Internal stats refresh failed: {e}")
 
 
+@cli.command()
+def setup() -> None:
+    """Run the environment setup script."""
+    click.echo("🚀 Starting setup...")
+    setup_script = REPO_ROOT / "setup.sh"
+    try:
+        subprocess.run(["bash", str(setup_script)], check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Setup failed with exit code {e.returncode}")
+        sys.exit(e.returncode)
+
+
 if __name__ == "__main__":
     cli()

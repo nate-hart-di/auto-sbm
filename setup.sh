@@ -621,8 +621,7 @@ function validate_installation() {
 }
 
 validate_installation
-sh -c ". ~/.zshrc"
-
+zsh -c "source ~/.zshrc"
 echo ""
 echo " 🚀 Auto-SBM Setup Complete!"
 echo ""
