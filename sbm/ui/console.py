@@ -202,8 +202,11 @@ class SBMConsole:
         metadata = Table.grid(padding=(0, 2))
         metadata.add_column(style="bold cyan")
         metadata.add_column()
+        from sbm.utils.version_utils import get_version
+
+        current_version = get_version()
         metadata.add_row("Theme:", f"[filename]{theme_name}[/]")
-        metadata.add_row("System:", "[sbm.primary]Auto-SBM v2.0[/]")
+        metadata.add_row("System:", f"[sbm.primary]Auto-SBM v{current_version}[/]")
         metadata.add_row("Mode:", "Full Automated Workflow")
 
         panel = Panel(

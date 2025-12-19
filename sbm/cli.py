@@ -20,6 +20,8 @@ from pathlib import Path
 import click
 from git import Repo
 
+from .utils.timer import get_total_automation_time, get_total_duration
+from .utils.version_utils import get_changelog, get_version
 from sbm.utils.processes import run_background_task
 from sbm.utils.tracker import (
     get_migration_stats,
@@ -53,7 +55,6 @@ from .ui.panels import StatusPanels
 from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
-from .utils.timer import get_total_automation_time, get_total_duration
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 # Use the predictable installation location as the primary root
@@ -1304,7 +1305,7 @@ def update() -> None:
             if has_changes:
                 _restore_stashed_changes()
 
-            click.echo("\n✅ Update complete! Run 'sbm --version' to verify.")
+            click.echo(f"\n✅ Update complete! Run 'sbm version' to verify.")
         else:
             click.echo(f"❌ Update failed: {pull_result.stderr}", err=True)
             if has_changes:
@@ -1584,10 +1585,20 @@ def _cleanup_test_files(css_dir: Path, test_files: list[tuple[str, Path]]) -> No
 
 
 @cli.command()
-def version() -> None:
+@click.option("--changelog", "-c", is_flag=True, help="Show recent changelog entries")
+def version(changelog: bool) -> None:
     """Display version information."""
-    click.echo("auto-sbm version 2.0.0")
-    click.echo("Site Builder Migration Tool")
+    console = get_console()
+    current_version = get_version()
+
+    console.print_header(
+        title=f"auto-sbm v{current_version}", subtitle="Site Builder Migration Tool"
+    )
+
+    if changelog:
+        console.console.print("\n[bold cyan]📝 Recent Changes:[/]")
+        console.console.print("-" * 40)
+        console.console.print(get_changelog())
 
 
 @cli.command()
