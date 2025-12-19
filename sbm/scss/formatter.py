@@ -1,21 +1,19 @@
 """
 Built-in SCSS formatter for the SBM tool.
 
-This module provides a reliable, zero-dependency SCSS formatter that works
-regardless of the user's environment or installed tools.
-
-The formatter handles:
-- Consistent indentation (configurable, default 2 spaces)
-- Proper spacing around braces
-- Normalized whitespace
-- Preserved comments
-- SCSS-specific syntax (nesting, variables, mixins, etc.)
+Uses cssbeautifier (from jsbeautifier) to match VSCode's default CSS formatter behavior.
 """
 
-import re
 from typing import Optional
 
 from sbm.utils.logger import logger
+
+try:
+    from cssbeautifier import beautify as css_beautify
+    BEAUTIFIER_AVAILABLE = True
+except ImportError:
+    BEAUTIFIER_AVAILABLE = False
+    logger.warning("cssbeautifier not available, using basic formatting")
 
 
 class SCSSFormatter:
@@ -40,7 +38,7 @@ class SCSSFormatter:
 
     def format(self, content: str) -> str:
         """
-        Format SCSS content with consistent indentation and spacing.
+        Format SCSS content using cssbeautifier (matches VSCode default formatter).
 
         Args:
             content: Raw SCSS content
@@ -52,86 +50,38 @@ class SCSSFormatter:
             return content
 
         try:
-            # Normalize line endings
-            content = content.replace("\r\n", "\n").replace("\r", "\n")
-
-            # Process the content
-            lines = content.split("\n")
-            formatted_lines = []
-            depth = 0
-            in_multiline_comment = False
-            in_multiline_value = False
-
-            for i, line in enumerate(lines):
-                original_line = line
-                stripped = line.strip()
-
-                # Skip empty lines but preserve them
-                if not stripped:
-                    # Don't add multiple consecutive blank lines
-                    if formatted_lines and formatted_lines[-1].strip() == "":
-                        continue
-                    formatted_lines.append("")
-                    continue
-
-                # Handle multiline comments
-                if "/*" in stripped and "*/" not in stripped:
-                    in_multiline_comment = True
-                if "*/" in stripped:
-                    in_multiline_comment = False
-
-                # Handle multiline values (e.g., long background gradients)
-                if in_multiline_value:
-                    if stripped.endswith(";"):
-                        in_multiline_value = False
-                    formatted_lines.append(self.indent_unit * (depth + 1) + stripped)
-                    continue
-
-                # Check for opening/closing braces to adjust depth
-                open_braces = stripped.count("{") - stripped.count("#{")  # Exclude interpolation
-                close_braces = stripped.count("}")
-
-                # Adjust depth for closing braces BEFORE indenting this line
-                if stripped.startswith("}") or stripped == "}":
-                    depth = max(0, depth - 1)
-
-                # Apply indentation
-                if in_multiline_comment and not stripped.startswith("/*"):
-                    # Preserve comment indentation style
-                    formatted_line = self.indent_unit * depth + " " + stripped
-                else:
-                    formatted_line = self.indent_unit * depth + stripped
-
-                # Ensure space before opening brace (but not for interpolation)
-                formatted_line = re.sub(r'(\S)\{(?!\{)', r'\1 {', formatted_line)
-
-                # Ensure space after closing brace if followed by content (except semicolon)
-                formatted_line = re.sub(r'\}([^\s\};,])', r'} \1', formatted_line)
-
-                formatted_lines.append(formatted_line)
-
-                # Adjust depth for opening braces AFTER processing this line
-                depth += open_braces
-                # Handle closing braces that aren't at the start of line
-                if close_braces > 0 and not stripped.startswith("}"):
-                    depth = max(0, depth - close_braces)
-
-                # Check if this starts a multiline value
-                if ":" in stripped and not stripped.endswith(";") and not stripped.endswith("{") and not stripped.endswith(","):
-                    # Could be multiline, but only if next line continues it
-                    pass
-
-            # Join and clean up
-            result = "\n".join(formatted_lines)
-
-            # Final cleanup
-            result = self._final_cleanup(result)
-
-            return result
+            if BEAUTIFIER_AVAILABLE:
+                # Use cssbeautifier with settings matching VSCode defaults
+                options = {
+                    'indent_size': self.indent_size,
+                    'indent_char': self.indent_char,
+                    'selector_separator_newline': True,
+                    'end_with_newline': True,
+                    'newline_between_rules': True,
+                    'space_around_combinator': True,
+                }
+                result = css_beautify(content, options)
+                return result
+            else:
+                # Fallback to basic formatting
+                return self._basic_format(content)
 
         except Exception as e:
             logger.warning(f"SCSS formatting failed, returning original: {e}")
             return content
+
+    def _basic_format(self, content: str) -> str:
+        """Basic fallback formatting if cssbeautifier unavailable."""
+        # Normalize line endings
+        content = content.replace("\r\n", "\n").replace("\r", "\n")
+
+        # Remove trailing whitespace
+        lines = [line.rstrip() for line in content.split("\n")]
+
+        # Ensure single newline at end
+        result = "\n".join(lines).rstrip() + "\n"
+
+        return result
 
     def _final_cleanup(self, content: str) -> str:
         """Apply final cleanup passes to the formatted content."""

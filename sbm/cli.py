@@ -1238,16 +1238,26 @@ def _restore_stashed_changes() -> None:
 
 @cli.command()
 def update() -> None:
-    """Manually update auto-sbm to the latest version."""
-    click.echo("Manually updating auto-sbm...")
+    """Update auto-sbm to the latest version."""
+    click.echo("🔄 Updating auto-sbm...")
 
     try:
         _validate_git_repository()
         current_branch = _get_current_branch()
+
+        # Get current commit for comparison
+        current_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()[:7]
+
         has_changes = _stash_changes_if_needed()
 
         # Perform git pull
-        click.echo(f"Pulling latest changes from origin/{current_branch}...")
+        click.echo(f"📥 Pulling latest changes from origin/{current_branch}...")
         pull_result = subprocess.run(
             ["git", "pull", "origin", current_branch],
             check=False,
@@ -1260,12 +1270,41 @@ def update() -> None:
             if "Already up to date" in pull_result.stdout:
                 click.echo("✅ Already up to date.")
             else:
-                click.echo("✅ Successfully updated to latest version.")
+                # Get new commit
+                new_commit = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    check=True,
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    text=True,
+                ).stdout.strip()[:7]
+
+                # Show what changed
+                click.echo(f"✅ Updated: {current_commit} → {new_commit}")
+
+                # Show recent commits
+                log_result = subprocess.run(
+                    ["git", "log", f"{current_commit}..{new_commit}", "--oneline", "--no-decorate"],
+                    check=True,
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    text=True,
+                )
+                if log_result.stdout.strip():
+                    click.echo("\n📝 Changes:")
+                    for line in log_result.stdout.strip().split("\n")[:5]:  # Show max 5 commits
+                        click.echo(f"  • {line}")
+
+                # Update dependencies
+                click.echo("\n📦 Updating dependencies...")
                 _update_dependencies()
+                click.echo("✅ Dependencies updated")
 
             # Restore stashed changes
             if has_changes:
                 _restore_stashed_changes()
+
+            click.echo("\n✅ Update complete! Run 'sbm --version' to verify.")
         else:
             click.echo(f"❌ Update failed: {pull_result.stderr}", err=True)
             if has_changes:
