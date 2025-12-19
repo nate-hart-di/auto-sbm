@@ -102,6 +102,15 @@ def migrate_map_components(
             logger.warning(f"style.scss not found at {style_scss_path}")
             return True  # Not an error, just no style.scss to process
 
+        # Ensure processor is available for content transformation
+        if processor is None:
+            try:
+                from sbm.scss.processor import SCSSProcessor
+
+                processor = SCSSProcessor(slug)
+            except Exception as e:
+                logger.warning(f"Failed to instantiate SCSSProcessor: {e}")
+
         # Step 1: Find CommonTheme map imports in style.scss
         map_imports = find_commontheme_map_imports(style_scss_path, oem_handler)
 
@@ -666,21 +675,29 @@ def migrate_map_scss_content(
 
         # Add to sb-inside.scss
         if sb_inside_path.exists():
-            with sb_inside_path.open("a", encoding="utf-8") as f:
-                f.write("\n\n/* === MAP COMPONENTS === */")
-                f.write(combined_content)
-            logger.info("Added map SCSS content to sb-inside.scss")
-            targets_written.append("sb-inside.scss")
+            existing_sb_inside = sb_inside_path.read_text(encoding="utf-8", errors="ignore")
+            if "/* === MAP COMPONENTS === */" in existing_sb_inside:
+                logger.info("Map components already present in sb-inside.scss (marker found)")
+            else:
+                with sb_inside_path.open("a", encoding="utf-8") as f:
+                    f.write("\n\n/* === MAP COMPONENTS === */")
+                    f.write(combined_content)
+                logger.info("Added map SCSS content to sb-inside.scss")
+                targets_written.append("sb-inside.scss")
         else:
             logger.warning("sb-inside.scss not found")
 
         # Add to sb-home.scss
         if sb_home_path.exists():
-            with sb_home_path.open("a", encoding="utf-8") as f:
-                f.write("\n\n/* === MAP COMPONENTS === */")
-                f.write(combined_content)
-            logger.info("Added map SCSS content to sb-home.scss")
-            targets_written.append("sb-home.scss")
+            existing_sb_home = sb_home_path.read_text(encoding="utf-8", errors="ignore")
+            if "/* === MAP COMPONENTS === */" in existing_sb_home:
+                logger.info("Map components already present in sb-home.scss (marker found)")
+            else:
+                with sb_home_path.open("a", encoding="utf-8") as f:
+                    f.write("\n\n/* === MAP COMPONENTS === */")
+                    f.write(combined_content)
+                logger.info("Added map SCSS content to sb-home.scss")
+                targets_written.append("sb-home.scss")
         else:
             logger.warning("sb-home.scss not found")
 

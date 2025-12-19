@@ -454,7 +454,7 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool
         return False
 
 
-def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None) -> bool:
+def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None, slug: str) -> bool:
     """Add cookie disclaimer styles for Stellantis dealers."""
     if not isinstance(oem_handler, StellantisHandler):
         return True
@@ -466,6 +466,16 @@ def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None) 
         return False
 
     styles = source.read_text(encoding="utf-8", errors="ignore")
+
+    # Process styles to remove imports and standardize variables
+    try:
+        from sbm.scss.processor import SCSSProcessor
+
+        processor = SCSSProcessor(slug)
+        styles = processor.transform_scss_content(styles)
+    except Exception as e:
+        logger.warning(f"Failed to process cookie banner styles: {e}")
+
     for sb_file in ["sb-inside.scss", "sb-home.scss"]:
         file_path = theme_path / sb_file
         if not file_path.exists():
@@ -478,7 +488,7 @@ def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None) 
     return True
 
 
-def _add_directions_row_styles(theme_path: Path, oem_handler: object | None) -> bool:
+def _add_directions_row_styles(theme_path: Path, oem_handler: object | None, slug: str) -> bool:
     """Add directions row styles from OEM handler."""
     if not oem_handler:
         return True
@@ -492,6 +502,15 @@ def _add_directions_row_styles(theme_path: Path, oem_handler: object | None) -> 
     if not styles:
         return True
 
+    # Process styles to remove imports and standardize variables
+    try:
+        from sbm.scss.processor import SCSSProcessor
+
+        processor = SCSSProcessor(slug)
+        styles = processor.transform_scss_content(styles)
+    except Exception as e:
+        logger.warning(f"Failed to process directions row styles: {e}")
+
     inside_path = theme_path / "sb-inside.scss"
     if inside_path.exists():
         content = inside_path.read_text(encoding="utf-8", errors="ignore")
@@ -503,7 +522,7 @@ def _add_directions_row_styles(theme_path: Path, oem_handler: object | None) -> 
     return True
 
 
-def _add_map_styles(theme_path: Path, oem_handler: object | None) -> bool:
+def _add_map_styles(theme_path: Path, oem_handler: object | None, slug: str) -> bool:
     """Add map styles from OEM handler."""
     if not oem_handler:
         return True
@@ -516,6 +535,15 @@ def _add_map_styles(theme_path: Path, oem_handler: object | None) -> bool:
 
     if not styles:
         return True
+
+    # Process styles to remove imports and standardize variables
+    try:
+        from sbm.scss.processor import SCSSProcessor
+
+        processor = SCSSProcessor(slug)
+        styles = processor.transform_scss_content(styles)
+    except Exception as e:
+        logger.warning(f"Failed to process map styles: {e}")
 
     inside_path = theme_path / "sb-inside.scss"
     if inside_path.exists():
@@ -543,11 +571,11 @@ def add_predetermined_styles(slug: str, oem_handler: dict | object | None = None
         oem_handler = OEMFactory.detect_from_theme(slug)
 
     success = True
-    if not _add_cookie_disclaimer_styles(theme_path, oem_handler):
+    if not _add_cookie_disclaimer_styles(theme_path, oem_handler, slug):
         success = False
-    if not _add_directions_row_styles(theme_path, oem_handler):
+    if not _add_directions_row_styles(theme_path, oem_handler, slug):
         success = False
-    if not _add_map_styles(theme_path, oem_handler):
+    if not _add_map_styles(theme_path, oem_handler, slug):
         success = False
     return success
 

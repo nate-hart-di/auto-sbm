@@ -108,59 +108,13 @@ class SCSSProcessor:
 
     def _process_scss_variables(self, content: str) -> str:
         """
-        Processes SCSS variables by moving them to a :root block as CSS custom properties.
-        Also handles mapping Classic variables to Site Builder equivalents to prevent overrides.
+        Processes SCSS variables by converting usages to CSS custom properties.
+        Removes top-level SCSS variable declarations.
         """
-        logger.debug("Processing SCSS variables into CSS custom properties...")
-
-        # Find all root-level SCSS variable declarations (e.g., "$primary: #000;")
-        declarations = re.findall(r"^\s*(\$[\w-]+)\s*:\s*(.*?);", content, flags=re.MULTILINE)
+        logger.debug("Processing SCSS variables...")
 
         # Remove the original SCSS variable declaration lines from the main content
         content = re.sub(r"^\s*\$[\w-]+\s*:.*?;", "", content, flags=re.MULTILINE)
-
-        root_properties = []
-        if declarations:
-            # Create a lookup for variable values (for complex mappings)
-            var_lookup = {name.replace("$", ""): value for name, value in declarations}
-
-            for var_name, var_value in declarations:
-                # CRITICAL FIX: Don't convert SCSS functions to CSS custom properties
-                # Skip variables that contain SCSS functions like map_keys(), map-get()
-                if any(func in var_value for func in ["map_keys", "map-get", "map-"]):
-                    logger.warning(f"Skipping variable with SCSS function: {var_name}")
-                    continue
-
-                clean_name = var_name.replace("$", "")
-
-                # Convert to CSS custom property format (e.g., --primary: #000;)
-                prop_name = var_name.replace("$", "--")
-                # Important: Convert any variables used in the value of another variable
-                transformed_value = re.sub(r"\$([\w-]+)", r"var(--\1)", var_value)
-                root_properties.append(f"  {prop_name}: {transformed_value};")
-
-                # Handle 1-to-1 SB Mappings
-                if clean_name in VARIABLE_MAPPING:
-                    sb_name = VARIABLE_MAPPING[clean_name]
-                    root_properties.append(f"  --{sb_name}: var({prop_name});")
-
-                # Handle Group Mappings (e.g., headings)
-                if clean_name in GROUP_MAPPINGS:
-                    for sb_name in GROUP_MAPPINGS[clean_name]:
-                        root_properties.append(f"  --{sb_name}: var({prop_name});")
-
-            # Handle Complex Mappings (e.g., borders)
-            for sb_name, classic_parts in COMPLEX_MAPPINGS.items():
-                if all(part in var_lookup for part in classic_parts):
-                    # Combine variables for the complex property
-                    # e.g., --secondarybutton-border: var(--button-border) var(--secondary-button-border-color);
-                    value_parts = [f"var(--{part})" for part in classic_parts]
-                    root_properties.append(f"  --{sb_name}: {' '.join(value_parts)};")
-
-            # Assemble the final :root block
-            root_block = ":root {\n" + "\n".join(root_properties) + "\n}\n\n"
-            # Prepend the new :root block to the content
-            content = root_block + content.lstrip()
 
         # Finally, convert SCSS variable usages to CSS custom properties
         # BUT exclude SCSS internal logic (mixins, maps, loops, functions)
@@ -230,16 +184,23 @@ class SCSSProcessor:
                 and not stripped.startswith("@")
                 and not re.match(r"^\s*\$[\w-]+\s*:", stripped)
             ):
+
+                def _map_variable(match: re.Match) -> str:
+                    var_name = match.group(1)
+                    if var_name in VARIABLE_MAPPING:
+                        return f"var(--{VARIABLE_MAPPING[var_name]})"
+                    return f"var(--{var_name})"
+
                 # Don't convert variables inside interpolation #{...}
                 if "#{" in line:
                     # Split line into parts, only convert variables outside interpolation
                     parts = re.split(r"(#\{[^}]*\})", line)
                     for j, part in enumerate(parts):
                         if not part.startswith("#{"):
-                            parts[j] = re.sub(r"\$([\w-]+)", r"var(--\1)", part)
+                            parts[j] = re.sub(r"\$([\w-]+)", _map_variable, part)
                     lines[i] = "".join(parts)
                 else:
-                    lines[i] = re.sub(r"\$([\w-]+)", r"var(--\1)", line)
+                    lines[i] = re.sub(r"\$([\w-]+)", _map_variable, line)
 
         return "\n".join(lines)
 
@@ -369,9 +330,14 @@ class SCSSProcessor:
         """
         Removes all @import statements from the SCSS content.
         """
-        # Logic to remove all @import lines
-        # Logic to remove all @import lines, handling multi-line imports
-        return re.sub(r"@import\s+[^;]+;\s*", "", content, flags=re.MULTILINE | re.DOTALL)
+        # Logic to remove all @import lines:
+        # - Handles single or double quotes
+        # - Handles optional semicolons
+        # - Handles multi-line imports
+        # - Handles cases with no space like @import'path'
+        return re.sub(
+            r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?\s*", "", content, flags=re.MULTILINE | re.DOTALL
+        )
 
     def _convert_scss_functions(self, content: str) -> str:
         """
@@ -703,6 +669,9 @@ class SCSSProcessor:
                 r"\$([a-zA-Z-_]+)\s*=\s*", r"$\1: ", processed_content
             )  # Fix = to :
 
+            # 6. Remove imports (Added)
+            processed_content = self._remove_imports(processed_content)
+
             # 7. Remove trailing whitespace from lines
             lines = processed_content.split("\n")
             cleaned_lines = [line.rstrip() for line in lines]
@@ -771,6 +740,9 @@ class SCSSProcessor:
 
             # Step 7: Final cleanup of any remaining SCSS variable references
             content = self._final_reprocess_cleanup(content)
+
+            # Step 7.5: Remove imports (Added)
+            content = self._remove_imports(content)
 
             # Step 8: Basic formatting cleanup
             content = self._trim_whitespace(content)
