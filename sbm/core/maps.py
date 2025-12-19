@@ -589,6 +589,18 @@ def migrate_map_scss_content(
         sb_home_path = theme_dir / "sb-home.scss"
         targets_written = []
 
+        # 0. Deduplicate map_imports by commontheme_absolute path to prevent duplicate content
+        seen_paths = set()
+        deduped_imports = []
+        for imp in map_imports:
+            abs_path = imp.get("commontheme_absolute", "")
+            if abs_path and abs_path not in seen_paths:
+                seen_paths.add(abs_path)
+                deduped_imports.append(imp)
+            elif abs_path:
+                logger.debug(f"Skipping duplicate map import: {abs_path}")
+        map_imports = deduped_imports
+
         # 1. Pre-scan existing SCSS files for imports
         existing_imports = set()
         # candidate files to check for existing imports

@@ -27,9 +27,7 @@ from sbm.utils.path import get_dealer_theme_dir, get_platform_dir
 from sbm.utils.timer import timer_segment
 from sbm.oem.stellantis import StellantisHandler
 
-from .git import commit_changes, git_operations, push_changes
-from .maps import migrate_map_components
-from .git import create_pr as git_create_pr
+from .git import commit_changes, git_operations, push_changes, create_pr as git_create_pr
 from .maps import migrate_map_components
 
 if TYPE_CHECKING:
@@ -1000,6 +998,17 @@ def _perform_core_migration(
             slug, oem_handler, interactive=False, console=console, processor=processor
         ):
             return False
+
+    # Final formatting pass - format all SCSS files after all content has been added
+    console.print_step("Formatting SCSS files")
+    if _check_prettier_available():
+        if _format_all_scss_with_prettier(slug):
+            logger.info("Applied final prettier formatting to all SCSS files")
+        else:
+            logger.warning("Final prettier formatting failed")
+    else:
+        logger.info("Prettier not available - skipping final formatting")
+
     return True
 
 
