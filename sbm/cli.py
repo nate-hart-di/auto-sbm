@@ -168,37 +168,7 @@ def is_env_healthy() -> bool:
     return True
 
 
-# --- Setup logic ---
-# Only run setup when in auto-sbm development environment
-
-current_dir = os.getcwd()
-in_auto_sbm_repo = str(REPO_ROOT) in current_dir
-
-need_setup = False
-if in_auto_sbm_repo:  # Only check setup when running from auto-sbm repo
-    if not SETUP_MARKER.exists():
-        need_setup = True
-    elif not is_env_healthy():
-        logger.warning("Environment health check failed. Setup will be re-run to fix issues.")
-        need_setup = True
-else:
-    logger.debug("Running auto-sbm from external environment - skipping setup checks")
-
-if need_setup and in_auto_sbm_repo:
-    logger.info("Running setup.sh...")
-    try:
-        result = subprocess.run(["bash", str(SETUP_SCRIPT)], check=False, cwd=str(REPO_ROOT))
-        if result.returncode != 0:
-            logger.error(
-                "Setup.sh failed. Please review the output above and fix any issues "
-                "before retrying."
-            )
-            sys.exit(1)
-        else:
-            logger.info("Setup complete. Continuing with SBM command...")
-    except Exception as e:
-        logger.error(f"Failed to run setup.sh: {type(e).__name__}")
-        sys.exit(1)
+# --- Setup logic deleted from module level to avoid noise during imports ---
 
 
 # --- Auto-update: Enhanced git pull with better error handling ---
@@ -370,8 +340,7 @@ def _check_and_run_setup_if_needed() -> None:
         logger.debug(f"Silent setup check failed: {e}")
 
 
-# Run auto-update at CLI initialization
-auto_update_repo()
+# Auto-update logic moved to cli() to avoid execution on import
 
 
 class SBMCommandGroup(click.Group):
@@ -468,6 +437,18 @@ def cli(ctx: click.Context, verbose: bool, yes: bool, config_path: str) -> None:
     if yes:
         get_settings().non_interactive = True
         logger.info("Non-interactive mode enabled via --yes flag")
+
+    # Run health check and setup if needed (only when running as CLI)
+    current_dir = os.getcwd()
+    if str(REPO_ROOT) in current_dir:
+        if not SETUP_MARKER.exists() or not is_env_healthy():
+            if os.environ.get("SBM_SKIP_SETUP") != "1" and not os.environ.get("SBM_RUNNING_SETUP"):
+                os.environ["SBM_RUNNING_SETUP"] = "1"
+                logger.info("Initializing environment...")
+                subprocess.run(["bash", str(SETUP_SCRIPT)], check=False)
+
+    # Run auto-update at CLI initialization
+    auto_update_repo()
 
     # Run daily auto-update check (unless this is the update command itself)
     if ctx.invoked_subcommand != "update":
@@ -845,20 +826,14 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
 
 
 @cli.command()
-@click.option(
-    "--list",
-    "show_list",
-    is_flag=True,
-    help="Show the list of migrated slugs in addition to the total count.",
-)
-@click.option(
-    "--history",
-    is_flag=True,
-    help="Show the history of recent migration runs.",
-)
+@click.option("--list", "show_list", is_flag=True, help="List individual site migrations")
+@click.option("--history", is_flag=True, help="Show migration history over time")
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.pass_context
-def stats(ctx: click.Context, show_list: bool, history: bool) -> None:
-    """Show migration tracker stats (total count and optional slug list)."""
+def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> None:
+    """Show migration statistics and savings."""
+    if verbose:
+        logger.setLevel(logging.DEBUG)
     stats_data = get_migration_stats()
     config = ctx.obj.get("config", Config({}))
     console = get_console(config)

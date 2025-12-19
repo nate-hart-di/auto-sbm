@@ -506,35 +506,18 @@ if [ ! -d "\$PROJECT_ROOT" ]; then
 fi
 
 # Validate critical modules are available (quick check for common issues)
-IMPORT_CHECK=\$("\$VENV_PYTHON" -c "
-try:
-    import pydantic, click, rich, colorama, sbm.cli
-    print('SUCCESS')
-except ImportError as e:
-    print(f'IMPORT_ERROR: {e}')
-except Exception as e:
-    print(f'ERROR: {e}')
-" 2>&1)
-
-if [[ "\$IMPORT_CHECK" != "SUCCESS" ]]; then
-    echo "WARNING  Environment health check failed: \$IMPORT_CHECK" >&2
+# We use exit code instead of string matching to allow for warnings during import
+if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
+    IMPORT_ERROR=\$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+    echo "WARNING  Environment health check failed: \$IMPORT_ERROR" >&2
     echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
-    cd "\$PROJECT_ROOT" && bash setup.sh
+    cd "$PROJECT_ROOT" && bash setup.sh
     
     # Re-check after setup
-    IMPORT_CHECK_2=\$("\$VENV_PYTHON" -c "
-try:
-    import pydantic, click, rich, colorama, sbm.cli
-    print('SUCCESS')
-except ImportError as e:
-    print(f'IMPORT_ERROR: {e}')
-except Exception as e:
-    print(f'ERROR: {e}')
-" 2>&1)
-    
-    if [[ "\$IMPORT_CHECK_2" != "SUCCESS" ]]; then
-        echo "❌ Setup failed after retry: \$IMPORT_CHECK_2" >&2
-        echo "Please run manually: cd \$PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
+    if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
+        IMPORT_ERROR_2=\$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+        echo "❌ Setup failed after retry: \$IMPORT_ERROR_2" >&2
+        echo "Please run manually: cd $PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
         exit 1
     fi
     echo "INFO     Setup complete. Continuing with SBM command..." >&2
