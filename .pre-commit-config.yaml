@@ -54,6 +54,17 @@ repos:
       - id: hadolint-docker
         files: Dockerfile.*
 
+  # SCSS formatting - ensure all sb-*.scss files are formatted
+  - repo: local
+    hooks:
+      - id: format-scss
+        name: Format SCSS files
+        entry: python scripts/format-scss-hook.py
+        language: system
+        files: ^.*sb-.*\.scss$
+        pass_filenames: true
+        description: "Auto-format sb-*.scss files using built-in SCSS formatter"
+
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit hooks

@@ -127,17 +127,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-07-17T02:19:19Z",
-      "slug": "byerscdjr",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 366,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-07-17T02:29:46Z",
       "slug": "victorychryslerdodgejeepramofottawa",
       "command": "auto",
@@ -1182,7 +1171,17 @@
       "automation_seconds": 8.37,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-19T23:19:37.939796+00:00Z",
+      "slug": "boggustiptonchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 198.7,
+      "automation_seconds": 9.86,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-19T19:12:28.483948+00:00Z"
+  "last_updated": "2025-12-19T23:19:37.939796+00:00Z"
 }
