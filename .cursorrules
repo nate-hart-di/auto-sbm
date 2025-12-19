@@ -1,0 +1,25 @@
+# Cursor Rules & Agent Context
+
+This project enforces a strict branching and versioning workflow for all AI coding assistants (Gemini, Claude, Codex, etc.).
+
+## 🚨 MANDATORY AGENT WORKFLOW
+
+**BEFORE MAKING ANY CHANGES:**
+
+1.  **Branch First**: Create a new branch `feat/*`, `fix/*`, or `docs/*`. Never work on `master` directly.
+2.  **Versioning**: Use `python3 scripts/bump_version.py` if making functional changes.
+3.  **Changelog**: All changes MUST be documented in `CHANGELOG.md`.
+4.  **Proof of Work**: Generate a walkthrough of changes on the branch before finishing.
+
+## 📁 File Organization
+
+- **Source Code**: `sbm/`
+- **Tests**: `tests/`
+- **Docs**: Root directory (`*.md`)
+- **PRPs**: `PRPs/`
+
+## 🛠️ Code Style
+
+- Use `Rich` for CLI output (see `sbm/ui/console.py`).
+- Always use `Path` from `pathlib` instead of `os` for path operations.
+- Version is centralized in `pyproject.toml`.

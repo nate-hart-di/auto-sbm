@@ -42,6 +42,16 @@
 **Code Quality**: ruff (linting), mypy (type checking), pre-commit hooks  
 **UI Framework**: Rich for beautiful terminal interfaces
 
+## 🛠️ MANDATORY AGENT WORKFLOW
+
+**ALL AGENTS (Claude, Gemini, Codex, etc.) MUST follow this workflow for EVERY task:**
+
+1.  **Branch First**: Never work on `master` directly. Create a new branch `feat/*`, `fix/*`, or `docs/*` before making any changes.
+2.  **Version Consistency**: If making functional changes, ensure the version in `pyproject.toml` is updated using `scripts/bump_version.py`.
+3.  **Changelog**: All changes (including docs) must be reflected in `CHANGELOG.md`.
+4.  **Proof of Work**: Generate a walkthrough or summary of changes on the branch before merging.
+5.  **Commit Often**: Small, descriptive commits are preferred over monolithic ones.
+
 ## Setup Commands
 
 ### Development Environment Setup
@@ -488,6 +498,9 @@ auto-sbm/
 
 ---
 
-- please push up changes to the appropriate branch, making a new branch when necessary, master should never be directly updated without a merge commit. This should always be done when working on ANY auto-sbm changes even minor ones.
-- If you are already on a new branch, make sure it's relevant & up to date with the changes you're making/pushing. If so, proceed. If not, ASK for guidance before continuing.
-- Don't think too hard about "appropriate changes" just make sure the branch is not behind master or out of sync with master. IT should only be current and/or ahead of master.
+## 🌳 Branching & Git Rules
+
+- **🚨 NO DIRECT MASTER COMMITS**: Never update `master` directly. Always create a new branch.
+- **Workflow**: Create branch -> checkout -> apply changes -> commit -> push.
+- **Up-to-date**: Ensure your branch is rebased or merged with latest `master` before and after work.
+- **Persistence**: This branching rule IS MANDATORY and must be followed by every agent reaching this context.
