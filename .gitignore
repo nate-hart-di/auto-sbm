@@ -27,9 +27,9 @@ dist/
 *.egg-info/
 
 # Modern Python tooling cache
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
+# .mypy_cache/
+*_cache/
+# .pytest_cache/
 
 # Other secrets/configs
 _.secret
@@ -49,16 +49,7 @@ htmlcov/
 coverage.xml
 junit.xml
 
-# Development progress files (personal tracking)
-*-progress.md
-*-refactor-progress.md
-auto-sbm-refactor-progress.md
-
-# UV lock file - SHOULD be tracked for reproducible builds
-# uv.lock is committed to ensure consistent dependency versions
-
 # IDE-specific files
-.vscode/settings.json
 .idea/workspace.xml
 
 # Other temporary files
@@ -70,11 +61,6 @@ Thumbs.db
 issue-tracker/
 .vscode/
 .idea/
-.claude/
-
-# Archived files
-/archive/
-documentation/archive/
 
 # Node.js
 package-lock.json
@@ -94,7 +80,6 @@ auto-sbm.code-workspace
 # Development/Internal files that users don't need
 PRPs/
 issue-tracker/
-docs/
 config.json
 !sbm/scripts/
 
@@ -108,12 +93,7 @@ backups/
 # Auto-generated files users will create themselves
 setup.log
 uv.lock
-.bmad-core/
-.bmad/
-.codex/
-.github/
 .mcp.json
-.agentvibes/
 .vscode/
 
 # AI Assistant files (Keep these tracked for collaboration)
