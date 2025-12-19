@@ -2,7 +2,8 @@
 set -e
 
 LOGFILE="setup.log"
-SBM_VERSION=$(.venv/bin/python -c "import sbm; print(sbm.__version__)" 2> /dev/null || echo "2.0")
+# Read version from pyproject.toml (single source of truth)
+SBM_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/' 2>/dev/null || echo "dev")
 echo "[INFO] Auto-SBM v$SBM_VERSION Setup - Logging all actions to $LOGFILE"
 exec > >(tee -a "$LOGFILE") 2>&1
 
