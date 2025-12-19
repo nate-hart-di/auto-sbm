@@ -433,15 +433,8 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool
                     "SCSS files should compile now. Please start Docker for verification."
                 )
                 logger.info(msg)
-
-            # Format all SCSS files at once with prettier if available
-            if _check_prettier_available():
-                if _format_all_scss_with_prettier(slug):
-                    logger.info("Applied prettier formatting to all SCSS files")
-                else:
-                    logger.warning("Prettier formatting failed, using default formatting")
-            else:
-                logger.info("Prettier not available - using default formatting")
+            # Note: SCSS formatting is applied at the end of the full migration
+            # after all content (predetermined styles, map components) is added
         else:
             logger.error("SCSS migration failed during file writing.")
 
@@ -578,170 +571,6 @@ def add_predetermined_styles(slug: str, oem_handler: dict | object | None = None
     return success
 
 
-def _check_prettier_available() -> bool:
-    """Check if prettier is available on the system."""
-    try:
-        # Common paths where npm global packages are installed
-        extended_paths = [
-            "/usr/local/bin",
-            "/opt/homebrew/bin",
-            str(Path.home() / ".nvm/versions/node/*/bin"),
-            str(Path.home() / ".npm-global/bin"),
-        ]
-
-        current_path = os.environ.get("PATH", "")
-        extended_path = ":".join(extended_paths) + ":" + current_path
-
-        # Set environment with extended PATH
-        env = os.environ.copy()
-        env["PATH"] = extended_path
-
-        # First check if prettier command exists
-        success, stdout, _, _ = execute_command(
-            "prettier --version",
-            "Checking prettier availability",
-            wait_for_completion=True,
-            env=env,
-        )
-
-        if success and stdout:
-            version_output = "".join(stdout).strip()
-            if version_output and any(char.isdigit() for char in version_output):
-                return True
-
-        # If that fails, try which command
-        success, stdout, _, _ = execute_command(
-            "which prettier",
-            "Finding prettier location",
-            wait_for_completion=True,
-            env=env,
-        )
-
-        if success and stdout:
-            prettier_path = Path("".join(stdout).strip())
-            if prettier_path.exists() and prettier_path.is_file():
-                return True
-        return False
-    except Exception:
-        return False
-
-
-def _format_scss_with_prettier(file_path: str | Path) -> bool:
-    """
-    Format an SCSS file with prettier if available.
-
-    Args:
-        file_path: Path to the SCSS file to format
-
-    Returns:
-        bool: True if formatting succeeded, False otherwise
-    """
-    try:
-        path = Path(file_path)
-
-        # Setup extended PATH for prettier
-        extended_paths = [
-            "/usr/local/bin",
-            "/opt/homebrew/bin",
-            str(Path.home() / ".nvm/versions/node/*/bin"),
-            str(Path.home() / ".npm-global/bin"),
-        ]
-
-        current_path = os.environ.get("PATH", "")
-        extended_path = ":".join(extended_paths) + ":" + current_path
-
-        # Set environment with extended PATH
-        env = os.environ.copy()
-        env["PATH"] = extended_path
-
-        # Use prettier to format the file in place
-        success, stdout, stderr, _ = execute_command(
-            f"prettier --write '{path}'",
-            f"Failed to format {path.name} with prettier",
-            wait_for_completion=True,
-            env=env,
-        )
-
-        if success:
-            return True
-        # Log stderr for debugging if formatting failed
-        if stderr:
-            error_msg = "".join(stderr).strip()
-            logger.debug(f"Prettier formatting error for {path.name}: {error_msg}")
-        return False
-
-    except Exception as e:
-        logger.warning(f"Could not format {Path(file_path).name} with prettier: {e}")
-        return False
-
-
-def _format_all_scss_with_prettier(slug: str) -> bool:
-    """
-    Format all SCSS files in the theme directory with prettier using glob pattern.
-
-    Args:
-        slug: Dealer theme slug
-
-    Returns:
-        bool: True if formatting succeeded, False otherwise
-    """
-    try:
-        from sbm.utils.path import get_dealer_theme_dir
-
-        theme_dir = Path(get_dealer_theme_dir(slug))
-        logger.info(f"Prettier: Looking for files in: {theme_dir}")
-
-        if not theme_dir.exists():
-            logger.warning(f"Theme directory not found for prettier: {theme_dir}")
-            return False
-
-        files = list(theme_dir.glob("sb-*.scss"))
-        logger.info(f"Prettier: Found {len(files)} files:")
-        for file in files:
-            logger.info(f"  - {file}")
-
-        if not files:
-            logger.warning("No sb-*.scss files found")
-            return False
-
-        # Use prettier from auto-sbm venv to ensure it's always available
-        auto_sbm_dir = Path(__file__).parent.parent.parent
-        prettier_path = auto_sbm_dir / ".venv" / "bin" / "prettier"
-
-        # Fallback to system prettier if venv prettier doesn't exist
-        if not prettier_path.exists():
-            final_prettier_cmd = "prettier"
-            logger.info("Prettier: Using system prettier (venv prettier not found)")
-        else:
-            final_prettier_cmd = str(prettier_path)
-            logger.info(f"Prettier: Using venv prettier at {prettier_path}")
-
-        command = [final_prettier_cmd, "--write", *[str(f) for f in files]]
-        logger.info(f"Prettier: Running command: {' '.join(command)}")
-
-        result = subprocess.run(
-            command, check=False, capture_output=True, text=True, env=os.environ
-        )
-
-        logger.info(f"Prettier: Exit code: {result.returncode}")
-        if result.stdout:
-            logger.info(f"Prettier stdout: {result.stdout}")
-        if result.stderr:
-            logger.info(f"Prettier stderr: {result.stderr}")
-
-        # Prettier returns 0 on success even with warnings in stderr
-        if result.returncode == 0:
-            logger.info("Prettier: Formatting completed successfully")
-            return True
-        logger.error(f"Prettier: Failed with exit code {result.returncode}")
-        return False
-
-    except Exception as e:
-        logger.error(f"Prettier: Exception occurred: {e}")
-        logger.error(f"Prettier: Traceback: {traceback.format_exc()}")
-        return False
-
-
 def test_compilation_recovery(slug: str) -> bool:
     """
     Test compilation error handling on an existing theme without doing migration.
@@ -839,13 +668,6 @@ def reprocess_manual_changes(slug: str) -> bool:
         changes_made = False
         processed_files = []
 
-        # Check if prettier is available for formatting
-        prettier_available = _check_prettier_available()
-        if prettier_available:
-            logger.info("Prettier detected - will format SCSS files after processing")
-        else:
-            logger.info("Prettier not available - using default formatting")
-
         for sb_file in sb_files:
             file_path = theme_dir / sb_file
 
@@ -886,12 +708,13 @@ def reprocess_manual_changes(slug: str) -> bool:
         else:
             logger.info(f"No reprocessing needed for {slug} - all files already properly formatted")
 
-        # Format all SCSS files at once with prettier if available
-        if prettier_available:
-            if _format_all_scss_with_prettier(slug):
-                logger.info("Applied prettier formatting to all SCSS files")
-            else:
-                logger.warning("Prettier formatting failed, using default formatting")
+        # Format all SCSS files with built-in formatter
+        from sbm.scss.formatter import format_all_scss_files
+
+        if format_all_scss_files(str(theme_dir)):
+            logger.info("Applied SCSS formatting to all Site Builder files")
+        else:
+            logger.warning("SCSS formatting encountered issues")
 
         # Note: SCSS compilation verification moved to separate timer segment
         # to avoid including long sleep/user interaction time in reprocessing timer
@@ -1001,13 +824,13 @@ def _perform_core_migration(
 
     # Final formatting pass - format all SCSS files after all content has been added
     console.print_step("Formatting SCSS files")
-    if _check_prettier_available():
-        if _format_all_scss_with_prettier(slug):
-            logger.info("Applied final prettier formatting to all SCSS files")
-        else:
-            logger.warning("Final prettier formatting failed")
+    from sbm.scss.formatter import format_all_scss_files
+
+    theme_dir = get_dealer_theme_dir(slug)
+    if format_all_scss_files(theme_dir):
+        logger.info("Applied SCSS formatting to all Site Builder files")
     else:
-        logger.info("Prettier not available - skipping final formatting")
+        logger.warning("SCSS formatting encountered issues")
 
     return True
 
