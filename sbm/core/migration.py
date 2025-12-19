@@ -1247,9 +1247,10 @@ def _handle_compilation_with_error_recovery(
                     "finished 'sass'" in relevant_lower_logs
                     and "finished 'processcss'" in relevant_lower_logs
                 ):
+                    # Robust error detection (case-insensitive)
                     if not any(
-                        err in relevant_logs
-                        for err in ["Error:", "gulp-notify: [Error running Gulp]"]
+                        err in relevant_lower_logs
+                        for err in ["error:", "gulp-notify: [error running gulp]"]
                     ):
                         logger.info("✅ Compilation completed successfully")
                         return True, manual_fix_attempted, False

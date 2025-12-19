@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-12-19
+
+### Fixed
+
+- **SCSS Compilation**: Fixed regex logic to correctly strip broken block comments that caused "Invalid CSS" errors.
+- **Error Handling**: Improved compilation error detection to be case-insensitive, ensuring checking halts on failure.
+- **Environment**: Fixed recursion loop in environment setup/health checks.
+
 ## [2.1.0] - 2025-12-19
 
 ### Added
