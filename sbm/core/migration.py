@@ -435,6 +435,15 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool
                     "SCSS files should compile now. Please start Docker for verification."
                 )
                 logger.info(msg)
+
+            # Format all SCSS files at once with prettier if available
+            if _check_prettier_available():
+                if _format_all_scss_with_prettier(slug):
+                    logger.info("Applied prettier formatting to all SCSS files")
+                else:
+                    logger.warning("Prettier formatting failed, using default formatting")
+            else:
+                logger.info("Prettier not available - using default formatting")
         else:
             logger.error("SCSS migration failed during file writing.")
 
@@ -651,17 +660,16 @@ def _format_all_scss_with_prettier(slug: str) -> bool:
         bool: True if formatting succeeded, False otherwise
     """
     try:
-        home_dir = Path.home()
-        pattern = home_dir / "di-websites-platform" / "dealer-themes" / slug / "sb-*.scss"
-        logger.info(f"Prettier: Looking for files with pattern: {pattern}")
+        from sbm.utils.path import get_dealer_theme_dir
 
-        # Use rglob or glob from Path
-        parent_dir = pattern.parent
-        if not parent_dir.exists():
-            logger.warning(f"Theme directory not found for prettier: {parent_dir}")
+        theme_dir = Path(get_dealer_theme_dir(slug))
+        logger.info(f"Prettier: Looking for files in: {theme_dir}")
+
+        if not theme_dir.exists():
+            logger.warning(f"Theme directory not found for prettier: {theme_dir}")
             return False
 
-        files = list(parent_dir.glob("sb-*.scss"))
+        files = list(theme_dir.glob("sb-*.scss"))
         logger.info(f"Prettier: Found {len(files)} files:")
         for file in files:
             logger.info(f"  - {file}")
