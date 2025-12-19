@@ -44,8 +44,9 @@ repos:
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: ["-r", "src/", "-f", "json"]
+        args: ["-c", "pyproject.toml"]
         exclude: tests/
+        additional_dependencies: ["pbr", "bandit[toml]"]
 
   # Dockerfile linting (if applicable)
   - repo: https://github.com/hadolint/hadolint

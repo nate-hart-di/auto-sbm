@@ -5,13 +5,19 @@ This module provides a factory for creating the appropriate OEM handler
 based on dealer information.
 """
 
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING, ClassVar
 
 from sbm.utils.logger import logger
 
 from .default import DefaultHandler
-from .stellantis import StellantisHandler
 from .kia import KiaHandler
+from .stellantis import StellantisHandler
+
+if TYPE_CHECKING:
+    from .base import BaseOEMHandler
 
 
 class OEMFactory:
@@ -20,14 +26,14 @@ class OEMFactory:
     """
 
     # List of all available handlers
-    _handlers = [
+    _handlers: ClassVar[list[type[BaseOEMHandler]]] = [
         StellantisHandler,
         KiaHandler,
         # Add more handlers here as they are needed
     ]
 
     @classmethod
-    def create_handler(cls, slug, dealer_info=None):
+    def create_handler(cls, slug: str, dealer_info: dict[str, str] | None = None) -> BaseOEMHandler:
         """
         Create the appropriate OEM handler based on dealer information.
 
@@ -49,9 +55,8 @@ class OEMFactory:
 
                 for pattern in patterns:
                     if re.search(pattern, brand, re.IGNORECASE):
-                        logger.info(
-                            f"Matched {slug} to {handler.__class__.__name__} based on brand: {brand}"
-                        )
+                        handler_name = handler.__class__.__name__
+                        logger.info(f"Matched {slug} to {handler_name} based on brand: {brand}")
                         return handler
 
         # If no dealer_info is provided or no match was found, try to infer from the slug
@@ -69,17 +74,18 @@ class OEMFactory:
         return DefaultHandler(slug)
 
     @classmethod
-    def detect_from_theme(cls, slug, platform_dir=None):
+    def detect_from_theme(cls, slug: str, platform_dir: str | None = None) -> BaseOEMHandler:
         """
         Detect the OEM from the dealer slug.
 
         Args:
-            slug (str): Dealer theme slug
-            platform_dir (str, optional): Deprecated, kept for compatibility.
+            slug: Dealer theme slug
+            platform_dir: Deprecated, kept for compatibility (unused).
 
         Returns:
-            BaseOEMHandler: An instance of the appropriate OEM handler
+            An instance of the appropriate OEM handler
         """
+        _ = platform_dir  # Mark as intentionally unused
 
         # PRIORITY 1: Try slug-based detection first (most reliable)
         slug_based_handler = cls.create_handler(slug)
