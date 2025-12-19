@@ -8,27 +8,18 @@ Rich-enhanced progress tracking, status displays, and interactive elements.
 from __future__ import annotations
 
 import datetime
-import sys
-import os
-import json
-import time
-import subprocess
-import shutil
-import platform
-import webbrowser
 import logging
+import os
 import re
-import datetime
-from datetime import date
-from typing import Any, Dict, List, Optional, Tuple, Union
+import shutil
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import click
 from git import Repo
 
-from .utils.timer import get_total_automation_time, get_total_duration
-from .utils.version_utils import get_changelog, get_version
-from sbm.utils.processes import run_background_task
 from sbm.utils.tracker import (
     get_migration_stats,
     record_migration,
@@ -57,10 +48,11 @@ from .scss.validator import validate_scss_files
 
 # Rich UI imports
 from .ui.console import get_console
-from .ui.panels import StatusPanels
 from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
+from .utils.timer import get_total_automation_time, get_total_duration
+from .utils.version_utils import get_changelog, get_version
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 # Use the predictable installation location as the primary root
@@ -424,6 +416,20 @@ def _check_and_run_setup_if_needed() -> None:
             # Regenerate wrapper script to get latest environment isolation fixes
             _regenerate_wrapper_script()
 
+            # Install pre-commit hooks (silently, no output during auto-update)
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "pre_commit", "install"],
+                    cwd=str(REPO_ROOT),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=10,
+                )
+            except Exception:
+                # Silently ignore pre-commit installation failures during auto-update
+                pass
+
             # Create the setup complete marker
             with setup_complete_file.open("w") as f:
                 f.write(f"Setup completed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -772,11 +778,11 @@ def auto(
 
         console.print_header("SBM Migration", f"Starting {theme_name}")
         from .utils.timer import (
+            clear_timing_summary,
             init_timing_summary,
             patch_click_confirm_for_timing,
-            restore_click_confirm,
             print_timing_summary,
-            clear_timing_summary,
+            restore_click_confirm,
         )
 
         init_timing_summary(theme_name)
@@ -940,7 +946,7 @@ def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> 
 
     # Header Panel
     header = Panel(
-        Text.from_markup(f"[bold cyan]Global Auto-SBM Stats[/bold cyan]"),
+        Text.from_markup("[bold cyan]Global Auto-SBM Stats[/bold cyan]"),
         border_style="bright_blue",
     )
     rich_console.print(header)
@@ -1278,6 +1284,39 @@ def _stash_changes_if_needed() -> bool:
     return has_changes
 
 
+def _install_precommit_hooks() -> None:
+    """Install pre-commit hooks for code quality."""
+    try:
+        # Check if pre-commit is available in the venv
+        check_result = subprocess.run(
+            [sys.executable, "-m", "pre_commit", "--version"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if check_result.returncode == 0:
+            # Install hooks
+            subprocess.run(
+                [sys.executable, "-m", "pre_commit", "install"],
+                cwd=REPO_ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            click.echo("✅ Pre-commit hooks installed successfully.")
+        else:
+            # pre-commit not available, silently skip
+            logger.debug("pre-commit not available in venv, skipping hook installation")
+    except subprocess.CalledProcessError as e:
+        # Don't fail the entire update if pre-commit install fails
+        click.echo(f"⚠️  Warning: Failed to install pre-commit hooks: {e}")
+    except Exception as e:
+        # Silently ignore other errors
+        logger.debug(f"Pre-commit hook installation skipped: {e}")
+
+
 def _update_dependencies() -> None:
     """Update requirements and reinstall package."""
     # Install/update requirements after git pull
@@ -1376,6 +1415,10 @@ def update() -> None:
                 click.echo("\n📦 Updating dependencies...")
                 _update_dependencies()
                 click.echo("✅ Dependencies updated")
+
+                # Install pre-commit hooks
+                click.echo("\n🪝 Installing pre-commit hooks...")
+                _install_precommit_hooks()
 
             # Restore stashed changes
             if has_changes:

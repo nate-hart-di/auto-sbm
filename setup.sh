@@ -477,6 +477,32 @@ function install_auto_sbm() {
 install_auto_sbm
 
 echo ""
+echo "Step 5.5/7: Installing pre-commit hooks..."
+
+# --- Install Pre-commit Hooks ---
+function install_precommit_hooks() {
+  log "Installing pre-commit hooks for code quality..."
+
+  # Make sure we're in the virtual environment
+  source .venv/bin/activate
+
+  # Install pre-commit hooks
+  if command -v pre-commit &> /dev/null; then
+    pre-commit install
+    if [ $? -eq 0 ]; then
+      log "✅ Pre-commit hooks installed successfully"
+    else
+      warn "⚠️  Failed to install pre-commit hooks"
+    fi
+  else
+    warn "⚠️  pre-commit not found in virtual environment"
+    warn "    This is expected if pre-commit is not in dev dependencies"
+  fi
+}
+
+install_precommit_hooks
+
+echo ""
 echo "Step 6/7: Creating global wrapper script..."
 
 # --- Environment Configuration ---
@@ -531,7 +557,7 @@ if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/
     echo "WARNING  Environment health check failed: \$IMPORT_ERROR" >&2
     echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
     cd "$PROJECT_ROOT" && bash setup.sh
-    
+
     # Re-check after setup
     if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
         IMPORT_ERROR_2=\$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
