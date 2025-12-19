@@ -127,17 +127,6 @@
   ],
   "runs": [
     {
-      "timestamp": "2025-07-08T23:52:30Z",
-      "slug": "allensamuelsdodgechryslerjeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1187,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
       "timestamp": "2025-07-16T22:41:15Z",
       "slug": "andersonchrysler",
       "command": "auto",
@@ -1188,7 +1177,17 @@
       "automation_seconds": 9.57,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-19T16:29:33.403004+00:00Z",
+      "slug": "lexusofclearwater",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 7.13,
+      "automation_seconds": 7.13,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-19T16:22:55.989828+00:00Z"
+  "last_updated": "2025-12-19T16:29:33.403004+00:00Z"
 }
