@@ -371,8 +371,8 @@ def check_and_run_daily_update():
         # Get current date
         today = datetime.date.today().isoformat()
 
-        # Search for .git in parent directories
-        update_file = Path.cwd() / ".sbm_last_update"
+        # Store the update marker in the repo root to avoid conflicts
+        update_file = REPO_ROOT / ".sbm_last_update"
 
         # Read last update date if file exists
         last_update = None

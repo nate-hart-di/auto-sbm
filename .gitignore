@@ -75,6 +75,7 @@ node_modules/
 
 # Auto-update settings
 .sbm-no-auto-update
+.sbm_last_update
 auto-sbm.code-workspace
 
 # Development/Internal files that users don't need
