@@ -53,6 +53,7 @@
     "landersmclartycdjr",
     "larryhillischryslerdodgejeepram",
     "lexusofcerritos",
+    "lexusofclearwater",
     "lexusoflindon",
     "lexusofmurray",
     "lexusofpalmbeach",
@@ -125,17 +126,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-08T23:28:00Z",
-      "slug": "superstitionspringschryslerjeepdodgeram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1588,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-08T23:39:49Z",
       "slug": "heggsjeep",
@@ -1189,7 +1179,17 @@
       "automation_seconds": 9.73,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-19T15:06:17.886051+00:00Z",
+      "slug": "lexusofclearwater",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 232.55,
+      "automation_seconds": 9.02,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-19T15:02:05.550368+00:00Z"
+  "last_updated": "2025-12-19T15:06:17.886051+00:00Z"
 }
