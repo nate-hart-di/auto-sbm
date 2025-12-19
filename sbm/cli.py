@@ -8,13 +8,19 @@ Rich-enhanced progress tracking, status displays, and interactive elements.
 from __future__ import annotations
 
 import datetime
-import logging
-import os
-import re
-import shutil
-import subprocess
 import sys
+import os
+import json
 import time
+import subprocess
+import shutil
+import platform
+import webbrowser
+import logging
+import re
+import datetime
+from datetime import date
+from typing import Any, Dict, List, Optional, Tuple, Union
 from pathlib import Path
 
 import click
@@ -396,8 +402,8 @@ def check_and_run_daily_update():
         # Get current date
         today = datetime.date.today().isoformat()
 
-        # Check for last update file
-        update_file = Path.home() / ".sbm_last_update"
+        # Search for .git in parent directories
+        update_file = Path.cwd() / ".sbm_last_update"
 
         # Read last update date if file exists
         last_update = None
@@ -1234,7 +1240,9 @@ def _update_dependencies() -> None:
 def _restore_stashed_changes() -> None:
     """Restore previously stashed changes."""
     click.echo("Restoring local changes...")
-    subprocess.run(["git", "stash", "pop"], cwd=REPO_ROOT, check=True)
+    subprocess.run(
+        ["git", "stash", "pop"], cwd=REPO_ROOT, check=True, capture_output=True, text=True
+    )
 
 
 @cli.command()
@@ -1305,7 +1313,7 @@ def update() -> None:
             if has_changes:
                 _restore_stashed_changes()
 
-            click.echo(f"\n✅ Update complete! Run 'sbm version' to verify.")
+            click.echo("\n✅ Update complete! Run 'sbm version' to verify.")
         else:
             click.echo(f"❌ Update failed: {pull_result.stderr}", err=True)
             if has_changes:
