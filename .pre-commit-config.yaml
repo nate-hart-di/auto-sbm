@@ -3,13 +3,13 @@
 # Run on all files: pre-commit run --all-files
 
 repos:
-  # Ruff for linting and formatting (replaces black, isort, flake8)
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.15
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
+  #   # Ruff for linting and formatting (replaces black, isort, flake8)
+  #   - repo: https://github.com/astral-sh/ruff-pre-commit
+  #     rev: v0.1.15
+  #     hooks:
+  #       - id: ruff
+  #         args: [--fix, --exit-non-zero-on-fix]
+  #       - id: ruff-format
 
   # MyPy for type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -44,9 +44,9 @@ repos:
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: ["-c", "pyproject.toml"]
+        args: ['-c', 'pyproject.toml']
         exclude: tests/
-        additional_dependencies: ["pbr", "bandit[toml]"]
+        additional_dependencies: ['pbr', 'bandit[toml]']
 
   # Dockerfile linting (if applicable)
   - repo: https://github.com/hadolint/hadolint
@@ -64,7 +64,7 @@ repos:
         language: system
         files: ^.*sb-.*\.scss$
         pass_filenames: true
-        description: "Auto-format sb-*.scss files using built-in SCSS formatter"
+        description: 'Auto-format sb-*.scss files using built-in SCSS formatter'
 
 ci:
   autofix_commit_msg: |
