@@ -90,7 +90,6 @@ def execute_command(command, error_message="Command failed", wait_for_completion
     stderr_output = []
     process = None
     try:
-
         # Use Popen to stream output in real-time
         process = subprocess.Popen(
             command,

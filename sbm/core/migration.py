@@ -6,28 +6,27 @@ This module handles the main migration logic for dealer themes.
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
 import time
-import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional
 
 import click
 from rich.prompt import Confirm
 
 from sbm.oem.factory import OEMFactory
+from sbm.oem.stellantis import StellantisHandler
 from sbm.scss.processor import SCSSProcessor
 from sbm.ui.console import get_console
 from sbm.utils.command import execute_command, execute_interactive_command
 from sbm.utils.logger import logger
 from sbm.utils.path import get_dealer_theme_dir, get_platform_dir
 from sbm.utils.timer import timer_segment
-from sbm.oem.stellantis import StellantisHandler
 
-from .git import commit_changes, git_operations, push_changes, create_pr as git_create_pr
+from .git import commit_changes, git_operations, push_changes
+from .git import create_pr as git_create_pr
 from .maps import migrate_map_components
 
 if TYPE_CHECKING:
@@ -1653,9 +1652,9 @@ def _comment_out_error_line(error_info: dict, css_dir: Path) -> bool:
 
             # If there's a brace at the end of the line, try to preserve it
             if stripped_line.endswith("}") and not stripped_line.startswith("}"):
-                lines[line_number - 1] = (
-                    f"// ERROR COMMENTED OUT: {stripped_line.rstrip('}')}\n}}\n"
-                )
+                lines[
+                    line_number - 1
+                ] = f"// ERROR COMMENTED OUT: {stripped_line.rstrip('}')}\n}}\n"
             else:
                 lines[line_number - 1] = f"// ERROR COMMENTED OUT: {stripped_line}\n"
 
