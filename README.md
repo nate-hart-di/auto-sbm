@@ -421,6 +421,61 @@ python -m pytest tests/ --cov=sbm --cov-report=html
 python -m pytest tests/test_migration.py -v
 ```
 
+## 📊 Stats Reporting
+
+You can report aggregate SBM statistics to a Slack channel.
+
+### 1. Connect your Company Slack
+
+For most company workspaces, you'll need to create a simple Slack App to get a Webhook URL:
+
+1.  Go to [Slack API: Your Apps](https://api.slack.com/apps) and click **Create New App** (select **From scratch**).
+2.  **App Name**: "SBM Stat Bot" | **Workspace**: Your company workspace.
+3.  Secondary Sidebar: **Features** > **Incoming Webhooks**.
+4.  Toggle **Activate Incoming Webhooks** to **On**.
+5.  Click **Add New Webhook to Workspace**.
+    - _Note: If your company requires approval, click **Request to Install** and provide a reason (e.g., "SBM migration stats sync")._
+6.  Once approved/installed, select your channel and click **Allow**.
+7.  Copy the **Webhook URL**.
+
+### 2. Configure & Test
+
+```bash
+# Set your webhook URL
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+
+# Test with a 30-day report (Dry Run first)
+python3 scripts/stats/report_slack.py --days 30 --dry-run
+
+# Send a real report
+python3 scripts/stats/report_slack.py --days 1
+```
+
+### 3. Scheduling (Cron)
+
+To report stats every Friday at 5 PM:
+
+```bash
+0 17 * * 5 export SLACK_WEBHOOK_URL="..."
+/path/to/auto-sbm/scripts/stats/report_slack.py --period weekly >> /tmp/sbm_report.log 2>&1
+```
+
+### 4. Interactive Slash Commands
+
+Get real-time stats using `/sbm-stats` by running the Socket Mode listener:
+
+1.  Configure a **Slack App** with Socket Mode enabled.
+2.  Set `SLACK_APP_TOKEN` in your `.env`.
+3.  Run the listener service:
+
+```bash
+python3 scripts/stats/slack_listener.py
+```
+
+Now you can type `/sbm-stats` (or `/sbm-stats weekly`) in Slack to get instant reports.
+
+---
+
 ### **Contributing**
 
 1. **Fork the repository**

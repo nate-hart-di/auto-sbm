@@ -1,5 +1,5 @@
 # Auto-SBM v2.0 Dependencies
-# Note: This file is maintained for compatibility. 
+# Note: This file is maintained for compatibility.
 # Primary dependency management is in pyproject.toml
 
 # Core Runtime Dependencies
@@ -16,6 +16,8 @@ python-dotenv>=1.0.0
 pathlib-mate>=1.2.0
 tinycss2>=1.2.1
 cssutils>=2.11.0
+slack-bolt>=1.18.0
+slack-sdk>=3.20.0
 
 # Development Dependencies (also available via pip install -e .[dev])
 pytest>=7.0.0

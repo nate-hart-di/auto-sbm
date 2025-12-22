@@ -39,6 +39,7 @@
     "fiatofportland",
     "gainesville",
     "gladstonedodgechryslerjeepram",
+    "groupretailtemplate1",
     "harrygreen7acres1",
     "hastingschryslercenterinc",
     "heggsjeep",
@@ -127,83 +128,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-17T18:38:45Z",
-      "slug": "allensamuelsdodgechryslerjeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 321,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-17T22:28:18Z",
-      "slug": "magmaserati",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 266,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-18T00:56:42Z",
-      "slug": "rainierdodge",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 396,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-18T01:26:35Z",
-      "slug": "midwaycdjr",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 2092,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-18T01:33:33Z",
-      "slug": "victorychryslerdodgejeepramkansascity",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 355,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-18T01:48:05Z",
-      "slug": "larryhillischryslerdodgejeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 396,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-22T22:28:57Z",
-      "slug": "jamesriverchryslerdodgejeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 311,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-22T23:55:03Z",
       "slug": "bertogdenmaserati",
@@ -1180,7 +1104,77 @@
       "automation_seconds": 8.18,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-20T00:01:57.881820+00:00Z",
+      "slug": "lexusofcerritos",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 105.96,
+      "automation_seconds": 9.24,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-20T00:03:59.341862+00:00Z",
+      "slug": "lexusofclearwater",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 105.01,
+      "automation_seconds": 8.97,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-20T00:08:21.330954+00:00Z",
+      "slug": "lexusoftampabay",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 127.25,
+      "automation_seconds": 9.72,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-20T00:12:42.981068+00:00Z",
+      "slug": "lexusofpalmbeach",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 133.41,
+      "automation_seconds": 8.92,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-22T16:23:49.513969+00:00Z",
+      "slug": "lexusofpalmbeach",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 112.88,
+      "automation_seconds": 10.52,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-22T16:25:58.055646+00:00Z",
+      "slug": "lexusoftampabay",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 111.39,
+      "automation_seconds": 9.58,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2025-12-22T16:29:18.450534+00:00Z",
+      "slug": "groupretailtemplate1",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 108.61,
+      "automation_seconds": 9.52,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-19T23:56:11.567881+00:00Z"
+  "last_updated": "2025-12-22T16:29:18.450534+00:00Z"
 }

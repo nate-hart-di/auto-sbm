@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.dealerinspire.sbm-stats</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/nathanhart/auto-sbm/.venv/bin/python3</string>
+      <string>-u</string>
+      <string>/Users/nathanhart/auto-sbm/scripts/stats/slack_listener.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/nathanhart/auto-sbm</string>
+    <key>RunAtLoad</key>
+    <true />
+    <key>KeepAlive</key>
+    <true />
+    <key>StandardOutPath</key>
+    <string>/tmp/sbm-stats.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/sbm-stats.err</string>
+  </dict>
+</plist>

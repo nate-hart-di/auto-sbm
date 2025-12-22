@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - 2025-12-22
+
+### Added
+
+- **Slack Slash Commands**: Added `/sbm-stats` support using Socket Mode.
+- **Reporting Improvements**: Scripts now support semantic dating (`daily`, `weekly`, `monthly`, `all`).
+- **Data Accuracy**: Fixed discrepancies in reporting unique sites migrated vs runs.
+- **Dependency Management**: Added `slack-bolt` and `slack-sdk` to project dependencies.
+
 ## [2.1.2] - 2025-12-19
 
 ### Added
