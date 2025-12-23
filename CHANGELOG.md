@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4] - 2025-12-23
+
+### Added
+
+- **Slack Parity**: `/sbm-stats` now reads from the same data sources as CLI stats.
+- **Slash Command UX**: Added support for optional username and `top` flag.
+- **Slack Layout**: Cleaner, less noisy Slack report formatting with command context.
+- **Ops Helper**: Added shared reporting loader in tracker for consistent aggregation.
+
 ## [2.1.3] - 2025-12-22
 
 ### Added

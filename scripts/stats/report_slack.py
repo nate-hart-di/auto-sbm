@@ -80,12 +80,19 @@ def parse_args() -> argparse.Namespace:
 
 def load_all_stats() -> tuple[List[Dict[str, Any]], Dict[str, set]]:
     """
-    Load stats from all user files.
+    Load stats from the same sources as CLI stats.
 
     Returns:
         tuple: (all_runs_list, user_migrations_dict)
         user_migrations_dict maps user_id -> set of migrated slugs (for accurate site counts)
     """
+    try:
+        from sbm.utils.tracker import get_global_reporting_data
+
+        return get_global_reporting_data()
+    except Exception as e:
+        print(f"Warning: Failed to load global reporting data: {e}", file=sys.stderr)
+
     all_runs = []
     user_migrations = {}
 
@@ -120,11 +127,11 @@ def load_all_stats() -> tuple[List[Dict[str, Any]], Dict[str, set]]:
 def get_days_from_period(period: str) -> int:
     """Convert semantic period (daily, weekly, monthly, all) to days."""
     period = period.lower()
-    if period == "daily":
+    if period in {"day", "daily"}:
         return 1
-    elif period == "weekly":
+    elif period in {"week", "weekly"}:
         return 7
-    elif period == "monthly":
+    elif period in {"month", "monthly"}:
         return 30
     elif period == "all":
         return 99999  # effectively "all"
@@ -164,6 +171,68 @@ def filter_runs_by_date(runs: List[Dict[str, Any]], days_or_period: str) -> List
             continue
 
     return filtered
+
+
+def filter_runs_by_user(runs: List[Dict[str, Any]], username: str) -> List[Dict[str, Any]]:
+    """Filter runs by user id or name (case-insensitive)."""
+    if not username:
+        return runs
+    target = username.strip().lower()
+    filtered = []
+    for run in runs:
+        run_user = str(run.get("_user", "")).strip().lower()
+        if run_user == target:
+            filtered.append(run)
+    return filtered
+
+
+def format_top_users_payload(
+    user_migrations: Dict[str, set],
+    top_n: int = 3,
+    command_str: str | None = None,
+) -> Dict[str, Any]:
+    """Format a Slack payload for top users by total sites migrated (all time)."""
+    if not user_migrations:
+        return {
+            "text": "No SBM stats found yet.",
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": "*SBM Top Contributors*\nNo SBM stats found yet."},
+                }
+            ],
+        }
+
+    counts = [(user, len(slugs)) for user, slugs in user_migrations.items()]
+    counts.sort(key=lambda x: x[1], reverse=True)
+    total_users = len(counts)
+    top_n = max(1, min(top_n, total_users))
+
+    lines = []
+    for idx, (user, sites) in enumerate(counts[:top_n], start=1):
+        lines.append(f"{idx}. {user} — {sites} site(s)")
+
+    text = "Top contributors:\n" + "\n".join(lines)
+    context = "Auto SBM • Migration Intelligence"
+    if command_str:
+        context = f"{context} • `{command_str}`"
+
+    return {
+        "text": text,
+        "blocks": [
+            {
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": context}],
+            },
+            {"type": "section", "text": {"type": "mrkdwn", "text": "*Top Contributors*\n" + "\n".join(lines)}},
+            {
+                "type": "context",
+                "elements": [
+                    {"type": "mrkdwn", "text": f"Showing top {top_n} of {total_users} users."},
+                ],
+            },
+        ],
+    }
 
 
 def calculate_metrics(
@@ -247,7 +316,39 @@ def calculate_metrics(
     }
 
 
-def format_slack_payload(metrics: Dict[str, Any], period: str) -> Dict[str, Any]:
+def calculate_global_metrics_all_time() -> Dict[str, Any]:
+    """Calculate all-time global metrics using the same logic as the CLI."""
+    from sbm.utils.tracker import get_migration_stats
+
+    stats = get_migration_stats()
+    global_metrics = stats.get("global_metrics", {})
+
+    total_runs = global_metrics.get("total_runs", 0)
+    total_success = global_metrics.get("total_success", 0)
+    success_rate = (total_success / total_runs * 100.0) if total_runs else 0.0
+
+    top_contributors = []
+    for user, sites in global_metrics.get("top_contributors", []):
+        top_contributors.append((user, {"sites": sites, "lines": 0, "runs": 0}))
+
+    return {
+        "total_runs": total_runs,
+        "success_count": total_success,
+        "success_rate": success_rate,
+        "sites_migrated": global_metrics.get("total_migrations", 0),
+        "lines_migrated": global_metrics.get("total_lines_migrated", 0),
+        "time_saved_hours": global_metrics.get("total_time_saved_h", 0),
+        "automation_hours": global_metrics.get("total_automation_time_h", 0),
+        "top_contributors": top_contributors,
+    }
+
+
+def format_slack_payload(
+    metrics: Dict[str, Any],
+    period: str,
+    command_str: str | None = None,
+    top_n: int | None = None,
+) -> Dict[str, Any]:
     """Format metrics into a Slack Block Kit payload."""
     if period.lower() == "all":
         period_label = "All Time"
@@ -272,35 +373,43 @@ def format_slack_payload(metrics: Dict[str, Any], period: str) -> Dict[str, Any]
 
     # Format fields
     fields = [
-        {"type": "mrkdwn", "text": f"*Sites Migrated:*\n{metrics['sites_migrated']}"},
-        {"type": "mrkdwn", "text": f"*Success Rate:*\n{metrics['success_rate']:.1f}%"},
-        {"type": "mrkdwn", "text": f"*Lines Migrated:*\n{metrics['lines_migrated']:,}"},
-        {"type": "mrkdwn", "text": f"*Est. Time Saved:*\n{metrics['time_saved_hours']}h"},
+        {"type": "mrkdwn", "text": f"*Sites Migrated*\n{metrics['sites_migrated']}"},
+        {"type": "mrkdwn", "text": f"*Lines Migrated*\n{metrics['lines_migrated']:,}"},
+        {"type": "mrkdwn", "text": f"*Est. Time Saved*\n{metrics['time_saved_hours']}h"},
     ]
 
     # Top contributors section
     contributors_text = ""
-    if metrics["top_contributors"]:
-        contributors_text = "\n\n*Top Contributors (by sites):* " + ", ".join(
-            [f"{u} ({data['sites']} sites)" for u, data in metrics["top_contributors"]]
-        )
+    if top_n and metrics["top_contributors"]:
+        ranked = []
+        medals = ["🥇", "🥈", "🥉"]
+        for idx, (u, data) in enumerate(metrics["top_contributors"][:top_n]):
+            medal = medals[idx] if idx < len(medals) else f"{idx + 1}."
+            ranked.append(f"{medal} {u} — {data['sites']} sites")
+        contributors_text = "*Top Contributors*\n" + "\n".join(ranked)
 
     summary = (
         f"SBM Report ({period_label}): {metrics['sites_migrated']} "
         f"sites migrated, {metrics['time_saved_hours']}h saved."
     )
+    context = f"Auto SBM • Migration Intelligence • {period_label}"
+    if command_str:
+        context = f"{context} • `{command_str}`"
     return {
         "text": summary,
         "blocks": [
             {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": f"📊 SBM Activity Report ({period_label})",
-                    "emoji": True,
-                },
+                "type": "context",
+                "elements": [
+                    {"type": "mrkdwn", "text": context},
+                ],
             },
             {"type": "section", "fields": fields},
+            *(
+                [{"type": "section", "text": {"type": "mrkdwn", "text": contributors_text}}]
+                if contributors_text
+                else []
+            ),
             {
                 "type": "context",
                 "elements": [
@@ -308,7 +417,6 @@ def format_slack_payload(metrics: Dict[str, Any], period: str) -> Dict[str, Any]
                         "type": "mrkdwn",
                         "text": (
                             f"Based on {metrics['sites_migrated']} sites across {metrics['success_count']} successful runs."
-                            f"{contributors_text}"
                         ),
                     }
                 ],
@@ -388,10 +496,13 @@ def main() -> None:
 
     # 3. Aggregate
     is_all_time = args.period.lower() == "all"
-    metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
+    if is_all_time:
+        metrics = calculate_global_metrics_all_time()
+    else:
+        metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
     # 4. Format
-    payload = format_slack_payload(metrics, args.period)
+    payload = format_slack_payload(metrics, args.period, command_str=f"/sbm-stats {args.period}")
 
     # 5. Branding
     if args.username:

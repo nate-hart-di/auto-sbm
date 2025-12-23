@@ -57,9 +57,14 @@ try:
     print(f"   App ID from Token: {auth.get('app_id', 'Unknown')}")
 
     env_app_id = vars.get("SLACK_APP_ID")
-    if env_app_id and auth.get("app_id") != env_app_id:
-        print(f"❌ MISMATCH: Token belongs to {auth.get('app_id')}, but .env has {env_app_id}")
-    elif env_app_id:
-        print(f"✅ App ID matches .env: {env_app_id}")
+    token_app_id = auth.get("app_id")
+    if env_app_id:
+        if token_app_id:
+            if token_app_id != env_app_id:
+                print(f"❌ MISMATCH: Token belongs to {token_app_id}, but .env has {env_app_id}")
+            else:
+                print(f"✅ App ID matches .env: {env_app_id}")
+        else:
+            print("ℹ️  Slack did not return app_id for this bot token; skipping app ID match.")
 except SlackApiError as e:
     print(f"❌ Bot Token Error: {e.response['error']}")

@@ -212,6 +212,53 @@ def get_migration_stats() -> dict:
     }
 
 
+def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
+    """
+    Return all runs and user migrations using the same data sources as CLI stats.
+
+    Includes the current user's full local tracker data plus global stats files
+    for other users (which may contain truncated run history).
+    """
+    local_data = _read_tracker()
+    current_user_id = _get_user_id()
+
+    all_runs: list[dict] = []
+    user_migrations: dict[str, set] = {}
+
+    local_migrations = set(local_data.get("migrations", []))
+    user_migrations[current_user_id] = local_migrations
+    for run in local_data.get("runs", []):
+        run["_user"] = current_user_id
+        all_runs.append(run)
+
+    if not GLOBAL_STATS_DIR.exists():
+        return all_runs, user_migrations
+
+    for stats_file in GLOBAL_STATS_DIR.glob("*.json"):
+        if stats_file.name.startswith("."):
+            continue
+
+        user_id = stats_file.stem
+        if user_id == current_user_id:
+            continue
+
+        try:
+            with stats_file.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                migrations = set(data.get("migrations", []))
+                user_migrations[user_id] = migrations
+
+                runs = data.get("runs", [])
+                for run in runs:
+                    run["_user"] = user_id
+                    all_runs.append(run)
+        except Exception as e:
+            logger.debug(f"Error processing global stats file {stats_file}: {e}")
+            continue
+
+    return all_runs, user_migrations
+
+
 def _calculate_metrics(data: dict) -> dict:
     """Helper to calculate metrics from tracker data structure."""
     runs = data.get("runs", [])
@@ -303,6 +350,7 @@ def _aggregate_global_stats() -> dict:
         "total_users": user_count,
         "total_migrations": len(all_migrations),
         "total_runs": total_runs,
+        "total_success": total_success,
         "total_lines_migrated": total_lines_migrated,
         "total_time_saved_h": round(time_saved_hours, 1),
         "total_automation_time_h": round(total_automation_seconds / 3600, 2),
