@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.dealerinspire.sbm-stats-scheduled</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/nathanhart/auto-sbm/.venv/bin/python3</string>
+      <string>-u</string>
+      <string>/Users/nathanhart/auto-sbm/scripts/stats/scheduled_slack_reports.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/nathanhart/auto-sbm</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Hour</key>
+      <integer>9</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>SBM_REPORT_TZ</key>
+      <string>America/Chicago</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/sbm-stats-scheduled.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/sbm-stats-scheduled.err</string>
+  </dict>
+</plist>

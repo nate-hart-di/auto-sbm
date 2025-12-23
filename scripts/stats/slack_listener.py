@@ -66,6 +66,7 @@ def handle_sbm_stats(ack, body, say, logger):
     user_id = body.get("user_id")
     text = body.get("text", "").strip()
     command_str = "/sbm-stats" + (f" {text}" if text else "")
+    context_label = f"Auto-SBM {command_str} received"
 
     # Parse optional args: [period] [username]
     # If no args: default to all time
@@ -112,7 +113,7 @@ def handle_sbm_stats(ack, body, say, logger):
 
         # 2. Filter
         if top_flag and period == "all" and not username and not tokens:
-            payload = report_slack.format_top_users_payload(user_migrations, top_n, command_str)
+            payload = report_slack.format_top_users_payload(user_migrations, top_n, context_label)
             payload["username"] = "SBM Stats Bot"
             say(blocks=payload["blocks"], text=payload["text"])
             return
@@ -129,7 +130,12 @@ def handle_sbm_stats(ack, body, say, logger):
             metrics = report_slack.calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
         # 4. Format
-        payload = report_slack.format_slack_payload(metrics, period, command_str, top_n if top_flag else None)
+        payload = report_slack.format_slack_payload(
+            metrics,
+            period,
+            context_label,
+            top_n if top_flag else None,
+        )
 
         # 5. Branding
         payload["username"] = "SBM Stats Bot"

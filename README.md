@@ -89,6 +89,22 @@ Auto SBM Stats keeps migration progress visible without leaving Slack.
 Track sites migrated, lines moved, and estimated time saved, plus lightweight leaderboards.
 Built to stay in sync with the Auto-SBM CLI so your numbers always match.
 
+### Scheduled Reports (9am CST)
+
+Set `SLACK_CHANNELS` (comma-separated channel IDs) and schedule the daily job at 9am CST:
+
+```bash
+export SLACK_CHANNELS="C0123456789,C0987654321"
+python3 scripts/stats/scheduled_slack_reports.py
+```
+
+Behavior:
+- Tue–Fri: daily report for previous day
+- Mon: weekly report for previous week + leaderboard
+- 1st of month: monthly report + all-time leaderboard
+
+Note: launchd runs only when the Mac is awake and logged in.
+
 ## Launch Agent (Optional)
 
 If you want the listener to stay up on your Mac:

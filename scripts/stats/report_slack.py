@@ -189,7 +189,7 @@ def filter_runs_by_user(runs: List[Dict[str, Any]], username: str) -> List[Dict[
 def format_top_users_payload(
     user_migrations: Dict[str, set],
     top_n: int = 3,
-    command_str: str | None = None,
+    context_label: str | None = None,
 ) -> Dict[str, Any]:
     """Format a Slack payload for top users by total sites migrated (all time)."""
     if not user_migrations:
@@ -213,9 +213,7 @@ def format_top_users_payload(
         lines.append(f"{idx}. {user} — {sites} site(s)")
 
     text = "Top contributors:\n" + "\n".join(lines)
-    context = "Auto SBM • Migration Intelligence"
-    if command_str:
-        context = f"{context} • `{command_str}`"
+    context = context_label or "Auto-SBM"
 
     return {
         "text": text,
@@ -346,7 +344,7 @@ def calculate_global_metrics_all_time() -> Dict[str, Any]:
 def format_slack_payload(
     metrics: Dict[str, Any],
     period: str,
-    command_str: str | None = None,
+    context_label: str | None = None,
     top_n: int | None = None,
 ) -> Dict[str, Any]:
     """Format metrics into a Slack Block Kit payload."""
@@ -365,7 +363,7 @@ def format_slack_payload(
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*SBM Report ({period_label})*\n{text}",
+                        "text": f"{context_label or 'Auto-SBM'}\n{text}",
                     },
                 }
             ],
@@ -382,19 +380,15 @@ def format_slack_payload(
     contributors_text = ""
     if top_n and metrics["top_contributors"]:
         ranked = []
-        medals = ["🥇", "🥈", "🥉"]
-        for idx, (u, data) in enumerate(metrics["top_contributors"][:top_n]):
-            medal = medals[idx] if idx < len(medals) else f"{idx + 1}."
-            ranked.append(f"{medal} {u} — {data['sites']} sites")
+        for idx, (u, data) in enumerate(metrics["top_contributors"][:top_n], start=1):
+            ranked.append(f"{idx}. {u} — {data['sites']} sites")
         contributors_text = "*Top Contributors*\n" + "\n".join(ranked)
 
     summary = (
         f"SBM Report ({period_label}): {metrics['sites_migrated']} "
         f"sites migrated, {metrics['time_saved_hours']}h saved."
     )
-    context = f"Auto SBM • Migration Intelligence • {period_label}"
-    if command_str:
-        context = f"{context} • `{command_str}`"
+    context = context_label or f"Auto-SBM • {period_label}"
     return {
         "text": summary,
         "blocks": [
@@ -502,7 +496,11 @@ def main() -> None:
         metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
     # 4. Format
-    payload = format_slack_payload(metrics, args.period, command_str=f"/sbm-stats {args.period}")
+    payload = format_slack_payload(
+        metrics,
+        args.period,
+        context_label="Auto-SBM report • CLI",
+    )
 
     # 5. Branding
     if args.username:
