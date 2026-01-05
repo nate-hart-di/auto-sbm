@@ -102,3 +102,7 @@ uv.lock
 !GEMINI.md
 stats/.sync.lock
 .codex/
+
+
+# User Files
+slugs.txt
