@@ -801,6 +801,9 @@ def migrate_map_partials(
             elif status == "skipped_missing":
                 # Missing but acknowledged/skipped (e.g. in interactive or is a guess)
                 success_count += 1
+            elif status == "skipped_inheritance":
+                # Skipped because it exists in CommonTheme (via inheritance)
+                success_count += 1
 
         logger.info(f"Successfully migrated {success_count}/{len(partial_paths)} map partials")
         return (success_count > 0 or len(partial_paths) == 0), actually_copied
@@ -1013,11 +1016,21 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
                         commontheme_source = matches[0]
                         logger.info(f"Using first match: {commontheme_source.name}")
 
+        # Check if we can rely on theme inheritance (AC: Avoid unnecessary copying)
+        if commontheme_source.exists():
+            # If the file exists in CommonTheme, WordPress will find it via template hierarchy.
+            # We don't need to copy it to the child theme unless we plan to modify it.
+            logger.info(
+                f"⏭️  Skipping partial copy - CommonTheme partial will be used via theme inheritance: {commontheme_partial_path}.php"
+            )
+            return "skipped_inheritance"
+
         # Verify source exists after fuzzy matching attempt
         if not commontheme_source.exists():
             logger.warning(
                 f"CommonTheme partial not found: {commontheme_partial_path}.php (or fuzzy matches)"
             )
+            logger.info(f"Using first match: {commontheme_source.name}")
 
             # If it's a guess, ask user for confirmation (only in interactive mode)
             if partial_info.get("is_guess"):

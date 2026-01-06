@@ -103,6 +103,9 @@
     "qualityusedcars",
     "quirkcdfjrofbangor",
     "quirkcdjrbelfast",
+    "quirkchryslerjeep1",
+    "quirkchryslerjeepdodgeram",
+    "quirkjeepdorchester",
     "rainierdodge",
     "randymarionchryslerdodgejeepramofwilkesboro",
     "ridgefield",
@@ -135,39 +138,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-25T15:42:32Z",
-      "slug": "ferneliuscdjr",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 336,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-25T21:04:32Z",
-      "slug": "rontonkinchryslercjdrf",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 0,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-28T14:31:52Z",
-      "slug": "corwindodgeofspringfield",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 416,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-28T15:05:29Z",
       "slug": "bobhowardchryslerjeepdodgeram",
@@ -1173,7 +1143,37 @@
       "automation_seconds": 53.17,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T01:17:43.999630+00:00Z",
+      "slug": "quirkjeepdorchester",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 152.34,
+      "automation_seconds": 11.13,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T01:20:12.764301+00:00Z",
+      "slug": "quirkchryslerjeep1",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 123.68,
+      "automation_seconds": 10.71,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T01:22:41.346445+00:00Z",
+      "slug": "quirkchryslerjeepdodgeram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 123.76,
+      "automation_seconds": 11.55,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-06T01:14:46.898572+00:00Z"
+  "last_updated": "2026-01-06T01:22:41.346445+00:00Z"
 }
