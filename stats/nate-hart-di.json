@@ -29,6 +29,7 @@
     "daviddodge",
     "dchlexusofoxnard",
     "delaneychryslerdodgejeepram",
+    "dickhannahchryslerjeepdodgeram",
     "edwardschryslerdodgejeepramfiat",
     "edwardschryslerdodgejeepramofstormlake",
     "edwardschryslerdodgejeepramomaha",
@@ -44,6 +45,7 @@
     "harrygreen7acres1",
     "hastingschryslercenterinc",
     "heggsjeep",
+    "hellermotorsinc",
     "ingramparkchryslerjeepdodge",
     "jackpowellchryslerdodgejeepram",
     "jakekaplansjaguar",
@@ -111,6 +113,7 @@
     "ryancjd",
     "rydellchryslerdodgejeepram",
     "securitydodgechryslerjeepram",
+    "shepherdscdjr",
     "southpoint",
     "southpointechryslerdodgejeepram",
     "spitzerautoworldhomesteadcdjr",
@@ -130,39 +133,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-24T18:53:15Z",
-      "slug": "rontonkinchryslercjdrf",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 779,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-24T18:56:49Z",
-      "slug": "bayerchryslerdodgejeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 467,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-24T19:03:04Z",
-      "slug": "olathedodgechryslerjeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 943,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-24T19:20:36Z",
       "slug": "waltsliveoakcdjr",
@@ -1173,7 +1143,37 @@
       "automation_seconds": 10.52,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T00:02:28.058090+00:00Z",
+      "slug": "shepherdscdjr",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 123.13,
+      "automation_seconds": 11.19,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T00:05:09.202866+00:00Z",
+      "slug": "hellermotorsinc",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 135.84,
+      "automation_seconds": 10.24,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T00:07:40.038949+00:00Z",
+      "slug": "dickhannahchryslerjeepdodgeram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 127.02,
+      "automation_seconds": 11.35,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-05T23:59:59.420839+00:00Z"
+  "last_updated": "2026-01-06T00:07:40.038949+00:00Z"
 }
