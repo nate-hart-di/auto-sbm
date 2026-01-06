@@ -21,6 +21,7 @@
     "brydenmotors",
     "byerscdjr",
     "cdjconfidential",
+    "centralvalleycjdr",
     "corwindodgeofspringfield",
     "covertchryslerdodgejeeprambeecave",
     "dallasdodgechryslerjeepram",
@@ -108,6 +109,7 @@
     "ronsayerschryslerjeepdodge1",
     "rontonkinchryslercjdrf",
     "ryancjd",
+    "rydellchryslerdodgejeepram",
     "securitydodgechryslerjeepram",
     "southpoint",
     "southpointechryslerdodgejeepram",
@@ -128,28 +130,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-23T00:02:40Z",
-      "slug": "covertchryslerdodgejeeprambeecave",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 2,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-07-23T00:06:49Z",
-      "slug": "midwaycdjr",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 16,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-24T18:53:15Z",
       "slug": "rontonkinchryslercjdrf",
@@ -1173,7 +1153,27 @@
       "automation_seconds": 9.81,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-05T23:57:31.367050+00:00Z",
+      "slug": "centralvalleycjdr",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 163.98,
+      "automation_seconds": 11.68,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-05T23:59:59.420839+00:00Z",
+      "slug": "rydellchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 122.62,
+      "automation_seconds": 10.52,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2025-12-29T22:41:12.341102+00:00Z"
+  "last_updated": "2026-01-05T23:59:59.420839+00:00Z"
 }
