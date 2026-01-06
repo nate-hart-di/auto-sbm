@@ -1142,6 +1142,7 @@ def _handle_migration_restart(
         bool: True if restart was successful
     """
     # Clean up existing test files and CSS outputs
+    # Identical cleaning of existing test files to ensure clean state
     for test_filename, _ in test_files:
         test_file_path = css_path_dir / test_filename
         if test_file_path.exists():
@@ -1156,22 +1157,10 @@ def _handle_migration_restart(
     time.sleep(2)
     _wait_for_gulp_idle(timeout=20)
 
-    # Remove Site Builder outputs
-    sb_outputs = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
-    for sb_file in sb_outputs:
-        sb_path = theme_path / sb_file
-        if sb_path.exists():
-            sb_path.unlink()
+    # Note: We purposefully do NOT reset the site builder files here.
+    # The user has just manually edited them to fix errors.
+    # Wiping them now would lose the user's changes.
 
-    _cleanup_snapshot_files(slug)
-
-    # Re-run migration pipeline
-    if not create_sb_files(slug, force_reset=True):
-        return False
-    if not migrate_styles(slug):
-        return False
-
-    _cleanup_exclusion_comments(slug)
     add_predetermined_styles(slug)
     reprocess_manual_changes(slug)
     _create_automation_snapshots(slug)
@@ -1652,9 +1641,9 @@ def _comment_out_error_line(error_info: dict, css_dir: Path) -> bool:
 
             # If there's a brace at the end of the line, try to preserve it
             if stripped_line.endswith("}") and not stripped_line.startswith("}"):
-                lines[
-                    line_number - 1
-                ] = f"// ERROR COMMENTED OUT: {stripped_line.rstrip('}')}\n}}\n"
+                lines[line_number - 1] = (
+                    f"// ERROR COMMENTED OUT: {stripped_line.rstrip('}')}\n}}\n"
+                )
             else:
                 lines[line_number - 1] = f"// ERROR COMMENTED OUT: {stripped_line}\n"
 
