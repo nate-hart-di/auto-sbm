@@ -30,25 +30,25 @@ class StyleClassifier:
     """Fixed classifier that properly parses CSS rules before exclusion."""
 
     HEADER_PATTERNS = [
-        r"header",          # Match 'header' anywhere
+        r"header",  # Match 'header' anywhere
         r"\.masthead",
-        r"\.banner"
+        r"\.banner",
     ]
 
     NAVIGATION_PATTERNS = [
-        r"\.nav",                # Match .nav followed by ANYTHING (.nav*)
-        r"\.navbar",             # Match .navbar followed by ANYTHING (.navbar*)
-        r"menu-item",            # Match menu-item classes
-        r"\.menu-",              # Match .menu- classes
+        r"\.nav",  # Match .nav followed by ANYTHING (.nav*)
+        r"\.navbar",  # Match .navbar followed by ANYTHING (.navbar*)
+        r"menu-item",  # Match menu-item classes
+        r"\.menu-",  # Match .menu- classes
     ]
 
     FOOTER_PATTERNS = [
-        r"footer",        # Match 'footer' anywhere
+        r"footer",  # Match 'footer' anywhere
         r"\.main-footer",
         r"\.site-footer",
         r"\.page-footer",
         r"\.bottom-footer",
-        r"\.footer-content"
+        r"\.footer-content",
     ]
 
     def __init__(self, strict_mode: bool = True):
@@ -59,16 +59,12 @@ class StyleClassifier:
             "navigation": 0,
             "footer": 0,
             "total_excluded": 0,
-            "total_processed": 0
+            "total_processed": 0,
         }
 
     def _compile_patterns(self):
         """Compile all exclusion patterns into regex objects."""
-        all_patterns = (
-            self.HEADER_PATTERNS +
-            self.NAVIGATION_PATTERNS +
-            self.FOOTER_PATTERNS
-        )
+        all_patterns = self.HEADER_PATTERNS + self.NAVIGATION_PATTERNS + self.FOOTER_PATTERNS
         return [re.compile(pattern, re.IGNORECASE) for pattern in all_patterns]
 
     def should_exclude_rule(self, css_rule: str) -> tuple[bool, str | None]:
@@ -80,11 +76,20 @@ class StyleClassifier:
         for pattern in self.excluded_patterns:
             if pattern.search(css_rule):
                 # Determine which category matched
-                if any(p.search(css_rule) for p in [re.compile(p, re.IGNORECASE) for p in self.HEADER_PATTERNS]):
+                if any(
+                    p.search(css_rule)
+                    for p in [re.compile(p, re.IGNORECASE) for p in self.HEADER_PATTERNS]
+                ):
                     return True, "header"
-                if any(p.search(css_rule) for p in [re.compile(p, re.IGNORECASE) for p in self.NAVIGATION_PATTERNS]):
+                if any(
+                    p.search(css_rule)
+                    for p in [re.compile(p, re.IGNORECASE) for p in self.NAVIGATION_PATTERNS]
+                ):
                     return True, "navigation"
-                if any(p.search(css_rule) for p in [re.compile(p, re.IGNORECASE) for p in self.FOOTER_PATTERNS]):
+                if any(
+                    p.search(css_rule)
+                    for p in [re.compile(p, re.IGNORECASE) for p in self.FOOTER_PATTERNS]
+                ):
                     return True, "footer"
 
         return False, None
@@ -101,19 +106,68 @@ class StyleClassifier:
         in_rule = False
         rule_start_line = 0
 
+        # State tracking for parsing
+        in_quote = False
+        quote_char = None
+        in_multiline_comment = False
+
         i = 0
         while i < len(lines):
             line = lines[i]
 
-            # Count braces
-            open_braces = line.count("{")
-            close_braces = line.count("}")
+            # Calculate brace changes for this line, respecting quotes and comments
+            open_braces = 0
+            close_braces = 0
+            j = 0
+            while j < len(line):
+                char = line[j]
+
+                # Handle comments
+                if not in_quote and not in_multiline_comment:
+                    if char == "/" and j + 1 < len(line):
+                        if line[j + 1] == "/":
+                            # Single line comment - ignore rest of line
+                            break
+                        elif line[j + 1] == "*":
+                            # Start multi-line comment
+                            in_multiline_comment = True
+                            j += 1
+                            continue
+
+                elif in_multiline_comment:
+                    if char == "*" and j + 1 < len(line) and line[j + 1] == "/":
+                        in_multiline_comment = False
+                        j += 1
+                    j += 1
+                    continue
+
+                # Handle quotes
+                if not in_multiline_comment:
+                    if char in ["'", '"']:
+                        if not in_quote:
+                            in_quote = True
+                            quote_char = char
+                        elif char == quote_char:
+                            # Check for escaped quote (simple check)
+                            if j > 0 and line[j - 1] != "\\":
+                                in_quote = False
+                                quote_char = None
+
+                # Count braces only if not in text/comment
+                if not in_quote and not in_multiline_comment:
+                    if char == "{":
+                        open_braces += 1
+                    elif char == "}":
+                        close_braces += 1
+
+                j += 1
 
             if not in_rule:
                 # Not in a rule currently
-                if open_braces > 0:
+                if open_braces > close_braces:  # Net open on this line
                     # Starting a rule
                     # Collect preceding selector lines
+                    # logic: backtrack until we hit something that clearly isn't a selector
                     j = i - 1
                     preceding_lines = []
                     while j >= 0:
@@ -121,11 +175,15 @@ class StyleClassifier:
                         prev_stripped = prev_line.strip()
 
                         # Stop at empty lines, comments, or end of previous rule
-                        if (not prev_stripped or
-                            prev_stripped.startswith(("//","/*")) or
-                            "}" in prev_line or
-                            prev_stripped.startswith(("@import", "$", "@media", "@supports", "@include")) or
-                            (prev_stripped.endswith(";") and ":" in prev_stripped)):
+                        if (
+                            not prev_stripped
+                            or prev_stripped.startswith(("//", "/*"))
+                            or "}" in prev_line
+                            or prev_stripped.startswith(
+                                ("@import", "$", "@media", "@supports", "@include")
+                            )
+                            or (prev_stripped.endswith(";") and ":" in prev_stripped)
+                        ):
                             break
 
                         preceding_lines.insert(0, prev_line)
@@ -133,13 +191,15 @@ class StyleClassifier:
 
                     # Start the rule
                     current_rule_lines = preceding_lines + [line]
-                    # Extract selectors (everything before the {)
-                    selector_text = ""
-                    for rule_line in current_rule_lines:
-                        if "{" in rule_line:
-                            selector_text += rule_line.split("{")[0]
-                            break
-                        selector_text += rule_line + "\n"
+                    # Extract selectors (everything before the {) - simplified
+                    # We accept that selectors might be complex, so we just take preceding lines + current line up to brace
+                    selector_text = "\n".join(preceding_lines)
+                    if "{" in line:
+                        # This naive split is okay for selector identification purposes
+                        # even if brace is inside string, because a selector line wouldn't typically have a quoted brace BEFORE the opening brace of the rule block
+                        selector_text += "\n" + line.split("{")[0]
+                    else:
+                        selector_text += "\n" + line
 
                     current_selectors = selector_text.strip()
                     rule_start_line = i - len(preceding_lines)
@@ -156,12 +216,14 @@ class StyleClassifier:
                 if brace_depth <= 0:
                     # Rule complete
                     rule_content = "\n".join(current_rule_lines)
-                    rules.append(CSSRule(
-                        selectors=current_selectors,
-                        css_text=rule_content,
-                        start_line=rule_start_line,
-                        end_line=i
-                    ))
+                    rules.append(
+                        CSSRule(
+                            selectors=current_selectors,
+                            css_text=rule_content,
+                            start_line=rule_start_line,
+                            end_line=i,
+                        )
+                    )
 
                     # Reset
                     current_rule_lines = []
@@ -169,17 +231,25 @@ class StyleClassifier:
                     in_rule = False
                     brace_depth = 0
 
+                    # DO NOT reset state like in_quote or in_multiline_comment
+                    # because a rule might end on the same line another begins?
+                    # Actually valid CSS rules shouldn't overlap in that way usually,
+                    # but safety suggests we keep parsing state if we continue processing the line.
+                    # For this line-based loop, i increments, so we are done with this line.
+
             i += 1
 
         # Handle incomplete rule at end
         if current_rule_lines and in_rule:
             rule_content = "\n".join(current_rule_lines)
-            rules.append(CSSRule(
-                selectors=current_selectors,
-                css_text=rule_content,
-                start_line=rule_start_line,
-                end_line=len(lines) - 1
-            ))
+            rules.append(
+                CSSRule(
+                    selectors=current_selectors,
+                    css_text=rule_content,
+                    start_line=rule_start_line,
+                    end_line=len(lines) - 1,
+                )
+            )
 
         return rules, non_rule_lines
 
@@ -250,17 +320,21 @@ class StyleClassifier:
             excluded_count=len(excluded_rules),
             included_count=len(filtered_rules),
             excluded_rules=excluded_rules,
-            patterns_matched=patterns_matched
+            patterns_matched=patterns_matched,
         )
 
         if excluded_rules:
-            exclusion_summary = ", ".join([f"{pattern}: {count}" for pattern, count in patterns_matched.items()])
+            exclusion_summary = ", ".join(
+                [f"{pattern}: {count}" for pattern, count in patterns_matched.items()]
+            )
             logger.debug(f"Excluded {len(excluded_rules)} rules: {exclusion_summary}")
 
         return filtered_content, result
 
 
-def filter_scss_for_site_builder(content: str, strict_mode: bool = True) -> tuple[str, ExclusionResult]:
+def filter_scss_for_site_builder(
+    content: str, strict_mode: bool = True
+) -> tuple[str, ExclusionResult]:
     """Filter SCSS content to exclude header/footer/nav styles for Site Builder."""
     classifier = StyleClassifier(strict_mode=strict_mode)
     return classifier.filter_scss_content(content)
@@ -344,5 +418,5 @@ def conservative_keyword_exclusion(content: str) -> tuple[str, ExclusionResult]:
         excluded_count=len(excluded_rules),
         included_count=len(filtered_lines),
         excluded_rules=excluded_rules,
-        patterns_matched={"conservative": len(excluded_rules)}
+        patterns_matched={"conservative": len(excluded_rules)},
     )
