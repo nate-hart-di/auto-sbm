@@ -372,7 +372,7 @@ def create_sb_files(slug: str, force_reset: bool = False) -> bool:
         return False
 
 
-def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool:
+def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> tuple[bool, int]:
     # 3. Processes main SCSS files (style.scss, inside.scss, etc.)
     # 4. Writes transformed files to target directory.
     logger.debug(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
@@ -382,7 +382,7 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool
 
         if not source_scss_dir.is_dir():
             logger.error(f"Source SCSS directory not found: {source_scss_dir}")
-            return False
+            return False, 0
 
         if processor is None:
             processor = SCSSProcessor(slug, exclude_nav_styles=True)
@@ -434,14 +434,14 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> bool
                 logger.info(msg)
             # Note: SCSS formatting is applied at the end of the full migration
             # after all content (predetermined styles, map components) is added
+            return True, total_lines_processed
         else:
             logger.error("SCSS migration failed during file writing.")
-
-        return success
+            return False, 0
 
     except Exception as e:
         logger.error(f"Error migrating styles: {e}", exc_info=True)
-        return False
+        return False, 0
 
 
 def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None, slug: str) -> bool:
@@ -806,18 +806,21 @@ def run_post_migration_workflow(
 
 def _perform_core_migration(
     slug: str, force_reset: bool, oem_handler: object | None, skip_maps: bool, console: SBMConsole
-) -> bool:
+) -> tuple[bool, int]:
     """Run core transformation steps."""
     console.print_step("Creating Site Builder SCSS files")
     with timer_segment("Site Builder File Creation"):
         if not create_sb_files(slug, force_reset):
-            return False
+            return False, 0
 
     console.print_step("Migrating SCSS styles and transforming syntax")
     processor = SCSSProcessor(slug, exclude_nav_styles=True)
+    lines_migrated = 0
     with timer_segment("SCSS Migration"):
-        if not migrate_styles(slug, processor=processor):
-            return False
+        success, lines = migrate_styles(slug, processor=processor)
+        if not success:
+            return False, 0
+        lines_migrated = lines
 
     _cleanup_exclusion_comments(slug)
     console.print_step("Adding predetermined OEM-specific styles")
@@ -829,7 +832,7 @@ def _perform_core_migration(
         if not migrate_map_components(
             slug, oem_handler, interactive=False, console=console, processor=processor
         ):
-            return False
+            return False, 0
 
     # Final formatting pass - format all SCSS files after all content has been added
     console.print_step("Formatting SCSS files")
@@ -841,7 +844,7 @@ def _perform_core_migration(
     else:
         logger.warning("SCSS formatting encountered issues")
 
-    return True
+    return True, lines_migrated
 
 
 def migrate_dealer_theme(
@@ -900,12 +903,15 @@ def migrate_dealer_theme(
             if not run_just_start(slug, suppress_output=False):
                 return {"success": False, "pr_url": None, "salesforce_message": None}
 
-    if not _perform_core_migration(slug, force_reset, oem_handler, skip_maps, console):
-        return {"success": False, "pr_url": None, "salesforce_message": None}
+    success, lines_migrated = _perform_core_migration(
+        slug, force_reset, oem_handler, skip_maps, console
+    )
+    if not success:
+        return {"success": False, "pr_url": None, "salesforce_message": None, "lines_migrated": 0}
 
     _create_automation_snapshots(slug)
 
-    return run_post_migration_workflow(
+    result = run_post_migration_workflow(
         slug,
         branch_name,
         skip_git=skip_git,
@@ -915,6 +921,12 @@ def migrate_dealer_theme(
         interactive_pr=interactive_pr,
         console=console,
     )
+
+    # Add lines_migrated to the result
+    if isinstance(result, dict):
+        result["lines_migrated"] = lines_migrated
+
+    return result
 
 
 def _prepare_test_scaffolding(

@@ -628,7 +628,9 @@ def _expand_theme_names(theme_names: tuple[str, ...]) -> list[str]:
     return unique_expanded
 
 
-def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool) -> bool:
+def _perform_migration_steps(
+    theme_name: str, force_reset: bool, skip_maps: bool
+) -> tuple[bool, int]:
     """Run the core migration steps, returning success status."""
     oem_handler = OEMFactory.detect_from_theme(theme_name)
     logger.info(f"Using {oem_handler} for {theme_name}")
@@ -642,21 +644,25 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
     with console.status(f"Step 1/{total_steps}: Creating Site Builder files"):
         if not create_sb_files(theme_name, force_reset):
             logger.error(f"Failed to create Site Builder files for {theme_name}")
-            return False
+            return False, 0
     console.print_success("Site Builder files created")
 
     # Step 2: Migrate styles
+    lines_migrated = 0
     with console.status(f"Step 2/{total_steps}: Migrating styles"):
-        if not migrate_styles(theme_name):
+        # migrate_styles now returns tuple[bool, int]
+        success, lines = migrate_styles(theme_name)
+        if not success:
             logger.error(f"Failed to migrate styles for {theme_name}")
-            return False
+            return False, 0
+        lines_migrated = lines
     console.print_success("Styles migrated")
 
     # Step 3: Add predetermined styles
     with console.status(f"Step 3/{total_steps}: Adding predetermined styles"):
         if not add_predetermined_styles(theme_name):
             logger.error(f"Failed to add predetermined styles for {theme_name}")
-            return False
+            return False, 0
     console.print_success("Predetermined styles added")
 
     # Step 4: Migrate map components if not skipped
@@ -664,12 +670,12 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
         with console.status(f"Step 4/{total_steps}: Migrating map components"):
             if not migrate_map_components(theme_name, oem_handler):
                 logger.error(f"Failed to migrate map components for {theme_name}")
-                return False
+                return False, 0
         console.print_success("Map components migrated")
     else:
         logger.debug(f"Skipping map components migration for {theme_name}")
 
-    return True
+    return True, lines_migrated
 
 
 def _generate_migration_report(results: list[dict]) -> None:
@@ -741,7 +747,8 @@ def migrate(
     for theme_name in expanded_themes:
         console.print_migration_header(theme_name)
 
-        if not _perform_migration_steps(theme_name, force_reset, skip_maps):
+        success, lines_migrated = _perform_migration_steps(theme_name, force_reset, skip_maps)
+        if not success:
             logger.error(f"Migration failed for {theme_name}. Skipping...")
             continue
 
@@ -766,7 +773,7 @@ def migrate(
                 status="success",
                 duration=0,
                 automation_time=0,
-                lines_migrated=0,
+                lines_migrated=lines_migrated,
             )
             sync_global_stats()
             # Show updated stats after each migration
@@ -856,10 +863,12 @@ def auto(
             if isinstance(result, tuple):
                 success, pr_url = result
                 salesforce_msg = None
+                lines = 0
             else:
                 success = result.get("success", False)
                 pr_url = result.get("pr_url")
                 salesforce_msg = result.get("salesforce_message")
+                lines = result.get("lines_migrated", 0)
 
             if success:
                 record_migration(theme_name)
@@ -869,7 +878,7 @@ def auto(
                     status="success",
                     duration=get_total_duration(),
                     automation_time=get_total_automation_time(),
-                    lines_migrated=0,
+                    lines_migrated=lines,
                 )
                 sync_global_stats()
                 # Show updated stats after each migration

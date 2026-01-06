@@ -157,7 +157,10 @@ def filter_runs_by_date(runs: List[Dict[str, Any]], days_or_period: str) -> List
 
         try:
             # Handle ISO format with Z
-            if ts_str.endswith("Z"):
+            # Fix for malformed SBM timestamps: "2026-01-06...27+00:00Z" -> double offset
+            if ts_str.endswith("+00:00Z"):
+                ts_str = ts_str[:-1]  # Just remove the Z, leaving +00:00
+            elif ts_str.endswith("Z"):
                 ts_str = ts_str[:-1] + "+00:00"
 
             run_dt = datetime.fromisoformat(ts_str)
@@ -167,7 +170,8 @@ def filter_runs_by_date(runs: List[Dict[str, Any]], days_or_period: str) -> List
 
             if run_dt >= cutoff:
                 filtered.append(run)
-        except ValueError:
+        except ValueError as e:
+            print(f"Warning: Skipping run with invalid timestamp '{ts_str}': {e}", file=sys.stderr)
             continue
 
     return filtered
@@ -198,7 +202,10 @@ def format_top_users_payload(
             "blocks": [
                 {
                     "type": "section",
-                    "text": {"type": "mrkdwn", "text": "*SBM Top Contributors*\nNo SBM stats found yet."},
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*SBM Top Contributors*\nNo SBM stats found yet.",
+                    },
                 }
             ],
         }
@@ -222,7 +229,10 @@ def format_top_users_payload(
                 "type": "context",
                 "elements": [{"type": "mrkdwn", "text": context}],
             },
-            {"type": "section", "text": {"type": "mrkdwn", "text": "*Top Contributors*\n" + "\n".join(lines)}},
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "*Top Contributors*\n" + "\n".join(lines)},
+            },
             {
                 "type": "context",
                 "elements": [
