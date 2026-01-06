@@ -54,6 +54,7 @@
     "jeffbelzersautogroup",
     "joeyaccardichryslerdodgejeepram1",
     "johnhirschscambridgemotorschryslerjeepdodgeram",
+    "knightclaremontchryslerdodgejeepram",
     "lafayette",
     "lamesachryslerdodgejeepram",
     "landersmclartycdjr",
@@ -134,17 +135,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-07-25T15:00:06Z",
-      "slug": "ferneliuscdjr",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 622,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-07-25T15:42:32Z",
       "slug": "ferneliuscdjr",
@@ -1173,7 +1163,17 @@
       "automation_seconds": 1016.32,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T01:14:46.898572+00:00Z",
+      "slug": "knightclaremontchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 168.43,
+      "automation_seconds": 53.17,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-06T01:11:33.749314+00:00Z"
+  "last_updated": "2026-01-06T01:14:46.898572+00:00Z"
 }
