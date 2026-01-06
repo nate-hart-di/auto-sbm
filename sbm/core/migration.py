@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Dict, Any
 
 import click
 from rich.prompt import Confirm
@@ -780,18 +780,28 @@ def run_post_migration_workflow(
 
     # Automated PR creation
     pr_url = None
+    salesforce_message = None
     if create_pr:
         logger.info(f"Creating PR for {slug}...")
-        success, pr_url = git_create_pr(slug, branch_name)
+        pr_result = git_create_pr(slug, branch_name)
+
+        # Handle dict return (new) or tuple return (legacy safety)
+        if isinstance(pr_result, dict):
+            success = pr_result.get("success", False)
+            pr_url = pr_result.get("pr_url")
+            salesforce_message = pr_result.get("salesforce_message")
+        else:
+            success, pr_url = pr_result
+
         if success:
             logger.debug(f"PR created: {pr_url}")
         else:
             logger.error(f"Failed to create PR for {slug}")
-            return False, None
+            return {"success": False, "pr_url": None, "salesforce_message": None}
 
     logger.info(f"Migration completed successfully for {slug}")
-    # Duplicate UI call removed: console.print_migration_complete(slug, elapsed_time=0.0, pr_url=pr_url)
-    return True, pr_url
+
+    return {"success": True, "pr_url": pr_url, "salesforce_message": salesforce_message}
 
 
 def _perform_core_migration(
@@ -847,7 +857,7 @@ def migrate_dealer_theme(
     interactive_pr: bool = True,
     verbose_docker: bool = False,
     console: SBMConsole | None = None,
-) -> tuple[bool, Optional[str]]:
+) -> Dict[str, Any]:
     """
     Migrate a dealer theme to the Site Builder platform.
 
@@ -866,7 +876,7 @@ def migrate_dealer_theme(
         console: Optional console instance for unified UI
 
     Returns:
-        bool: True if all steps are successful, False otherwise.
+        Dict[str, Any]: Dictionary with keys 'success' (bool), 'pr_url' (str), and 'salesforce_message' (str)
     """
     if console is None:
         console = get_console()
@@ -882,16 +892,16 @@ def migrate_dealer_theme(
         with timer_segment("Git Operations"):
             success, branch_name = git_operations(slug)
         if not success:
-            return False, None
+            return {"success": False, "pr_url": None, "salesforce_message": None}
 
     if not skip_just:
         console.print_step("Starting Docker environment (just start)")
         with timer_segment("Docker Startup"):
             if not run_just_start(slug, suppress_output=False):
-                return False, None
+                return {"success": False, "pr_url": None, "salesforce_message": None}
 
     if not _perform_core_migration(slug, force_reset, oem_handler, skip_maps, console):
-        return False, None
+        return {"success": False, "pr_url": None, "salesforce_message": None}
 
     _create_automation_snapshots(slug)
 

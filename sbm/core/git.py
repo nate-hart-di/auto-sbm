@@ -1250,6 +1250,7 @@ PR: {pr_url}"""
                 "branch": safe_current_branch,
                 "title": pr_title,
                 "body": pr_body,
+                "salesforce_message": what_section,
             }
 
         except Exception as e:
@@ -1264,9 +1265,8 @@ PR: {pr_url}"""
                     logger.info(f"PR already exists: {existing_pr_url}")
                     # Still copy Salesforce message since migration likely completed
                     pr_content = self._build_stellantis_pr_content(slug, safe_head_branch, {})
-                    self._copy_salesforce_message_to_clipboard(
-                        pr_content["what_section"], existing_pr_url
-                    )
+                    what_section = pr_content["what_section"]
+                    self._copy_salesforce_message_to_clipboard(what_section, existing_pr_url)
 
                     return {
                         "success": True,
@@ -1274,6 +1274,7 @@ PR: {pr_url}"""
                         "branch": safe_head_branch,
                         "title": pr_content["title"],
                         "existing": True,
+                        "salesforce_message": what_section,
                     }
                 except Exception as handle_e:
                     logger.error(f"Failed to handle existing PR: {handle_e}")
@@ -1347,5 +1348,4 @@ def create_pr(slug, branch_name=None, **kwargs):
         "git": {"default_reviewers": ["carsdotcom/fe-dev"], "default_labels": ["fe-dev"]},
     }
     git_ops = GitOperations(Config(config_dict))
-    result = git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)
-    return result.get("success", False), result.get("pr_url")
+    return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)

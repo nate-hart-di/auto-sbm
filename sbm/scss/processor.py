@@ -220,12 +220,9 @@ class SCSSProcessor:
         """
         logger.debug("Cleaning up large comment blocks and section dividers...")
 
-        # CRITICAL FIX: Remove broken commented-out block comments that cause syntax errors
-        # Pattern: // followed by /* ... */ (spanning multiple lines)
-        # This occurs when a block comment is commented out with // on the first line only.
-        content = re.sub(r"//\s*(?://\s*)*\s*\/\*[\s\S]*?\*/", "", content)
-        # Also handle the non-broken version (just // // /**** ... */ on one line)
-        content = re.sub(r"//\s*(?://\s*)*\s*\/\*.*?\*/", "", content)
+        # CRITICAL FIX: Use horizontal whitespace only [ \t] to prevent jumping newlines
+        # Matches: // followed by optional // then starts a block comment /*
+        content = re.sub(r"//[ \t]*(?://[ \t]*)*[ \t]*/\*[\s\S]*?\*/", "", content)
 
         # Remove large asterisk comment blocks like:
         # // *************************************************************************************************

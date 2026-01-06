@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.8] - 2026-01-05
+
+### Fixed
+
+- **SCSS Comment Cleanup**: Fixed aggressive regex that caused valid code removal or corruption when comments were mixed with block comments on newlines. Switched to horizontal-whitespace-only matching.
+- **Migration Reporting**: `sbm auto` now generates detailed migration reports in `reports/` and correctly handles new return types from migration functions.
+- **Breaking Change Handling**: Added backward compatibility for migration function return types (tuple vs dict).
+- **CLI**: Fixed syntax error in `cli.py` that prevented tests from running.
+
 ## [2.1.7] - 2026-01-05
 
 ### Fixed

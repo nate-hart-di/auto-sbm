@@ -672,6 +672,53 @@ def _perform_migration_steps(theme_name: str, force_reset: bool, skip_maps: bool
     return True
 
 
+def _generate_migration_report(results: list[dict]) -> None:
+    """
+    Generate a user-specific migration report.
+
+    Args:
+        results: List of migration result dictionaries
+    """
+    import datetime
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    reports_dir = REPO_ROOT / "reports"
+    reports_dir.mkdir(exist_ok=True)
+
+    report_path = reports_dir / f"migration_report_{timestamp}.txt"
+
+    try:
+        with report_path.open("w") as f:
+            f.write(f"SBM Migration Report - {timestamp}\n")
+            f.write("=" * 50 + "\n\n")
+
+            for res in results:
+                slug = res.get("slug")
+                status = res.get("status", "unknown").upper()
+                pr_url = res.get("pr_url") or "N/A"
+                error = res.get("error")
+                salesforce_msg = res.get("salesforce_message")
+
+                f.write(f"Slug: {slug}\n")
+                f.write(f"Status: {status}\n")
+                if error:
+                    f.write(f"Error: {error}\n")
+                f.write(f"PR URL: {pr_url}\n")
+
+                if salesforce_msg:
+                    f.write("Salesforce Message:\n")
+                    f.write("-" * 20 + "\n")
+                    f.write(f"{salesforce_msg}\n")
+                    f.write("-" * 20 + "\n")
+
+                f.write("\n" + "=" * 50 + "\n\n")
+
+        logger.info(f"Detailed migration report generated: {report_path}")
+        click.echo(f"\n📄 Report generated: {report_path}")
+    except Exception as e:
+        logger.error(f"Failed to generate migration report: {e}")
+
+
 @cli.command()
 @click.argument("theme_names", nargs=-1, required=True)
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
@@ -764,6 +811,8 @@ def auto(
     config = ctx.obj.get("config", Config({}))
     console = get_console(config)
 
+    migration_results = []
+
     for theme_name in expanded_themes:
         config_dict = {
             "skip_just": skip_just,
@@ -774,6 +823,7 @@ def auto(
 
         if not skip_post_migration:
             if not InteractivePrompts.confirm_migration_start(theme_name, config_dict):
+                logger.info(f"Skipping {theme_name}")
                 continue
 
         console.print_header("SBM Migration", f"Starting {theme_name}")
@@ -789,7 +839,8 @@ def auto(
         original_confirm = patch_click_confirm_for_timing()
 
         try:
-            success, pr_url = migrate_dealer_theme(
+            # Check if migrate_dealer_theme returns a dict or tuple
+            result = migrate_dealer_theme(
                 theme_name,
                 skip_just=skip_just,
                 force_reset=force_reset,
@@ -798,7 +849,17 @@ def auto(
                 interactive_git=not skip_post_migration,
                 interactive_pr=not skip_post_migration,
                 verbose_docker=verbose_docker,
+                console=console,
             )
+
+            # Normalize result to dict
+            if isinstance(result, tuple):
+                success, pr_url = result
+                salesforce_msg = None
+            else:
+                success = result.get("success", False)
+                pr_url = result.get("pr_url")
+                salesforce_msg = result.get("salesforce_message")
 
             if success:
                 record_migration(theme_name)
@@ -813,19 +874,72 @@ def auto(
                 sync_global_stats()
                 # Show updated stats after each migration
                 ctx.invoke(stats)
+
+                # Use result dict values if available, otherwise pr_url from tuple
+                final_pr_url = pr_url
+
                 console.print_migration_complete(
-                    theme_name, elapsed_time=get_total_duration(), files_processed=4, pr_url=pr_url
+                    theme_name,
+                    elapsed_time=get_total_duration(),
+                    files_processed=4,
+                    pr_url=final_pr_url,
+                )
+
+                restore_click_confirm(original_confirm)
+                print_timing_summary(theme_name)
+
+                migration_results.append(
+                    {
+                        "slug": theme_name,
+                        "status": "success",
+                        "pr_url": final_pr_url,
+                        "salesforce_message": salesforce_msg,
+                    }
                 )
             else:
                 console.print_error(f"Migration failed for {theme_name}")
+                migration_results.append(
+                    {
+                        "slug": theme_name,
+                        "status": "failed",
+                        "error": "Migration failed (see logs)",
+                    }
+                )
 
         except Exception as e:
             console.print_error(f"Error migrating {theme_name}: {e}")
+            migration_results.append(
+                {
+                    "slug": theme_name,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
         finally:
             if original_confirm:
-                restore_click_confirm(original_confirm)
-            print_timing_summary()
+                try:
+                    restore_click_confirm(original_confirm)
+                except Exception:
+                    pass
+            # Ensure timing summary is cleared/printed if safe
+            # The print_timing_summary above handles success case
             clear_timing_summary()
+
+    # Generate Report
+    if migration_results:
+        _generate_migration_report(migration_results)
+
+    # Final summary output
+    if len(expanded_themes) > 1:
+        console.print_header("Batch Migration Summary", "")
+        for res in migration_results:
+            status_icon = "✅" if res["status"] == "success" else "❌"
+            msg = f"{status_icon} {res['slug']}"
+            if res.get("pr_url"):
+                msg += f" - PR: {res['pr_url']}"
+            elif res.get("error"):
+                msg += f" - Error: {res['error']}"
+            console.print_info(msg)
 
 
 @cli.command()
@@ -1411,14 +1525,15 @@ def update() -> None:
                     for line in log_result.stdout.strip().split("\n")[:5]:  # Show max 5 commits
                         click.echo(f"  • {line}")
 
-                # Update dependencies
-                click.echo("\n📦 Updating dependencies...")
-                _update_dependencies()
-                click.echo("✅ Dependencies updated")
+            # ALWAYS update dependencies and hooks if pull was successful
+            # This ensures we catch local changes or repair broken environments
+            click.echo("\n📦 Updating dependencies...")
+            _update_dependencies()
+            click.echo("✅ Dependencies updated")
 
-                # Install pre-commit hooks
-                click.echo("\n🪝 Installing pre-commit hooks...")
-                _install_precommit_hooks()
+            # Install pre-commit hooks
+            click.echo("\n🪝 Installing pre-commit hooks...")
+            _install_precommit_hooks()
 
             # Restore stashed changes
             if has_changes:
