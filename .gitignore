@@ -101,8 +101,9 @@ uv.lock
 !CLAUDE.md
 !GEMINI.md
 stats/.sync.lock
-.codex/
 
+# Codex Session Logs (Exclusion to prevent secret leaks)
+.codex/
 
 # User Files
 slugs.txt

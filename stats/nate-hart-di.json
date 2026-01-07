@@ -42,6 +42,8 @@
     "fiatofportland",
     "gainesville",
     "gladstonedodgechryslerjeepram",
+    "griffinchryslerdodgejeepramofvaldosta",
+    "griffinchryslerdodgejeepramtifton",
     "groupretailtemplate1",
     "harrygreen7acres1",
     "hastingschryslercenterinc",
@@ -145,53 +147,11 @@
     "whitebearmitsubishi",
     "wichita",
     "woodhouseautofamily1",
+    "yorkcdjrautomotiveofplainfield",
+    "yorkchryslerdodgejeeprambrazil1",
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-09-11T22:12:57Z",
-      "slug": "brydenmotors",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 580,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-09-11T22:56:35Z",
-      "slug": "robersonmotors",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 39,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-09-11T22:59:21Z",
-      "slug": "securitydodgechryslerjeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 640,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-10-06T20:46:21Z",
-      "slug": "magicgmccadillac",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 454,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-10-07T19:29:25Z",
       "slug": "oxmoorautogroup1",
@@ -1162,7 +1122,47 @@
       "automation_seconds": 11.75,
       "lines_migrated": 45,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-07T03:47:35.020411+00:00Z",
+      "slug": "yorkchryslerdodgejeeprambrazil1",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 120.99,
+      "automation_seconds": 13.23,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-07T03:49:45.341766+00:00Z",
+      "slug": "yorkcdjrautomotiveofplainfield",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 111.55,
+      "automation_seconds": 9.37,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-07T03:52:20.320394+00:00Z",
+      "slug": "griffinchryslerdodgejeepramtifton",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 135.18,
+      "automation_seconds": 10.19,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-07T03:54:40.159160+00:00Z",
+      "slug": "griffinchryslerdodgejeepramofvaldosta",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 117.33,
+      "automation_seconds": 9.87,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-06T21:43:31.891023+00:00Z"
+  "last_updated": "2026-01-07T03:54:40.159160+00:00Z"
 }

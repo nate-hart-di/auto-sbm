@@ -962,12 +962,19 @@ def migrate_dealer_theme(
             with timer_segment("Git Operations"):
                 success, branch_name = git_operations(slug)
             if not success:
-                result.mark_failed(MigrationStep.GIT_SETUP, "Git operations failed")
+                result.mark_failed(
+                    MigrationStep.GIT_SETUP,
+                    f"Git branch creation or checkout failed for {slug}"
+                )
                 result.elapsed_time = time.time() - start_time
                 return result
             result.branch_name = branch_name
         except Exception as e:
-            result.mark_failed(MigrationStep.GIT_SETUP, str(e), traceback.format_exc())
+            result.mark_failed(
+                MigrationStep.GIT_SETUP,
+                f"Git setup exception for {slug}: {str(e)}",
+                traceback.format_exc()
+            )
             result.elapsed_time = time.time() - start_time
             return result
 
@@ -977,11 +984,18 @@ def migrate_dealer_theme(
             console.print_step("Starting Docker environment (just start)")
             with timer_segment("Docker Startup"):
                 if not run_just_start(slug, suppress_output=False):
-                    result.mark_failed(MigrationStep.DOCKER_STARTUP, "Docker startup failed")
+                    result.mark_failed(
+                        MigrationStep.DOCKER_STARTUP,
+                        f"Docker container startup failed for {slug} - check AWS credentials or Docker logs"
+                    )
                     result.elapsed_time = time.time() - start_time
                     return result
         except Exception as e:
-            result.mark_failed(MigrationStep.DOCKER_STARTUP, str(e), traceback.format_exc())
+            result.mark_failed(
+                MigrationStep.DOCKER_STARTUP,
+                f"Docker startup exception for {slug}: {str(e)}",
+                traceback.format_exc()
+            )
             result.elapsed_time = time.time() - start_time
             return result
 
@@ -991,11 +1005,18 @@ def migrate_dealer_theme(
             slug, force_reset, oem_handler, skip_maps, console
         )
         if not success:
-            result.mark_failed(MigrationStep.CORE_MIGRATION, "Core migration failed")
+            result.mark_failed(
+                MigrationStep.CORE_MIGRATION,
+                f"Core migration failed for {slug} - SCSS processing or file creation error"
+            )
             result.elapsed_time = time.time() - start_time
             return result
     except Exception as e:
-        result.mark_failed(MigrationStep.CORE_MIGRATION, str(e), traceback.format_exc())
+        result.mark_failed(
+            MigrationStep.CORE_MIGRATION,
+            f"Core migration exception for {slug}: {str(e)}",
+            traceback.format_exc()
+        )
         result.elapsed_time = time.time() - start_time
         return result
 
@@ -1079,7 +1100,8 @@ def run_post_migration_workflow(
             if not reprocess_manual_changes(slug):
                 if result:
                     result.mark_failed(
-                        MigrationStep.CORE_MIGRATION, "Reprocessing manual changes failed"
+                        MigrationStep.CORE_MIGRATION,
+                        f"Failed to reprocess manual SCSS changes for {slug}"
                     )
                 return {
                     "success": False,
@@ -1096,7 +1118,11 @@ def run_post_migration_workflow(
             )
             if not success:
                 if result:
-                    result.mark_failed(MigrationStep.SCSS_VERIFICATION, "SCSS compilation failed")
+                    error_count = len(scss_errors)
+                    result.mark_failed(
+                        MigrationStep.SCSS_VERIFICATION,
+                        f"SCSS compilation failed for {slug} with {error_count} error(s) - check Docker logs"
+                    )
                     for err in scss_errors:
                         result.add_scss_error(err)
                 return {
@@ -1113,7 +1139,10 @@ def run_post_migration_workflow(
         with timer_segment("Git Operations"):
             if not commit_changes(slug):
                 if result:
-                    result.mark_failed(MigrationStep.GIT_COMMIT, "Git commit failed")
+                    result.mark_failed(
+                        MigrationStep.GIT_COMMIT,
+                        f"Git commit failed for {slug} - check working directory state"
+                    )
                 return {
                     "success": False,
                     "pr_url": None,
@@ -1122,7 +1151,10 @@ def run_post_migration_workflow(
                 }
             if not push_changes(branch_name):
                 if result:
-                    result.mark_failed(MigrationStep.GIT_COMMIT, "Git push failed")
+                    result.mark_failed(
+                        MigrationStep.GIT_COMMIT,
+                        f"Git push failed for branch {branch_name} - check remote access"
+                    )
                 return {
                     "success": False,
                     "pr_url": None,
@@ -1263,8 +1295,14 @@ def _verify_scss_compilation_with_docker(
         # Capture errors from Docker logs if requested and there was a failure
         if not success and capture_errors:
             try:
-                docker_logs = execute_command(["docker", "logs", "--tail", "100", "dealer-gulp-1"])
-                if docker_logs:
+                # execute_command returns (success, stdout_lines, stderr_lines, process)
+                cmd_success, stdout_lines, stderr_lines, _ = execute_command(
+                    ["docker", "logs", "--tail", "100", "dealer-gulp-1"],
+                    error_message="Failed to retrieve Docker logs"
+                )
+                if cmd_success and (stdout_lines or stderr_lines):
+                    # Combine stdout and stderr for error extraction
+                    docker_logs = "\n".join(stdout_lines + stderr_lines)
                     # Extract error lines from logs
                     for line in docker_logs.split("\n"):
                         if any(
