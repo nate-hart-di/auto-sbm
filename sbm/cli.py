@@ -954,7 +954,7 @@ def auto(
                     )
 
                     restore_click_confirm(original_confirm)
-                    print_timing_summary(theme_name)
+                    print_timing_summary()
 
                     migration_results.append(result)
                 else:
@@ -991,7 +991,7 @@ def auto(
                     )
 
                     restore_click_confirm(original_confirm)
-                    print_timing_summary(theme_name)
+                    print_timing_summary()
 
                     migration_results.append(
                         {

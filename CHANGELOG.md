@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-01-06
+
+### Fixed
+
+- **Batch Migration Error**: Fixed `print_timing_summary()` being called with `theme_name` argument when function takes no parameters. This was causing batch migrations to crash with "print_timing_summary() takes 0 positional arguments but 1 was given" error.
+
 ## [2.2.1] - 2026-01-06
 
 ### Fixed
