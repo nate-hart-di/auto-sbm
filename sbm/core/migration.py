@@ -1327,38 +1327,89 @@ def _verify_scss_compilation_with_docker(
         return success
 
 
-def _extract_error_details_from_logs(logs: str) -> tuple[str | None, int | None, str | None]:
+def _extract_error_details_from_logs(logs: str) -> list[dict]:
     """
-    Extract error file, line, and message from Docker logs.
+    Extract error file, line, column, and message from Docker logs.
 
     Args:
         logs: Docker log output
 
     Returns:
-        tuple: (error_file, error_line, error_message)
+        list: List of error detail dicts
     """
-    error_file = None
-    error_line = None
-    error_message = None
+    errors: list[dict] = []
+    seen: set[tuple[str, int, str | None]] = set()
+    current_message: str | None = None
+    pending_file: str | None = None
+    last_error_idx: int | None = None
+
+    def _record_error(
+        file_path: str | None,
+        line_number: int | None,
+        column: int | None,
+        message: str | None,
+    ) -> None:
+        if not file_path or not line_number:
+            return
+
+        test_file = Path(file_path).name
+        source_file = test_file.replace("test-", "", 1) if test_file.startswith("test-") else test_file
+        dedupe_key = (source_file, line_number, message)
+        if dedupe_key in seen:
+            return
+
+        seen.add(dedupe_key)
+        errors.append(
+            {
+                "test_file": test_file,
+                "source_file": source_file,
+                "line": line_number,
+                "column": column,
+                "message": message,
+            }
+        )
 
     for line in logs.split("\n"):
         # Look for error message lines
         if "Error:" in line and any(
             keyword in line.lower() for keyword in ["invalid", "undefined", "expected", "syntax"]
         ):
-            error_message = line.strip()
-        # Look for "on line X of file" patterns
-        elif "on line" in line and "test-sb-" in line:
-            # Parse: "on line 40 of ../DealerInspireDealerTheme/css/test-sb-inside.scss"
-            match = re.search(r"on line (\d+) of [^/]*/(test-sb-[^/]+\.scss)", line)
-            if match:
-                error_line = int(match.group(1))
-                test_file = match.group(2)
-                # Convert test-sb-inside.scss -> sb-inside.scss
-                error_file = test_file.replace("test-", "")
-                break
+            current_message = line.strip()
 
-    return error_file, error_line, error_message
+        # Look for "on line X of file" patterns
+        on_line_match = re.search(
+            r"on line (\d+) of .*?(test-sb-[^/\\\s']+\.scss)", line, re.IGNORECASE
+        )
+        if on_line_match:
+            line_number = int(on_line_match.group(1))
+            test_file = on_line_match.group(2)
+            _record_error(test_file, line_number, None, current_message)
+            last_error_idx = len(errors) - 1
+            continue
+
+        # Look for explicit file/line/column patterns
+        file_match = re.search(
+            r"file:\s*'([^']*test-sb-[^']+\.scss)'", line, re.IGNORECASE
+        )
+        if file_match:
+            pending_file = file_match.group(1)
+            continue
+
+        line_match = re.search(r"line:\s*(\d+)", line, re.IGNORECASE)
+        if line_match and pending_file:
+            line_number = int(line_match.group(1))
+            _record_error(pending_file, line_number, None, current_message)
+            last_error_idx = len(errors) - 1
+            continue
+
+        column_match = re.search(r"column:\s*(\d+)", line, re.IGNORECASE)
+        if column_match and last_error_idx is not None:
+            try:
+                errors[last_error_idx]["column"] = int(column_match.group(1))
+            except Exception:
+                pass
+
+    return errors
 
 
 def _prompt_user_for_manual_fix(
@@ -1378,7 +1429,7 @@ def _prompt_user_for_manual_fix(
     Returns:
         bool: True if user wants to continue after fixing
     """
-    error_file, error_line, error_message = _extract_error_details_from_logs(logs)
+    error_details = _extract_error_details_from_logs(logs)
 
     if console:
         console.print_error("❌ SCSS Compilation Error")
@@ -1386,48 +1437,90 @@ def _prompt_user_for_manual_fix(
         click.echo("\n❌ SCSS Compilation Error")
         click.echo("=" * 50)
 
-    if error_file and error_line:
-        if console:
-            console.print_error(f"Error: {error_message}")
-            console.print_error(f"File: {error_file}")
-            console.print_error(f"Line: {error_line}")
-            console.print_info(f"Opening {error_file} for editing...")
-        else:
-            click.echo(f"Error: {error_message}")
-            click.echo(f"File: {error_file}")
-            click.echo(f"Line: {error_line}")
-            click.echo()
-            click.echo(f"Opening {error_file} for editing...")
+    if error_details:
+        unique_files: set[str] = set()
 
-        try:
-            subprocess.run(["open", str(theme_path / error_file)], check=False)
-        except Exception as e:
-            logger.warning(f"Could not open file: {e}")
+        for error in error_details:
+            error_message = error.get("message")
+            error_file = error.get("source_file")
+            error_line = error.get("line")
+            error_column = error.get("column")
+
+            if error_file:
+                unique_files.add(error_file)
+
+            line_content = None
+            if error_file and error_line:
+                source_path = theme_path / error_file
+                if source_path.exists():
+                    try:
+                        source_lines = source_path.read_text(encoding="utf-8", errors="ignore")
+                        source_lines = source_lines.splitlines()
+                        if error_line <= len(source_lines):
+                            line_content = source_lines[error_line - 1].rstrip()
+                    except Exception as e:
+                        logger.warning(f"Could not read source file for snippet: {e}")
+
             if console:
-                console.print_warning(f"Please manually open: {theme_path / error_file}")
+                if error_message:
+                    console.print_error(f"Error: {error_message}")
+                if error_file:
+                    console.print_error(f"File: {error_file}")
+                if error_line:
+                    line_msg = f"Line: {error_line}"
+                    if error_column:
+                        line_msg += f", Column: {error_column}"
+                    console.print_error(line_msg)
+                if line_content:
+                    console.print_info(f"Source: {line_content}")
+                console.print_info("")
             else:
-                click.echo(f"Please manually open: {theme_path / error_file}")
+                if error_message:
+                    click.echo(f"Error: {error_message}")
+                if error_file:
+                    click.echo(f"File: {error_file}")
+                if error_line:
+                    line_msg = f"Line: {error_line}"
+                    if error_column:
+                        line_msg += f", Column: {error_column}"
+                    click.echo(line_msg)
+                if line_content:
+                    click.echo(f"Source: {line_content}")
+                click.echo()
+
+        for error_file in sorted(unique_files):
+            try:
+                target_path = theme_path / error_file
+                if console:
+                    console.print_info(f"Opening {error_file} for editing...")
+                else:
+                    click.echo(f"Opening {error_file} for editing...")
+                subprocess.run(["open", str(target_path)], check=False)
+            except Exception as e:
+                logger.warning(f"Could not open file: {e}")
+                if console:
+                    console.print_warning(f"Please manually open: {theme_path / error_file}")
+                else:
+                    click.echo(f"Please manually open: {theme_path / error_file}")
     else:
         # Fallback to raw error display
-        if error_message:
+        error_lines = [
+            line for line in logs.split("\n") if "error" in line.lower() and line.strip()
+        ]
+        if error_lines:
             if console:
-                console.print_error(f"Error: {error_message}")
+                console.print_error("Recent errors from Gulp:")
+                for line in error_lines[-3:]:
+                    console.print_info(f"  {line.strip()}")
             else:
-                click.echo(f"Error: {error_message}")
+                click.echo("Recent errors from Gulp:")
+                for line in error_lines[-3:]:
+                    click.echo(f"  {line.strip()}")
         else:
-            # Show generic error info
-            error_lines = [
-                line for line in logs.split("\n") if "error" in line.lower() and line.strip()
-            ]
-            if error_lines:
-                if console:
-                    console.print_error("Recent errors from Gulp:")
-                    for line in error_lines[-3:]:
-                        console.print_info(f"  {line.strip()}")
-                else:
-                    click.echo("Recent errors from Gulp:")
-                    for line in error_lines[-3:]:
-                        click.echo(f"  {line.strip()}")
+            if console:
+                console.print_error("Unable to parse error details from logs.")
+            else:
+                click.echo("Unable to parse error details from logs.")
 
         if console:
             console.print_info(f"Please check these files in: {theme_path}")
@@ -1660,8 +1753,24 @@ def _parse_compilation_errors(logs: str) -> list[dict]:
                     if len(match.groups()) >= 4:
                         error["error_message"] = match.group(4)
 
+                if "message" not in error:
+                    error["message"] = error.get("error_message", error["line_content"])
+
                 errors.append(error)
                 logger.info(f"Detected {error['type']}: {error['line_content']}")
+
+    # Enrich errors with file/line details from multi-line log patterns
+    error_details = _extract_error_details_from_logs(logs)
+    if error_details:
+        for error, detail in zip(errors, error_details):
+            if "file" not in error and detail.get("source_file"):
+                error["file"] = detail["source_file"]
+            if "line_number" not in error and detail.get("line"):
+                error["line_number"] = detail["line"]
+            if not error.get("message") and detail.get("message"):
+                error["message"] = detail.get("message")
+            if detail.get("column"):
+                error["column"] = detail["column"]
 
     return errors
 
@@ -1803,6 +1912,9 @@ def _fix_invalid_css(error_info: dict, css_dir: Path) -> bool:
     """Fix invalid CSS syntax errors."""
     error_message = error_info.get("message", "")
 
+    if _fix_commented_selector_block(error_info, css_dir):
+        return True
+
     # Handle dangling comma selectors (like .navbar .navbar-inner ul.nav li a,)
     if "expected 1 selector or at-rule" in error_message and (
         ".navbar" in error_message or "navbar-inn" in error_message
@@ -1820,6 +1932,53 @@ def _fix_invalid_css(error_info: dict, css_dir: Path) -> bool:
     # Fall back to commenting out the line
     return _comment_out_error_line(error_info, css_dir)
 
+
+def _fix_commented_selector_block(error_info: dict, css_dir: Path) -> bool:
+    """Uncomment selector lines when a block was accidentally commented out."""
+    if "file" not in error_info or "line_number" not in error_info:
+        return False
+
+    file_name = error_info["file"]
+    line_number = error_info["line_number"]
+
+    # Find the test file
+    test_file_path = None
+    for file_path in css_dir.iterdir():
+        if file_path.name.startswith("test-") and file_name in file_path.name:
+            test_file_path = file_path
+            break
+
+    if not test_file_path or not test_file_path.exists():
+        return False
+
+    try:
+        content = test_file_path.read_text()
+        lines = content.splitlines(keepends=True)
+
+        if line_number <= 1 or line_number > len(lines):
+            return False
+
+        # Walk backwards to find a commented selector line before the error
+        for i in range(line_number - 2, -1, -1):
+            stripped = lines[i].strip()
+            if not stripped:
+                continue
+
+            if stripped.startswith("//") and "{" in stripped:
+                uncommented = re.sub(r"^\s*//\s?", "", lines[i])
+                if "{" in uncommented:
+                    lines[i] = uncommented
+                    test_file_path.write_text("".join(lines))
+                    logger.info(
+                        f"Uncommented selector in {test_file_path.name} at line {i + 1}"
+                    )
+                    return True
+            break
+
+    except Exception as e:
+        logger.warning(f"Error uncommenting selector line: {e}")
+
+    return False
 
 def _fix_dangling_comma_selector(_error_info: dict, css_dir: Path) -> bool:
     """Fix dangling comma selectors followed by comments that break SCSS compilation."""
