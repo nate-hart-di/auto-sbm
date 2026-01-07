@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-01-06
+
+### Fixed
+
+- **SCSS Import Removal Bug**: Fixed `_remove_imports()` regex that was consuming indentation and whitespace from the line following @import statements. Changed trailing `\s*` to `\n?` to only remove one newline, preserving indentation and blank lines. This bug was causing selectors after imports to lose their indentation, potentially causing SCSS compilation errors.
+
 ## [2.2.0] - 2026-01-06
 
 ### Added

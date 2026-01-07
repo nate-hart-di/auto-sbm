@@ -339,8 +339,9 @@ class SCSSProcessor:
         # - Handles optional semicolons
         # - Handles multi-line imports
         # - Handles cases with no space like @import'path'
+        # CRITICAL FIX: Use \n? instead of \s* to avoid consuming next line's content
         return re.sub(
-            r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?\s*", "", content, flags=re.MULTILINE | re.DOTALL
+            r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?\n?", "", content, flags=re.MULTILINE | re.DOTALL
         )
 
     def _convert_scss_functions(self, content: str) -> str:
