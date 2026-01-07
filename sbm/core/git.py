@@ -323,11 +323,12 @@ class GitOperations:
             logger.info("Setting up clean main branch")
             repo = self._get_repo()
 
-            # Stash or discard any local changes before switching branches
             if repo.is_dirty(untracked_files=True):
-                logger.debug("Discarding dirty working directory before checkout.")
-                repo.git.reset("--hard")
-                repo.git.clean("-fd")
+                logger.error(
+                    "Working tree has uncommitted changes. Commit or stash them, "
+                    "or rerun with --skip-git."
+                )
+                return False
 
             repo.heads.main.checkout()
             logger.debug("Pulling latest changes from origin/main")

@@ -360,6 +360,37 @@ class SCSSProcessor:
             r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?[\r\n]*", "", content, flags=re.MULTILINE | re.DOTALL
         )
 
+    def _fix_commented_selector_blocks(self, content: str) -> str:
+        """
+        Restore selector lines that are commented but followed by live declarations.
+
+        Example:
+            // #side-toolbar {
+              top: 230px !important;
+            }
+        """
+        lines = content.splitlines(keepends=True)
+
+        for i, line in enumerate(lines):
+            if not re.match(r"^\s*//\s*[^/].*\{\s*$", line):
+                continue
+
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+
+            if j >= len(lines):
+                continue
+
+            next_stripped = lines[j].lstrip()
+            if next_stripped.startswith(("//", "/*")):
+                continue
+
+            # Uncomment the selector line to avoid orphaned declarations.
+            lines[i] = re.sub(r"^(\s*)//\s?", r"\1", line)
+
+        return "".join(lines)
+
     def _convert_scss_functions(self, content: str) -> str:
         """
         Convert SCSS functions to CSS-compatible equivalents.
@@ -612,10 +643,13 @@ class SCSSProcessor:
             # Step 4: Remove imports
             processed_content = self._remove_imports(content)
 
-            # Step 5: Clean up large comment blocks and section dividers
+            # Step 5: Restore selector lines that were commented but still have active blocks
+            processed_content = self._fix_commented_selector_blocks(processed_content)
+
+            # Step 6: Clean up large comment blocks and section dividers
             processed_content = self._clean_comment_blocks(processed_content)
 
-            # Step 6: Trim whitespace for a clean final output
+            # Step 7: Trim whitespace for a clean final output
             return self._trim_whitespace(processed_content)
 
         except Exception as e:
@@ -693,7 +727,10 @@ class SCSSProcessor:
             # 6. Remove imports (Added)
             processed_content = self._remove_imports(processed_content)
 
-            # 7. Remove trailing whitespace from lines
+            # 7. Restore selector lines that were commented but still have active blocks
+            processed_content = self._fix_commented_selector_blocks(processed_content)
+
+            # 8. Remove trailing whitespace from lines
             lines = processed_content.split("\n")
             cleaned_lines = [line.rstrip() for line in lines]
             processed_content = "\n".join(cleaned_lines)
