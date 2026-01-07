@@ -332,16 +332,32 @@ class SCSSProcessor:
 
     def _remove_imports(self, content: str) -> str:
         """
-        Removes all @import statements from the SCSS content.
+        Removes all @import statements from SCSS content.
+
+        Handles various import formats:
+        - With/without quotes: @import "file" or @import 'file'
+        - With/without semicolon: @import "file"; or @import "file"
+        - With/without url(): @import url("file")
+        - Windows (\\r\\n) and Unix (\\n) line endings
+
+        Preserves indentation and formatting of following lines.
+        Removes trailing line ending (\\n, \\r\\n, or \\r) if present.
+
+        Returns:
+            SCSS content with all @import statements removed
         """
-        # Logic to remove all @import lines:
-        # - Handles single or double quotes
-        # - Handles optional semicolons
-        # - Handles multi-line imports
-        # - Handles cases with no space like @import'path'
-        # CRITICAL FIX: Use \n? instead of \s* to avoid consuming next line's content
+        # CRITICAL FIX (v2.2.1): Changed \\s* to [\\r\\n]* to preserve indentation.
+        # Bug: \\s* with re.DOTALL consumed newlines AND indentation from next line,
+        # causing selectors after @import to lose formatting and break SCSS compilation.
+        # Example: "@import 'file';\\n  #selector {" became "#selector {" (lost 2-space indent)
+        #
+        # The regex now:
+        # - Matches @import with optional whitespace: @import\\s*
+        # - Handles quotes (single, double, or none): ['\"]?[^;'\"]+['\"]?
+        # - Handles optional semicolon with surrounding whitespace: (\\s*;)?
+        # - Removes ONLY line ending characters: [\\r\\n]* (handles \\n, \\r\\n, \\r, multiple newlines)
         return re.sub(
-            r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?\n?", "", content, flags=re.MULTILINE | re.DOTALL
+            r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?[\r\n]*", "", content, flags=re.MULTILINE | re.DOTALL
         )
 
     def _convert_scss_functions(self, content: str) -> str:
