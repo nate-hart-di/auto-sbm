@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-06
+
+### Added
+
+- **Comprehensive Migration Logging**: New `MigrationResult` dataclass with step-level error tracking (Git Setup, Docker Startup, Core Migration, SCSS Verification, Git Commit, PR Creation).
+- **Enhanced Error Reporting**: Full stack traces and SCSS compilation errors now captured and included in migration reports.
+- **Improved Report Format**: Reports now include summary statistics (success/fail counts), dedicated Salesforce Messages section for copy/paste, timing per slug, and branch names.
+- **Step Identification on Failure**: Failed migrations now clearly indicate which step failed for easier debugging.
+
+### Changed
+
+- **migrate_dealer_theme Return Type**: Now returns `MigrationResult` object instead of dict for richer error information.
+- **run_post_migration_workflow**: Accepts optional `result` parameter for step-level failure tracking.
+- **_verify_scss_compilation_with_docker**: Now optionally returns captured SCSS compilation errors.
+
 ## [2.1.9] - 2026-01-06
 
 ### Fixed

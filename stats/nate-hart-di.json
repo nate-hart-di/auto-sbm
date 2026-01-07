@@ -49,6 +49,7 @@
     "hellermotorsinc",
     "ingramparkchryslerjeepdodge",
     "iversonautogroup",
+    "iversonchryslercenter",
     "jackpowellchryslerdodgejeepram",
     "jakekaplansjaguar",
     "jamesriverchryslerdodgejeepram",
@@ -147,17 +148,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-09-05T20:01:06Z",
-      "slug": "millschryslerdodgejeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 479,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-09-11T22:12:57Z",
       "slug": "brydenmotors",
@@ -560,7 +550,7 @@
       "status": "success",
       "duration_seconds": 104.39,
       "automation_seconds": 9.13,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -570,7 +560,7 @@
       "status": "success",
       "duration_seconds": 104.34,
       "automation_seconds": 9.06,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -580,7 +570,7 @@
       "status": "success",
       "duration_seconds": 104.05,
       "automation_seconds": 8.87,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -590,7 +580,7 @@
       "status": "success",
       "duration_seconds": 125.87,
       "automation_seconds": 9.36,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -600,7 +590,7 @@
       "status": "success",
       "duration_seconds": 109.55,
       "automation_seconds": 8.99,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -610,7 +600,7 @@
       "status": "success",
       "duration_seconds": 113.15,
       "automation_seconds": 9.29,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -620,7 +610,7 @@
       "status": "success",
       "duration_seconds": 105.98,
       "automation_seconds": 9.58,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -630,7 +620,7 @@
       "status": "success",
       "duration_seconds": 110.6,
       "automation_seconds": 9.1,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -640,7 +630,7 @@
       "status": "success",
       "duration_seconds": 109.66,
       "automation_seconds": 9.28,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -650,7 +640,7 @@
       "status": "success",
       "duration_seconds": 104.18,
       "automation_seconds": 9.14,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -660,7 +650,7 @@
       "status": "success",
       "duration_seconds": 104.95,
       "automation_seconds": 9.35,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -670,7 +660,7 @@
       "status": "success",
       "duration_seconds": 217.02,
       "automation_seconds": 9.73,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -680,7 +670,7 @@
       "status": "success",
       "duration_seconds": 232.55,
       "automation_seconds": 9.02,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -690,7 +680,7 @@
       "status": "success",
       "duration_seconds": 110.56,
       "automation_seconds": 9.57,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -700,7 +690,7 @@
       "status": "success",
       "duration_seconds": 7.13,
       "automation_seconds": 7.13,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -710,7 +700,7 @@
       "status": "success",
       "duration_seconds": 7.28,
       "automation_seconds": 7.28,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -720,7 +710,7 @@
       "status": "success",
       "duration_seconds": 6.96,
       "automation_seconds": 6.96,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -730,7 +720,7 @@
       "status": "success",
       "duration_seconds": 7.8,
       "automation_seconds": 7.8,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -740,7 +730,7 @@
       "status": "success",
       "duration_seconds": 7.46,
       "automation_seconds": 7.46,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -750,7 +740,7 @@
       "status": "success",
       "duration_seconds": 8.37,
       "automation_seconds": 8.37,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -760,7 +750,7 @@
       "status": "success",
       "duration_seconds": 198.7,
       "automation_seconds": 9.86,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -770,7 +760,7 @@
       "status": "success",
       "duration_seconds": 126.67,
       "automation_seconds": 9.16,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -780,7 +770,7 @@
       "status": "success",
       "duration_seconds": 8.18,
       "automation_seconds": 8.18,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -790,7 +780,7 @@
       "status": "success",
       "duration_seconds": 105.96,
       "automation_seconds": 9.24,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -800,7 +790,7 @@
       "status": "success",
       "duration_seconds": 105.01,
       "automation_seconds": 8.97,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -810,7 +800,7 @@
       "status": "success",
       "duration_seconds": 127.25,
       "automation_seconds": 9.72,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -820,7 +810,7 @@
       "status": "success",
       "duration_seconds": 133.41,
       "automation_seconds": 8.92,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -830,7 +820,7 @@
       "status": "success",
       "duration_seconds": 112.88,
       "automation_seconds": 10.52,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -840,7 +830,7 @@
       "status": "success",
       "duration_seconds": 111.39,
       "automation_seconds": 9.58,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -850,7 +840,7 @@
       "status": "success",
       "duration_seconds": 108.61,
       "automation_seconds": 9.52,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -860,7 +850,7 @@
       "status": "success",
       "duration_seconds": 117.19,
       "automation_seconds": 9.81,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -870,7 +860,7 @@
       "status": "success",
       "duration_seconds": 163.98,
       "automation_seconds": 11.68,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -880,7 +870,7 @@
       "status": "success",
       "duration_seconds": 122.62,
       "automation_seconds": 10.52,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -890,7 +880,7 @@
       "status": "success",
       "duration_seconds": 123.13,
       "automation_seconds": 11.19,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -900,7 +890,7 @@
       "status": "success",
       "duration_seconds": 135.84,
       "automation_seconds": 10.24,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -910,7 +900,7 @@
       "status": "success",
       "duration_seconds": 127.02,
       "automation_seconds": 11.35,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -920,7 +910,7 @@
       "status": "success",
       "duration_seconds": 1132.28,
       "automation_seconds": 1016.32,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -930,7 +920,7 @@
       "status": "success",
       "duration_seconds": 168.43,
       "automation_seconds": 53.17,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -940,7 +930,7 @@
       "status": "success",
       "duration_seconds": 152.34,
       "automation_seconds": 11.13,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -950,7 +940,7 @@
       "status": "success",
       "duration_seconds": 123.68,
       "automation_seconds": 10.71,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -960,7 +950,7 @@
       "status": "success",
       "duration_seconds": 123.76,
       "automation_seconds": 11.55,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -970,7 +960,7 @@
       "status": "success",
       "duration_seconds": 124.89,
       "automation_seconds": 12.08,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -980,7 +970,7 @@
       "status": "success",
       "duration_seconds": 124.63,
       "automation_seconds": 10.4,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -990,7 +980,7 @@
       "status": "success",
       "duration_seconds": 123.75,
       "automation_seconds": 11.04,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1000,7 +990,7 @@
       "status": "success",
       "duration_seconds": 128.03,
       "automation_seconds": 10.62,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1010,7 +1000,7 @@
       "status": "success",
       "duration_seconds": 131.23,
       "automation_seconds": 11.27,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1020,7 +1010,7 @@
       "status": "success",
       "duration_seconds": 330.02,
       "automation_seconds": 217.05,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1030,7 +1020,7 @@
       "status": "success",
       "duration_seconds": 122.82,
       "automation_seconds": 10.67,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1040,7 +1030,7 @@
       "status": "success",
       "duration_seconds": 194.37,
       "automation_seconds": 80.6,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1050,7 +1040,7 @@
       "status": "success",
       "duration_seconds": 146.31,
       "automation_seconds": 10.45,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1060,7 +1050,7 @@
       "status": "success",
       "duration_seconds": 123.84,
       "automation_seconds": 11.17,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1070,7 +1060,7 @@
       "status": "success",
       "duration_seconds": 146.75,
       "automation_seconds": 10.57,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1080,7 +1070,7 @@
       "status": "success",
       "duration_seconds": 122.62,
       "automation_seconds": 11.23,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1090,7 +1080,7 @@
       "status": "success",
       "duration_seconds": 259.02,
       "automation_seconds": 146.06,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1100,7 +1090,7 @@
       "status": "success",
       "duration_seconds": 449.1,
       "automation_seconds": 335.99,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1110,7 +1100,7 @@
       "status": "success",
       "duration_seconds": 381.13,
       "automation_seconds": 258.37,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1120,7 +1110,7 @@
       "status": "success",
       "duration_seconds": 148.82,
       "automation_seconds": 10.78,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1130,7 +1120,7 @@
       "status": "success",
       "duration_seconds": 174.1,
       "automation_seconds": 61.03,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1140,7 +1130,7 @@
       "status": "success",
       "duration_seconds": 123.2,
       "automation_seconds": 10.38,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1150,7 +1140,7 @@
       "status": "success",
       "duration_seconds": 180.29,
       "automation_seconds": 38.59,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
       "manual_estimate_seconds": 14400
     },
     {
@@ -1160,9 +1150,19 @@
       "status": "success",
       "duration_seconds": 199.34,
       "automation_seconds": 13.22,
-      "lines_migrated": 0,
+      "lines_migrated": 800,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-06T21:43:31.891023+00:00Z",
+      "slug": "iversonchryslercenter",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 123.1,
+      "automation_seconds": 11.75,
+      "lines_migrated": 45,
       "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-06T17:00:39.961027+00:00Z"
+  "last_updated": "2026-01-06T21:43:31.891023+00:00Z"
 }

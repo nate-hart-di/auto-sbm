@@ -11,12 +11,12 @@ def extract_slug(title):
     match1 = re.search(r"PCON-727:\s+([a-zA-Z0-9_-]+)\s+SBM FE Audit", title)
     if match1:
         return match1.group(1)
-    
+
     # Pattern 2: {slug} - SBM FE Audit
     match2 = re.search(r"^([a-zA-Z0-9_-]+)\s+-\s+SBM FE Audit", title)
     if match2:
         return match2.group(1)
-    
+
     # Fallback: just take the first word if it looks like a slug
     return title.split()[0].lower()
 
@@ -33,10 +33,10 @@ def main():
         author = entry["author"]
         if author not in users:
             users[author] = {"migrations": set(), "runs": []}
-        
+
         slug = extract_slug(entry["title"])
         users[author]["migrations"].add(slug)
-        
+
         # Create a run entry
         # Note: We don't have duration/automation_time for history, so we'll use defaults
         # But we DO have additions (lines_migrated)
@@ -57,7 +57,7 @@ def main():
     for author, data in users.items():
         user_id = author.replace("@", "_").replace(".", "_")
         global_file = GLOBAL_STATS_DIR / f"{user_id}.json"
-        
+
         # If file exists, merge data
         existing_migrations = []
         existing_runs = []
@@ -73,7 +73,7 @@ def main():
         # Combine
         combined_migrations = sorted(list(set(existing_migrations) | data["migrations"]))
         combined_runs = existing_runs + data["runs"]
-        
+
         # Sort runs by timestamp
         combined_runs.sort(key=lambda x: x["timestamp"])
 
@@ -86,7 +86,7 @@ def main():
 
         with global_file.open("w", encoding="utf-8") as f:
             json.dump(final_data, f, indent=2)
-        
+
         print(f"Backfilled {len(data['runs'])} runs for {author} -> {global_file}")
 
 if __name__ == "__main__":

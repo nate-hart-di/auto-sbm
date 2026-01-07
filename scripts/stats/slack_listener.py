@@ -18,6 +18,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+# Add project root to sys.path to ensure 'sbm' package is findable
+REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 # Try to load environment variables
 try:
     from dotenv import load_dotenv

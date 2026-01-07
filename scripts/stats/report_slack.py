@@ -21,6 +21,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Add project root to sys.path to ensure 'sbm' package is findable
+REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 # Try to load environment variables from .env if python-dotenv is installed
 try:
     from dotenv import load_dotenv
@@ -358,10 +363,16 @@ def format_slack_payload(
     top_n: int | None = None,
 ) -> Dict[str, Any]:
     """Format metrics into a Slack Block Kit payload."""
+    now = datetime.now(timezone.utc)
+
     if period.lower() == "all":
         period_label = "All Time"
+        date_range_str = "Project Inception - Present"
     else:
         days = get_days_from_period(period)
+        start_date = now - timedelta(days=days)
+        # Format: "Dec 30 - Jan 06"
+        date_range_str = f"{start_date.strftime('%b %d')} - {now.strftime('%b %d')}"
         period_label = "24 Hours" if days == 1 else f"{days} Days"
 
     if metrics["total_runs"] == 0:
@@ -373,59 +384,95 @@ def format_slack_payload(
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"{context_label or 'Auto-SBM'}\n{text}",
+                        "text": f"*No Activity*\n{text}",
                     },
-                }
+                },
+                {
+                    "type": "context",
+                    "elements": [{"type": "mrkdwn", "text": f"Period: {date_range_str}"}],
+                },
             ],
         }
 
-    # Format fields
-    fields = [
-        {"type": "mrkdwn", "text": f"*Sites Migrated*\n{metrics['sites_migrated']}"},
-        {"type": "mrkdwn", "text": f"*Lines Migrated*\n{metrics['lines_migrated']:,}"},
-        {"type": "mrkdwn", "text": f"*Est. Time Saved*\n{metrics['time_saved_hours']}h"},
-    ]
+    # Determine command label for display
+    p_lower = period.lower()
+    if p_lower in ["day", "daily", "1"]:
+        cmd_label = "/sbm-stats day"
+    elif p_lower in ["week", "weekly", "7"]:
+        cmd_label = "/sbm-stats week"
+    elif p_lower in ["month", "monthly", "30"]:
+        cmd_label = "/sbm-stats month"
+    elif p_lower == "all":
+        cmd_label = "/sbm-stats all"
+    else:
+        cmd_label = f"/sbm-stats {period}"
 
-    # Top contributors section
-    contributors_text = ""
+    summary_text = (
+        f"SBM Stats: {metrics['sites_migrated']} sites, "
+        f"{metrics['time_saved_hours']}h saved ({date_range_str})."
+    )
+
+    blocks = []
+
+    # 1. Main Header with Date Context
+    blocks.append(
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": f"SBM Stats — {date_range_str}", "emoji": False},
+        }
+    )
+
+    # 2. Command Context (Subtitle)
+    blocks.append(
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"Command: `{cmd_label}`"}]}
+    )
+
+    blocks.append({"type": "divider"})
+
+    # 3. Primary Metrics Grid
+    # Using bold numbers for visual impact
+    blocks.append(
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Sites Migrated*\n*{metrics['sites_migrated']}*"},
+                {"type": "mrkdwn", "text": f"*Est. Time Saved*\n*{metrics['time_saved_hours']}h*"},
+            ],
+        }
+    )
+
+    # 4. Secondary Metrics Grid
+    blocks.append(
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Lines of Code*\n{metrics['lines_migrated']:,}"},
+                {"type": "mrkdwn", "text": f"*Success Rate*\n{metrics['success_rate']:.1f}%"},
+            ],
+        }
+    )
+
+    # 5. Top Contributors (Optional)
     if top_n and metrics["top_contributors"]:
+        blocks.append({"type": "divider"})
         ranked = []
         for idx, (u, data) in enumerate(metrics["top_contributors"][:top_n], start=1):
-            ranked.append(f"{idx}. {u} — {data['sites']} sites")
-        contributors_text = "*Top Contributors*\n" + "\n".join(ranked)
+            # E.g. "1. nate-hart-di (5 sites)"
+            ranked.append(f"*{idx}. {u}* — {data['sites']} sites")
 
-    summary = (
-        f"SBM Report ({period_label}): {metrics['sites_migrated']} "
-        f"sites migrated, {metrics['time_saved_hours']}h saved."
-    )
-    context = context_label or f"Auto-SBM • {period_label}"
+        blocks.append(
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "*Top Contributors*\n" + "\n".join(ranked)},
+            }
+        )
+
+    # Separation Divider (Bottom)
+    blocks.append({"type": "divider"})
+
     return {
-        "text": summary,
-        "blocks": [
-            {
-                "type": "context",
-                "elements": [
-                    {"type": "mrkdwn", "text": context},
-                ],
-            },
-            {"type": "section", "fields": fields},
-            *(
-                [{"type": "section", "text": {"type": "mrkdwn", "text": contributors_text}}]
-                if contributors_text
-                else []
-            ),
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": (
-                            f"Based on {metrics['sites_migrated']} sites across {metrics['success_count']} successful runs."
-                        ),
-                    }
-                ],
-            },
-        ],
+        "text": summary_text,
+        "blocks": blocks,
     }
 
 

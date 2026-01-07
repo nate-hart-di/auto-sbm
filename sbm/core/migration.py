@@ -10,8 +10,12 @@ import re
 import shutil
 import subprocess
 import time
+import traceback
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from typing import TYPE_CHECKING, Optional, Dict, Any, List
 
 import click
 from rich.prompt import Confirm
@@ -31,6 +35,63 @@ from .maps import migrate_map_components
 
 if TYPE_CHECKING:
     from sbm.ui.console import SBMConsole
+
+
+class MigrationStep(Enum):
+    """Enumeration of migration steps for error tracking."""
+
+    GIT_SETUP = "git_setup"
+    DOCKER_STARTUP = "docker_startup"
+    CORE_MIGRATION = "core_migration"
+    SCSS_VERIFICATION = "scss_verification"
+    GIT_COMMIT = "git_commit"
+    PR_CREATION = "pr_creation"
+
+
+@dataclass
+class MigrationResult:
+    """
+    Comprehensive result object for a single migration attempt.
+
+    Captures all relevant information for reporting and debugging.
+    """
+
+    slug: str
+    status: str = "pending"  # pending, success, failed, error
+    step_failed: Optional[MigrationStep] = None
+    error_message: Optional[str] = None
+    stack_trace: Optional[str] = None
+    scss_errors: List[str] = field(default_factory=list)
+    pr_url: Optional[str] = None
+    salesforce_message: Optional[str] = None
+    branch_name: Optional[str] = None
+    elapsed_time: float = 0.0
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    def mark_success(
+        self, pr_url: Optional[str] = None, salesforce_message: Optional[str] = None
+    ) -> None:
+        """Mark the migration as successful."""
+        self.status = "success"
+        self.pr_url = pr_url
+        self.salesforce_message = salesforce_message
+
+    def mark_failed(self, step: MigrationStep, error: str, trace: Optional[str] = None) -> None:
+        """Mark the migration as failed at a specific step."""
+        self.status = "failed"
+        self.step_failed = step
+        self.error_message = error
+        self.stack_trace = trace
+
+    def mark_error(self, error: Exception) -> None:
+        """Mark the migration as errored with an exception."""
+        self.status = "error"
+        self.error_message = str(error)
+        self.stack_trace = traceback.format_exc()
+
+    def add_scss_error(self, error: str) -> None:
+        """Add an SCSS compilation error to the list."""
+        self.scss_errors.append(error)
 
 
 def _cleanup_exclusion_comments(slug: str) -> None:
@@ -860,7 +921,7 @@ def migrate_dealer_theme(
     interactive_pr: bool = True,
     verbose_docker: bool = False,
     console: SBMConsole | None = None,
-) -> Dict[str, Any]:
+) -> MigrationResult:
     """
     Migrate a dealer theme to the Site Builder platform.
 
@@ -872,15 +933,18 @@ def migrate_dealer_theme(
         skip_maps: Whether to skip map components migration
         oem_handler: Manually specified OEM handler
         create_pr: Whether to create a GitHub Pull Request
-        _interactive_review: DEPRECATED
+        interactive_review: Whether to prompt for manual review
         interactive_git: Whether to prompt for Git operations
         interactive_pr: Whether to prompt for PR creation
-        _verbose_docker: Whether to show verbose Docker output
+        verbose_docker: Whether to show verbose Docker output
         console: Optional console instance for unified UI
 
     Returns:
-        Dict[str, Any]: Dictionary with keys 'success' (bool), 'pr_url' (str), and 'salesforce_message' (str)
+        MigrationResult: Comprehensive result object with success status and error details
     """
+    start_time = time.time()
+    result = MigrationResult(slug=slug)
+
     if console is None:
         console = get_console()
 
@@ -890,43 +954,217 @@ def migrate_dealer_theme(
         oem_handler = OEMFactory.detect_from_theme(slug)
 
     branch_name = None
+
+    # Step 1: Git Setup
     if not skip_git:
-        console.print_step("Setting up Git branch and repository")
-        with timer_segment("Git Operations"):
-            success, branch_name = git_operations(slug)
-        if not success:
-            return {"success": False, "pr_url": None, "salesforce_message": None}
+        try:
+            console.print_step("Setting up Git branch and repository")
+            with timer_segment("Git Operations"):
+                success, branch_name = git_operations(slug)
+            if not success:
+                result.mark_failed(MigrationStep.GIT_SETUP, "Git operations failed")
+                result.elapsed_time = time.time() - start_time
+                return result
+            result.branch_name = branch_name
+        except Exception as e:
+            result.mark_failed(MigrationStep.GIT_SETUP, str(e), traceback.format_exc())
+            result.elapsed_time = time.time() - start_time
+            return result
 
+    # Step 2: Docker Startup
     if not skip_just:
-        console.print_step("Starting Docker environment (just start)")
-        with timer_segment("Docker Startup"):
-            if not run_just_start(slug, suppress_output=False):
-                return {"success": False, "pr_url": None, "salesforce_message": None}
+        try:
+            console.print_step("Starting Docker environment (just start)")
+            with timer_segment("Docker Startup"):
+                if not run_just_start(slug, suppress_output=False):
+                    result.mark_failed(MigrationStep.DOCKER_STARTUP, "Docker startup failed")
+                    result.elapsed_time = time.time() - start_time
+                    return result
+        except Exception as e:
+            result.mark_failed(MigrationStep.DOCKER_STARTUP, str(e), traceback.format_exc())
+            result.elapsed_time = time.time() - start_time
+            return result
 
-    success, lines_migrated = _perform_core_migration(
-        slug, force_reset, oem_handler, skip_maps, console
-    )
-    if not success:
-        return {"success": False, "pr_url": None, "salesforce_message": None, "lines_migrated": 0}
+    # Step 3: Core Migration
+    try:
+        success, lines_migrated = _perform_core_migration(
+            slug, force_reset, oem_handler, skip_maps, console
+        )
+        if not success:
+            result.mark_failed(MigrationStep.CORE_MIGRATION, "Core migration failed")
+            result.elapsed_time = time.time() - start_time
+            return result
+    except Exception as e:
+        result.mark_failed(MigrationStep.CORE_MIGRATION, str(e), traceback.format_exc())
+        result.elapsed_time = time.time() - start_time
+        return result
 
     _create_automation_snapshots(slug)
 
-    result = run_post_migration_workflow(
-        slug,
-        branch_name,
-        skip_git=skip_git,
-        create_pr=create_pr,
-        interactive_review=interactive_review,
-        interactive_git=interactive_git,
-        interactive_pr=interactive_pr,
-        console=console,
-    )
+    # Step 4+: Post-migration workflow (includes SCSS verification, Git commit, PR creation)
+    try:
+        post_result = run_post_migration_workflow(
+            slug,
+            branch_name,
+            skip_git=skip_git,
+            create_pr=create_pr,
+            interactive_review=interactive_review,
+            interactive_git=interactive_git,
+            interactive_pr=interactive_pr,
+            console=console,
+            result=result,  # Pass result for step tracking
+        )
 
-    # Add lines_migrated to the result
-    if isinstance(result, dict):
-        result["lines_migrated"] = lines_migrated
+        # If post_result is a dict (legacy), extract values
+        if isinstance(post_result, dict):
+            if post_result.get("success"):
+                result.mark_success(
+                    pr_url=post_result.get("pr_url"),
+                    salesforce_message=post_result.get("salesforce_message"),
+                )
+            else:
+                # Step failed in post-migration - result should already be marked
+                if result.status == "pending":
+                    result.mark_failed(
+                        post_result.get("step_failed", MigrationStep.PR_CREATION),
+                        post_result.get("error", "Post-migration workflow failed"),
+                    )
+    except Exception as e:
+        result.mark_error(e)
 
+    result.elapsed_time = time.time() - start_time
     return result
+
+
+# ... (lines 931-727 skipped, no changes needed there) ...
+
+
+def run_post_migration_workflow(
+    slug: str,
+    branch_name: str | None,
+    skip_git: bool = False,
+    create_pr: bool = True,
+    interactive_review: bool = True,
+    interactive_git: bool = True,
+    interactive_pr: bool = True,
+    skip_reprocessing: bool = False,
+    console: SBMConsole | None = None,
+    result: MigrationResult | None = None,
+) -> Dict[str, Any]:
+    """
+    Run the post-migration workflow including git operations and PR creation.
+
+    Args:
+        slug: Dealer theme slug
+        branch_name: Git branch name
+        skip_git: Whether to skip git operations
+        create_pr: Whether to create a pull request
+        interactive_review: Whether to prompt for manual review
+        interactive_git: Whether to prompt for Git operations
+        interactive_pr: Whether to prompt for PR creation
+        skip_reprocessing: Whether to skip reprocessing manual changes
+        console: Optional console instance for unified UI
+        result: Optional MigrationResult for step-level error tracking
+
+    Returns:
+        Dict[str, Any]: Result dictionary
+    """
+    if console is None:
+        console = get_console()
+
+    logger.debug(f"Starting post-migration workflow for {slug} on branch {branch_name}")
+
+    if not skip_reprocessing:
+        with timer_segment("Reprocessing Manual Changes"):
+            if not reprocess_manual_changes(slug):
+                if result:
+                    result.mark_failed(
+                        MigrationStep.CORE_MIGRATION, "Reprocessing manual changes failed"
+                    )
+                return {
+                    "success": False,
+                    "pr_url": None,
+                    "salesforce_message": None,
+                    "step_failed": MigrationStep.CORE_MIGRATION,
+                }
+
+        with timer_segment("SCSS Compilation Verification"):
+            theme_dir = Path(get_dealer_theme_dir(slug))
+            sb_files = ["sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss"]
+            success, scss_errors = _verify_scss_compilation_with_docker(
+                theme_dir, slug, sb_files, console=console, capture_errors=True
+            )
+            if not success:
+                if result:
+                    result.mark_failed(MigrationStep.SCSS_VERIFICATION, "SCSS compilation failed")
+                    for err in scss_errors:
+                        result.add_scss_error(err)
+                return {
+                    "success": False,
+                    "pr_url": None,
+                    "salesforce_message": None,
+                    "step_failed": MigrationStep.SCSS_VERIFICATION,
+                }
+
+    _cleanup_snapshot_files(slug)
+
+    # Automated Git operations
+    if not skip_git:
+        with timer_segment("Git Operations"):
+            if not commit_changes(slug):
+                if result:
+                    result.mark_failed(MigrationStep.GIT_COMMIT, "Git commit failed")
+                return {
+                    "success": False,
+                    "pr_url": None,
+                    "salesforce_message": None,
+                    "step_failed": MigrationStep.GIT_COMMIT,
+                }
+            if not push_changes(branch_name):
+                if result:
+                    result.mark_failed(MigrationStep.GIT_COMMIT, "Git push failed")
+                return {
+                    "success": False,
+                    "pr_url": None,
+                    "salesforce_message": None,
+                    "step_failed": MigrationStep.GIT_COMMIT,
+                }
+
+    # Automated PR creation
+    pr_url = None
+    salesforce_message = None
+    success = True
+
+    if create_pr:
+        logger.info(f"Creating PR for {slug}...")
+        pr_result = git_create_pr(slug, branch_name)
+
+        if isinstance(pr_result, dict):
+            success = pr_result.get("success", False)
+            pr_url = pr_result.get("pr_url")
+            salesforce_message = pr_result.get("salesforce_message")
+        else:
+            success, pr_url = pr_result
+
+        if success:
+            logger.debug(f"PR created: {pr_url}")
+        else:
+            logger.error(f"Failed to create PR for {slug}")
+            if result:
+                result.mark_failed(
+                    MigrationStep.PR_CREATION,
+                    pr_result.get("error", "PR creation failed")
+                    if isinstance(pr_result, dict)
+                    else "PR creation failed",
+                )
+            return {
+                "success": False,
+                "pr_url": None,
+                "salesforce_message": None,
+                "step_failed": MigrationStep.PR_CREATION,
+            }
+
+    return {"success": success, "pr_url": pr_url, "salesforce_message": salesforce_message}
 
 
 def _prepare_test_scaffolding(
@@ -982,7 +1220,8 @@ def _verify_scss_compilation_with_docker(
     sb_files: list[str],
     skip_git_checkout: bool = False,
     console: SBMConsole | None = None,
-) -> bool:
+    capture_errors: bool = False,
+) -> bool | tuple[bool, List[str]]:
     """
     Verify SCSS compilation by copying files to CSS directory and monitoring Docker logs.
 
@@ -992,13 +1231,16 @@ def _verify_scss_compilation_with_docker(
         sb_files: List of Site Builder SCSS files to verify
         skip_git_checkout: Whether to skip resetting git state
         console: Optional console instance for unified UI
+        capture_errors: If True, return (success, errors_list) tuple
 
     Returns:
         bool: True if all files compile successfully, False otherwise
+        OR tuple[bool, List[str]]: (success, errors_list) if capture_errors=True
     """
     theme_path = Path(theme_dir)
     css_dir = theme_path / "css"
     manual_fix_attempted = False
+    captured_errors: List[str] = []
 
     while True:
         logger.info(f"Testing SCSS compilation for {slug}...")
@@ -1006,7 +1248,7 @@ def _verify_scss_compilation_with_docker(
 
         if not test_files:
             logger.warning("No Site Builder files found to test")
-            return True
+            return (True, []) if capture_errors else True
 
         # Wait for compilation to trigger
         _wait_for_gulp_idle(timeout=20)
@@ -1018,6 +1260,21 @@ def _verify_scss_compilation_with_docker(
 
         manual_fix_attempted = manual_fix_attempted or recovery_manual
 
+        # Capture errors from Docker logs if requested and there was a failure
+        if not success and capture_errors:
+            try:
+                docker_logs = execute_command(["docker", "logs", "--tail", "100", "dealer-gulp-1"])
+                if docker_logs:
+                    # Extract error lines from logs
+                    for line in docker_logs.split("\n"):
+                        if any(
+                            err_indicator in line.lower()
+                            for err_indicator in ["error:", "invalid", "undefined", "syntax"]
+                        ):
+                            captured_errors.append(line.strip())
+            except Exception as e:
+                captured_errors.append(f"Failed to capture Docker logs: {str(e)}")
+
         if rerun_requested:
             logger.info("Manual fixes applied. Restarting verification cycle...")
             _cleanup_verification_artifacts(css_dir, test_files, True, theme_path)
@@ -1026,6 +1283,9 @@ def _verify_scss_compilation_with_docker(
         _cleanup_verification_artifacts(
             css_dir, test_files, skip_git_checkout or manual_fix_attempted, theme_path
         )
+
+        if capture_errors:
+            return success, captured_errors
         return success
 
 

@@ -30,6 +30,8 @@ from sbm.utils.tracker import (
 from .config import Config, ConfigurationError, get_config
 from .core.git import GitOperations
 from .core.migration import (
+    MigrationResult,
+    MigrationStep,
     _attempt_error_fix,
     _cleanup_snapshot_files,
     _create_automation_snapshots,
@@ -678,51 +680,121 @@ def _perform_migration_steps(
     return True, lines_migrated
 
 
-def _generate_migration_report(results: list[dict]) -> None:
+def _generate_migration_report(results: list[MigrationResult | dict]) -> None:
     """
-    Generate a user-specific migration report.
+    Generate a comprehensive user-specific migration report.
 
     Args:
-        results: List of migration result dictionaries
+        results: List of MigrationResult objects or legacy dictionaries
     """
-    import datetime
-
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     reports_dir = REPO_ROOT / "reports"
     reports_dir.mkdir(exist_ok=True)
 
     report_path = reports_dir / f"migration_report_{timestamp}.txt"
 
+    # Calculate summary statistics
+    total = len(results)
+    success_count = sum(1 for r in results if _get_status(r) == "success")
+    failed_count = sum(1 for r in results if _get_status(r) == "failed")
+    error_count = sum(1 for r in results if _get_status(r) == "error")
+
     try:
         with report_path.open("w") as f:
-            f.write(f"SBM Migration Report - {timestamp}\n")
-            f.write("=" * 50 + "\n\n")
+            # Header
+            f.write("=" * 60 + "\n")
+            f.write("           SBM MIGRATION REPORT\n")
+            f.write(f"           Generated: {timestamp}\n")
+            f.write("=" * 60 + "\n\n")
+
+            # Summary Section
+            f.write("SUMMARY\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"Total Slugs Processed: {total}\n")
+            f.write(f"✅ Successful: {success_count}\n")
+            f.write(f"❌ Failed: {failed_count}\n")
+            f.write(f"⚠️  Errors: {error_count}\n")
+            f.write("\n" + "=" * 60 + "\n\n")
+
+            # Salesforce Messages Section (for copy/paste convenience)
+            successful_results = [r for r in results if _get_status(r) == "success"]
+            if successful_results:
+                f.write("SALESFORCE MESSAGES (Copy/Paste Ready)\n")
+                f.write("-" * 40 + "\n\n")
+                for res in successful_results:
+                    slug = _get_field(res, "slug")
+                    salesforce_msg = _get_field(res, "salesforce_message")
+                    pr_url = _get_field(res, "pr_url")
+
+                    if salesforce_msg:
+                        f.write(f"### {slug} ###\n")
+                        f.write(f"PR: {pr_url or 'N/A'}\n\n")
+                        f.write(f"{salesforce_msg}\n")
+                        f.write("\n" + "-" * 40 + "\n\n")
+
+                f.write("=" * 60 + "\n\n")
+
+            # Detailed Results
+            f.write("DETAILED RESULTS\n")
+            f.write("-" * 40 + "\n\n")
 
             for res in results:
-                slug = res.get("slug")
-                status = res.get("status", "unknown").upper()
-                pr_url = res.get("pr_url") or "N/A"
-                error = res.get("error")
-                salesforce_msg = res.get("salesforce_message")
+                slug = _get_field(res, "slug")
+                status = _get_status(res).upper()
+                pr_url = _get_field(res, "pr_url") or "N/A"
+                branch = _get_field(res, "branch_name") or "N/A"
+                elapsed = _get_field(res, "elapsed_time") or 0
+                step_failed = _get_field(res, "step_failed")
+                error_msg = _get_field(res, "error_message") or _get_field(res, "error")
+                stack_trace = _get_field(res, "stack_trace")
+                scss_errors = _get_field(res, "scss_errors") or []
 
                 f.write(f"Slug: {slug}\n")
                 f.write(f"Status: {status}\n")
-                if error:
-                    f.write(f"Error: {error}\n")
+                f.write(f"Branch: {branch}\n")
+                f.write(f"Elapsed Time: {elapsed:.2f}s\n")
                 f.write(f"PR URL: {pr_url}\n")
 
-                if salesforce_msg:
-                    f.write("Salesforce Message:\n")
-                    f.write("-" * 20 + "\n")
-                    f.write(f"{salesforce_msg}\n")
-                    f.write("-" * 20 + "\n")
+                if step_failed:
+                    step_name = (
+                        step_failed.value if hasattr(step_failed, "value") else str(step_failed)
+                    )
+                    f.write(f"Failed At Step: {step_name}\n")
 
-                f.write("\n" + "=" * 50 + "\n\n")
+                if error_msg:
+                    f.write(f"Error: {error_msg}\n")
+
+                if scss_errors:
+                    f.write("SCSS Compilation Errors:\n")
+                    for err in scss_errors[:10]:  # Limit to first 10
+                        f.write(f"  - {err}\n")
+
+                if stack_trace:
+                    f.write("Stack Trace:\n")
+                    f.write("```\n")
+                    f.write(f"{stack_trace}\n")
+                    f.write("```\n")
+
+                f.write("\n" + "=" * 60 + "\n\n")
 
         logger.info(f"Detailed migration report generated: {report_path}")
         click.echo(f"\n📄 Report generated: {report_path}")
     except Exception as e:
         logger.error(f"Failed to generate migration report: {e}")
+
+
+def _get_status(result: MigrationResult | dict) -> str:
+    """Extract status from MigrationResult or dict."""
+    if isinstance(result, MigrationResult):
+        return result.status
+    return result.get("status", "unknown")
+
+
+def _get_field(result: MigrationResult | dict, field: str):
+    """Extract a field from MigrationResult or dict."""
+    if isinstance(result, MigrationResult):
+        return getattr(result, field, None)
+    return result.get(field)
 
 
 @cli.command()
@@ -846,7 +918,7 @@ def auto(
         original_confirm = patch_click_confirm_for_timing()
 
         try:
-            # Check if migrate_dealer_theme returns a dict or tuple
+            # migrate_dealer_theme now returns a MigrationResult object
             result = migrate_dealer_theme(
                 theme_name,
                 skip_just=skip_just,
@@ -859,61 +931,85 @@ def auto(
                 console=console,
             )
 
-            # Normalize result to dict
-            if isinstance(result, tuple):
-                success, pr_url = result
-                salesforce_msg = None
-                lines = 0
+            # Handle MigrationResult object
+            if isinstance(result, MigrationResult):
+                if result.status == "success":
+                    record_migration(theme_name)
+                    record_run(
+                        slug=theme_name,
+                        command="auto",
+                        status="success",
+                        duration=get_total_duration(),
+                        automation_time=get_total_automation_time(),
+                        lines_migrated=0,  # Lines tracked separately
+                    )
+                    sync_global_stats()
+                    ctx.invoke(stats)
+
+                    console.print_migration_complete(
+                        theme_name,
+                        elapsed_time=result.elapsed_time,
+                        files_processed=4,
+                        pr_url=result.pr_url,
+                    )
+
+                    restore_click_confirm(original_confirm)
+                    print_timing_summary(theme_name)
+
+                    migration_results.append(result)
+                else:
+                    console.print_error(f"Migration failed for {theme_name}")
+                    if result.step_failed:
+                        console.print_error(f"  Failed at step: {result.step_failed.value}")
+                    if result.error_message:
+                        console.print_error(f"  Error: {result.error_message}")
+                    migration_results.append(result)
             else:
+                # Legacy dict handling (fallback)
                 success = result.get("success", False)
                 pr_url = result.get("pr_url")
                 salesforce_msg = result.get("salesforce_message")
-                lines = result.get("lines_migrated", 0)
 
-            if success:
-                record_migration(theme_name)
-                record_run(
-                    slug=theme_name,
-                    command="auto",
-                    status="success",
-                    duration=get_total_duration(),
-                    automation_time=get_total_automation_time(),
-                    lines_migrated=lines,
-                )
-                sync_global_stats()
-                # Show updated stats after each migration
-                ctx.invoke(stats)
+                if success:
+                    record_migration(theme_name)
+                    record_run(
+                        slug=theme_name,
+                        command="auto",
+                        status="success",
+                        duration=get_total_duration(),
+                        automation_time=get_total_automation_time(),
+                        lines_migrated=result.get("lines_migrated", 0),
+                    )
+                    sync_global_stats()
+                    ctx.invoke(stats)
 
-                # Use result dict values if available, otherwise pr_url from tuple
-                final_pr_url = pr_url
+                    console.print_migration_complete(
+                        theme_name,
+                        elapsed_time=get_total_duration(),
+                        files_processed=4,
+                        pr_url=pr_url,
+                    )
 
-                console.print_migration_complete(
-                    theme_name,
-                    elapsed_time=get_total_duration(),
-                    files_processed=4,
-                    pr_url=final_pr_url,
-                )
+                    restore_click_confirm(original_confirm)
+                    print_timing_summary(theme_name)
 
-                restore_click_confirm(original_confirm)
-                print_timing_summary(theme_name)
-
-                migration_results.append(
-                    {
-                        "slug": theme_name,
-                        "status": "success",
-                        "pr_url": final_pr_url,
-                        "salesforce_message": salesforce_msg,
-                    }
-                )
-            else:
-                console.print_error(f"Migration failed for {theme_name}")
-                migration_results.append(
-                    {
-                        "slug": theme_name,
-                        "status": "failed",
-                        "error": "Migration failed (see logs)",
-                    }
-                )
+                    migration_results.append(
+                        {
+                            "slug": theme_name,
+                            "status": "success",
+                            "pr_url": pr_url,
+                            "salesforce_message": salesforce_msg,
+                        }
+                    )
+                else:
+                    console.print_error(f"Migration failed for {theme_name}")
+                    migration_results.append(
+                        {
+                            "slug": theme_name,
+                            "status": "failed",
+                            "error": "Migration failed (see logs)",
+                        }
+                    )
 
         except Exception as e:
             console.print_error(f"Error migrating {theme_name}: {e}")
@@ -942,12 +1038,17 @@ def auto(
     if len(expanded_themes) > 1:
         console.print_header("Batch Migration Summary", "")
         for res in migration_results:
-            status_icon = "✅" if res["status"] == "success" else "❌"
-            msg = f"{status_icon} {res['slug']}"
-            if res.get("pr_url"):
-                msg += f" - PR: {res['pr_url']}"
-            elif res.get("error"):
-                msg += f" - Error: {res['error']}"
+            status = _get_status(res)
+            slug = _get_field(res, "slug")
+            pr_url = _get_field(res, "pr_url")
+            error = _get_field(res, "error_message") or _get_field(res, "error")
+
+            status_icon = "✅" if status == "success" else "❌"
+            msg = f"{status_icon} {slug}"
+            if pr_url:
+                msg += f" - PR: {pr_url}"
+            elif error:
+                msg += f" - Error: {error}"
             console.print_info(msg)
 
 
@@ -1253,7 +1354,7 @@ def post_migrate(
     interactive_git = not skip_git_prompt
     interactive_pr = not skip_pr_prompt
 
-    success = run_post_migration_workflow(
+    result = run_post_migration_workflow(
         theme_name,
         branch_name,
         skip_git=skip_git,
@@ -1263,7 +1364,7 @@ def post_migrate(
         interactive_pr=interactive_pr,
     )
 
-    if success:
+    if result.get("success", False):
         click.echo(f"Post-migration workflow completed successfully for {theme_name}!")
     else:
         click.echo(f"Post-migration workflow failed for {theme_name}.", err=True)
