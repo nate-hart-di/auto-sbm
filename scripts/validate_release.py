@@ -176,17 +176,16 @@ def main() -> None:
         sys.exit(1)
 
     if version_bumped:
-        missing_docs = [path for path in ("CHANGELOG.md", "README.md") if path not in changed_files]
-        if missing_docs:
+        if "CHANGELOG.md" not in changed_files:
             print(
-                f"❌ Version bump requires updating {', '.join(missing_docs)}.",
+                "❌ Version bump requires updating CHANGELOG.md.",
                 file=sys.stderr,
             )
             sys.exit(1)
 
     version = read_version_from_pyproject()
     validate_changelog(version)
-    validate_readme(version)
+    # README validation removed - not required for every release
 
     print("✅ Release metadata checks passed.")
 

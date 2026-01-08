@@ -71,7 +71,7 @@ class SlugRetriever:
         raise ValueError(msg)
 
     def _read_csv(self) -> list[str]:
-        """Read website URLs from CSV file."""
+        """Read website URLs from CSV file, filtering by Stage column."""
         import csv
         from urllib.parse import urlparse
 
@@ -104,7 +104,29 @@ class SlugRetriever:
                 msg = "Could not find website URL column in CSV"
                 raise ValueError(msg)
 
+            # Look for Stage column (Salesforce format) for filtering
+            stage_columns = [
+                "Stage",
+                "stage",
+                "Status",
+                "status",
+            ]
+            stage_col = None
+            for col in stage_columns:
+                if col in reader.fieldnames:
+                    stage_col = col
+                    click.echo(f"  Filtering by column: {stage_col}")
+                    break
+
+            skipped_count = 0
             for row in reader:
+                # Filter by stage if column exists - only include "Mockup Approved"
+                if stage_col:
+                    stage = row.get(stage_col, "").strip()
+                    if "Mockup Approved" not in stage:
+                        skipped_count += 1
+                        continue
+
                 url = row.get(url_col, "").strip()
                 if url:
                     # Extract domain from URL (e.g., "https://www.lexusofcoloradosprings.com/" -> "www.lexusofcoloradosprings.com")
@@ -115,6 +137,9 @@ class SlugRetriever:
                     if domain and domain not in seen_urls:
                         websites.append(domain)
                         seen_urls.add(domain)
+
+            if skipped_count > 0:
+                click.echo(f"  ⏭️  Skipped {skipped_count} rows (not in 'Mockup Approved' stage)")
 
         return websites
 

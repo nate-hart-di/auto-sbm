@@ -655,12 +655,17 @@ def _expand_theme_names(theme_names: tuple[str, ...]) -> list[str]:
 
     Returns:
         A list of expanded theme names (slugs)
+
+    File references can be:
+        - @slugs.txt - A text file with one slug per line
+        - @report.csv - A Salesforce CSV export (auto-processes using devtools search)
+        - @dealers.xlsx - An Excel file (auto-processes using devtools search)
     """
     expanded = []
     for name in theme_names:
         if name.startswith("@"):
             file_path_str = name[1:]
-            file_path = Path(file_path_str)
+            file_path = Path(file_path_str).expanduser()  # Expand ~ to home directory
 
             # 1. Try relative to CWD
             # 2. Try relative to REPO_ROOT (fallback for external execution)
@@ -674,20 +679,31 @@ def _expand_theme_names(theme_names: tuple[str, ...]) -> list[str]:
                     )
                     continue
 
-            try:
-                # Read slugs from file, supporting lines, spaces, or commas as delimiters
-                with file_path.open("r") as f:
-                    for line in f:
-                        # Ignore comments (anything after #)
-                        clean_line = line.split("#")[0].strip()
-                        if not clean_line:
-                            continue
+            # Check if this is a CSV/Excel file that needs slug extraction
+            file_ext = file_path.suffix.lower()
+            if file_ext in [".csv", ".xlsx", ".xls"]:
+                # Auto-process CSV/Excel to extract slugs using devtools search
+                extracted_slugs = _process_csv_for_slugs(file_path)
+                if extracted_slugs:
+                    expanded.extend(extracted_slugs)
+                else:
+                    logger.error(f"No slugs could be extracted from {file_path}")
+            else:
+                # Regular text file with slugs
+                try:
+                    # Read slugs from file, supporting lines, spaces, or commas as delimiters
+                    with file_path.open("r") as f:
+                        for line in f:
+                            # Ignore comments (anything after #)
+                            clean_line = line.split("#")[0].strip()
+                            if not clean_line:
+                                continue
 
-                        # Treat commas as spaces, then split by whitespace
-                        slugs = clean_line.replace(",", " ").split()
-                        expanded.extend(slugs)
-            except Exception as e:
-                logger.error(f"Failed to read theme list file {file_path}: {e}")
+                            # Treat commas as spaces, then split by whitespace
+                            slugs = clean_line.replace(",", " ").split()
+                            expanded.extend(slugs)
+                except Exception as e:
+                    logger.error(f"Failed to read theme list file {file_path}: {e}")
         else:
             expanded.append(name)
 
@@ -700,6 +716,113 @@ def _expand_theme_names(theme_names: tuple[str, ...]) -> list[str]:
             seen.add(item)
 
     return unique_expanded
+
+
+def _process_csv_for_slugs(file_path: Path) -> list[str]:
+    """
+    Process a CSV/Excel file to extract slugs using devtools search.
+
+    This function:
+    1. Uses the SlugRetriever to search for each dealer website in devtools
+    2. Filters by "Mockup Approved" stage (if Stage column exists)
+    3. Notifies user of any issues (not found, etc.)
+    4. Returns the list of slugs
+
+    Args:
+        file_path: Path to CSV or Excel file
+
+    Returns:
+        List of slugs extracted from the file
+    """
+    click.echo(f"\n📊 Auto-processing {file_path.name} for slug extraction...")
+
+    # Import the SlugRetriever from the scripts directory
+    scripts_dir = REPO_ROOT / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+
+    try:
+        from retrieve_slugs import SlugRetriever
+    except ImportError as e:
+        logger.error(f"Failed to import slug retrieval script: {e}")
+        return []
+
+    # Output files
+    output_json = REPO_ROOT / "slugs.json"
+    output_txt = REPO_ROOT / "slugs.txt"
+
+    try:
+        retriever = SlugRetriever(file_path, output_json)
+
+        # Read input file (with stage filtering for CSV)
+        click.echo("📖 Reading input file...")
+        search_terms = retriever.read_input_file()
+        click.echo(f"✅ Found {len(search_terms)} websites to search")
+
+        if not search_terms:
+            logger.error("No websites found in input file")
+            return []
+
+        # Retrieve slugs
+        retriever.retrieve_all_slugs(search_terms)
+
+        # Warn about overwrite and write output files
+        click.echo(f"\n⚠️  Note: {output_txt} will be overwritten with the new slugs")
+        click.echo(f"💾 Writing results to {output_json} and {output_txt}...")
+        retriever.write_output_file()
+
+        # Print summary
+        retriever.print_summary()
+
+        # Check for any failures and notify user
+        not_found = [r for r in retriever.results if r["status"] == "not_found"]
+        if not_found:
+            click.echo("\n⚠️  The following dealers were NOT found and will be skipped:")
+            for r in not_found:
+                click.echo(f"   - {r['search_term']}")
+            click.echo("")
+
+        # Return the extracted slugs
+        extracted_slugs = [
+            r["slug"] for r in retriever.results if r["status"] == "found" and r["slug"]
+        ]
+
+        # Deduplicate while preserving order
+        unique_slugs = []
+        seen = set()
+        for slug in extracted_slugs:
+            if slug not in seen:
+                unique_slugs.append(slug)
+                seen.add(slug)
+
+        click.echo(f"\n✅ Extracted {len(unique_slugs)} unique slugs from {file_path.name}")
+
+        # Open slugs.txt for user review
+        click.echo(f"\n📄 Opening {output_txt} for review...")
+        try:
+            subprocess.run(["open", str(output_txt)], check=False)
+        except Exception:
+            click.echo(f"   (Could not auto-open file. Please review: {output_txt})")
+
+        # Ask user to confirm the slugs before proceeding
+        click.echo("\n" + "=" * 60)
+        click.echo("👆 Please review the slugs above (file opened for editing)")
+        click.echo("=" * 60)
+        if not click.confirm(
+            "\n✅ Confirm these slugs are correct and proceed with migration?", default=True
+        ):
+            click.echo(
+                "❌ Cancelled by user. Edit slugs.txt manually if needed, then run 'sbm @slugs.txt'"
+            )
+            return []
+
+        return unique_slugs
+
+    except Exception as e:
+        logger.error(f"Failed to process {file_path}: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return []
 
 
 def _perform_migration_steps(
