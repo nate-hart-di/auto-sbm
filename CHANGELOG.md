@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-01-08
+
+### Added
+- **Slug Retrieval Tool**: New `sbm get-slugs` command to retrieve dealer slugs from Excel/CSV files
+  - Reads dealer account names from Excel (.xlsx, .xls) or CSV files
+  - Uses devtools search command to find corresponding slugs for each dealer
+  - Outputs formatted slug list to `slugs.txt` (or custom location)
+  - Added pandas and openpyxl dependencies for Excel file support
+  - Created `scripts/retrieve_slugs.py` with comprehensive error handling
+  - Intelligent matching: handles exact matches, multiple results, and similarity scoring
+
+## [2.3.0] - 2026-01-07
+
+### Changed
+- Add release guardrails and README rewrite
+
 ## [2.2.3] - 2026-01-06
 ### Fixed
 - Restore commented selector blocks when declarations are active to prevent invalid CSS output.

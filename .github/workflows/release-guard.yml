@@ -1,0 +1,38 @@
+name: Release Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  release-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch base branches
+        run: git fetch origin main master --depth=1 || true
+
+      - name: Determine base ref
+        run: |
+          if git show-ref --verify --quiet refs/remotes/origin/main; then
+            echo "BASE_REF=origin/main" >> "$GITHUB_ENV"
+          elif git show-ref --verify --quiet refs/remotes/origin/master; then
+            echo "BASE_REF=origin/master" >> "$GITHUB_ENV"
+          else
+            echo "BASE_REF=HEAD~1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Validate release metadata
+        run: python scripts/validate_release.py --base "$BASE_REF"

@@ -1,4 +1,4 @@
-# Pre-commit hooks for auto-sbm v2.0
+# Pre-commit hooks for auto-sbm
 # Install with: pre-commit install
 # Run on all files: pre-commit run --all-files
 
@@ -65,6 +65,23 @@ repos:
         files: ^.*sb-.*\.scss$
         pass_filenames: true
         description: 'Auto-format sb-*.scss files using built-in SCSS formatter'
+
+  - repo: local
+    hooks:
+      - id: validate-release
+        name: Validate release metadata
+        entry: python scripts/validate_release.py --staged
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: Ensure version, changelog, and README stay aligned
+      - id: validate-release-push
+        name: Validate release metadata (push)
+        entry: python scripts/validate_release.py --base origin/main
+        language: system
+        pass_filenames: false
+        stages: [push]
+        description: Block pushes without required version/doc updates
 
 ci:
   autofix_commit_msg: |

@@ -1,12 +1,16 @@
 # Auto-SBM
 
-Automated migration tool for DealerInspire sites. Converts legacy SCSS themes to Site Builder format and tracks migration stats.
+Current version: 2.4.0
+Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
+to Site Builder format, validates output, and tracks migration stats with optional Slack
+reporting.
 
-## Features
+## Highlights
 
-- Automated SCSS migration with rich terminal progress
-- Background updates and stats tracking
-- Slack reporting (webhook or Socket Mode)
+- End-to-end theme migration with validation and reporting
+- Stats tracking for runs, lines migrated, and time saved
+- Slack reporting (webhook, bot token, or Socket Mode)
+- Built-in update and environment repair flows
 
 ## Requirements
 
@@ -23,16 +27,18 @@ cd auto-sbm
 bash setup.sh
 ```
 
-After install, restart your terminal or run:
+Restart your terminal or run:
 
 ```bash
 source ~/.zshrc
 ```
 
-## Run a Migration
+## Quick Start
+
+Run a migration:
 
 ```bash
-sbm {theme-slug}
+sbm <theme-slug>
 ```
 
 Example:
@@ -41,30 +47,46 @@ Example:
 sbm fiatofportland
 ```
 
-## Stats (CLI)
+## Common Commands
 
 ```bash
+# Run full automation mode (default)
+sbm auto
+
+# Show migration stats
 sbm stats
+
+# Check version and recent changes
+sbm version
+sbm version --changelog
+
+# Update auto-sbm manually
+sbm update
+
+# Control auto-update behavior
+sbm auto-update status
+sbm auto-update disable
+sbm auto-update enable
 ```
 
 ## Slack Reporting
 
-### Channel Report (Webhook or Bot Token)
+Channel report via webhook:
 
 ```bash
-# Webhook
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
 python3 scripts/stats/report_slack.py --period week
+```
 
-# Bot token
+Channel report via bot token:
+
+```bash
 export SLACK_BOT_TOKEN="xoxb-..."
 export SLACK_CHANNEL="C0123456789"
 python3 scripts/stats/report_slack.py --period week
 ```
 
-### Slash Command (Socket Mode)
-
-Run the listener (must stay up):
+Slash command listener (Socket Mode):
 
 ```bash
 python3 scripts/stats/slack_listener.py
@@ -83,15 +105,7 @@ Usage:
 /sbm-stats week top 5
 ```
 
-### Slack App Description (copy/paste)
-
-Auto SBM Stats keeps migration progress visible without leaving Slack.
-Track sites migrated, lines moved, and estimated time saved, plus lightweight leaderboards.
-Built to stay in sync with the Auto-SBM CLI so your numbers always match.
-
-### Scheduled Reports (9am CST)
-
-Set `SLACK_CHANNELS` (comma-separated channel IDs) and schedule the daily job at 9am CST:
+Scheduled reports (9am CST):
 
 ```bash
 export SLACK_CHANNELS="C0123456789,C0987654321"
@@ -103,24 +117,20 @@ Behavior:
 - Mon: weekly report for previous week + leaderboard
 - 1st of month: monthly report + all-time leaderboard
 
-Note: launchd runs only when the Mac is awake and logged in.
+## Troubleshooting
 
-## Launch Agent (Optional)
-
-If you want the listener to stay up on your Mac:
+`sbm` command not found:
 
 ```bash
-launchctl bootout gui/$UID "/Users/nathanhart/Library/LaunchAgents/com.dealerinspire.sbm-stats.plist" || true
-launchctl bootstrap gui/$UID "/Users/nathanhart/Library/LaunchAgents/com.dealerinspire.sbm-stats.plist"
-launchctl list | rg sbm
+cd ~/auto-sbm
+rm -f .sbm_setup_complete
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+bash setup.sh
 ```
 
-Logs:
+## Development
 
-```bash
-tail -n 50 /tmp/sbm-stats.out
-tail -n 50 /tmp/sbm-stats.err
-```
+See `docs/DEVELOPMENT.md` for dev workflow and testing.
 
 ## Changelog
 

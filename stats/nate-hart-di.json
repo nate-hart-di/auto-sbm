@@ -13,6 +13,7 @@
     "bay",
     "bayerchryslerdodgejeepram",
     "bertogdenmaserati",
+    "billluketempe",
     "bmw",
     "bobhowardchryslerjeepdodgeram",
     "bochmaserati",
@@ -148,32 +149,11 @@
     "wichita",
     "woodhouseautofamily1",
     "yorkcdjrautomotiveofplainfield",
+    "yorkchryslerdodgejeep",
     "yorkchryslerdodgejeeprambrazil1",
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-10-07T19:29:25Z",
-      "slug": "oxmoorautogroup1",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 1565,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-10-16T17:37:34Z",
-      "slug": "pcon-727-zimmerchryslerdodgejeepram-sbm1025",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 925,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-10-16T23:04:54Z",
       "slug": "randymarionchryslerdodgejeepramofwilkesboro",
@@ -1162,7 +1142,27 @@
       "automation_seconds": 9.87,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-07T06:26:55.499439+00:00Z",
+      "slug": "yorkchryslerdodgejeep",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 6.91,
+      "automation_seconds": 6.91,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-07T07:12:18.218893+00:00Z",
+      "slug": "billluketempe",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 163.84,
+      "automation_seconds": 10.48,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-07T03:54:40.159160+00:00Z"
+  "last_updated": "2026-01-07T07:12:18.218893+00:00Z"
 }

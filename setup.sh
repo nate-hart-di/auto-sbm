@@ -46,8 +46,15 @@ function retry_command() {
   done
 }
 
+# Ensure Homebrew is discoverable in non-interactive shells
+if [ -d "/opt/homebrew/bin" ]; then
+  export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+elif [ -d "/usr/local/bin" ]; then
+  export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+fi
+
 echo ""
-echo "🚀 Auto-SBM v2.0 Setup Starting..."
+echo "🚀 Auto-SBM v${SBM_VERSION} Setup Starting..."
 echo "Step 1/7: Installing system dependencies..."
 echo ""
 
@@ -488,7 +495,7 @@ function install_precommit_hooks() {
 
   # Install pre-commit hooks
   if command -v pre-commit &> /dev/null; then
-    pre-commit install
+    pre-commit install --hook-type pre-commit --hook-type pre-push
     if [ $? -eq 0 ]; then
       log "✅ Pre-commit hooks installed successfully"
     else

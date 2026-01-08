@@ -35,6 +35,28 @@ python -m pytest tests/test_migration.py -v
 2. Run lint, type checks, and tests.
 3. Open a pull request.
 
+## Release Workflow
+
+Version bumps are mandatory for code changes. Use the bump script so
+`pyproject.toml`, `CHANGELOG.md`, and `README.md` stay aligned.
+
+```bash
+# Bugfix (patch)
+python3 scripts/bump_version.py --type bugfix --notes "Fix <short summary>"
+
+# Feature (minor)
+python3 scripts/bump_version.py --type feature --notes "Add <short summary>"
+
+# Major
+python3 scripts/bump_version.py --type major --notes "Break <short summary>"
+```
+
+Validation hook:
+
+```bash
+python3 scripts/validate_release.py --staged
+```
+
 ## References
 
 - `CLAUDE.md`

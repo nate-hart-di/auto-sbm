@@ -166,6 +166,77 @@ def is_env_healthy() -> bool:
 
 
 # --- Auto-update: Enhanced git pull with better error handling ---
+def _read_version_from_text(text: str) -> str | None:
+    match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']', text, re.MULTILINE)
+    if match:
+        return match.group(1)
+    return None
+
+
+def _get_current_branch() -> str | None:
+    if (
+        subprocess.run(
+            ["git", "symbolic-ref", "-q", "HEAD"],
+            check=False,
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+        ).returncode
+        != 0
+    ):
+        return None
+
+    branch_res = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        check=False,
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if branch_res.returncode != 0:
+        return None
+
+    return branch_res.stdout.strip()
+
+
+def _get_remote_version(branch: str) -> str | None:
+    fetch_res = subprocess.run(
+        ["git", "fetch", "--quiet", "origin", branch],
+        check=False,
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        timeout=10,
+    )
+    if fetch_res.returncode != 0:
+        return None
+
+    show_res = subprocess.run(
+        ["git", "show", f"origin/{branch}:pyproject.toml"],
+        check=False,
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if show_res.returncode != 0:
+        return None
+
+    return _read_version_from_text(show_res.stdout)
+
+
+def _should_auto_update(branch: str) -> bool:
+    remote_version = _get_remote_version(branch)
+    local_version = get_version()
+
+    if not remote_version or not local_version or local_version == "Unknown":
+        return True
+
+    if local_version == remote_version:
+        logger.debug("Auto-update skipped; local version matches remote.")
+        return False
+
+    return True
+
+
 def auto_update_repo() -> None:
     """
     Automatically pull the latest changes from the auto-sbm repository.
@@ -195,33 +266,16 @@ def auto_update_repo() -> None:
         ):
             return
 
-        # Check strictly for detached HEAD
-        # git symbolic-ref -q HEAD returns 0 if on branch, 1 if detached
-        if (
-            subprocess.run(
-                ["git", "symbolic-ref", "-q", "HEAD"],
-                check=False,
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-            ).returncode
-            != 0
-        ):
+        # Check strictly for detached HEAD and get current branch
+        current_branch = _get_current_branch()
+        if not current_branch:
             logger.debug("Detached HEAD detected; skipping auto-update.")
             return
 
-        # Get current branch name
-        branch_res = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            check=False,
-            cwd=str(REPO_ROOT),
-            capture_output=True,
-            text=True,
-        )
-        if branch_res.returncode != 0:
+        if current_branch not in ["main", "master"]:
             return
 
-        current_branch = branch_res.stdout.strip()
-        if current_branch not in ["main", "master"]:
+        if not _should_auto_update(current_branch):
             return
 
         # Check for uncommitted changes
@@ -311,8 +365,9 @@ def _regenerate_wrapper_script() -> None:
         wrapper_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create wrapper script with environment isolation
+        wrapper_version = get_version()
         wrapper_content = f"""#!/bin/bash
-# Enhanced wrapper script for auto-sbm v2.0
+# Enhanced wrapper script for auto-sbm v{wrapper_version}
 # Auto-generated with environment isolation for multi-venv compatibility
 
 VENV_PYTHON="{venv_python}"
@@ -421,7 +476,16 @@ def _check_and_run_setup_if_needed() -> None:
             # Install pre-commit hooks (silently, no output during auto-update)
             try:
                 subprocess.run(
-                    [sys.executable, "-m", "pre_commit", "install"],
+                    [
+                        sys.executable,
+                        "-m",
+                        "pre_commit",
+                        "install",
+                        "--hook-type",
+                        "pre-commit",
+                        "--hook-type",
+                        "pre-push",
+                    ],
                     cwd=str(REPO_ROOT),
                     capture_output=True,
                     text=True,
@@ -485,6 +549,14 @@ def check_and_run_daily_update():
 
         # If we haven't updated today, run update
         if last_update != today:
+            current_branch = _get_current_branch()
+            if not current_branch or current_branch not in ["main", "master"]:
+                return
+
+            if not _should_auto_update(current_branch):
+                update_file.write_text(today)
+                return
+
             click.echo("🔄 Running daily auto-update...")
 
             # Run sbm update command
@@ -1523,7 +1595,16 @@ def _install_precommit_hooks() -> None:
         if check_result.returncode == 0:
             # Install hooks
             subprocess.run(
-                [sys.executable, "-m", "pre_commit", "install"],
+                [
+                    sys.executable,
+                    "-m",
+                    "pre_commit",
+                    "install",
+                    "--hook-type",
+                    "pre-commit",
+                    "--hook-type",
+                    "pre-push",
+                ],
                 cwd=REPO_ROOT,
                 check=True,
                 capture_output=True,
@@ -2097,6 +2178,89 @@ def setup() -> None:
     except subprocess.CalledProcessError as e:
         logger.error(f"Setup failed with exit code {e.returncode}")
         sys.exit(e.returncode)
+
+
+@cli.command()
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file path (default: slugs.json in auto-sbm directory)",
+)
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+def get_slugs(input_file: str, output: str | None, verbose: bool) -> None:
+    """
+    Retrieve dealer slugs from account names using devtools search.
+
+    INPUT_FILE: Path to Excel (.xlsx, .xls) or CSV (.csv) file containing dealer account names.
+
+    The file should have a column named "Account Name", "name", or similar.
+    If not found, the first column will be used.
+
+    Output: JSON file matching devtools search format with dealer data.
+
+    Examples:
+        sbm get-slugs /path/to/dealers.xlsx
+        sbm get-slugs /path/to/dealers.csv --output custom-slugs.json
+    """
+    # Import here to avoid import errors if pandas is not installed
+    scripts_dir = REPO_ROOT / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+
+    try:
+        from retrieve_slugs import SlugRetriever
+    except ImportError as e:
+        click.echo(f"❌ Error importing slug retrieval script: {e}", err=True)
+        sys.exit(1)
+
+    # Setup logging
+    import logging as log_module
+
+    log_level = log_module.DEBUG if verbose else log_module.INFO
+    log_module.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
+
+    # Determine output file
+    output_path = Path(output) if output else REPO_ROOT / "slugs.json"
+    input_path = Path(input_file)
+
+    click.echo("🚀 Dealer Slug Retriever")
+    click.echo(f"📂 Input file: {input_path}")
+    click.echo(f"📝 Output file: {output_path}")
+
+    # Check if pandas is available for Excel files
+    if input_path.suffix.lower() in [".xlsx", ".xls"]:
+        try:
+            import pandas  # noqa: F401
+        except ImportError:
+            click.echo("❌ Error: pandas is required for Excel files")
+            click.echo("Install with: pip install pandas openpyxl")
+            sys.exit(1)
+
+    try:
+        retriever = SlugRetriever(input_path, output_path)
+
+        # Read input file
+        click.echo("\n📖 Reading input file...")
+        search_terms = retriever.read_input_file()
+        click.echo(f"✅ Found {len(search_terms)} websites")
+
+        # Retrieve slugs
+        retriever.retrieve_all_slugs(search_terms)
+
+        # Write output
+        click.echo(f"\n💾 Writing results to {output_path}...")
+        retriever.write_output_file()
+        click.echo("✅ Output file written")
+
+        # Print summary
+        retriever.print_summary()
+
+    except Exception as e:
+        click.echo(f"❌ Error: {e}", err=True)
+        if verbose:
+            logger.exception("Detailed error:")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
