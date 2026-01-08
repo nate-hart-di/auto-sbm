@@ -23,14 +23,19 @@ def get_platform_dir():
         ValueError: If the directory is not found.
     """
     home_dir = expanduser("~")
-    # This path is based on the user's explicit request.
-    platform_dir = os.path.join(home_dir, "di-websites-platform")
 
-    if not os.path.isdir(platform_dir):
-        msg = f"DI Websites Platform directory not found at: {platform_dir}"
-        raise ValueError(msg)
+    # Check multiple possible locations
+    possible_paths = [
+        os.path.join(home_dir, "code", "dealerinspire", "di-websites-platform"),
+        os.path.join(home_dir, "di-websites-platform"),
+    ]
 
-    return platform_dir
+    for platform_dir in possible_paths:
+        if os.path.isdir(platform_dir):
+            return platform_dir
+
+    msg = f"DI Websites Platform directory not found. Checked: {possible_paths}"
+    raise ValueError(msg)
 
 
 def get_dealer_theme_dir(slug):
@@ -48,7 +53,6 @@ def get_dealer_theme_dir(slug):
     """
     platform_dir = get_platform_dir()
     return os.path.join(platform_dir, "dealer-themes", slug)
-
 
 
 def normalize_path(path):
@@ -96,9 +100,11 @@ def get_common_theme_path() -> str:
     This function assumes the script is running within the auto-sbm project
     and can traverse up to the parent directory containing di-websites-platform.
     """
-    # Construct the path starting from the user's home directory
-    home_dir = expanduser("~")
-    platform_root = os.path.join(home_dir, "di-websites-platform")
+    try:
+        platform_root = get_platform_dir()
+    except ValueError:
+        logger.warning("Could not find platform directory for common theme path")
+        return ""
 
     common_theme_path = os.path.join(
         platform_root, "app", "dealer-inspire", "wp-content", "themes", "DealerInspireCommonTheme"

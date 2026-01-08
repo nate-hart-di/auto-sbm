@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-01-08
+
+### Fixed
+- **Platform Directory Detection**: Fixed `get_platform_dir()` to correctly locate the repository in `~/code/dealerinspire/di-websites-platform` (was defaulting to `~/di-websites-platform`)
+- **CLI Path Handling**: Fixed tilde expansion for file arguments (e.g. `sbm @~/Downloads/...`)
+- **Execution Context**: Resolved git "not a git repository" errors when running `sbm` from outside the platform directory by correctly setting `cwd` for all git operations
+- **Release Validation**: Removed overly strict README version check from pre-commit hooks
+
 ## [2.5.0] - 2026-01-08
 
 ### Added
