@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6] - 2026-01-09
+
+### Fixed
+- **Stat Tracking**: Fixed critical bug where `lines_migrated` was always recorded as 0 in migration stats
+  - Added `lines_migrated` field to `MigrationResult` dataclass
+  - Updated migration flow to properly store lines_migrated count in result object
+  - Fixed CLI to use actual `result.lines_migrated` instead of hardcoded 0
+  - This resolves incorrect totals and hours saved calculations in global stats
+
 ## [2.5.5] - 2026-01-09
 ### Fixed
 - **Dependencies**: Added `rapidfuzz` to project dependencies to resolve `ModuleNotFoundError` in downstream `di-websites-platform` scripts.

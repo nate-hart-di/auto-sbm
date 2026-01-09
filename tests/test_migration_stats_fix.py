@@ -258,6 +258,46 @@ def test_scss_error_capture(
     assert "Missing semicolon" in result.scss_errors[1]
 
 
+@patch("sbm.core.migration.git_operations")
+@patch("sbm.core.migration.run_just_start")
+@patch("sbm.core.migration._perform_core_migration")
+@patch("sbm.core.migration._create_automation_snapshots")
+@patch("sbm.core.migration.run_post_migration_workflow")
+@patch("sbm.core.migration.get_console")
+def test_migrate_dealer_theme_tracks_lines_migrated(
+    mock_console,
+    mock_run_post_migration,
+    mock_create_snapshots,
+    mock_perform_core,
+    mock_run_just,
+    mock_git_ops,
+):
+    """Test that lines_migrated is properly tracked in MigrationResult."""
+    # Setup mocks
+    mock_git_ops.return_value = (True, "test-branch")
+    mock_run_just.return_value = True
+
+    # Core migration returns success and 850 lines migrated
+    mock_perform_core.return_value = (True, 850)
+
+    # Post migration returns a dict success
+    mock_run_post_migration.return_value = {
+        "success": True,
+        "pr_url": "http://github.com/pr/1",
+        "salesforce_message": "Done",
+    }
+
+    # Execute
+    result = migrate_dealer_theme(
+        slug="test-slug", skip_just=False, force_reset=True, create_pr=False, skip_git=False
+    )
+
+    # Verify MigrationResult has lines_migrated properly set
+    assert isinstance(result, MigrationResult)
+    assert result.status == "success"
+    assert result.lines_migrated == 850, f"Expected 850 lines migrated, got {result.lines_migrated}"
+
+
 @patch("sbm.cli.REPO_ROOT", new_callable=lambda: MagicMock())
 def test_migration_report_generation(mock_repo_root):
     """Test that migration report is generated with correct format."""

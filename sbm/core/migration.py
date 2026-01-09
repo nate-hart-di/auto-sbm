@@ -66,6 +66,7 @@ class MigrationResult:
     salesforce_message: Optional[str] = None
     branch_name: Optional[str] = None
     elapsed_time: float = 0.0
+    lines_migrated: int = 0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def mark_success(
@@ -1004,6 +1005,8 @@ def migrate_dealer_theme(
         success, lines_migrated = _perform_core_migration(
             slug, force_reset, oem_handler, skip_maps, console
         )
+        # Store lines migrated count in result for stats tracking
+        result.lines_migrated = lines_migrated
         if not success:
             result.mark_failed(
                 MigrationStep.CORE_MIGRATION,
