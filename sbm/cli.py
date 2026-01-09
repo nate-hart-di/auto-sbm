@@ -1285,8 +1285,6 @@ def auto(
                 _generate_migration_report(migration_results, retry_file=source_file)
 
                 # Prompt user for rerun
-                from sbm.ui.prompts import InteractivePrompts
-
                 if InteractivePrompts.confirm_retry_with_timeout(
                     len(failed_slugs), str(source_file)
                 ):
