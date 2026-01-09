@@ -12,7 +12,9 @@
     "basilresalesheridan",
     "bay",
     "bayerchryslerdodgejeepram",
+    "berlincitylexusofportland",
     "bertogdenmaserati",
+    "bigododgechryslerjeepram",
     "billluketempe",
     "bmw",
     "bobhowardchryslerjeepdodgeram",
@@ -50,6 +52,9 @@
     "hastingschryslercenterinc",
     "heggsjeep",
     "hellermotorsinc",
+    "hendrickcdjrhoover",
+    "hendrickchryslerjeepfayetteville",
+    "hendrickdodgecary",
     "ingramparkchryslerjeepdodge",
     "iversonautogroup",
     "iversonchryslercenter",
@@ -68,6 +73,7 @@
     "larryhillischryslerdodgejeepram",
     "lexusofcerritos",
     "lexusofclearwater",
+    "lexusofcoloradosprings",
     "lexusoflindon",
     "lexusofmurray",
     "lexusofpalmbeach",
@@ -120,6 +126,9 @@
     "rainierdodge",
     "randymarionchryslerdodgejeepramofwilkesboro",
     "reliancechryslerdodgejeepraminc",
+    "rickhendrickchryslerdodgejeepramduluth",
+    "rickhendrickdodgechryslerjeepram",
+    "rickhendrickjeepchryslerdodgeramfiat",
     "ridgefield",
     "robersonmotors",
     "rockwallchryslerdodgejeepram",
@@ -154,105 +163,6 @@
     "zeiglerfiatofschaumburg"
   ],
   "runs": [
-    {
-      "timestamp": "2025-10-16T23:04:54Z",
-      "slug": "randymarionchryslerdodgejeepramofwilkesboro",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 369,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-10-22T12:54:45Z",
-      "slug": "woodhouseautofamily1",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 4366,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-10-22T13:03:52Z",
-      "slug": "harrygreen7acres1",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 3268,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-12-15T16:07:38Z",
-      "slug": "turlockchryslerjeepdodgeram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 613,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-12-15T16:17:33Z",
-      "slug": "gladstonedodgechryslerjeepram",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 286,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-12-15T16:48:32Z",
-      "slug": "timshortchryslerdodgejeepramhazard",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 256,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-12-15T17:33:32Z",
-      "slug": "ingramparkchryslerjeepdodge",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 522,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-12-15T20:27:42Z",
-      "slug": "wasecachryslercenter",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 420,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
-    {
-      "timestamp": "2025-12-15T23:13:16Z",
-      "slug": "jeffbelzersautogroup",
-      "command": "auto",
-      "status": "success",
-      "duration_seconds": 300.0,
-      "automation_seconds": 60.0,
-      "lines_migrated": 11584,
-      "manual_estimate_seconds": 14400,
-      "historical": true
-    },
     {
       "timestamp": "2025-12-18T00:40:10.825267+00:00Z",
       "slug": "nemercdjrofqueensbury",
@@ -1162,7 +1072,97 @@
       "automation_seconds": 10.48,
       "lines_migrated": 0,
       "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T21:51:46.988727+00:00Z",
+      "slug": "lexusofcoloradosprings",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 100.26,
+      "automation_seconds": 11.01,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T21:56:47.476297+00:00Z",
+      "slug": "rickhendrickdodgechryslerjeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 144.59,
+      "automation_seconds": 10.95,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T21:59:06.532471+00:00Z",
+      "slug": "rickhendrickjeepchryslerdodgeramfiat",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 115.69,
+      "automation_seconds": 10.19,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T22:01:31.995817+00:00Z",
+      "slug": "rickhendrickchryslerdodgejeepramduluth",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 121.16,
+      "automation_seconds": 11.21,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T22:03:52.201410+00:00Z",
+      "slug": "hendrickcdjrhoover",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 114.99,
+      "automation_seconds": 10.01,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T22:06:34.418511+00:00Z",
+      "slug": "hendrickchryslerjeepfayetteville",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 138.47,
+      "automation_seconds": 10.86,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T22:08:53.474642+00:00Z",
+      "slug": "hendrickdodgecary",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 114.49,
+      "automation_seconds": 10.28,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T22:11:12.553851+00:00Z",
+      "slug": "bigododgechryslerjeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 115.45,
+      "automation_seconds": 10.88,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
+    },
+    {
+      "timestamp": "2026-01-08T22:13:33.437132+00:00Z",
+      "slug": "berlincitylexusofportland",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 116.41,
+      "automation_seconds": 10.09,
+      "lines_migrated": 0,
+      "manual_estimate_seconds": 14400
     }
   ],
-  "last_updated": "2026-01-07T07:12:18.218893+00:00Z"
+  "last_updated": "2026-01-08T22:13:33.437132+00:00Z"
 }

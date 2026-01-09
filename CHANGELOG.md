@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-01-08
+
+### Added
+- **Automated Batch Retry**: Added automated retry mechanism for batch migrations.
+  - Automatically identifies failed slugs and updates the source file.
+  - Prompts user to rerun failed migrations immediately with a 30-second timeout.
+  - Defaults to "No" on timeout to support automated pipelines.
+  - Notes the retry update in the migration report.
+
+## [2.5.2] - 2026-01-08
+
+### Changed
+- **Data Location**: Moved `slugs.json` and `slugs.txt` output to `data/` directory to keep repository root clean
+- **Gitignore**: Added `data/` to `.gitignore` to prevent committing run data
+
 ## [2.5.1] - 2026-01-08
 
 ### Fixed

@@ -107,4 +107,7 @@ stats/.sync.lock
 
 # User Files
 slugs.txt
+# User Files
+slugs.txt
 reports/
+data/

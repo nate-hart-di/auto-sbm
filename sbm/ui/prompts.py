@@ -5,6 +5,9 @@ This module provides Rich-enhanced interactive prompts with context panels,
 improving user experience during manual review and decision points.
 """
 
+import sys
+import select
+import time
 from typing import Any, Dict, List, Optional
 
 from rich.panel import Panel
@@ -413,3 +416,61 @@ class InteractivePrompts:
             "reviewers": ["carsdotcom/fe-dev"] if add_reviewers else [],
             "labels": ["fe-dev"],
         }
+
+    @staticmethod
+    def confirm_retry_with_timeout(
+        failed_slugs_count: int, source_file: str, timeout: int = 30
+    ) -> bool:
+        """
+        Prompt user for rerun with a timeout.
+
+        Args:
+            failed_slugs_count: Number of slugs that failed
+            source_file: Path to the file that was updated
+            timeout: Seconds to wait before defaulting to No
+
+        Returns:
+            True if user confirms, False otherwise
+        """
+        if get_settings().non_interactive:
+            return False
+
+        console = get_console()
+
+        retry_panel = Panel(
+            Text.assemble(
+                ("Batch Completed with Failures\n\n", "bold red"),
+                ("Failed Migrations: ", "bold"),
+                (str(failed_slugs_count), "red"),
+                ("\n", "white"),
+                ("Retry File Updated: ", "bold"),
+                (source_file, "filename"),
+                ("\n\n", "white"),
+                (
+                    f"The source file has been updated with failed slugs. Would you like to rerun the migration for these {failed_slugs_count} slugs now?",
+                    "white",
+                ),
+                ("\n\n", "white"),
+                (f"Defaulting to 'No' in {timeout} seconds if no input received.", "dim"),
+            ),
+            title="Automated Retry",
+            border_style="red",
+            padding=(1, 2),
+        )
+        console.console.print(retry_panel)
+
+        sys.stdout.write(f"\n[bold green]Rerun failed migrations? (y/n) [default: n]: [/]")
+        sys.stdout.flush()
+
+        # Simple timed input using select
+        try:
+            rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+            if rlist:
+                response = sys.stdin.readline().strip().lower()
+                return response in ["y", "yes"]
+            else:
+                console.console.print("\n[yellow]Prompt timed out. Defaulting to No.[/]")
+                return False
+        except Exception as e:
+            logger.error(f"Error during timed prompt: {e}")
+            return False

@@ -51,6 +51,7 @@ sbm fiatofportland
 
 ```bash
 # Run full automation mode (default)
+# Note: Now supports automated retry for failed slugs!
 sbm auto
 
 # Show migration stats

@@ -63,7 +63,9 @@ class SlugRetriever:
             return self._read_csv()
         if file_ext in [".xlsx", ".xls"]:
             if not PANDAS_AVAILABLE:
-                msg = "pandas is required for Excel files. Install with: pip install pandas openpyxl"
+                msg = (
+                    "pandas is required for Excel files. Install with: pip install pandas openpyxl"
+                )
                 raise ValueError(msg)
             return self._read_excel()
 
@@ -131,8 +133,10 @@ class SlugRetriever:
                 if url:
                     # Extract domain from URL (e.g., "https://www.lexusofcoloradosprings.com/" -> "www.lexusofcoloradosprings.com")
                     parsed = urlparse(url)
-                    domain = parsed.netloc or parsed.path.split('/')[0]  # Handle URLs with or without scheme
-                    domain = domain.strip('/')
+                    domain = (
+                        parsed.netloc or parsed.path.split("/")[0]
+                    )  # Handle URLs with or without scheme
+                    domain = domain.strip("/")
 
                     if domain and domain not in seen_urls:
                         websites.append(domain)
@@ -192,7 +196,9 @@ class SlugRetriever:
             for col in df.columns:
                 if df[col].notna().any():
                     name_col = col
-                    click.echo(f"⚠️  No standard name column found. Using first non-empty column: {name_col}")
+                    click.echo(
+                        f"⚠️  No standard name column found. Using first non-empty column: {name_col}"
+                    )
                     break
 
         if name_col is None:
@@ -260,14 +266,14 @@ class SlugRetriever:
 
                 # Remove ANSI color codes and filter to just JSON
                 # The first line often has colored text, so we need to find the JSON array
-                lines = output.split('\n')
+                lines = output.split("\n")
                 json_lines = []
                 in_json = False
                 for line in lines:
                     # Remove ANSI escape codes
-                    clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                    clean_line = re.sub(r"\x1b\[[0-9;]*m", "", line)
                     # Start collecting when we see opening bracket
-                    if clean_line.strip().startswith('[') or clean_line.strip().startswith('{'):
+                    if clean_line.strip().startswith("[") or clean_line.strip().startswith("{"):
                         in_json = True
                     if in_json:
                         json_lines.append(clean_line)
@@ -277,7 +283,7 @@ class SlugRetriever:
                     logger.debug(f"Output was: {output[:200]}")
                     return None
 
-                json_str = '\n'.join(json_lines)
+                json_str = "\n".join(json_lines)
                 data = json.loads(json_str)
 
                 # Check if no results found
@@ -391,12 +397,14 @@ class SlugRetriever:
 
             if result:
                 slug, dealer_data = result
-                self.results.append({
-                    "search_term": search_term,
-                    "slug": slug,
-                    "dealer_data": dealer_data,
-                    "status": "found"
-                })
+                self.results.append(
+                    {
+                        "search_term": search_term,
+                        "slug": slug,
+                        "dealer_data": dealer_data,
+                        "status": "found",
+                    }
+                )
                 click.echo(f"    ✅ Found: {slug}")
             else:
                 self.results.append({"search_term": search_term, "slug": "", "status": "not_found"})
@@ -479,9 +487,11 @@ def main(input_file: Path, output: Path | None, verbose: bool) -> None:
 
     # Determine output file
     if output is None:
-        # Default to slugs.json in auto-sbm directory
+        # Default to slugs.json in data directory
         repo_root = Path(__file__).parent.parent
-        output = repo_root / "slugs.json"
+        data_dir = repo_root / "data"
+        data_dir.mkdir(exist_ok=True)
+        output = data_dir / "slugs.json"
 
     click.echo("🚀 Dealer Slug Retriever")
     click.echo(f"📂 Input file: {input_file}")

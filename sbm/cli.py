@@ -747,8 +747,11 @@ def _process_csv_for_slugs(file_path: Path) -> list[str]:
         return []
 
     # Output files
-    output_json = REPO_ROOT / "slugs.json"
-    output_txt = REPO_ROOT / "slugs.txt"
+    # Output files in data directory
+    data_dir = REPO_ROOT / "data"
+    data_dir.mkdir(exist_ok=True)
+    output_json = data_dir / "slugs.json"
+    output_txt = data_dir / "slugs.txt"
 
     try:
         retriever = SlugRetriever(file_path, output_json)
@@ -875,7 +878,9 @@ def _perform_migration_steps(
     return True, lines_migrated
 
 
-def _generate_migration_report(results: list[MigrationResult | dict]) -> None:
+def _generate_migration_report(
+    results: list[MigrationResult | dict], retry_file: Optional[Path] = None
+) -> None:
     """
     Generate a comprehensive user-specific migration report.
 
@@ -909,6 +914,8 @@ def _generate_migration_report(results: list[MigrationResult | dict]) -> None:
             f.write(f"✅ Successful: {success_count}\n")
             f.write(f"❌ Failed: {failed_count}\n")
             f.write(f"⚠️  Errors: {error_count}\n")
+            if retry_file:
+                f.write(f"\n🔄 RETRY INFO: {retry_file.name} has been updated with failed slugs.\n")
             f.write("\n" + "=" * 60 + "\n\n")
 
             # Salesforce Messages Section (for copy/paste convenience)
@@ -1087,6 +1094,21 @@ def auto(
 
     migration_results = []
 
+    # Track the primary source file for potential retry automation
+    source_file: Optional[Path] = None
+    for name in theme_names:
+        if name.startswith("@"):
+            file_path_str = name[1:]
+            file_path = Path(file_path_str).expanduser()
+            if not file_path.exists():
+                fallback_path = REPO_ROOT / file_path_str
+                if fallback_path.exists():
+                    file_path = fallback_path
+
+            if file_path.exists() and file_path.suffix.lower() not in [".csv", ".xlsx", ".xls"]:
+                source_file = file_path
+                break
+
     for theme_name in expanded_themes:
         config_dict = {
             "skip_just": skip_just,
@@ -1245,6 +1267,49 @@ def auto(
             elif error:
                 msg += f" - Error: {error}"
             console.print_info(msg)
+
+    # Automated Retry Logic
+    if source_file and any(_get_status(r) != "success" for r in migration_results):
+        failed_slugs = [
+            _get_field(r, "slug") for r in migration_results if _get_status(r) != "success"
+        ]
+
+        if failed_slugs:
+            try:
+                # Update the source file with only failed slugs
+                with source_file.open("w") as f:
+                    for slug in failed_slugs:
+                        f.write(f"{slug}\n")
+
+                # Regenerate report with retry info
+                _generate_migration_report(migration_results, retry_file=source_file)
+
+                # Prompt user for rerun
+                from sbm.ui.prompts import InteractivePrompts
+
+                if InteractivePrompts.confirm_retry_with_timeout(
+                    len(failed_slugs), str(source_file)
+                ):
+                    click.echo(f"\n🚀 Retrying {len(failed_slugs)} failed migrations...")
+                    # Re-invoke auto command with the updated source file
+                    ctx.invoke(
+                        auto,
+                        theme_names=(f"@{source_file}",),
+                        yes=yes,
+                        skip_just=skip_just,
+                        force_reset=force_reset,
+                        create_pr=create_pr,
+                        skip_post_migration=skip_post_migration,
+                        verbose_docker=verbose_docker,
+                    )
+                else:
+                    click.echo(f"\n📂 Retry file updated: {source_file}")
+                    # Try to open the file automatically
+                    if sys.platform == "darwin":
+                        subprocess.run(["open", str(source_file)], check=False)
+            except Exception as e:
+                logger.error(f"Failed to handle automated retry: {e}")
+                console.print_error(f"Failed to handle automated retry: {e}")
 
 
 @cli.command()
