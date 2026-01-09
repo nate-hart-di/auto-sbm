@@ -1158,7 +1158,7 @@ def auto(
                         status="success",
                         duration=get_total_duration(),
                         automation_time=get_total_automation_time(),
-                        lines_migrated=0,  # Lines tracked separately
+                        lines_migrated=result.lines_migrated,
                     )
                     sync_global_stats()
                     ctx.invoke(stats)
