@@ -54,6 +54,20 @@ class MigrationResult:
     Comprehensive result object for a single migration attempt.
 
     Captures all relevant information for reporting and debugging.
+
+    Attributes:
+        slug: Dealer theme slug being migrated
+        status: Migration status (pending, success, failed, error)
+        step_failed: Which migration step failed (if any)
+        error_message: Human-readable error description
+        stack_trace: Full stack trace for exceptions
+        scss_errors: List of SCSS compilation errors
+        pr_url: GitHub PR URL (if created)
+        salesforce_message: Salesforce notification message
+        branch_name: Git branch created for migration
+        elapsed_time: Total migration time in seconds
+        lines_migrated: Total SCSS lines migrated (set by _perform_core_migration)
+        timestamp: ISO8601 timestamp when migration started
     """
 
     slug: str
@@ -66,7 +80,7 @@ class MigrationResult:
     salesforce_message: Optional[str] = None
     branch_name: Optional[str] = None
     elapsed_time: float = 0.0
-    lines_migrated: int = 0
+    lines_migrated: int = 0  # Populated after SCSS migration in _perform_core_migration
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def mark_success(
@@ -1005,7 +1019,10 @@ def migrate_dealer_theme(
         success, lines_migrated = _perform_core_migration(
             slug, force_reset, oem_handler, skip_maps, console
         )
-        # Store lines migrated count in result for stats tracking
+        # Store lines migrated count in result for stats tracking and debugging.
+        # NOTE: This is set regardless of success/failure. Only successful migrations
+        # get persisted to stats (CLI checks result.status == "success"), but having
+        # the count on failed migrations is useful for debugging partial progress.
         result.lines_migrated = lines_migrated
         if not success:
             result.mark_failed(

@@ -297,6 +297,32 @@ def test_migrate_dealer_theme_tracks_lines_migrated(
     assert result.status == "success"
     assert result.lines_migrated == 850, f"Expected 850 lines migrated, got {result.lines_migrated}"
 
+    # Verify _perform_core_migration was called (proves integration path exists)
+    mock_perform_core.assert_called_once()
+
+
+def test_lines_migrated_assignment_on_failure():
+    """Test that lines_migrated is set even on migration failure (for debugging)."""
+    with patch("sbm.core.migration.git_operations") as mock_git_ops, \
+         patch("sbm.core.migration.run_just_start") as mock_run_just, \
+         patch("sbm.core.migration._perform_core_migration") as mock_perform_core, \
+         patch("sbm.core.migration.get_console"):
+
+        # Setup: Git and Docker succeed
+        mock_git_ops.return_value = (True, "test-branch")
+        mock_run_just.return_value = True
+
+        # Core migration fails but returns 450 lines processed
+        mock_perform_core.return_value = (False, 450)
+
+        # Execute
+        result = migrate_dealer_theme(slug="test-slug", skip_just=False, force_reset=True)
+
+        # Verify: Failed migration still has lines_migrated for debugging
+        assert result.status == "failed"
+        assert result.step_failed == MigrationStep.CORE_MIGRATION
+        assert result.lines_migrated == 450, "Failed migrations should track partial progress for debugging"
+
 
 @patch("sbm.cli.REPO_ROOT", new_callable=lambda: MagicMock())
 def test_migration_report_generation(mock_repo_root):

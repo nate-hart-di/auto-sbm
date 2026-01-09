@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Stat Tracking**: Fixed critical bug where `lines_migrated` was always recorded as 0 in migration stats
-  - Added `lines_migrated` field to `MigrationResult` dataclass
+  - Added `lines_migrated` field to `MigrationResult` dataclass with comprehensive documentation
   - Updated migration flow to properly store lines_migrated count in result object
   - Fixed CLI to use actual `result.lines_migrated` instead of hardcoded 0
+  - Added backfill script and fixed 20 historical runs with 0 values (now use default 800 lines)
+  - Added test coverage for edge cases (failed migrations with partial progress)
   - This resolves incorrect totals and hours saved calculations in global stats
 
 ## [2.5.5] - 2026-01-09
