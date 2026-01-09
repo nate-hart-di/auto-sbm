@@ -84,6 +84,80 @@ class GitSettings(BaseSettings):
         return v
 
 
+class FirebaseSettings(BaseSettings):
+    """Firebase Realtime Database configuration for team-wide stats sync.
+
+    Environment variables:
+        FIREBASE__CREDENTIALS_PATH: Path to Firebase service account JSON file
+        FIREBASE__DATABASE_URL: Firebase Realtime Database URL
+    """
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    credentials_path: Path | None = Field(
+        default=None,
+        description="Path to Firebase service account JSON file",
+    )
+    database_url: str | None = Field(
+        default=None,
+        description="Firebase Realtime Database URL (e.g., https://project-id.firebaseio.com)",
+    )
+
+    @field_validator("credentials_path", mode="before")
+    @classmethod
+    def parse_credentials_path(cls, v: str | Path | None) -> Path | None:
+        """Convert string path to Path object, handling None and empty strings."""
+        if v is None or v == "":
+            return None
+        return Path(v) if isinstance(v, str) else v
+
+    @field_validator("credentials_path", mode="after")
+    @classmethod
+    def validate_credentials_path(cls, v: Path | None) -> Path | None:
+        """Validate that credentials file exists if path is provided."""
+        if v is None:
+            return v
+        # Expand user home directory if needed
+        expanded_path = v.expanduser()
+        if not expanded_path.exists():
+            # Log warning but don't fail - allows offline-first operation
+            # Firebase operations will fail gracefully at runtime
+            import warnings
+
+            warnings.warn(
+                f"Firebase credentials file not found: {expanded_path}. "
+                "Firebase sync will be disabled.",
+                stacklevel=2,
+            )
+        return expanded_path
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, v: str | None) -> str | None:
+        """Validate Firebase database URL format."""
+        if v is None or v == "":
+            return None
+        # Basic URL validation - must be HTTPS Firebase URL
+        if not v.startswith("https://"):
+            msg = "Firebase database URL must start with https://"
+            raise ValueError(msg)
+        if "firebaseio.com" not in v and "firebasedatabase.app" not in v:
+            msg = (
+                "Firebase database URL must be a valid Firebase Realtime Database URL "
+                "(containing firebaseio.com or firebasedatabase.app)"
+            )
+            raise ValueError(msg)
+        return v.rstrip("/")  # Normalize URL by removing trailing slash
+
+    def is_configured(self) -> bool:
+        """Check if Firebase is properly configured."""
+        return (
+            self.credentials_path is not None
+            and self.credentials_path.exists()
+            and self.database_url is not None
+        )
+
+
 class MigrationSettings(BaseSettings):
     """Migration-specific configuration."""
 
@@ -111,6 +185,7 @@ class AutoSBMSettings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
     git: GitSettings = Field(default_factory=lambda: GitSettings())
     migration: MigrationSettings = Field(default_factory=lambda: MigrationSettings())
+    firebase: FirebaseSettings = Field(default_factory=lambda: FirebaseSettings())
 
     # Global CLI behavior
     non_interactive: bool = Field(default=False, description="Disable interactive prompts")

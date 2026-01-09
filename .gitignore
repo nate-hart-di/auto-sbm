@@ -97,6 +97,12 @@ uv.lock
 .mcp.json
 .vscode/
 
+# Firebase credentials (NEVER commit service account keys!)
+*firebase*.json
+*-firebase-*.json
+*service-account*.json
+firebase-adminsdk*.json
+
 # AI Assistant files (Keep these tracked for collaboration)
 !CLAUDE.md
 !GEMINI.md
