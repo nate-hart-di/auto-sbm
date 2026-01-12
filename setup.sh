@@ -355,10 +355,11 @@ ZSHRC_EOF
     log "✅ prettier/node wrapper functions already present"
   fi
 
-  # Add NVM configuration if not already present
+  # Add NVM configuration if not already present and NVM is available
   if ! grep -q "##### NVM CONFIGURATION #####" "$ZSHRC_FILE"; then
-    log "Adding NVM configuration to $ZSHRC_FILE"
-    cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
+    if [ -s "$HOME/.nvm/nvm.sh" ] || command -v nvm &> /dev/null; then
+      log "Adding NVM configuration to $ZSHRC_FILE"
+      cat >> "$ZSHRC_FILE" << 'ZSHRC_EOF'
 
 ##### NVM CONFIGURATION #####
 export NVM_DIR="$HOME/.nvm"
@@ -368,6 +369,9 @@ export NVM_DIR="$HOME/.nvm"
 # Auto-switch Node versions based on .nvmrc file
 autoload -U add-zsh-hook
 load-nvmrc() {
+  if ! command -v nvm > /dev/null; then
+    return
+  fi
   local node_version="$(nvm version)"
   local nvmrc_path="$(nvm_find_nvmrc)"
 
@@ -387,7 +391,10 @@ load-nvmrc() {
 add-zsh-hook chpwd load-nvmrc
 load-nvmrc
 ZSHRC_EOF
-    log "✅ NVM configuration added"
+      log "✅ NVM configuration added"
+    else
+      log "✅ NVM not installed; skipping NVM configuration"
+    fi
   else
     log "✅ NVM configuration already present"
   fi
