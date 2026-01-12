@@ -101,30 +101,32 @@ def load_all_stats() -> tuple[List[Dict[str, Any]], Dict[str, set]]:
     all_runs = []
     user_migrations = {}
 
-    if not STATS_DIR.exists():
+    fallback_dirs = [STATS_DIR, REPO_ROOT / "stats" / "archive"]
+    if not any(d.exists() for d in fallback_dirs):
         return all_runs, user_migrations
 
-    for stats_file in STATS_DIR.glob("*.json"):
-        if stats_file.name.startswith("."):
-            continue
+    for stats_dir in fallback_dirs:
+        for stats_file in stats_dir.glob("*.json"):
+            if stats_file.name.startswith("."):
+                continue
 
-        try:
-            with stats_file.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-                user_id = data.get("user", stats_file.stem)
-                runs = data.get("runs", [])
-                migrations = set(data.get("migrations", []))
+            try:
+                with stats_file.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    user_id = data.get("user", stats_file.stem)
+                    runs = data.get("runs", [])
+                    migrations = set(data.get("migrations", []))
 
-                # Store total distinct migrations for this user
-                user_migrations[user_id] = migrations
+                    # Store total distinct migrations for this user
+                    user_migrations[user_id] = migrations
 
-                # Tag runs with user_id for attribution
-                for run in runs:
-                    run["_user"] = user_id
+                    # Tag runs with user_id for attribution
+                    for run in runs:
+                        run["_user"] = user_id
 
-                all_runs.extend(runs)
-        except Exception as e:
-            print(f"Warning: Failed to read {stats_file}: {e}", file=sys.stderr)
+                    all_runs.extend(runs)
+            except Exception as e:
+                print(f"Warning: Failed to read {stats_file}: {e}", file=sys.stderr)
 
     return all_runs, user_migrations
 
