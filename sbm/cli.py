@@ -27,7 +27,7 @@ from sbm.utils.tracker import (
     process_pending_syncs,
 )
 
-from .config import Config, ConfigurationError, get_config
+from .config import Config, ConfigurationError, get_config, get_settings
 from .core.git import GitOperations
 from .core.migration import (
     MigrationResult,
