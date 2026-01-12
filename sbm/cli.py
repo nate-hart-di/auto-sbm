@@ -2139,6 +2139,38 @@ def _update_dependencies() -> None:
         click.echo(f"⚠️  Warning: Failed to reinstall auto-sbm package: {e}")
 
 
+def _ensure_devtools_cli() -> None:
+    """Ensure devtools CLI is available for slug validation."""
+    env_path = os.environ.get("DEVTOOLS_CLI_PATH")
+    if env_path:
+        devtools_script = Path(env_path).expanduser()
+        if devtools_script.is_dir():
+            devtools_script = devtools_script / "devtools"
+    else:
+        devtools_script = Path.home() / "code/dealerinspire/feature-dev-shared-scripts/devtools-cli/devtools"
+
+    if devtools_script.exists():
+        logger.debug("Devtools CLI already available.")
+        return
+
+    click.echo("🔧 Devtools CLI not found. Installing...")
+    repo_root = Path.home() / "code/dealerinspire/feature-dev-shared-scripts"
+    repo_root.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "git@bitbucket.org:dealerinspire/feature-dev-shared-scripts.git",
+                str(repo_root),
+            ],
+            check=True,
+        )
+        click.echo("✅ Devtools CLI installed.")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"⚠️  Warning: Failed to install Devtools CLI: {e}")
+
+
 def _restore_stashed_changes() -> None:
     """Restore previously stashed changes."""
     click.echo("Restoring local changes...")
@@ -2208,6 +2240,7 @@ def update() -> None:
 
             # ALWAYS update dependencies and hooks if pull was successful
             # This ensures we catch local changes or repair broken environments
+            _ensure_devtools_cli()
             click.echo("\n📦 Updating dependencies...")
             _update_dependencies()
             click.echo("✅ Dependencies updated")
