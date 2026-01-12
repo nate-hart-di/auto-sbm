@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-01-12
+
+### Added
+- **1Password refs**: Save `op://` references once and avoid future prompts.
+- **Local marker**: Store refs in `.sbm_op_refs` with a completion marker.
+
+### Changed
+- **Setup flow**: Auto-detect 1Password refs from env or saved file before prompting.
+
 ## [2.9.0] - 2026-01-12
 
 ### Added

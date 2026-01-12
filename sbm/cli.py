@@ -68,6 +68,8 @@ if not REPO_ROOT.exists():
 
 SETUP_MARKER = REPO_ROOT / ".sbm_setup_complete"
 SETUP_SCRIPT = REPO_ROOT / "setup.sh"
+OP_REFS_FILE = Path(os.environ.get("SBM_OP_REFS_FILE", REPO_ROOT / ".sbm_op_refs"))
+OP_REFS_MARKER = Path(os.environ.get("SBM_OP_REFS_MARKER", REPO_ROOT / ".sbm_op_refs_complete"))
 
 REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip", "op"]
 REQUIRED_PYTHON_PACKAGES = [
@@ -2129,6 +2131,77 @@ def _ensure_devtools_cli() -> None:
         click.echo(f"⚠️  Warning: Failed to install Devtools CLI: {e}")
 
 
+def _read_op_refs_file() -> dict[str, str]:
+    if not OP_REFS_FILE.exists():
+        return {}
+    try:
+        refs = {}
+        for line in OP_REFS_FILE.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            refs[key.strip()] = value.strip()
+        return refs
+    except Exception as e:
+        logger.debug(f"Failed to read 1Password refs file: {e}")
+        return {}
+
+
+def _write_op_refs_file(refs: dict[str, str]) -> None:
+    try:
+        lines = [
+            "# Auto-SBM 1Password references (op://vault/item/field)",
+            f"OP_FIREBASE_DATABASE_URL_REF={refs.get('OP_FIREBASE_DATABASE_URL_REF', '')}",
+            f"OP_FIREBASE_API_KEY_REF={refs.get('OP_FIREBASE_API_KEY_REF', '')}",
+            "",
+        ]
+        OP_REFS_FILE.write_text("\n".join(lines), encoding="utf-8")
+    except Exception as e:
+        logger.debug(f"Failed to write 1Password refs file: {e}")
+
+
+def _ensure_op_refs() -> None:
+    """Prompt once for 1Password refs and store locally."""
+    if OP_REFS_MARKER.exists():
+        return
+
+    refs = _read_op_refs_file()
+    config = get_settings()
+
+    env_db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip()
+    env_key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip()
+    if env_db_ref or env_key_ref:
+        refs["OP_FIREBASE_DATABASE_URL_REF"] = env_db_ref or refs.get(
+            "OP_FIREBASE_DATABASE_URL_REF", ""
+        )
+        refs["OP_FIREBASE_API_KEY_REF"] = env_key_ref or refs.get(
+            "OP_FIREBASE_API_KEY_REF", ""
+        )
+        _write_op_refs_file(refs)
+        OP_REFS_MARKER.touch()
+        return
+
+    if not config.non_interactive:
+        click.echo(
+            "🔐 Optional: Enter 1Password op:// references for Firebase (press Enter to skip)."
+        )
+        db_ref = click.prompt(
+            "OP_FIREBASE_DATABASE_URL_REF", default="", show_default=False
+        ).strip()
+        key_ref = click.prompt("OP_FIREBASE_API_KEY_REF", default="", show_default=False).strip()
+        if db_ref or key_ref:
+            refs["OP_FIREBASE_DATABASE_URL_REF"] = db_ref
+            refs["OP_FIREBASE_API_KEY_REF"] = key_ref
+            _write_op_refs_file(refs)
+        OP_REFS_MARKER.touch()
+        return
+
+    OP_REFS_MARKER.touch()
+
+
 def _read_1password_reference(ref: str) -> str | None:
     """Read a secret from 1Password using an op:// reference."""
     if not ref:
@@ -2154,8 +2227,13 @@ def _read_1password_reference(ref: str) -> str | None:
 
 def _load_firebase_from_1password() -> tuple[str | None, str | None]:
     """Fetch Firebase URL/API key from 1Password if references are provided."""
-    db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip()
-    key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip()
+    file_refs = _read_op_refs_file()
+    db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip() or file_refs.get(
+        "OP_FIREBASE_DATABASE_URL_REF", ""
+    )
+    key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip() or file_refs.get(
+        "OP_FIREBASE_API_KEY_REF", ""
+    )
     db_url = _read_1password_reference(db_ref) if db_ref else None
     api_key = _read_1password_reference(key_ref) if key_ref else None
     return db_url, api_key
@@ -2195,6 +2273,7 @@ def _ensure_secure_firebase_secrets() -> None:
     if not is_secure_store_available():
         return
 
+    _ensure_op_refs()
     config = get_settings()
     db_url = os.environ.get("FIREBASE__DATABASE_URL") or config.firebase.database_url
     api_key = os.environ.get("FIREBASE__API_KEY") or config.firebase.api_key

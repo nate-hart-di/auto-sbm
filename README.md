@@ -1,6 +1,6 @@
 # Auto-SBM
 
-Current version: 2.9.0
+Current version: 2.10.0
 Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
 to Site Builder format, validates output, and tracks migration stats with optional Slack
 reporting.
@@ -93,6 +93,9 @@ Optional: seed the keychain from 1Password using `op://` references:
 OP_FIREBASE_DATABASE_URL_REF=op://vault/auto-sbm/firebase_database_url
 OP_FIREBASE_API_KEY_REF=op://vault/auto-sbm/firebase_api_key
 ```
+
+On first run, `sbm setup`/`sbm update` will store the references in `.sbm_op_refs` and
+won't prompt again. Delete `.sbm_op_refs` + `.sbm_op_refs_complete` to reconfigure.
 
 Stats commands work automatically:
 

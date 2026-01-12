@@ -72,6 +72,8 @@ node_modules/
 
 # Setup Files
 .sbm_setup_complete
+.sbm_op_refs
+.sbm_op_refs_complete
 
 # Auto-update settings
 .sbm-no-auto-update
