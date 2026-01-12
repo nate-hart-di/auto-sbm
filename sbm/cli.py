@@ -2164,13 +2164,11 @@ def _write_op_refs_file(refs: dict[str, str]) -> None:
 
 
 def _ensure_op_refs() -> None:
-    """Prompt once for 1Password refs and store locally."""
+    """Persist 1Password refs from env to a local file (no prompts)."""
     if OP_REFS_MARKER.exists():
         return
 
     refs = _read_op_refs_file()
-    config = get_settings()
-
     env_db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip()
     env_key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip()
     if env_db_ref or env_key_ref:
@@ -2182,24 +2180,6 @@ def _ensure_op_refs() -> None:
         )
         _write_op_refs_file(refs)
         OP_REFS_MARKER.touch()
-        return
-
-    if not config.non_interactive:
-        click.echo(
-            "🔐 Optional: Enter 1Password op:// references for Firebase (press Enter to skip)."
-        )
-        db_ref = click.prompt(
-            "OP_FIREBASE_DATABASE_URL_REF", default="", show_default=False
-        ).strip()
-        key_ref = click.prompt("OP_FIREBASE_API_KEY_REF", default="", show_default=False).strip()
-        if db_ref or key_ref:
-            refs["OP_FIREBASE_DATABASE_URL_REF"] = db_ref
-            refs["OP_FIREBASE_API_KEY_REF"] = key_ref
-            _write_op_refs_file(refs)
-        OP_REFS_MARKER.touch()
-        return
-
-    OP_REFS_MARKER.touch()
 
 
 def _read_1password_reference(ref: str) -> str | None:

@@ -107,11 +107,11 @@ class FirebaseSettings(BaseSettings):
         description="Path to Firebase service account JSON file (admin only)",
     )
     database_url: str | None = Field(
-        default=None,
+        default="https://auto-sbm-default-rtdb.firebaseio.com",
         description="Firebase Realtime Database URL (e.g., https://project-id.firebaseio.com)",
     )
     api_key: str | None = Field(
-        default=None,
+        default="AIzaSyC278H_TiIrtGE_YYip1r28eDENYs-1RiI",
         description="Firebase Web API Key (required for user mode/anonymous auth)",
     )
 
