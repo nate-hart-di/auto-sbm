@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from sbm.config import get_settings
 from sbm.utils.logger import logger
+from sbm.utils.slug_validation import filter_valid_slugs
 
 if TYPE_CHECKING:
     from firebase_admin import App
@@ -310,7 +311,8 @@ class FirebaseSync:
                         total_time_saved_h += lines / 800.0
                         total_automation_seconds += run.get("automation_seconds", 0)
 
-                user_migration_count = len(migrations_set)
+                valid_migrations = set(filter_valid_slugs(migrations_set))
+                user_migration_count = len(valid_migrations)
                 if user_migration_count > 0:
                     user_counts[user_id] = user_migration_count
                     total_migrations += user_migration_count
@@ -366,20 +368,25 @@ class FirebaseSync:
                 if not runs_node:
                     runs_node = {}
 
+                migrations_set = set()
                 if isinstance(migrations_node, list):
                     for slug in migrations_node:
-                        if slug and slug not in migrated_map:
-                            migrated_map[slug] = user_id
+                        if slug:
+                            migrations_set.add(slug)
                 elif isinstance(migrations_node, dict):
                     for slug in migrations_node.keys():
-                        if slug and slug not in migrated_map:
-                            migrated_map[slug] = user_id
+                        if slug:
+                            migrations_set.add(slug)
 
                 for _, run in runs_node.items():
                     if run.get("status") == "success":
                         slug = run.get("slug")
                         if slug:
-                            migrated_map[slug] = user_id
+                            migrations_set.add(slug)
+
+                for slug in filter_valid_slugs(migrations_set):
+                    if slug and slug not in migrated_map:
+                        migrated_map[slug] = user_id
             return migrated_map
         except Exception as e:
             logger.debug(f"Failed to fetch global history: {e}")

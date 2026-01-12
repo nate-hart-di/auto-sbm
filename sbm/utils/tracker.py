@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from .processes import run_background_task
 from .firebase_sync import is_firebase_available, FirebaseSync
+from .slug_validation import filter_valid_runs, filter_valid_slugs
 
 from .logger import logger
 
@@ -325,7 +326,9 @@ def get_migration_stats(
 
     # Filter to current user's runs from Firebase
     my_runs = [r for r in all_firebase_runs if r.get("_user") == current_user_id]
+    my_runs = filter_valid_runs(my_runs)
     my_migrations = user_migrations.get(current_user_id, set())
+    my_migrations = set(filter_valid_slugs(my_migrations))
 
     # Apply additional filters if provided
     has_filters = any([limit, since, until, user])
@@ -337,6 +340,8 @@ def get_migration_stats(
         )
     else:
         filtered_runs = my_runs
+
+    filtered_runs = filter_valid_runs(filtered_runs)
 
     # Calculate metrics from Firebase data (not local)
     firebase_stats = _calculate_metrics({"runs": my_runs})
