@@ -1,0 +1,200 @@
+{
+  "user": "adalbec2016",
+  "migrations": [
+    "churnessmotorscompany",
+    "daytonandrewschryslerdodgejeepramclearwater",
+    "doughenrycdjr",
+    "kennykentlexus",
+    "maseratiofcincy",
+    "parkchryslerjeep",
+    "patriotchryslerdodgejeepramofpryor",
+    "pellegrinochryslerjeep",
+    "powaychryslerjeepdodgeram",
+    "seelyeofpawpaw1",
+    "summitautomotivechryslerdodgejeepram",
+    "tillemanmotorcompany",
+    "videonchryslerdodgejeepram",
+    "waconiadodge",
+    "wetzelcdj",
+    "williamsburgcdjr"
+  ],
+  "runs": [
+    {
+      "timestamp": "2025-10-17T15:57:46Z",
+      "slug": "churnessmotorscompany",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 293,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-21T17:46:21Z",
+      "slug": "videonchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 380,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-21T19:41:01Z",
+      "slug": "williamsburgcdjr",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 682,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-28T14:38:34Z",
+      "slug": "maseratiofcincy",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 166,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-28T17:08:38Z",
+      "slug": "pellegrinochryslerjeep",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 485,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-28T18:54:54Z",
+      "slug": "summitautomotivechryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 276,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-29T13:11:58Z",
+      "slug": "doughenrycdjr",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 475,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-04T17:38:13Z",
+      "slug": "seelyeofpawpaw1",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 285,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-04T18:34:02Z",
+      "slug": "patriotchryslerdodgejeepramofpryor",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 385,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-18T19:37:51Z",
+      "slug": "tillemanmotorcompany",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 323,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-18T20:02:47Z",
+      "slug": "daytonandrewschryslerdodgejeepramclearwater",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 315,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-02T15:29:41Z",
+      "slug": "waconiadodge",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 494,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-03T19:17:24Z",
+      "slug": "powaychryslerjeepdodgeram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 316,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-08T17:17:14Z",
+      "slug": "parkchryslerjeep",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 712,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-08T17:40:41Z",
+      "slug": "wetzelcdj",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 92,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-09T16:17:35Z",
+      "slug": "kennykentlexus",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 136,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    }
+  ],
+  "last_updated": "2025-12-18T00:40:12.275746Z"
+}

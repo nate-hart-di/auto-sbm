@@ -1,0 +1,104 @@
+{
+  "user": "nzbasnikDI",
+  "migrations": [
+    "autolandchryslerjeepdodgeram",
+    "centralmainechrysler",
+    "ellisboyschryslerdodgejeepram",
+    "mannchryslerdodgejeepofmtsterling",
+    "santabarbarachryslerdodgejeepramfiat",
+    "sharpchryslerdodgejeepram",
+    "shepardchryslerdodgejeepram",
+    "voylescdjrofbirmingham"
+  ],
+  "runs": [
+    {
+      "timestamp": "2025-08-18T15:42:05Z",
+      "slug": "santabarbarachryslerdodgejeepramfiat",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 330,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-18T16:15:55Z",
+      "slug": "autolandchryslerjeepdodgeram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 595,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-18T16:41:01Z",
+      "slug": "mannchryslerdodgejeepofmtsterling",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 253,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-16T15:55:17Z",
+      "slug": "voylescdjrofbirmingham",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 463,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-10-16T21:38:56Z",
+      "slug": "centralmainechrysler",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 474,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-24T16:39:59Z",
+      "slug": "ellisboyschryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 365,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-24T16:56:42Z",
+      "slug": "sharpchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 376,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-24T17:05:10Z",
+      "slug": "shepardchryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 593,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    }
+  ],
+  "last_updated": "2025-12-18T00:40:12.277021Z"
+}

@@ -1,0 +1,86 @@
+{
+  "user": "JamesOch",
+  "migrations": [
+    "added"
+  ],
+  "runs": [
+    {
+      "timestamp": "2025-11-24T16:23:58Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-24T16:33:20Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-26T18:46:15Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-26T19:11:19Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-26T19:20:51Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-26T19:26:59Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-11-26T19:36:50Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    }
+  ],
+  "last_updated": "2025-12-18T00:40:12.280837Z"
+}

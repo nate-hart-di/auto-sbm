@@ -93,11 +93,11 @@ def test_copy_partial_with_fuzzy_matching(tmp_path, monkeypatch):
 
     result = maps.copy_partial_to_dealer_theme("testdealer", partial_info)
 
-    assert result == "copied", "Should successfully copy with fuzzy matching"
+    assert result == "skipped_inheritance", "Should skip copy via theme inheritance"
 
-    # Verify the file was copied to dealer theme
+    # Verify the file was not copied to dealer theme
     copied_file = dealer_theme_dir / "partials/dealer-groups/fca/map.php"
-    assert copied_file.exists(), "File should be copied to dealer theme"
+    assert not copied_file.exists(), "File should not be copied to dealer theme"
 
 
 def test_derive_map_imports_from_partials_resolves_underscore_variant(tmp_path, monkeypatch):

@@ -1,0 +1,92 @@
+{
+  "user": "evantritt",
+  "migrations": [
+    "brooklynchryslerjeepdodgeram",
+    "classicchryslerjeepdodgeramfiatofgoldsboro",
+    "dodgechryslerjeepramofwinterhaven",
+    "lakewaleschryslerdodgejeepram",
+    "monroesuperstoredodgechryslerjeepram",
+    "posnerparkchryslerdodgejeepramfiat",
+    "stephenwadechryslerjeepdodgeram"
+  ],
+  "runs": [
+    {
+      "timestamp": "2025-08-04T14:41:03Z",
+      "slug": "classicchryslerjeepdodgeramfiatofgoldsboro",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 446,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-04T15:04:33Z",
+      "slug": "stephenwadechryslerjeepdodgeram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 600,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-04T20:15:59Z",
+      "slug": "brooklynchryslerjeepdodgeram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 281,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-04T20:32:11Z",
+      "slug": "monroesuperstoredodgechryslerjeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 360,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-04T20:56:30Z",
+      "slug": "posnerparkchryslerdodgejeepramfiat",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 330,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-04T21:01:35Z",
+      "slug": "dodgechryslerjeepramofwinterhaven",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 365,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-08-04T21:06:50Z",
+      "slug": "lakewaleschryslerdodgejeepram",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 319,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    }
+  ],
+  "last_updated": "2025-12-18T00:40:12.279841Z"
+}

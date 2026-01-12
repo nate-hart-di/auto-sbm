@@ -58,6 +58,29 @@ echo "🚀 Auto-SBM v${SBM_VERSION} Setup Starting..."
 echo "Step 1/7: Installing system dependencies..."
 echo ""
 
+# --- Ensure Devtools CLI is available ---
+function ensure_devtools_cli() {
+  local devtools_dir="$HOME/code/dealerinspire/feature-dev-shared-scripts/devtools-cli"
+  local devtools_script="$devtools_dir/devtools"
+
+  if [ -f "$devtools_script" ]; then
+    log "✅ Devtools CLI already available"
+    return 0
+  fi
+
+  log "Devtools CLI not found. Cloning feature-dev-shared-scripts..."
+  mkdir -p "$HOME/code/dealerinspire"
+  retry_command "git clone git@bitbucket.org:dealerinspire/feature-dev-shared-scripts.git $HOME/code/dealerinspire/feature-dev-shared-scripts" "Devtools CLI clone"
+
+  if [ -f "$devtools_script" ]; then
+    log "✅ Devtools CLI installed successfully"
+    return 0
+  fi
+
+  warn "Devtools CLI still not found after clone. Please verify the repo."
+  return 1
+}
+
 # --- Install Homebrew (package manager for macOS) ---
 function install_homebrew() {
   if ! command -v brew &> /dev/null; then
@@ -253,6 +276,7 @@ function setup_package_manager() {
 if [[ "$OSTYPE" == "darwin"* ]]; then
   install_homebrew
   install_required_tools
+  ensure_devtools_cli
   install_uv
   install_node_dependencies # Moved after required tools installation
 else

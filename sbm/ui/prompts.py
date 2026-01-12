@@ -474,3 +474,20 @@ class InteractivePrompts:
         except Exception as e:
             logger.error(f"Error during timed prompt: {e}")
             return False
+
+    @staticmethod
+    def confirm_duplicate_migration(duplicates: List[tuple], default: bool = True) -> bool:
+        """
+        Prompt user to confirm skipping duplicates.
+
+        Args:
+            duplicates: List of (slug, user) tuples.
+            default: Default choice (True to skip).
+
+        Returns:
+            True if user wants to skip duplicates.
+        """
+        if get_settings().non_interactive:
+            return True
+
+        return Confirm.ask("Skip these duplicates?", default=default)

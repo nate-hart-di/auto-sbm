@@ -97,10 +97,20 @@ uv.lock
 .mcp.json
 .vscode/
 
+# Firebase credentials (NEVER commit service account keys!)
+*firebase*.json
+*-firebase-*.json
+*service-account*.json
+firebase-adminsdk*.json
+
 # AI Assistant files (Keep these tracked for collaboration)
 !CLAUDE.md
 !GEMINI.md
 stats/.sync.lock
+
+# Git-based stats removed in Story 2.7 - Firebase is now source of truth
+stats/*.json
+!stats/archive/
 
 # Codex Session Logs (Exclusion to prevent secret leaks)
 .codex/

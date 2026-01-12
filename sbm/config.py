@@ -19,6 +19,9 @@ class ConfigurationError(Exception):
     """Custom exception for configuration-related errors."""
 
 
+from sbm.utils.logger import logger
+
+
 class ProgressSettings(BaseSettings):
     """Progress tracking configuration."""
 
@@ -84,6 +87,98 @@ class GitSettings(BaseSettings):
         return v
 
 
+class FirebaseSettings(BaseSettings):
+    """Firebase Realtime Database configuration for team-wide stats sync.
+
+    Story 2.7: Two authentication modes supported:
+    - User Mode: database_url only → Anonymous Auth (read-only access)
+    - Admin Mode: database_url + credentials_path → Full access
+
+    Environment variables:
+        FIREBASE__DATABASE_URL: Firebase Realtime Database URL (required for all)
+        FIREBASE__CREDENTIALS_PATH: Path to Firebase service account JSON (admin only)
+        FIREBASE__API_KEY: Firebase Web API Key (required for user mode/anonymous auth)
+    """
+
+    model_config = SettingsConfigDict(extra="ignore")
+
+    credentials_path: Path | None = Field(
+        default=None,
+        description="Path to Firebase service account JSON file (admin only)",
+    )
+    database_url: str | None = Field(
+        default=None,
+        description="Firebase Realtime Database URL (e.g., https://project-id.firebaseio.com)",
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="Firebase Web API Key (required for user mode/anonymous auth)",
+    )
+
+    @field_validator("credentials_path", mode="before")
+    @classmethod
+    def parse_credentials_path(cls, v: str | Path | None) -> Path | None:
+        """Convert string path to Path object, handling None and empty strings."""
+        if v is None or v == "":
+            return None
+        return Path(v) if isinstance(v, str) else v
+
+    @field_validator("credentials_path", mode="after")
+    @classmethod
+    def validate_credentials_path(cls, v: Path | None) -> Path | None:
+        """Validate that credentials file exists if path is provided."""
+        if v is None:
+            return v
+        # Expand user home directory if needed
+        expanded_path = v.expanduser()
+        if not expanded_path.exists():
+            # Log warning but don't fail - allows offline-first operation
+            # Firebase operations will fail gracefully at runtime
+            logger.warning(
+                f"Firebase credentials file not found: {expanded_path}. "
+                "Firebase admin mode will be disabled.",
+            )
+        return expanded_path
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, v: str | None) -> str | None:
+        """Validate Firebase database URL format."""
+        if v is None or v == "":
+            return None
+        # Basic URL validation - must be HTTPS Firebase URL
+        if not v.startswith("https://"):
+            msg = "Firebase database URL must start with https://"
+            raise ValueError(msg)
+        if "firebaseio.com" not in v and "firebasedatabase.app" not in v:
+            msg = (
+                "Firebase database URL must be a valid Firebase Realtime Database URL "
+                "(containing firebaseio.com or firebasedatabase.app)"
+            )
+            raise ValueError(msg)
+        return v.rstrip("/")  # Normalize URL by removing trailing slash
+
+    def is_configured(self) -> bool:
+        """Check if Firebase is available (admin or user mode).
+
+        Returns True if database_url is set and either credentials or api_key are available.
+        Team members need api_key for anonymous auth.
+        """
+        return self.database_url is not None and (self.api_key is not None or self.is_admin_mode())
+
+    def is_admin_mode(self) -> bool:
+        """Check if running in admin mode with full credentials."""
+        return (
+            self.credentials_path is not None
+            and self.credentials_path.exists()
+            and self.database_url is not None
+        )
+
+    def is_user_mode(self) -> bool:
+        """Check if running in user mode (anonymous auth)."""
+        return self.database_url is not None and self.api_key is not None and not self.is_admin_mode()
+
+
 class MigrationSettings(BaseSettings):
     """Migration-specific configuration."""
 
@@ -111,6 +206,7 @@ class AutoSBMSettings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
     git: GitSettings = Field(default_factory=lambda: GitSettings())
     migration: MigrationSettings = Field(default_factory=lambda: MigrationSettings())
+    firebase: FirebaseSettings = Field(default_factory=lambda: FirebaseSettings())
 
     # Global CLI behavior
     non_interactive: bool = Field(default=False, description="Disable interactive prompts")
@@ -126,6 +222,28 @@ class AutoSBMSettings(BaseSettings):
             "TRAVIS",
         ]
         return any(os.getenv(indicator) for indicator in ci_indicators)
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        from sbm.utils.secure_store import get_secret, is_secure_store_available
+
+        def keyring_settings_source():
+            if not is_secure_store_available():
+                return {}
+            return {
+                "firebase__database_url": get_secret("firebase__database_url"),
+                "firebase__api_key": get_secret("firebase__api_key"),
+            }
+
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            keyring_settings_source,
+            file_secret_settings,
+        )
 
 
 # Global settings instance - lazy loaded

@@ -5,6 +5,97 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-01-12
+
+### Added
+- **Firebase user auth**: Anonymous auth token flow for REST reads/writes under team stats rules.
+- **Secure storage**: Store Firebase URL/API key in system keychain and scrub from `.env` on setup/update.
+- **Stats reliability**: User-mode stats use Firebase UID for consistent history.
+
+### Fixed
+- **CLI internals**: Removed duplicate `internal-refresh-stats` command registration.
+
+## [2.7.10] - 2026-01-12
+
+### Added
+- **Legacy Backfill**: Added `scripts/backfill_firebase.py` to restore historical run data from local archives to Firebase.
+
+## [2.7.9] - 2026-01-12
+
+### Fixed
+- **Stats display**: Fixed stats showing 0 lines migrated and 0h time saved when runs data is missing from Firebase.
+  - Stats now estimate metrics using **500 lines/migration** (median from 104 actual runs, IQR filtered to exclude outliers).
+  - Team stats (`--team`) apply same data-driven estimation for users with legacy migration lists but no run history.
+  - Personal stats correctly blend actual run data with estimates for migrations without run records.
+- **Team stats UI**: Changed team stats display to show "Lines Migrated" instead of "Automation Time".
+- **Test fixes**: Added `is_official_slug` mock to tracker tests so test slugs pass validation.
+
+
+
+## [2.7.5] - 2026-01-12
+
+### Changed
+- **Stats performance**: Remove slug validation from stats reads to keep `sbm stats` fast.
+- **Slug checks**: Validate slugs via devtools only before Firebase sync; invalid runs are not stored.
+
+## [2.7.4] - 2026-01-12
+
+### Added
+- **Devtools setup**: Setup and update now auto-clone the devtools CLI if missing.
+
+## [2.7.3] - 2026-01-12
+
+### Added
+- **Slug validation**: Filter stats to verified dealer slugs using `devtools search` (cached), so test slugs do not appear in history or team totals.
+
+## [2.7.2] - 2026-01-12
+
+### Changed
+- **Team stats**: Count per-user migrations (from legacy slug lists + run history) so contributor totals sum to the team total.
+- **UI**: Remove "(Firebase)" label from team stats header.
+
+## [2.7.1] - 2026-01-12
+
+### Fixed
+- **Legacy counts**: Backfill migration slug lists into Firebase so historical totals match legacy `stats/*.json` counts.
+- **Team totals**: Include legacy slug lists when aggregating Firebase team stats and duplicate checks.
+
+## [2.7.0] - 2026-01-12
+
+### Added
+- **Firebase-first stats**: Realtime sync with REST fallback for non-admin users, team aggregation, and duplicate detection for bulk runs.
+- **Offline queue**: Pending run uploads with background retry on subsequent CLI invocations.
+- **Migration reports**: Markdown reports in `.sbm-reports/` with `index.md` table of contents.
+- **Legacy import utility**: `scripts/stats/migrate_to_firebase.py` for backfilling local history.
+- **History filters**: `sbm stats --history` now supports `--limit`, `--since`, `--until`, and `--user`.
+
+### Changed
+- **Stats source of truth**: Firebase replaces git-based stats files and sync flow.
+- **History display**: Adds duration, lines migrated, time saved, and report path columns.
+
+### Fixed
+- **Report generation**: Report path persisted in run records for history display.
+
+## [2.6.0] - 2026-01-09
+
+### Added
+- **Firebase Infrastructure**: Initial infrastructure setup for team-wide statistics synchronization (Epic 2).
+  - Added `firebase-admin` dependency.
+  - Implemented `FirebaseSettings` in configuration with environment variable support.
+  - Created lazy initialization module for Firebase Admin SDK.
+  - Added safe connection validation and integration tests.
+
+## [2.5.6] - 2026-01-09
+
+### Fixed
+- **Stat Tracking**: Fixed critical bug where `lines_migrated` was always recorded as 0 in migration stats
+  - Added `lines_migrated` field to `MigrationResult` dataclass with comprehensive documentation
+  - Updated migration flow to properly store lines_migrated count in result object
+  - Fixed CLI to use actual `result.lines_migrated` instead of hardcoded 0
+  - Added backfill script and fixed 20 historical runs with 0 values (now use default 800 lines)
+  - Added test coverage for edge cases (failed migrations with partial progress)
+  - This resolves incorrect totals and hours saved calculations in global stats
+
 ## [2.5.5] - 2026-01-09
 ### Fixed
 - **Dependencies**: Added `rapidfuzz` to project dependencies to resolve `ModuleNotFoundError` in downstream `di-websites-platform` scripts.

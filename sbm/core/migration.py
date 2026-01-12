@@ -54,6 +54,22 @@ class MigrationResult:
     Comprehensive result object for a single migration attempt.
 
     Captures all relevant information for reporting and debugging.
+
+    Attributes:
+        slug: Dealer theme slug being migrated
+        status: Migration status (pending, success, failed, error)
+        step_failed: Which migration step failed (if any)
+        error_message: Human-readable error description
+        stack_trace: Full stack trace for exceptions
+        scss_errors: List of SCSS compilation errors
+        pr_url: GitHub PR URL (if created)
+        salesforce_message: Salesforce notification message
+        branch_name: Git branch created for migration
+        elapsed_time: Total migration time in seconds
+        lines_migrated: Total SCSS lines migrated (set by _perform_core_migration)
+        files_created_count: Number of Site Builder files created (sb-*.scss)
+        scss_line_count: Total lines across all SCSS source files processed
+        timestamp: ISO8601 timestamp when migration started
     """
 
     slug: str
@@ -66,6 +82,10 @@ class MigrationResult:
     salesforce_message: Optional[str] = None
     branch_name: Optional[str] = None
     elapsed_time: float = 0.0
+    lines_migrated: int = 0  # Populated after SCSS migration in _perform_core_migration
+    files_created_count: int = 0  # Number of Site Builder files created
+    scss_line_count: int = 0  # Total source SCSS lines processed
+    report_path: Optional[str] = None  # Path to generated report
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def mark_success(
@@ -433,7 +453,18 @@ def create_sb_files(slug: str, force_reset: bool = False) -> bool:
         return False
 
 
-def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> tuple[bool, int]:
+def migrate_styles(
+    slug: str, processor: Optional[SCSSProcessor] = None
+) -> tuple[bool, int, int, int]:
+    """Process SCSS files and return migration metrics.
+
+    Returns:
+        tuple: (success, lines_migrated, files_created_count, scss_line_count)
+            - success: True if migration was successful
+            - lines_migrated: Total lines in output Site Builder files
+            - files_created_count: Number of Site Builder files created with content
+            - scss_line_count: Total lines in source SCSS files processed
+    """
     # 3. Processes main SCSS files (style.scss, inside.scss, etc.)
     # 4. Writes transformed files to target directory.
     logger.debug(f"Migrating styles for {slug} using new SASS-based SCSSProcessor")
@@ -443,7 +474,7 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> tupl
 
         if not source_scss_dir.is_dir():
             logger.error(f"Source SCSS directory not found: {source_scss_dir}")
-            return False, 0
+            return False, 0, 0, 0
 
         if processor is None:
             processor = SCSSProcessor(slug, exclude_nav_styles=True)
@@ -457,6 +488,17 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> tupl
         # Only use lvdp.scss and lvrp.scss, not vdp.scss and vrp.scss
         vdp_sources = [source_scss_dir / "lvdp.scss"]
         vrp_sources = [source_scss_dir / "lvrp.scss"]
+
+        # Count source SCSS lines before processing
+        total_source_lines = 0
+        all_sources = inside_sources + vdp_sources + vrp_sources
+        for source_file in all_sources:
+            if source_file.exists():
+                try:
+                    content = source_file.read_text(encoding="utf-8", errors="ignore")
+                    total_source_lines += len(content.splitlines())
+                except Exception:
+                    pass  # Ignore read errors for line counting
 
         # Process each category
         inside_content = "\n".join(
@@ -482,10 +524,12 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> tupl
         if success:
             generated_files = []
             total_lines_processed = 0
+            files_with_content = 0
             for filename, content in results.items():
                 if content:
                     lines = len(content.splitlines())
                     total_lines_processed += lines
+                    files_with_content += 1
                     generated_files.append(f"{filename} ({lines} lines)")
             if generated_files:
                 msg = (
@@ -495,14 +539,14 @@ def migrate_styles(slug: str, processor: Optional[SCSSProcessor] = None) -> tupl
                 logger.info(msg)
             # Note: SCSS formatting is applied at the end of the full migration
             # after all content (predetermined styles, map components) is added
-            return True, total_lines_processed
+            return True, total_lines_processed, files_with_content, total_source_lines
         else:
             logger.error("SCSS migration failed during file writing.")
-            return False, 0
+            return False, 0, 0, 0
 
     except Exception as e:
         logger.error(f"Error migrating styles: {e}", exc_info=True)
-        return False, 0
+        return False, 0, 0, 0
 
 
 def _add_cookie_disclaimer_styles(theme_path: Path, oem_handler: object | None, slug: str) -> bool:
@@ -785,6 +829,33 @@ def reprocess_manual_changes(slug: str) -> bool:
         return False
 
 
+def _format_all_scss_with_prettier(slug: str) -> bool:
+    """Format root sb-*.scss files using prettier (legacy helper)."""
+    try:
+        from sbm.utils import path as path_utils
+
+        theme_dir = Path(path_utils.get_dealer_theme_dir(slug))
+        if not theme_dir.exists():
+            logger.warning(f"Theme directory not found for formatting: {theme_dir}")
+            return False
+
+        scss_files = sorted(theme_dir.glob("sb-*.scss"))
+        if not scss_files:
+            logger.info("No sb-*.scss files found to format with prettier")
+            return False
+
+        command = ["prettier", "--write", *[str(path) for path in scss_files]]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            logger.warning(f"Prettier formatting failed: {result.stderr}")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Prettier formatting failed: {e}")
+        return False
+
+
 def run_post_migration_workflow(
     slug: str,
     branch_name: str | None,
@@ -867,21 +938,29 @@ def run_post_migration_workflow(
 
 def _perform_core_migration(
     slug: str, force_reset: bool, oem_handler: object | None, skip_maps: bool, console: SBMConsole
-) -> tuple[bool, int]:
-    """Run core transformation steps."""
+) -> tuple[bool, int, int, int]:
+    """Run core transformation steps.
+
+    Returns:
+        tuple: (success, lines_migrated, files_created_count, scss_line_count)
+    """
     console.print_step("Creating Site Builder SCSS files")
     with timer_segment("Site Builder File Creation"):
         if not create_sb_files(slug, force_reset):
-            return False, 0
+            return False, 0, 0, 0
 
     console.print_step("Migrating SCSS styles and transforming syntax")
     processor = SCSSProcessor(slug, exclude_nav_styles=True)
     lines_migrated = 0
+    files_created_count = 0
+    scss_line_count = 0
     with timer_segment("SCSS Migration"):
-        success, lines = migrate_styles(slug, processor=processor)
+        success, lines, files_count, source_lines = migrate_styles(slug, processor=processor)
         if not success:
-            return False, 0
+            return False, 0, 0, 0
         lines_migrated = lines
+        files_created_count = files_count
+        scss_line_count = source_lines
 
     _cleanup_exclusion_comments(slug)
     console.print_step("Adding predetermined OEM-specific styles")
@@ -893,7 +972,7 @@ def _perform_core_migration(
         if not migrate_map_components(
             slug, oem_handler, interactive=False, console=console, processor=processor
         ):
-            return False, 0
+            return False, 0, 0, 0
 
     # Final formatting pass - format all SCSS files after all content has been added
     console.print_step("Formatting SCSS files")
@@ -905,7 +984,7 @@ def _perform_core_migration(
     else:
         logger.warning("SCSS formatting encountered issues")
 
-    return True, lines_migrated
+    return True, lines_migrated, files_created_count, scss_line_count
 
 
 def migrate_dealer_theme(
@@ -963,8 +1042,7 @@ def migrate_dealer_theme(
                 success, branch_name = git_operations(slug)
             if not success:
                 result.mark_failed(
-                    MigrationStep.GIT_SETUP,
-                    f"Git branch creation or checkout failed for {slug}"
+                    MigrationStep.GIT_SETUP, f"Git branch creation or checkout failed for {slug}"
                 )
                 result.elapsed_time = time.time() - start_time
                 return result
@@ -973,7 +1051,7 @@ def migrate_dealer_theme(
             result.mark_failed(
                 MigrationStep.GIT_SETUP,
                 f"Git setup exception for {slug}: {str(e)}",
-                traceback.format_exc()
+                traceback.format_exc(),
             )
             result.elapsed_time = time.time() - start_time
             return result
@@ -986,7 +1064,7 @@ def migrate_dealer_theme(
                 if not run_just_start(slug, suppress_output=False):
                     result.mark_failed(
                         MigrationStep.DOCKER_STARTUP,
-                        f"Docker container startup failed for {slug} - check AWS credentials or Docker logs"
+                        f"Docker container startup failed for {slug} - check AWS credentials or Docker logs",
                     )
                     result.elapsed_time = time.time() - start_time
                     return result
@@ -994,20 +1072,28 @@ def migrate_dealer_theme(
             result.mark_failed(
                 MigrationStep.DOCKER_STARTUP,
                 f"Docker startup exception for {slug}: {str(e)}",
-                traceback.format_exc()
+                traceback.format_exc(),
             )
             result.elapsed_time = time.time() - start_time
             return result
 
     # Step 3: Core Migration
     try:
-        success, lines_migrated = _perform_core_migration(
+        success, lines_migrated, files_created, scss_lines = _perform_core_migration(
             slug, force_reset, oem_handler, skip_maps, console
         )
+        # Store metrics in result for stats tracking and debugging.
+        # NOTE: This is set regardless of success/failure. Only successful migrations
+        # get persisted to stats (CLI checks result.status == "success"), but having
+        # the count on failed migrations is useful for debugging partial progress.
+        result.lines_migrated = lines_migrated
+        result.files_created_count = files_created
+        result.scss_line_count = scss_lines
+
         if not success:
             result.mark_failed(
                 MigrationStep.CORE_MIGRATION,
-                f"Core migration failed for {slug} - SCSS processing or file creation error"
+                f"Core migration failed for {slug} - SCSS processing or file creation error",
             )
             result.elapsed_time = time.time() - start_time
             return result
@@ -1015,7 +1101,7 @@ def migrate_dealer_theme(
         result.mark_failed(
             MigrationStep.CORE_MIGRATION,
             f"Core migration exception for {slug}: {str(e)}",
-            traceback.format_exc()
+            traceback.format_exc(),
         )
         result.elapsed_time = time.time() - start_time
         return result
@@ -1050,6 +1136,33 @@ def migrate_dealer_theme(
                         post_result.get("step_failed", MigrationStep.PR_CREATION),
                         post_result.get("error", "Post-migration workflow failed"),
                     )
+
+        result.elapsed_time = time.time() - start_time
+
+        # Success! Generate report
+        if result.status == "success":
+            try:
+                from sbm.utils.report_generator import (
+                    MigrationReportData,
+                    generate_migration_report,
+                )
+
+                report_data = MigrationReportData(
+                    slug=slug,
+                    status="success",
+                    elapsed_time=result.elapsed_time,
+                    lines_migrated=result.lines_migrated,
+                    pr_url=result.pr_url,
+                    salesforce_message=result.salesforce_message,
+                    timestamp=result.timestamp,
+                )
+                report_path = generate_migration_report(report_data)
+                if report_path:
+                    result.report_path = report_path
+                    logger.info(f"Migration report generated: {report_path}")
+            except Exception as e:
+                logger.warning(f"Failed to generate migration report: {e}")
+
     except Exception as e:
         result.mark_error(e)
 
@@ -1101,7 +1214,7 @@ def run_post_migration_workflow(
                 if result:
                     result.mark_failed(
                         MigrationStep.CORE_MIGRATION,
-                        f"Failed to reprocess manual SCSS changes for {slug}"
+                        f"Failed to reprocess manual SCSS changes for {slug}",
                     )
                 return {
                     "success": False,
@@ -1121,7 +1234,7 @@ def run_post_migration_workflow(
                     error_count = len(scss_errors)
                     result.mark_failed(
                         MigrationStep.SCSS_VERIFICATION,
-                        f"SCSS compilation failed for {slug} with {error_count} error(s) - check Docker logs"
+                        f"SCSS compilation failed for {slug} with {error_count} error(s) - check Docker logs",
                     )
                     for err in scss_errors:
                         result.add_scss_error(err)
@@ -1141,7 +1254,7 @@ def run_post_migration_workflow(
                 if result:
                     result.mark_failed(
                         MigrationStep.GIT_COMMIT,
-                        f"Git commit failed for {slug} - check working directory state"
+                        f"Git commit failed for {slug} - check working directory state",
                     )
                 return {
                     "success": False,
@@ -1153,7 +1266,7 @@ def run_post_migration_workflow(
                 if result:
                     result.mark_failed(
                         MigrationStep.GIT_COMMIT,
-                        f"Git push failed for branch {branch_name} - check remote access"
+                        f"Git push failed for branch {branch_name} - check remote access",
                     )
                 return {
                     "success": False,
@@ -1298,7 +1411,7 @@ def _verify_scss_compilation_with_docker(
                 # execute_command returns (success, stdout_lines, stderr_lines, process)
                 cmd_success, stdout_lines, stderr_lines, _ = execute_command(
                     ["docker", "logs", "--tail", "100", "dealer-gulp-1"],
-                    error_message="Failed to retrieve Docker logs"
+                    error_message="Failed to retrieve Docker logs",
                 )
                 if cmd_success and (stdout_lines or stderr_lines):
                     # Combine stdout and stderr for error extraction
@@ -1353,7 +1466,9 @@ def _extract_error_details_from_logs(logs: str) -> list[dict]:
             return
 
         test_file = Path(file_path).name
-        source_file = test_file.replace("test-", "", 1) if test_file.startswith("test-") else test_file
+        source_file = (
+            test_file.replace("test-", "", 1) if test_file.startswith("test-") else test_file
+        )
         dedupe_key = (source_file, line_number, message)
         if dedupe_key in seen:
             return
@@ -1388,9 +1503,7 @@ def _extract_error_details_from_logs(logs: str) -> list[dict]:
             continue
 
         # Look for explicit file/line/column patterns
-        file_match = re.search(
-            r"file:\s*'([^']*test-sb-[^']+\.scss)'", line, re.IGNORECASE
-        )
+        file_match = re.search(r"file:\s*'([^']*test-sb-[^']+\.scss)'", line, re.IGNORECASE)
         if file_match:
             pending_file = file_match.group(1)
             continue
@@ -1969,9 +2082,7 @@ def _fix_commented_selector_block(error_info: dict, css_dir: Path) -> bool:
                 if "{" in uncommented:
                     lines[i] = uncommented
                     test_file_path.write_text("".join(lines))
-                    logger.info(
-                        f"Uncommented selector in {test_file_path.name} at line {i + 1}"
-                    )
+                    logger.info(f"Uncommented selector in {test_file_path.name} at line {i + 1}")
                     return True
             break
 
@@ -1979,6 +2090,7 @@ def _fix_commented_selector_block(error_info: dict, css_dir: Path) -> bool:
         logger.warning(f"Error uncommenting selector line: {e}")
 
     return False
+
 
 def _fix_dangling_comma_selector(_error_info: dict, css_dir: Path) -> bool:
     """Fix dangling comma selectors followed by comments that break SCSS compilation."""
