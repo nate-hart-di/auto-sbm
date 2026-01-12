@@ -1590,7 +1590,7 @@ def stats(
         rich_console.print(
             Panel(
                 Text.from_markup(
-                    f"[bold magenta]Team Status (Firebase)[/bold magenta]\n[dim]Live data from {ts.get('total_users', 0)} contributors[/dim]"
+                    f"[bold magenta]Team Status[/bold magenta]\n[dim]Live data from {ts.get('total_users', 0)} contributors[/dim]"
                 ),
                 border_style="magenta",
             )

@@ -218,6 +218,7 @@ class TestFirebaseSync:
         # Mock data structure
         mock_ref.get.return_value = {
             "user1": {
+                "migrations": ["slug1", "slugx"],
                 "runs": {
                     "id1": {
                         "status": "success",
@@ -228,6 +229,7 @@ class TestFirebaseSync:
                 }
             },
             "user2": {
+                "migrations": ["slug2", "slugx"],
                 "runs": {
                     "id2": {
                         "status": "success",
@@ -245,7 +247,7 @@ class TestFirebaseSync:
         assert stats is not None
         assert stats["total_users"] == 2
         assert stats["total_runs"] == 2
-        assert stats["total_migrations"] == 2
+        assert stats["total_migrations"] == 4
         assert stats["total_time_saved_h"] == 3.0  # (800+1600)/800
         assert stats["total_automation_time_h"] == 3.0  # (3600+7200)/3600
 

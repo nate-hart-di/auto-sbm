@@ -21,6 +21,7 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
     # Mock data structure: users/{user_id}/runs/{push_id}/...
     mock_data = {
         "user_a": {
+            "migrations": ["site-1", "site-4"],
             "runs": {
                 "push1": {
                     "status": "success",
@@ -38,6 +39,7 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
             }
         },
         "user_b": {
+            "migrations": ["site-3"],
             "runs": {
                 "push4": {
                     "status": "success",
@@ -55,7 +57,7 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
 
     assert stats is not None
     assert stats["total_users"] == 2
-    assert stats["total_migrations"] == 3  # site-1, site-2, site-3
+    assert stats["total_migrations"] == 4  # user_a: site-1, site-2, site-4; user_b: site-3
     assert stats["total_runs"] == 3
     # 800 + 1600 + 800 = 3200 lines. 3200 / 800 = 4.0 hours
     assert stats["total_time_saved_h"] == 4.0
@@ -63,10 +65,10 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
     assert stats["total_automation_time_h"] == 3.0
 
     # Check top contributors
-    # user_a: 2 runs, user_b: 1 run
+    # user_a: 3 migrations, user_b: 1 migration
     top = stats["top_contributors"]
     assert top[0][0] == "user_a"
-    assert top[0][1] == 2
+    assert top[0][1] == 3
     assert top[1][0] == "user_b"
     assert top[1][1] == 1
 
