@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from .processes import run_background_task
 from .firebase_sync import is_firebase_available, FirebaseSync
-from .slug_validation import filter_valid_runs, filter_valid_slugs
+from .slug_validation import is_official_slug
 
 from .logger import logger
 
@@ -182,10 +182,10 @@ def record_run(
         if _sync_to_firebase(run_entry):
             # If successful, mark as synced immediately to prevent background process from sending duplicate
             run_entry["sync_status"] = "synced"
-            # Update the latest entry in the list and save
-            runs[-1] = run_entry
-            data["runs"] = runs
-            _write_tracker(data)
+        # Update the latest entry in the list and save, including validation status updates
+        runs[-1] = run_entry
+        data["runs"] = runs
+        _write_tracker(data)
 
         # Always trigger background update to handle any other pending items
         trigger_background_stats_update()
@@ -314,7 +314,7 @@ def get_migration_stats(
 
     # Try to get all runs from Firebase
     all_firebase_runs, user_migrations = get_global_reporting_data()
-    if not all_firebase_runs and not is_firebase_available():
+    if not all_firebase_runs and not user_migrations and not is_firebase_available():
         return {
             "error": "Stats unavailable (offline mode)",
             "message": "Firebase connection required for stats. Local tracking continues offline.",
@@ -326,9 +326,7 @@ def get_migration_stats(
 
     # Filter to current user's runs from Firebase
     my_runs = [r for r in all_firebase_runs if r.get("_user") == current_user_id]
-    my_runs = filter_valid_runs(my_runs)
     my_migrations = user_migrations.get(current_user_id, set())
-    my_migrations = set(filter_valid_slugs(my_migrations))
 
     # Apply additional filters if provided
     has_filters = any([limit, since, until, user])
@@ -341,10 +339,23 @@ def get_migration_stats(
     else:
         filtered_runs = my_runs
 
-    filtered_runs = filter_valid_runs(filtered_runs)
-
     # Calculate metrics from Firebase data (not local)
-    firebase_stats = _calculate_metrics({"runs": my_runs})
+    # Combine actual run data with estimates for migrations without run data
+    run_metrics = _calculate_metrics({"runs": my_runs})
+
+    # Count migrations that have run data
+    slugs_with_runs = {r.get("slug") for r in my_runs if r.get("status") == "success"}
+    migrations_without_runs = my_migrations - slugs_with_runs
+
+    # Estimate lines for migrations without run data
+    if migrations_without_runs:
+        # Add estimate: 500 lines per migration for those without run data
+        estimated_lines = len(migrations_without_runs) * 500
+        run_metrics["total_lines_migrated"] += estimated_lines
+        run_metrics["total_time_saved_h"] = round(run_metrics["total_lines_migrated"] / 800.0, 1)
+        run_metrics["estimated"] = True  # Flag to indicate some values are estimated
+
+    firebase_stats = run_metrics
 
     return {
         "count": len(my_migrations),
@@ -472,6 +483,17 @@ def _sync_to_firebase(run_entry: dict) -> bool:
         return False
 
     try:
+        slug = run_entry.get("slug")
+        if slug:
+            valid = is_official_slug(slug)
+            if valid is False:
+                run_entry["sync_status"] = "invalid_slug"
+                logger.warning(f"Skipping Firebase sync for invalid slug: {slug}")
+                return False
+            if valid is None:
+                run_entry["sync_status"] = "validation_unavailable"
+                logger.warning("Devtools validation unavailable; delaying Firebase sync.")
+                return False
         sync = FirebaseSync()
         return sync.push_run(_get_user_id(), run_entry)
     except Exception as e:
@@ -495,15 +517,17 @@ def process_pending_syncs() -> None:
         if run.get("status") == "success":
             sync_status = run.get("sync_status", "pending_sync")  # Default to pending if missing
 
-            if sync_status != "synced":
+            if sync_status in {"pending_sync", "validation_unavailable"}:
                 # Attempt sync
                 success = _sync_to_firebase(run)
                 if success:
                     run["sync_status"] = "synced"
                     updated = True
                 else:
-                    # If it failed, ensure it is marked as pending/failed (keep as pending for retry)
-                    if sync_status != "pending_sync":
+                    # If it failed, ensure it is marked as pending unless invalid
+                    if run.get("sync_status") == "invalid_slug":
+                        updated = True
+                    elif sync_status != "pending_sync":
                         run["sync_status"] = "pending_sync"
                         updated = True
 

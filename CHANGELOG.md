@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.9] - 2026-01-12
+
+### Fixed
+- **Stats display**: Fixed stats showing 0 lines migrated and 0h time saved when runs data is missing from Firebase.
+  - Stats now estimate metrics using **500 lines/migration** (median from 104 actual runs, IQR filtered to exclude outliers).
+  - Team stats (`--team`) apply same data-driven estimation for users with legacy migration lists but no run history.
+  - Personal stats correctly blend actual run data with estimates for migrations without run records.
+- **Team stats UI**: Changed team stats display to show "Lines Migrated" instead of "Automation Time".
+- **Test fixes**: Added `is_official_slug` mock to tracker tests so test slugs pass validation.
+
+
+
+## [2.7.5] - 2026-01-12
+
+### Changed
+- **Stats performance**: Remove slug validation from stats reads to keep `sbm stats` fast.
+- **Slug checks**: Validate slugs via devtools only before Firebase sync; invalid runs are not stored.
+
 ## [2.7.4] - 2026-01-12
 
 ### Added

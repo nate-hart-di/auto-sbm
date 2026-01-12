@@ -14,6 +14,8 @@ def mock_firebase(mocker):
     # Mock firebase availability
     mocker.patch("sbm.utils.tracker.is_firebase_available", return_value=True)
     mocker.patch("sbm.utils.firebase_sync.is_firebase_available", return_value=True)
+    # Mock slug validation to allow test slugs
+    mocker.patch("sbm.utils.tracker.is_official_slug", return_value=True)
     settings = MagicMock()
     settings.firebase.is_admin_mode.return_value = True
     settings.firebase.database_url = "https://test.firebaseio.com"

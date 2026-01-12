@@ -1562,12 +1562,15 @@ def stats(
     if stats_data.get("error"):
         from rich.panel import Panel
         from rich.text import Text
+
         console = get_console(ctx.obj.get("config", Config({})))
         console.console.print(
             Panel(
-                Text.from_markup(f"[red]{stats_data['error']}[/red]\n{stats_data.get('message', '')}"),
+                Text.from_markup(
+                    f"[red]{stats_data['error']}[/red]\n{stats_data.get('message', '')}"
+                ),
                 border_style="red",
-                title="Firebase Status"
+                title="Firebase Status",
             )
         )
         return
@@ -1606,8 +1609,8 @@ def stats(
 
         panels = [
             make_team_panel("Total Migrations", str(ts.get("total_migrations", 0)), "green"),
+            make_team_panel("Lines Migrated", f"{ts.get('total_lines_migrated', 0):,}", "cyan"),
             make_team_panel("Total Time Saved", f"{ts.get('total_time_saved_h', 0)}h", "yellow"),
-            make_team_panel("Automation Time", f"{ts.get('total_automation_time_h', 0)}h", "cyan"),
         ]
         rich_console.print(Columns(panels, equal=True))
 
@@ -2147,7 +2150,9 @@ def _ensure_devtools_cli() -> None:
         if devtools_script.is_dir():
             devtools_script = devtools_script / "devtools"
     else:
-        devtools_script = Path.home() / "code/dealerinspire/feature-dev-shared-scripts/devtools-cli/devtools"
+        devtools_script = (
+            Path.home() / "code/dealerinspire/feature-dev-shared-scripts/devtools-cli/devtools"
+        )
 
     if devtools_script.exists():
         logger.debug("Devtools CLI already available.")

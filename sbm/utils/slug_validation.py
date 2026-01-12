@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
-from sbm.utils.helpers import is_valid_slug
+from sbm.utils.helpers import validate_slug
 
 _CACHE_PATH = Path.home() / ".sbm_slug_validation.json"
 _CACHE_TTL_DAYS = 30
@@ -135,7 +135,7 @@ def is_official_slug(slug: str) -> Optional[bool]:
     if not slug:
         return False
     slug_norm = _normalize_slug(slug)
-    if not is_valid_slug(slug_norm):
+    if not validate_slug(slug_norm):
         return False
 
     cache = _load_cache()

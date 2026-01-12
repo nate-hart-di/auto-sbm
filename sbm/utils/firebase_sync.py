@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 
 from sbm.config import get_settings
 from sbm.utils.logger import logger
-from sbm.utils.slug_validation import filter_valid_slugs
 
 if TYPE_CHECKING:
     from firebase_admin import App
@@ -275,6 +274,7 @@ class FirebaseSync:
 
             total_runs = 0
             total_migrations = 0
+            total_lines_migrated = 0
             total_time_saved_h = 0.0
             total_automation_seconds = 0.0
             user_counts = {}
@@ -298,6 +298,7 @@ class FirebaseSync:
                             migrations_set.add(slug)
 
                 user_run_count = 0
+                user_lines_from_runs = 0
                 for _, run in runs_node.items():
                     if run.get("status") == "success":
                         total_runs += 1
@@ -308,18 +309,28 @@ class FirebaseSync:
                             migrations_set.add(slug)
 
                         lines = run.get("lines_migrated", 0)
-                        total_time_saved_h += lines / 800.0
+                        user_lines_from_runs += lines
                         total_automation_seconds += run.get("automation_seconds", 0)
 
-                valid_migrations = set(filter_valid_slugs(migrations_set))
-                user_migration_count = len(valid_migrations)
+                user_migration_count = len(migrations_set)
                 if user_migration_count > 0:
                     user_counts[user_id] = user_migration_count
                     total_migrations += user_migration_count
 
+                    # Calculate lines and time saved: use actual lines from runs, or estimate if no runs
+                    if user_lines_from_runs > 0:
+                        total_lines_migrated += user_lines_from_runs
+                        total_time_saved_h += user_lines_from_runs / 800.0
+                    else:
+                        # Estimate: 500 lines per migration for users without runs data
+                        estimated_lines = user_migration_count * 500
+                        total_lines_migrated += estimated_lines
+                        total_time_saved_h += estimated_lines / 800.0
+
             return {
                 "total_users": len(user_counts),
                 "total_migrations": total_migrations,
+                "total_lines_migrated": total_lines_migrated,
                 "total_runs": total_runs,
                 "total_time_saved_h": round(total_time_saved_h, 1),
                 "total_automation_time_h": round(total_automation_seconds / 3600, 2),
@@ -384,7 +395,7 @@ class FirebaseSync:
                         if slug:
                             migrations_set.add(slug)
 
-                for slug in filter_valid_slugs(migrations_set):
+                for slug in migrations_set:
                     if slug and slug not in migrated_map:
                         migrated_map[slug] = user_id
             return migrated_map
