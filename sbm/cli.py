@@ -69,7 +69,7 @@ if not REPO_ROOT.exists():
 SETUP_MARKER = REPO_ROOT / ".sbm_setup_complete"
 SETUP_SCRIPT = REPO_ROOT / "setup.sh"
 
-REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip"]
+REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip", "op"]
 REQUIRED_PYTHON_PACKAGES = [
     "click",
     "rich",
@@ -2129,6 +2129,38 @@ def _ensure_devtools_cli() -> None:
         click.echo(f"⚠️  Warning: Failed to install Devtools CLI: {e}")
 
 
+def _read_1password_reference(ref: str) -> str | None:
+    """Read a secret from 1Password using an op:// reference."""
+    if not ref:
+        return None
+    try:
+        result = subprocess.run(
+            ["op", "read", ref],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            logger.debug(f"1Password read failed for {ref}: {result.stderr.strip()}")
+            return None
+        return result.stdout.strip() or None
+    except FileNotFoundError:
+        logger.debug("1Password CLI (op) not found.")
+        return None
+    except Exception as e:
+        logger.debug(f"1Password read failed: {e}")
+        return None
+
+
+def _load_firebase_from_1password() -> tuple[str | None, str | None]:
+    """Fetch Firebase URL/API key from 1Password if references are provided."""
+    db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip()
+    key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip()
+    db_url = _read_1password_reference(db_ref) if db_ref else None
+    api_key = _read_1password_reference(key_ref) if key_ref else None
+    return db_url, api_key
+
+
 def _remove_env_secrets(env_path: Path, keys: set[str]) -> bool:
     """Remove sensitive keys from an env file if present."""
     if not env_path.exists():
@@ -2166,6 +2198,11 @@ def _ensure_secure_firebase_secrets() -> None:
     config = get_settings()
     db_url = os.environ.get("FIREBASE__DATABASE_URL") or config.firebase.database_url
     api_key = os.environ.get("FIREBASE__API_KEY") or config.firebase.api_key
+
+    if not db_url or not api_key:
+        op_db_url, op_api_key = _load_firebase_from_1password()
+        db_url = db_url or op_db_url
+        api_key = api_key or op_api_key
 
     saved_any = False
     if db_url:

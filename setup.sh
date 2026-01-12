@@ -95,12 +95,17 @@ function install_homebrew() {
 
 # --- Install Required CLI Tools ---
 function install_required_tools() {
-  local tools=("git" "gh" "python3" "node")
+  local tools=("git" "gh" "python3" "node" "op")
 
   for tool in "${tools[@]}"; do
     if ! command -v "$tool" &> /dev/null; then
-      log "Installing $tool via Homebrew..."
-      retry_command "brew install $tool" "$tool installation"
+      if [ "$tool" == "op" ]; then
+        log "Installing 1Password CLI (op) via Homebrew..."
+        retry_command "brew install 1password-cli" "1Password CLI installation"
+      else
+        log "Installing $tool via Homebrew..."
+        retry_command "brew install $tool" "$tool installation"
+      fi
       log "✅ $tool installed successfully"
     else
       log "✅ $tool already installed"

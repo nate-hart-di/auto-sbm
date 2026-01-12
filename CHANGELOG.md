@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-01-12
+
+### Added
+- **1Password integration**: Read Firebase URL/API key via `op://` references during setup/update.
+- **Setup requirements**: Install 1Password CLI (`op`) as a required tool.
+
 ## [2.8.1] - 2026-01-12
 
 ### Changed
