@@ -330,30 +330,9 @@ def calculate_metrics(
 
 
 def calculate_global_metrics_all_time() -> Dict[str, Any]:
-    """Calculate all-time global metrics using the same logic as the CLI."""
-    from sbm.utils.tracker import get_migration_stats
-
-    stats = get_migration_stats()
-    global_metrics = stats.get("global_metrics", {})
-
-    total_runs = global_metrics.get("total_runs", 0)
-    total_success = global_metrics.get("total_success", 0)
-    success_rate = (total_success / total_runs * 100.0) if total_runs else 0.0
-
-    top_contributors = []
-    for user, sites in global_metrics.get("top_contributors", []):
-        top_contributors.append((user, {"sites": sites, "lines": 0, "runs": 0}))
-
-    return {
-        "total_runs": total_runs,
-        "success_count": total_success,
-        "success_rate": success_rate,
-        "sites_migrated": global_metrics.get("total_migrations", 0),
-        "lines_migrated": global_metrics.get("total_lines_migrated", 0),
-        "time_saved_hours": global_metrics.get("total_time_saved_h", 0),
-        "automation_hours": global_metrics.get("total_automation_time_h", 0),
-        "top_contributors": top_contributors,
-    }
+    """Calculate all-time global metrics using Firebase runs + legacy migrations."""
+    all_runs, user_migrations = load_all_stats()
+    return calculate_metrics(all_runs, user_migrations, is_all_time=True)
 
 
 def format_slack_payload(
@@ -375,7 +354,8 @@ def format_slack_payload(
         date_range_str = f"{start_date.strftime('%b %d')} - {now.strftime('%b %d')}"
         period_label = "24 Hours" if days == 1 else f"{days} Days"
 
-    if metrics["total_runs"] == 0:
+    has_activity = metrics.get("success_count", 0) > 0 or metrics.get("sites_migrated", 0) > 0
+    if not has_activity:
         text = f"No SBM migrations recorded in the period ({period_label})."
         return {
             "text": text,
