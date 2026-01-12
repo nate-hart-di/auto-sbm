@@ -19,6 +19,9 @@ class ConfigurationError(Exception):
     """Custom exception for configuration-related errors."""
 
 
+from sbm.utils.logger import logger
+
+
 class ProgressSettings(BaseSettings):
     """Progress tracking configuration."""
 
@@ -87,16 +90,20 @@ class GitSettings(BaseSettings):
 class FirebaseSettings(BaseSettings):
     """Firebase Realtime Database configuration for team-wide stats sync.
 
+    Story 2.7: Two authentication modes supported:
+    - User Mode: database_url only → Anonymous Auth (read-only access)
+    - Admin Mode: database_url + credentials_path → Full access
+
     Environment variables:
-        FIREBASE__CREDENTIALS_PATH: Path to Firebase service account JSON file
-        FIREBASE__DATABASE_URL: Firebase Realtime Database URL
+        FIREBASE__DATABASE_URL: Firebase Realtime Database URL (required for all)
+        FIREBASE__CREDENTIALS_PATH: Path to Firebase service account JSON (admin only)
     """
 
     model_config = SettingsConfigDict(extra="ignore")
 
     credentials_path: Path | None = Field(
         default=None,
-        description="Path to Firebase service account JSON file",
+        description="Path to Firebase service account JSON file (admin only)",
     )
     database_url: str | None = Field(
         default=None,
@@ -122,12 +129,9 @@ class FirebaseSettings(BaseSettings):
         if not expanded_path.exists():
             # Log warning but don't fail - allows offline-first operation
             # Firebase operations will fail gracefully at runtime
-            import warnings
-
-            warnings.warn(
+            logger.warning(
                 f"Firebase credentials file not found: {expanded_path}. "
-                "Firebase sync will be disabled.",
-                stacklevel=2,
+                "Firebase admin mode will be disabled.",
             )
         return expanded_path
 
@@ -150,12 +154,24 @@ class FirebaseSettings(BaseSettings):
         return v.rstrip("/")  # Normalize URL by removing trailing slash
 
     def is_configured(self) -> bool:
-        """Check if Firebase is properly configured."""
+        """Check if Firebase is available (admin or user mode).
+
+        Returns True if database_url is set, regardless of credentials.
+        Team members only need database_url for anonymous auth.
+        """
+        return self.database_url is not None
+
+    def is_admin_mode(self) -> bool:
+        """Check if running in admin mode with full credentials."""
         return (
             self.credentials_path is not None
             and self.credentials_path.exists()
             and self.database_url is not None
         )
+
+    def is_user_mode(self) -> bool:
+        """Check if running in user mode (anonymous auth)."""
+        return self.is_configured() and not self.is_admin_mode()
 
 
 class MigrationSettings(BaseSettings):

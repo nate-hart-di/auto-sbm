@@ -1,6 +1,6 @@
 # Story 2.1: Firebase Infrastructure Setup
 
-Status: review
+Status: done
 
 ## Story
 
@@ -231,3 +231,22 @@ PLACEHOLDER_M8
 - tests/test_config.py
 - tests/test_firebase_sync.py
 - tests/test_firebase_integration.py
+
+### Review Follow-ups (AI Code Review - 2026-01-11)
+
+**Issues Fixed:**
+- [x] [AI-Review][Low] Removed duplicate import of `FirebaseInitializationError` in test file [tests/test_firebase_sync.py:14]
+
+**Verified Complete - All ACs Met:**
+- [x] [AI-Review][AC1] firebase-admin>=6.5.0 added to pyproject.toml:53
+- [x] [AI-Review][AC2] .env.example updated with FIREBASE__CREDENTIALS_PATH and FIREBASE__DATABASE_URL (lines 22-27)
+- [x] [AI-Review][AC3] config.py loads Firebase variables via FirebaseSettings class (sbm/config.py:90-159)
+- [x] [AI-Review][AC4] Firebase initialization successful with service account JSON (sbm/utils/firebase_sync.py:37-112)
+- [x] [AI-Review] Integration tests exist and are tracked in git (tests/test_firebase_integration.py)
+- [x] [AI-Review] Unit tests comprehensive in test_config.py (30 test cases) and test_firebase_sync.py (13 test cases)
+- [x] [AI-Review] .gitignore properly excludes Firebase credentials (lines 100-104)
+- [x] [AI-Review] Thread-safe lazy initialization implemented with double-check locking
+- [x] [AI-Review] Graceful degradation when Firebase unavailable or not configured
+- [x] [AI-Review] Error specificity distinguishes between missing package, missing config, and init failure
+- [x] [AI-Review] TYPE_CHECKING properly used for firebase_admin imports (sbm/utils/firebase_sync.py:23-25)
+- [x] [AI-Review] Pydantic v2 field validators properly implemented (config.py:109-150)

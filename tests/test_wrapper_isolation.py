@@ -345,7 +345,7 @@ class TestWrapperScriptContent:
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
-            assert "auto-sbm v2.0" in written_content
+            assert "auto-sbm v2.7.0" in written_content
 
     def test_wrapper_passes_all_arguments(self):
         """Verify wrapper passes all CLI arguments to sbm.cli module."""

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-01-12
+
+### Added
+- **Firebase-first stats**: Realtime sync with REST fallback for non-admin users, team aggregation, and duplicate detection for bulk runs.
+- **Offline queue**: Pending run uploads with background retry on subsequent CLI invocations.
+- **Migration reports**: Markdown reports in `.sbm-reports/` with `index.md` table of contents.
+- **Legacy import utility**: `scripts/stats/migrate_to_firebase.py` for backfilling local history.
+- **History filters**: `sbm stats --history` now supports `--limit`, `--since`, `--until`, and `--user`.
+
+### Changed
+- **Stats source of truth**: Firebase replaces git-based stats files and sync flow.
+- **History display**: Adds duration, lines migrated, time saved, and report path columns.
+
+### Fixed
+- **Report generation**: Report path persisted in run records for history display.
+
 ## [2.6.0] - 2026-01-09
 
 ### Added

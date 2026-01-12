@@ -1,10 +1,6 @@
-import fcntl
-import json
-import os
 import subprocess
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
+
 import pytest
 
 
@@ -63,104 +59,22 @@ class TestRunBackgroundTask:
 
 
 # =============================================================================
-# TEST 2: File Locking in sync_global_stats (sbm/utils/tracker.py)
+# TEST 2: Background stats refresh trigger (sbm/utils/tracker.py)
 # =============================================================================
 
 
-class TestSyncGlobalStatsLocking:
-    """Tests for file locking in sync_global_stats."""
+class TestTriggerBackgroundStatsUpdate:
+    """Verify background stats refresh uses the internal CLI command."""
 
-    @patch("subprocess.run")
-    @patch("sbm.utils.tracker._get_user_id", return_value="test_user")
-    def test_sync_creates_lock_file(self, mock_user, mock_run, tmp_path):
-        """Verify lock file is created during sync."""
-        from sbm.utils.tracker import sync_global_stats, GLOBAL_STATS_DIR
+    @patch("sbm.utils.tracker.run_background_task")
+    def test_trigger_background_stats_update(self, mock_run_background):
+        from sbm.utils.tracker import trigger_background_stats_update
 
-        # Create stats directory and user file
-        stats_dir = tmp_path / "stats"
-        stats_dir.mkdir()
-        user_file = stats_dir / "test_user.json"
-        user_file.write_text('{"user": "test_user", "migrations": []}')
+        trigger_background_stats_update()
 
-        with patch("sbm.utils.tracker.GLOBAL_STATS_DIR", stats_dir):
-            with patch("sbm.utils.tracker.REPO_ROOT", tmp_path):
-                sync_global_stats()
-
-        lock_file = stats_dir / ".sync.lock"
-        assert lock_file.exists()
-
-    def test_concurrent_sync_blocked(self, tmp_path):
-        """Verify second process is blocked when lock is held."""
-        lock_file = tmp_path / ".sync.lock"
-        lock_file.touch()
-
-        # Acquire lock
-        with lock_file.open("w") as f:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-            # Try to acquire same lock (should fail)
-            with lock_file.open("w") as f2:
-                with pytest.raises(IOError):
-                    fcntl.flock(f2, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-    @patch("subprocess.run")
-    @patch("sbm.utils.tracker._get_user_id", return_value="test_user")
-    def test_sync_skips_when_locked(self, mock_user, mock_run, tmp_path):
-        """Verify sync exits gracefully when lock is held."""
-        from sbm.utils.tracker import sync_global_stats
-
-        stats_dir = tmp_path / "stats"
-        stats_dir.mkdir()
-        user_file = stats_dir / "test_user.json"
-        user_file.write_text('{"user": "test_user", "migrations": []}')
-        lock_file = stats_dir / ".sync.lock"
-        lock_file.touch()
-
-        with patch("sbm.utils.tracker.GLOBAL_STATS_DIR", stats_dir):
-            with patch("sbm.utils.tracker.REPO_ROOT", tmp_path):
-                # Hold the lock
-                with lock_file.open("w") as f:
-                    fcntl.flock(f, fcntl.LOCK_EX)
-
-                    # This should skip without error
-                    sync_global_stats()
-
-        # git commands should NOT have been called (sync was skipped)
-        git_calls = [c for c in mock_run.call_args_list if "git" in str(c)]
-        assert len(git_calls) == 0
-
-
-# =============================================================================
-# TEST 3: --no-verify Removal Verification
-# =============================================================================
-
-
-class TestNoVerifyRemoved:
-    """Verify --no-verify flags were removed from git operations."""
-
-    @patch("subprocess.run")
-    @patch("sbm.utils.tracker._get_user_id", return_value="test_user")
-    def test_commit_respects_hooks(self, mock_user, mock_run, tmp_path):
-        """Verify git commit does NOT use --no-verify."""
-        from sbm.utils.tracker import sync_global_stats
-
-        stats_dir = tmp_path / "stats"
-        stats_dir.mkdir()
-        user_file = stats_dir / "test_user.json"
-        user_file.write_text('{"user": "test_user", "migrations": []}')
-
-        # Mock git status to show changes
-        mock_run.return_value = MagicMock(returncode=0, stdout="M stats/test_user.json")
-
-        with patch("sbm.utils.tracker.GLOBAL_STATS_DIR", stats_dir):
-            with patch("sbm.utils.tracker.REPO_ROOT", tmp_path):
-                sync_global_stats()
-
-        # Check all git calls
-        for call_obj in mock_run.call_args_list:
-            args = call_obj[0][0] if call_obj[0] else call_obj[1].get("args", [])
-            if "git" in args and ("commit" in args or "push" in args):
-                assert "--no-verify" not in args, f"--no-verify found in: {args}"
+        mock_run_background.assert_called_once()
+        args = mock_run_background.call_args[0][0]
+        assert args[1:] == ["-m", "sbm.cli", "internal-refresh-stats"]
 
 
 # =============================================================================
@@ -269,9 +183,8 @@ class TestNoCircularImports:
     def test_tracker_imports_cleanly(self):
         """Verify tracker.py imports without circular dependency."""
         try:
-            from sbm.utils.tracker import sync_global_stats, record_migration
+            from sbm.utils.tracker import record_migration
 
-            assert callable(sync_global_stats)
             assert callable(record_migration)
         except ImportError as e:
             pytest.fail(f"Circular import detected: {e}")

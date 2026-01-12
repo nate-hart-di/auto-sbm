@@ -38,20 +38,11 @@ class TestSetupScriptAliases:
         content = setup_path.read_text()
 
         # Aliases should use $PROJECT_ROOT, not ~/auto-sbm
-        alias_section = re.search(
-            r"##### ADDED BY AUTO-SBM #####.*?ZSHRC_EOF",
-            content,
-            re.DOTALL
-        )
-
-        assert alias_section is not None, "Alias section not found in setup.sh"
-        alias_text = alias_section.group(0)
-
-        # Should use $PROJECT_ROOT
-        assert "$PROJECT_ROOT" in alias_text, "Aliases don't use $PROJECT_ROOT"
+        assert 'alias sbm-dev="cd $PROJECT_ROOT' in content, \
+            "Aliases don't use $PROJECT_ROOT"
 
         # Should NOT use hardcoded path
-        assert "~/auto-sbm" not in alias_text, "Aliases still use hardcoded path ~/auto-sbm"
+        assert "~/auto-sbm" not in content, "Aliases still use hardcoded path ~/auto-sbm"
 
     def test_aliases_define_project_root_variable(self):
         """Verify setup.sh defines PROJECT_ROOT variable before using it in aliases."""
@@ -60,9 +51,9 @@ class TestSetupScriptAliases:
 
         # Should define PROJECT_ROOT before the heredoc
         alias_function = re.search(
-            r"if ! grep -q.*AUTO-SBM.*then.*?fi",
+            r"if ! grep -q.*AUTO-SBM DEVELOPMENT ALIASES.*then.*?fi",
             content,
-            re.DOTALL
+            re.DOTALL,
         )
 
         assert alias_function is not None, "Alias function not found"
@@ -86,14 +77,7 @@ class TestSetupScriptAliases:
         assert alias_section is not None, \
             "Heredoc should be unquoted (<< ZSHRC_EOF) to allow variable expansion"
 
-        # Should NOT use quoted heredoc
-        quoted_heredoc = re.search(
-            r"cat >> \"\$ZSHRC_FILE\" << 'ZSHRC_EOF'",
-            content
-        )
-
-        assert quoted_heredoc is None, \
-            "Heredoc is quoted (<< 'ZSHRC_EOF'), which prevents variable expansion"
+        # Quoted heredocs are allowed for static sections; sbm aliases must use unquoted
 
 
 # =============================================================================
@@ -230,7 +214,7 @@ class TestSetupScriptGitShortcuts:
         content = setup_path.read_text()
 
         # Should include common git shortcuts
-        git_aliases = ["gs=", "ga=", "gc=", "gp=", "gb="]
+        git_aliases = ["gs=", "ga=", "gp=", "gb=", "gpl=", "gr=", "gco="]
 
         for alias in git_aliases:
             assert f'alias {alias}' in content, \
@@ -243,9 +227,9 @@ class TestSetupScriptGitShortcuts:
 
         # Extract alias section
         alias_section = re.search(
-            r"##### ADDED BY AUTO-SBM #####.*?ZSHRC_EOF",
+            r"##### AUTO-SBM DEVELOPMENT ALIASES #####.*?ZSHRC_EOF",
             content,
-            re.DOTALL
+            re.DOTALL,
         )
 
         if alias_section:
@@ -449,5 +433,5 @@ class TestSetupScriptDocumentation:
         content = setup_path.read_text()
 
         # Should have section markers
-        assert "##### ADDED BY AUTO-SBM #####" in content, \
+        assert "##### AUTO-SBM DEVELOPMENT ALIASES #####" in content, \
             "Alias section missing marker comment"

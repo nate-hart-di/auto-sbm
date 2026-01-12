@@ -27,8 +27,8 @@ def test_migrate_dealer_theme_returns_migration_result(
     mock_git_ops.return_value = (True, "test-branch")
     mock_run_just.return_value = True
 
-    # Core migration returns success and 100 lines migrated
-    mock_perform_core.return_value = (True, 100)
+    # Core migration returns success and metrics
+    mock_perform_core.return_value = (True, 100, 4, 1200)
 
     # Post migration returns a dict success
     mock_run_post_migration.return_value = {
@@ -180,7 +180,7 @@ def test_migrate_dealer_theme_core_migration_failure_tracking(
     # Git and Docker succeed but core migration fails
     mock_git_ops.return_value = (True, "test-branch")
     mock_run_just.return_value = True
-    mock_perform_core.return_value = (False, 0)
+    mock_perform_core.return_value = (False, 0, 0, 0)
 
     # Execute
     result = migrate_dealer_theme(slug="test-slug", skip_just=False, force_reset=True)
@@ -277,8 +277,8 @@ def test_migrate_dealer_theme_tracks_lines_migrated(
     mock_git_ops.return_value = (True, "test-branch")
     mock_run_just.return_value = True
 
-    # Core migration returns success and 850 lines migrated
-    mock_perform_core.return_value = (True, 850)
+    # Core migration returns success and metrics
+    mock_perform_core.return_value = (True, 850, 4, 1400)
 
     # Post migration returns a dict success
     mock_run_post_migration.return_value = {
@@ -312,8 +312,8 @@ def test_lines_migrated_assignment_on_failure():
         mock_git_ops.return_value = (True, "test-branch")
         mock_run_just.return_value = True
 
-        # Core migration fails but returns 450 lines processed
-        mock_perform_core.return_value = (False, 450)
+        # Core migration fails but returns partial metrics
+        mock_perform_core.return_value = (False, 450, 1, 600)
 
         # Execute
         result = migrate_dealer_theme(slug="test-slug", skip_just=False, force_reset=True)

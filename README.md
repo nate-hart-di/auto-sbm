@@ -56,6 +56,9 @@ sbm auto
 
 # Show migration stats
 sbm stats
+sbm stats --history --limit 10
+sbm stats --history --since 2024-01-01 --until 2024-02-01
+sbm stats --history --user nate
 
 # Check version and recent changes
 sbm version
@@ -69,6 +72,52 @@ sbm auto-update status
 sbm auto-update disable
 sbm auto-update enable
 ```
+
+## Firebase Team Stats
+
+Migration runs sync to Firebase for team-wide statistics.
+
+### Team Members (Default)
+
+No credentials required! Just add the database URL to your `.env`:
+
+```bash
+FIREBASE__DATABASE_URL=https://auto-sbm-default-rtdb.firebaseio.com
+```
+
+Stats commands work automatically:
+
+```bash
+sbm stats          # Personal stats from Firebase
+sbm stats --team   # Team leaderboard
+sbm stats --history  # Run history
+```
+
+## Migration Reports
+
+Successful migrations generate markdown reports in `.sbm-reports/` and update
+`.sbm-reports/index.md`. Run history shows the report path.
+
+```bash
+ls .sbm-reports
+```
+
+## Bulk Duplicate Prevention
+
+Bulk migrations (`sbm @input.txt`) warn about slugs already migrated by teammates
+and let you skip duplicates before running.
+
+### Admin Setup
+
+Admins with full access need the service account credentials:
+
+```bash
+FIREBASE__DATABASE_URL=https://auto-sbm-default-rtdb.firebaseio.com
+FIREBASE__CREDENTIALS_PATH=/path/to/firebase-adminsdk.json
+```
+
+> ⚠️ Never commit the credentials JSON file to git.
+
 
 ## Slack Reporting
 

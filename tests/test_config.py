@@ -61,12 +61,17 @@ class TestFirebaseSettings:
         assert isinstance(settings.credentials_path, Path)
         assert settings.credentials_path == creds_file
 
-    def test_missing_credentials_file_warning(self):
-        """Test that a missing file triggers a warning but not a validation error."""
-        with pytest.warns(UserWarning, match="Firebase credentials file not found"):
-            settings = FirebaseSettings(credentials_path="/path/to/nonexistent/file.json")
-            # Should still set the path, just warn
-            assert str(settings.credentials_path) == "/path/to/nonexistent/file.json"
+    @patch("sbm.config.logger")
+    def test_missing_credentials_file_warning(self, mock_logger):
+        """Test that a missing file triggers a logger warning."""
+        settings = FirebaseSettings(credentials_path="/path/to/nonexistent/file.json")
+
+        # Should still set the path
+        assert str(settings.credentials_path) == "/path/to/nonexistent/file.json"
+
+        # Should verify warning was logged
+        mock_logger.warning.assert_called_once()
+        assert "Firebase credentials file not found" in mock_logger.warning.call_args[0][0]
 
     def test_invalid_database_url_scheme(self):
         """Test validation of invalid URL scheme."""
@@ -96,11 +101,18 @@ class TestFirebaseSettings:
 class TestAutoSBMSettingsIntegration:
     """Test integration of Firebase settings into main config."""
 
-    def test_firebase_settings_default(self):
-        """Test that firebase settings are initialized by default."""
-        settings = AutoSBMSettings()
-        assert isinstance(settings.firebase, FirebaseSettings)
-        assert not settings.firebase.is_configured()
+    def test_firebase_settings_default(self, clean_settings):
+        """Test that firebase settings are initialized by default when no env vars set."""
+        # Clear Firebase env vars to test true defaults
+        env_override = {
+            "FIREBASE__CREDENTIALS_PATH": "",
+            "FIREBASE__DATABASE_URL": "",
+        }
+        with patch.dict(os.environ, env_override, clear=False):
+            settings = AutoSBMSettings()
+            assert isinstance(settings.firebase, FirebaseSettings)
+            # With no env vars, is_configured should be False (no database_url)
+            assert not settings.firebase.is_configured()
 
     def test_env_var_loading(self, tmp_path, clean_settings):
         """Test loading from environment variables."""

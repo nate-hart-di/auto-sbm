@@ -24,7 +24,7 @@ from sbm.utils.tracker import (
     get_migration_stats,
     record_migration,
     record_run,
-    sync_global_stats,
+    process_pending_syncs,
 )
 
 from .config import Config, ConfigurationError, get_config
@@ -54,6 +54,7 @@ from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
 from .utils.timer import get_total_automation_time, get_total_duration
+from rich.table import Table
 from .utils.version_utils import get_changelog, get_version
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
@@ -830,7 +831,7 @@ def _process_csv_for_slugs(file_path: Path) -> list[str]:
 
 def _perform_migration_steps(
     theme_name: str, force_reset: bool, skip_maps: bool
-) -> tuple[bool, int]:
+) -> tuple[bool, int, int, int]:
     """Run the core migration steps, returning success status."""
     oem_handler = OEMFactory.detect_from_theme(theme_name)
     logger.info(f"Using {oem_handler} for {theme_name}")
@@ -844,25 +845,29 @@ def _perform_migration_steps(
     with console.status(f"Step 1/{total_steps}: Creating Site Builder files"):
         if not create_sb_files(theme_name, force_reset):
             logger.error(f"Failed to create Site Builder files for {theme_name}")
-            return False, 0
+            return False, 0, 0, 0
     console.print_success("Site Builder files created")
 
     # Step 2: Migrate styles
     lines_migrated = 0
+    files_created_count = 0
+    scss_line_count = 0
     with console.status(f"Step 2/{total_steps}: Migrating styles"):
-        # migrate_styles now returns tuple[bool, int]
-        success, lines = migrate_styles(theme_name)
+        # migrate_styles now returns (min success, lines, files_count, source_lines)
+        success, lines, files_count, source_lines = migrate_styles(theme_name)
         if not success:
             logger.error(f"Failed to migrate styles for {theme_name}")
-            return False, 0
+            return False, 0, 0, 0
         lines_migrated = lines
+        files_created_count = files_count
+        scss_line_count = source_lines
     console.print_success("Styles migrated")
 
     # Step 3: Add predetermined styles
     with console.status(f"Step 3/{total_steps}: Adding predetermined styles"):
         if not add_predetermined_styles(theme_name):
             logger.error(f"Failed to add predetermined styles for {theme_name}")
-            return False, 0
+            return False, 0, 0, 0
     console.print_success("Predetermined styles added")
 
     # Step 4: Migrate map components if not skipped
@@ -870,12 +875,12 @@ def _perform_migration_steps(
         with console.status(f"Step 4/{total_steps}: Migrating map components"):
             if not migrate_map_components(theme_name, oem_handler):
                 logger.error(f"Failed to migrate map components for {theme_name}")
-                return False, 0
+                return False, 0, 0, 0
         console.print_success("Map components migrated")
     else:
         logger.debug(f"Skipping map components migration for {theme_name}")
 
-    return True, lines_migrated
+    return True, lines_migrated, files_created_count, scss_line_count
 
 
 def _generate_migration_report(
@@ -929,9 +934,9 @@ def _generate_migration_report(
                     pr_url = _get_field(res, "pr_url")
 
                     if salesforce_msg:
-                        f.write(f"### {slug} ###\n")
-                        f.write(f"PR: {pr_url or 'N/A'}\n\n")
-                        f.write(f"{salesforce_msg}\n")
+                        f.write(f"FED Site Builder Migration Complete:\n\n")
+                        f.write(f"{salesforce_msg}\n\n")
+                        f.write(f"PR: {pr_url or 'N/A'}\n")
                         f.write("\n" + "-" * 40 + "\n\n")
 
                 f.write("=" * 60 + "\n\n")
@@ -1021,7 +1026,11 @@ def migrate(
     for theme_name in expanded_themes:
         console.print_migration_header(theme_name)
 
-        success, lines_migrated = _perform_migration_steps(theme_name, force_reset, skip_maps)
+        start_time = time.time()
+        success, lines_migrated, files_created, scss_lines = _perform_migration_steps(
+            theme_name, force_reset, skip_maps
+        )
+        duration_seconds = time.time() - start_time
         if not success:
             logger.error(f"Migration failed for {theme_name}. Skipping...")
             continue
@@ -1041,15 +1050,35 @@ def migrate(
 
         try:
             record_migration(theme_name)
+            report_path = None
+            try:
+                from sbm.utils.report_generator import (
+                    MigrationReportData,
+                    generate_migration_report,
+                )
+
+                report_data = MigrationReportData(
+                    slug=theme_name,
+                    status="success",
+                    elapsed_time=duration_seconds,
+                    lines_migrated=lines_migrated,
+                )
+                report_path = generate_migration_report(report_data)
+            except Exception as e:
+                logger.warning(f"Failed to generate migration report: {e}")
+
             record_run(
                 slug=theme_name,
                 command="migrate",
                 status="success",
-                duration=0,
+                duration=duration_seconds,
                 automation_time=0,
                 lines_migrated=lines_migrated,
+                files_created_count=files_created,
+                scss_line_count=scss_lines,
+                report_path=report_path,
             )
-            sync_global_stats()
+
             # Show updated stats after each migration
             ctx.invoke(stats)
         except Exception as e:
@@ -1082,6 +1111,10 @@ def auto(
     if not expanded_themes:
         sys.exit(1)
 
+    # If multiple themes, we interpret "auto" as batch mode (skipping per-site prompts usually)
+    # BUT we want to capture explicit user intent for safety checks like duplicates.
+    explicit_yes = yes
+
     if len(expanded_themes) > 1:
         yes = True
         skip_post_migration = True
@@ -1093,6 +1126,63 @@ def auto(
     console = get_console(config)
 
     migration_results = []
+
+    # --- Bulk Migration Duplicate Prevention ---
+    from sbm.utils.tracker import get_all_migrated_slugs
+
+    # 1. Fetch global history (best effort)
+    migrated_map = get_all_migrated_slugs()
+
+    # 2. Identify duplicates
+    duplicates = []
+    for slug in expanded_themes:
+        if slug in migrated_map:
+            duplicates.append((slug, migrated_map[slug]))
+
+    # 3. Warn user if duplicates found
+    if duplicates:
+        rich_console = console.console
+        table = Table(title="⚠️ Warning: Potential Duplicates Found", border_style="yellow")
+        table.add_column("Slug", style="cyan")
+        table.add_column("Migrated By", style="magenta")
+
+        for slug, user_id in duplicates:
+            table.add_row(slug, user_id)
+
+        rich_console.print(table)
+        rich_console.print(
+            "[yellow]These sites have already been migrated by your teammates.[/yellow]"
+        )
+
+        if not explicit_yes:
+            if InteractivePrompts.confirm_duplicate_migration(duplicates, default=True):
+                # Filter out duplicates
+                original_count = len(expanded_themes)
+                duplicate_slugs = {d[0] for d in duplicates}
+                expanded_themes = [s for s in expanded_themes if s not in duplicate_slugs]
+                rich_console.print(
+                    f"[green]Removed {original_count - len(expanded_themes)} duplicate(s). Proceeding with {len(expanded_themes)} slugs.[/green]"
+                )
+            else:
+                rich_console.print("[red]Proceeding with duplicates included.[/red]")
+
+        else:
+            # In non-interactive mode (yes=True), we typically skip to be safe, but let's log it.
+            # Requirements didn't specify auto-skip behavior for --yes, but standard safety suggests skipping or warning.
+            # Given "auto" implies automation, let's keep them unless explicitly told otherwise,
+            # OR if this is a specialized bulk run.
+            # For safety in this story, let's just Log and Proceed in non-interactive mode
+            # unless we want to enforce skipping. The story says "prompt me", implying interactive.
+            # Let's assume non-interactive proceeds as is, maybe with a warning log.
+            logger.warning(
+                f"Duplicates detected but proceeding due to --yes: {[d[0] for d in duplicates]}"
+            )
+
+    if not expanded_themes:
+        logger.warning("No themes left to migrate.")
+        sys.exit(0)
+
+    # -------------------------------------------
 
     # Track the primary source file for potential retry automation
     source_file: Optional[Path] = None
@@ -1159,8 +1249,11 @@ def auto(
                         duration=get_total_duration(),
                         automation_time=get_total_automation_time(),
                         lines_migrated=result.lines_migrated,
+                        files_created_count=result.files_created_count,
+                        scss_line_count=result.scss_line_count,
+                        report_path=result.report_path,
                     )
-                    sync_global_stats()
+                    # Show updated stats after each migration
                     ctx.invoke(stats)
 
                     console.print_migration_complete(
@@ -1196,8 +1289,11 @@ def auto(
                         duration=get_total_duration(),
                         automation_time=get_total_automation_time(),
                         lines_migrated=result.get("lines_migrated", 0),
+                        files_created_count=result.get("files_created_count", 0),
+                        scss_line_count=result.get("scss_line_count", 0),
+                        report_path=result.get("report_path"),
                     )
-                    sync_global_stats()
+                    # Show updated stats after each migration
                     ctx.invoke(stats)
 
                     console.print_migration_complete(
@@ -1406,16 +1502,76 @@ def validate(theme_name: str, check_exclusions: bool, show_excluded: bool) -> No
         click.echo(f"📊 Checked {total_checked} Site Builder files")
 
 
+def _format_duration(seconds: float) -> str:
+    """Format duration in seconds to human-readable string."""
+    if seconds < 1:
+        return "< 1s"
+
+    minutes = int(seconds // 60)
+    secs = int(seconds % 60)
+
+    if minutes > 0:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+
+def _calculate_time_saved(lines_migrated: int) -> str:
+    """Calculate time saved from lines migrated (800 lines = 1 hour)."""
+    if lines_migrated == 0:
+        return "-"
+
+    hours_saved = lines_migrated / 800
+
+    if hours_saved < 0.1:
+        return "< 0.1h"
+
+    return f"{hours_saved:.1f}h"
+
+
 @cli.command()
 @click.option("--list", "show_list", is_flag=True, help="List individual site migrations")
 @click.option("--history", is_flag=True, help="Show migration history over time")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+@click.option(
+    "--limit", type=int, default=10, help="Number of runs to display (default: 10, max: 100)"
+)
+@click.option("--since", "since_date", type=str, help="Filter runs since date (YYYY-MM-DD)")
+@click.option("--until", "until_date", type=str, help="Filter runs until date (YYYY-MM-DD)")
+@click.option("--user", "filter_user", type=str, help="Filter runs by username")
+@click.option("--team", is_flag=True, help="Show aggregated team statistics (from Firebase)")
 @click.pass_context
-def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> None:
+def stats(
+    ctx: click.Context,
+    show_list: bool,
+    history: bool,
+    verbose: bool,
+    limit: int,
+    since_date: str,
+    until_date: str,
+    filter_user: str,
+    team: bool,
+) -> None:
     """Show migration statistics and savings."""
     if verbose:
         logger.setLevel(logging.DEBUG)
-    stats_data = get_migration_stats()
+    stats_data = get_migration_stats(
+        limit=limit, since=since_date, until=until_date, user=filter_user, team=team
+    )
+
+    # Handle offline/error case
+    if stats_data.get("error"):
+        from rich.panel import Panel
+        from rich.text import Text
+        console = get_console(ctx.obj.get("config", Config({})))
+        console.console.print(
+            Panel(
+                Text.from_markup(f"[red]{stats_data['error']}[/red]\n{stats_data.get('message', '')}"),
+                border_style="red",
+                title="Firebase Status"
+            )
+        )
+        return
+
     config = ctx.obj.get("config", Config({}))
     console = get_console(config)
     rich_console = console.console
@@ -1425,6 +1581,58 @@ def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> 
     from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
+
+    # 1. Handle Team View (if requested and available)
+    if team and stats_data.get("team_stats"):
+        ts = stats_data["team_stats"]
+
+        # Header
+        rich_console.print(
+            Panel(
+                Text.from_markup(
+                    f"[bold magenta]Team Status (Firebase)[/bold magenta]\n[dim]Live data from {ts.get('total_users', 0)} contributors[/dim]"
+                ),
+                border_style="magenta",
+            )
+        )
+
+        # Metrics
+        def make_team_panel(label: str, value: str, color: str) -> Panel:
+            return Panel(
+                Text.from_markup(f"[bold {color}]{value}[/bold {color}]\n[dim]{label}[/dim]"),
+                expand=True,
+                border_style=color,
+            )
+
+        panels = [
+            make_team_panel("Total Migrations", str(ts.get("total_migrations", 0)), "green"),
+            make_team_panel("Total Time Saved", f"{ts.get('total_time_saved_h', 0)}h", "yellow"),
+            make_team_panel("Automation Time", f"{ts.get('total_automation_time_h', 0)}h", "cyan"),
+        ]
+        rich_console.print(Columns(panels, equal=True))
+
+        # Top Contributors
+        contributors = ts.get("top_contributors", [])
+        if contributors:
+            rich_console.print("\n[bold magenta]🏆 Top Contributors[/bold magenta]")
+            table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+            table.add_column("Rank", style="dim", width=4)
+            table.add_column("User", style="bold white")
+            table.add_column("Sites Migrated", style="green", justify="right")
+
+            for i, (user, count) in enumerate(contributors, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"#{i}"
+                table.add_row(medal, user, str(count))
+
+            rich_console.print(table)
+
+        return
+
+    # 2. Fallback to Standard View (Local + optional Git global)
+    if team:
+        rich_console.print(
+            "[yellow]⚠️  Could not fetch live team stats. Showing local data.[/yellow]"
+        )
 
     # Header Panel
     header = Panel(
@@ -1524,8 +1732,53 @@ def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> 
     )
 
     if history:
+        from datetime import datetime
+
         runs = stats_data.get("runs", [])
-        if runs:
+        filtered_runs = runs.copy()
+
+        # Apply date filters
+        if since_date:
+            try:
+                since_dt = datetime.fromisoformat(since_date)
+                filtered_runs = [
+                    r
+                    for r in filtered_runs
+                    if datetime.fromisoformat(r.get("timestamp", "")[:10]) >= since_dt
+                ]
+            except ValueError:
+                rich_console.print(
+                    f"[red]Invalid date format for --since: {since_date}. Use YYYY-MM-DD.[/red]"
+                )
+                return
+
+        if until_date:
+            try:
+                until_dt = datetime.fromisoformat(until_date)
+                filtered_runs = [
+                    r
+                    for r in filtered_runs
+                    if datetime.fromisoformat(r.get("timestamp", "")[:10]) <= until_dt
+                ]
+            except ValueError:
+                rich_console.print(
+                    f"[red]Invalid date format for --until: {until_date}. Use YYYY-MM-DD.[/red]"
+                )
+                return
+
+        # Apply user filter
+        if filter_user:
+            filter_lower = filter_user.lower()
+            filtered_runs = [
+                r
+                for r in filtered_runs
+                if filter_lower in (r.get("_user") or r.get("user_id", "")).lower()
+            ]
+
+        # Apply limit (max 100)
+        effective_limit = min(limit, 100) if limit else 10
+
+        if filtered_runs:
             table = Table(
                 title="Recent Migration Runs",
                 title_style="bold cyan",
@@ -1536,21 +1789,57 @@ def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> 
             table.add_column("Theme Slug", style="cyan")
             table.add_column("Command", style="green")
             table.add_column("Status", style="bold")
-            table.add_column("Time", justify="right")
+            table.add_column("Duration", justify="right", style="yellow")
+            table.add_column("Lines", justify="right", style="cyan")
+            table.add_column("Saved", justify="right", style="green")
+            table.add_column("Report", style="dim", no_wrap=True, max_width=40)
 
-            for run in reversed(runs[-10:]):  # Show last 10
+            for run in reversed(filtered_runs[-effective_limit:]):
                 status = run.get("status", "unknown")
                 status_color = "green" if status == "success" else "red"
+
+                # Extract data with graceful fallbacks
+                duration_seconds = run.get("duration_seconds", 0)
+                lines_migrated = run.get("lines_migrated", 0)
+                report_path = run.get("report_path", "")
+
+                # Format values
+                duration_str = _format_duration(duration_seconds) if duration_seconds else "N/A"
+                lines_str = f"{lines_migrated:,}" if lines_migrated else "N/A"
+                saved_str = _calculate_time_saved(lines_migrated)
+                report_str = report_path if report_path else "N/A"
 
                 table.add_row(
                     run.get("timestamp", "")[:19].replace("T", " "),
                     run.get("slug", "unknown"),
                     run.get("command", "unknown"),
                     f"[{status_color}]{status}[/{status_color}]",
+                    duration_str,
+                    lines_str,
+                    saved_str,
+                    report_str,
                 )
             rich_console.print(table)
+
+            # Show filter info if any filters applied
+            filter_info = []
+            if since_date:
+                filter_info.append(f"since {since_date}")
+            if until_date:
+                filter_info.append(f"until {until_date}")
+            if filter_user:
+                filter_info.append(f"user: {filter_user}")
+            if filter_info:
+                rich_console.print(f"[dim]Filters applied: {', '.join(filter_info)}[/dim]")
+            if len(filtered_runs) > effective_limit:
+                rich_console.print(
+                    f"[dim]Showing {effective_limit} of {len(filtered_runs)} runs. Use --limit to show more.[/dim]"
+                )
         else:
-            rich_console.print("[yellow]No run history found.[/yellow]")
+            if since_date or until_date or filter_user:
+                rich_console.print("[yellow]No runs found matching the specified filters.[/yellow]")
+            else:
+                rich_console.print("[yellow]No run history found.[/yellow]")
 
     if show_list:
         migrations = stats_data.get("migrations", [])
@@ -1562,6 +1851,21 @@ def stats(ctx: click.Context, show_list: bool, history: bool, verbose: bool) -> 
             rich_console.print(table)
         else:
             rich_console.print("[yellow]No migrations have been recorded yet.[/yellow]")
+
+
+@cli.command(name="internal-refresh-stats", hidden=True)
+def internal_refresh_stats() -> None:
+    """
+    Internal command to process pending Firebase syncs.
+    Running in background to avoid blocking the user.
+    """
+    try:
+        # Process pending Firebase syncs (retry offline queue)
+        process_pending_syncs()
+
+    except Exception:
+        # Silent failure for background tasks
+        pass
 
 
 @cli.command()
@@ -2343,13 +2647,13 @@ def auto_update(action: str) -> None:
 def internal_refresh_stats() -> None:
     """
     Internal command used for background stats refresh.
-    Runs the backfill script and then syncs global stats.
+    Runs the backfill script and then syncs pending Firebase items.
     """
     try:
-        # Sync global stats (git push)
-        from .utils.tracker import sync_global_stats
+        # Process pending Firebase syncs (retry offline queue)
+        from .utils.tracker import process_pending_syncs
 
-        sync_global_stats()
+        process_pending_syncs()
     except Exception as e:
         logger.debug(f"Internal stats refresh failed: {e}")
 

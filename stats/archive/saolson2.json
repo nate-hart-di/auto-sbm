@@ -1,11 +1,24 @@
 {
-  "user": "JamesOch",
+  "user": "saolson2",
   "migrations": [
-    "added"
+    "added",
+    "hyundaiofnoblesville",
+    "monumentmotorco"
   ],
   "runs": [
     {
-      "timestamp": "2025-11-24T16:23:58Z",
+      "timestamp": "2025-11-26T21:44:11Z",
+      "slug": "hyundaiofnoblesville",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1894,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-01T16:16:08Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
@@ -16,7 +29,7 @@
       "historical": true
     },
     {
-      "timestamp": "2025-11-24T16:33:20Z",
+      "timestamp": "2025-12-01T17:08:25Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
@@ -27,7 +40,7 @@
       "historical": true
     },
     {
-      "timestamp": "2025-11-26T18:46:15Z",
+      "timestamp": "2025-12-01T17:14:39Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
@@ -38,7 +51,7 @@
       "historical": true
     },
     {
-      "timestamp": "2025-11-26T19:11:19Z",
+      "timestamp": "2025-12-01T17:17:35Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
@@ -49,7 +62,7 @@
       "historical": true
     },
     {
-      "timestamp": "2025-11-26T19:20:51Z",
+      "timestamp": "2025-12-01T21:54:30Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
@@ -60,7 +73,7 @@
       "historical": true
     },
     {
-      "timestamp": "2025-11-26T19:26:59Z",
+      "timestamp": "2025-12-01T21:56:49Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
@@ -71,16 +84,49 @@
       "historical": true
     },
     {
-      "timestamp": "2025-11-26T19:36:50Z",
+      "timestamp": "2025-12-03T16:47:51Z",
       "slug": "added",
       "command": "auto",
       "status": "success",
       "duration_seconds": 300.0,
       "automation_seconds": 60.0,
       "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-03T16:52:55Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-04T16:09:44Z",
+      "slug": "added",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 1278,
+      "manual_estimate_seconds": 14400,
+      "historical": true
+    },
+    {
+      "timestamp": "2025-12-04T22:57:08Z",
+      "slug": "monumentmotorco",
+      "command": "auto",
+      "status": "success",
+      "duration_seconds": 300.0,
+      "automation_seconds": 60.0,
+      "lines_migrated": 9,
       "manual_estimate_seconds": 14400,
       "historical": true
     }
   ],
-  "last_updated": "2025-12-18T00:40:12.280837Z"
+  "last_updated": "2025-12-18T00:40:12.280651Z"
 }
