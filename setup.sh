@@ -588,15 +588,15 @@ fi
 
 # Validate critical modules are available (quick check for common issues)
 # We use exit code instead of string matching to allow for warnings during import
-if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
-    IMPORT_ERROR=\$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+if ! PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
+    IMPORT_ERROR=\$(PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
     echo "WARNING  Environment health check failed: \$IMPORT_ERROR" >&2
     echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
     cd "$PROJECT_ROOT" && bash setup.sh
 
     # Re-check after setup
-    if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
-        IMPORT_ERROR_2=\$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+    if ! PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
+        IMPORT_ERROR_2=\$(PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
         echo "❌ Setup failed after retry: \$IMPORT_ERROR_2" >&2
         echo "Please run manually: cd $PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
         exit 1
@@ -615,11 +615,11 @@ cd "\$PROJECT_ROOT" || {
 # Clean environment from any active venv to prevent conflicts
 # This ensures auto-sbm runs in isolation even when called from another venv
 unset VIRTUAL_ENV
-unset PYTHONPATH
 unset PYTHONHOME
 
 # Remove any other venv's bin directory from PATH and add auto-sbm's venv
 export PATH="\$PROJECT_ROOT/.venv/bin:\$(echo \$PATH | tr ':' '\n' | grep -v '/\.venv/bin' | tr '\n' ':' | sed 's/:$//')"
+export PYTHONPATH="\$PROJECT_ROOT"
 
 # Execute the command from the project's venv, passing all arguments
 "\$VENV_PYTHON" -m "\$PROJECT_CLI_MODULE" "\$@"
