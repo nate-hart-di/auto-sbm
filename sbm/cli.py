@@ -2289,17 +2289,10 @@ def _ensure_secure_firebase_secrets() -> None:
     if api_key:
         saved_any = set_secret("firebase__api_key", api_key) or saved_any
 
-    if not api_key and not config.non_interactive:
-        prompt = "Enter Firebase Web API Key (anonymous auth): "
-        value = click.prompt(prompt, hide_input=True, default="", show_default=False)
-        if value:
-            saved_any = set_secret("firebase__api_key", value) or saved_any
-
-    if not db_url and not config.non_interactive:
-        prompt = "Enter Firebase Database URL: "
-        value = click.prompt(prompt, default="", show_default=False)
-        if value:
-            saved_any = set_secret("firebase__database_url", value) or saved_any
+    if not saved_any and not config.non_interactive:
+        click.echo(
+            "⚠️  Firebase secrets not stored. Set OP_FIREBASE_* refs or export FIREBASE__* vars."
+        )
 
     if saved_any:
         env_path = REPO_ROOT / ".env"
