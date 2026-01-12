@@ -14,7 +14,10 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import threading
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sbm.config import get_settings
@@ -29,6 +32,15 @@ _firebase_app: App | None = None
 _firebase_initialized: bool = False
 _firebase_user_mode: bool = False
 _initialization_lock = threading.Lock()
+_auth_lock = threading.Lock()
+_auth_cache_path = Path.home() / ".sbm_firebase_auth.json"
+_user_auth_state = {
+    "id_token": None,
+    "refresh_token": None,
+    "local_id": None,
+    "expires_at": 0.0,
+    "api_key": None,
+}
 
 
 class FirebaseInitializationError(Exception):
@@ -131,6 +143,111 @@ def _initialize_firebase() -> bool:
             return False
 
 
+def _load_auth_cache() -> dict:
+    if not _auth_cache_path.exists():
+        return {}
+    try:
+        return json.loads(_auth_cache_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_auth_cache(cache: dict) -> None:
+    try:
+        _auth_cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+    except Exception:
+        return
+
+
+def _get_user_mode_identity() -> tuple[str, str] | None:
+    """
+    Return (uid, id_token) for user mode using anonymous auth.
+
+    Persists refresh token to avoid creating a new UID each run.
+    """
+    settings = get_settings()
+    api_key = settings.firebase.api_key
+    if not api_key:
+        logger.warning("Firebase API key missing; anonymous auth is unavailable.")
+        return None
+
+    now = time.time()
+    with _auth_lock:
+        if (
+            _user_auth_state["id_token"]
+            and _user_auth_state["api_key"] == api_key
+            and now < _user_auth_state["expires_at"] - 60
+            and _user_auth_state["local_id"]
+        ):
+            return _user_auth_state["local_id"], _user_auth_state["id_token"]
+
+        cache = _load_auth_cache()
+        if cache and cache.get("api_key") == api_key:
+            expires_at = cache.get("expires_at", 0.0)
+            if cache.get("id_token") and now < expires_at - 60 and cache.get("local_id"):
+                _user_auth_state.update(cache)
+                return cache["local_id"], cache["id_token"]
+
+            refresh_token = cache.get("refresh_token")
+            if refresh_token:
+                try:
+                    import requests
+
+                    resp = requests.post(
+                        f"https://securetoken.googleapis.com/v1/token?key={api_key}",
+                        data={"grant_type": "refresh_token", "refresh_token": refresh_token},
+                        timeout=10,
+                    )
+                    if resp.ok:
+                        data = resp.json()
+                        expires_in = int(data.get("expires_in", "3600"))
+                        _user_auth_state.update(
+                            {
+                                "id_token": data.get("id_token"),
+                                "refresh_token": data.get("refresh_token"),
+                                "local_id": data.get("user_id"),
+                                "expires_at": now + expires_in,
+                                "api_key": api_key,
+                            }
+                        )
+                        _save_auth_cache(_user_auth_state)
+                        return _user_auth_state["local_id"], _user_auth_state["id_token"]
+                except Exception as e:
+                    logger.debug(f"Firebase token refresh failed: {e}")
+
+        try:
+            import requests
+
+            resp = requests.post(
+                f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}",
+                json={"returnSecureToken": True},
+                timeout=10,
+            )
+            if resp.ok:
+                data = resp.json()
+                expires_in = int(data.get("expiresIn", "3600"))
+                _user_auth_state.update(
+                    {
+                        "id_token": data.get("idToken"),
+                        "refresh_token": data.get("refreshToken"),
+                        "local_id": data.get("localId"),
+                        "expires_at": now + expires_in,
+                        "api_key": api_key,
+                    }
+                )
+                _save_auth_cache(_user_auth_state)
+                return _user_auth_state["local_id"], _user_auth_state["id_token"]
+        except Exception as e:
+            logger.debug(f"Firebase anonymous auth failed: {e}")
+
+    return None
+
+
+def get_user_mode_identity() -> tuple[str, str] | None:
+    """Public accessor for user-mode auth identity."""
+    return _get_user_mode_identity()
+
+
 def is_firebase_available() -> bool:
     """
     Check if Firebase is available and properly configured.
@@ -222,23 +339,30 @@ class FirebaseSync:
             if "sync_status" in data_to_push:
                 del data_to_push["sync_status"]
 
+            target_user_id = user_id
             if settings.firebase.is_admin_mode():
                 # Admin Mode: SDK
                 db = get_firebase_db()
-                ref = db.reference(f"users/{user_id}/runs")
+                ref = db.reference(f"users/{target_user_id}/runs")
                 ref.push(data_to_push)
             else:
                 # User Mode: REST
                 import requests
 
+                identity = _get_user_mode_identity()
+                if not identity:
+                    return False
+                uid, token = identity
+                target_user_id = uid
+
                 # Use requests.post for random ID (equivalent to push)
-                url = f"{settings.firebase.database_url}/users/{user_id}/runs.json"
+                url = f"{settings.firebase.database_url}/users/{target_user_id}/runs.json?auth={token}"
                 resp = requests.post(url, json=data_to_push, timeout=10)
                 if not resp.ok:
                     logger.debug(f"Firebase REST push failed: {resp.status_code} {resp.text}")
                     return False
 
-            logger.debug(f"Synced run stats to Firebase for users/{user_id}/runs")
+            logger.debug(f"Synced run stats to Firebase for users/{target_user_id}/runs")
             return True
         except Exception as e:
             logger.debug(f"Firebase push failed: {e}")
@@ -261,7 +385,12 @@ class FirebaseSync:
                 # User Mode: REST
                 import requests
 
-                url = f"{settings.firebase.database_url}/users.json"
+                identity = _get_user_mode_identity()
+                if not identity:
+                    return None
+                _, token = identity
+
+                url = f"{settings.firebase.database_url}/users.json?auth={token}"
                 resp = requests.get(url, timeout=10)
                 if resp.ok:
                     users_data = resp.json()
@@ -360,7 +489,12 @@ class FirebaseSync:
                 # User Mode: REST
                 import requests
 
-                url = f"{settings.firebase.database_url}/users.json"
+                identity = _get_user_mode_identity()
+                if not identity:
+                    return {}
+                _, token = identity
+
+                url = f"{settings.firebase.database_url}/users.json?auth={token}"
                 resp = requests.get(url, timeout=10)
                 if resp.ok:
                     users_data = resp.json()

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-01-12
+
+### Added
+- **Firebase user auth**: Anonymous auth token flow for REST reads/writes under team stats rules.
+- **Secure storage**: Store Firebase URL/API key in system keychain and scrub from `.env` on setup/update.
+- **Stats reliability**: User-mode stats use Firebase UID for consistent history.
+
+### Fixed
+- **CLI internals**: Removed duplicate `internal-refresh-stats` command registration.
+
 ## [2.7.10] - 2026-01-12
 
 ### Added

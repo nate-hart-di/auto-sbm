@@ -97,6 +97,7 @@ class FirebaseSettings(BaseSettings):
     Environment variables:
         FIREBASE__DATABASE_URL: Firebase Realtime Database URL (required for all)
         FIREBASE__CREDENTIALS_PATH: Path to Firebase service account JSON (admin only)
+        FIREBASE__API_KEY: Firebase Web API Key (required for user mode/anonymous auth)
     """
 
     model_config = SettingsConfigDict(extra="ignore")
@@ -108,6 +109,10 @@ class FirebaseSettings(BaseSettings):
     database_url: str | None = Field(
         default=None,
         description="Firebase Realtime Database URL (e.g., https://project-id.firebaseio.com)",
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="Firebase Web API Key (required for user mode/anonymous auth)",
     )
 
     @field_validator("credentials_path", mode="before")
@@ -156,10 +161,10 @@ class FirebaseSettings(BaseSettings):
     def is_configured(self) -> bool:
         """Check if Firebase is available (admin or user mode).
 
-        Returns True if database_url is set, regardless of credentials.
-        Team members only need database_url for anonymous auth.
+        Returns True if database_url is set and either credentials or api_key are available.
+        Team members need api_key for anonymous auth.
         """
-        return self.database_url is not None
+        return self.database_url is not None and (self.api_key is not None or self.is_admin_mode())
 
     def is_admin_mode(self) -> bool:
         """Check if running in admin mode with full credentials."""
@@ -171,7 +176,7 @@ class FirebaseSettings(BaseSettings):
 
     def is_user_mode(self) -> bool:
         """Check if running in user mode (anonymous auth)."""
-        return self.is_configured() and not self.is_admin_mode()
+        return self.database_url is not None and self.api_key is not None and not self.is_admin_mode()
 
 
 class MigrationSettings(BaseSettings):
@@ -217,6 +222,28 @@ class AutoSBMSettings(BaseSettings):
             "TRAVIS",
         ]
         return any(os.getenv(indicator) for indicator in ci_indicators)
+
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
+    ):
+        from sbm.utils.secure_store import get_secret, is_secure_store_available
+
+        def keyring_settings_source():
+            if not is_secure_store_available():
+                return {}
+            return {
+                "firebase__database_url": get_secret("firebase__database_url"),
+                "firebase__api_key": get_secret("firebase__api_key"),
+            }
+
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            keyring_settings_source,
+            file_secret_settings,
+        )
 
 
 # Global settings instance - lazy loaded

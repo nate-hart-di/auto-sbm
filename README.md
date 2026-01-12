@@ -1,6 +1,6 @@
 # Auto-SBM
 
-Current version: 2.5.6
+Current version: 2.8.0
 Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
 to Site Builder format, validates output, and tracks migration stats with optional Slack
 reporting.
@@ -79,10 +79,12 @@ Migration runs sync to Firebase for team-wide statistics.
 
 ### Team Members (Default)
 
-No credentials required! Just add the database URL to your `.env`:
+Anonymous auth is used for reads/writes. Add the database URL and API key to your `.env`
+or let `sbm setup` store them in your system keychain:
 
 ```bash
 FIREBASE__DATABASE_URL=https://auto-sbm-default-rtdb.firebaseio.com
+FIREBASE__API_KEY=your-firebase-web-api-key
 ```
 
 Stats commands work automatically:
@@ -109,7 +111,7 @@ and let you skip duplicates before running.
 
 ### Admin Setup
 
-Admins with full access need the service account credentials:
+Admins with full access need the service account credentials (API key optional):
 
 ```bash
 FIREBASE__DATABASE_URL=https://auto-sbm-default-rtdb.firebaseio.com

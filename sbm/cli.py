@@ -56,6 +56,7 @@ from .utils.path import get_dealer_theme_dir, get_platform_dir
 from .utils.timer import get_total_automation_time, get_total_duration
 from rich.table import Table
 from .utils.version_utils import get_changelog, get_version
+from sbm.utils.secure_store import is_secure_store_available, set_secret
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 # Use the predictable installation location as the primary root
@@ -1554,6 +1555,7 @@ def stats(
     """Show migration statistics and savings."""
     if verbose:
         logger.setLevel(logging.DEBUG)
+    limit = min(limit, 100) if limit else 10
     stats_data = get_migration_stats(
         limit=limit, since=since_date, until=until_date, user=filter_user, team=team
     )
@@ -1735,53 +1737,8 @@ def stats(
     )
 
     if history:
-        from datetime import datetime
-
         runs = stats_data.get("runs", [])
-        filtered_runs = runs.copy()
-
-        # Apply date filters
-        if since_date:
-            try:
-                since_dt = datetime.fromisoformat(since_date)
-                filtered_runs = [
-                    r
-                    for r in filtered_runs
-                    if datetime.fromisoformat(r.get("timestamp", "")[:10]) >= since_dt
-                ]
-            except ValueError:
-                rich_console.print(
-                    f"[red]Invalid date format for --since: {since_date}. Use YYYY-MM-DD.[/red]"
-                )
-                return
-
-        if until_date:
-            try:
-                until_dt = datetime.fromisoformat(until_date)
-                filtered_runs = [
-                    r
-                    for r in filtered_runs
-                    if datetime.fromisoformat(r.get("timestamp", "")[:10]) <= until_dt
-                ]
-            except ValueError:
-                rich_console.print(
-                    f"[red]Invalid date format for --until: {until_date}. Use YYYY-MM-DD.[/red]"
-                )
-                return
-
-        # Apply user filter
-        if filter_user:
-            filter_lower = filter_user.lower()
-            filtered_runs = [
-                r
-                for r in filtered_runs
-                if filter_lower in (r.get("_user") or r.get("user_id", "")).lower()
-            ]
-
-        # Apply limit (max 100)
-        effective_limit = min(limit, 100) if limit else 10
-
-        if filtered_runs:
+        if runs:
             table = Table(
                 title="Recent Migration Runs",
                 title_style="bold cyan",
@@ -1797,7 +1754,7 @@ def stats(
             table.add_column("Saved", justify="right", style="green")
             table.add_column("Report", style="dim", no_wrap=True, max_width=40)
 
-            for run in reversed(filtered_runs[-effective_limit:]):
+            for run in runs:
                 status = run.get("status", "unknown")
                 status_color = "green" if status == "success" else "red"
 
@@ -1834,10 +1791,6 @@ def stats(
                 filter_info.append(f"user: {filter_user}")
             if filter_info:
                 rich_console.print(f"[dim]Filters applied: {', '.join(filter_info)}[/dim]")
-            if len(filtered_runs) > effective_limit:
-                rich_console.print(
-                    f"[dim]Showing {effective_limit} of {len(filtered_runs)} runs. Use --limit to show more.[/dim]"
-                )
         else:
             if since_date or until_date or filter_user:
                 rich_console.print("[yellow]No runs found matching the specified filters.[/yellow]")
@@ -2176,6 +2129,67 @@ def _ensure_devtools_cli() -> None:
         click.echo(f"⚠️  Warning: Failed to install Devtools CLI: {e}")
 
 
+def _remove_env_secrets(env_path: Path, keys: set[str]) -> bool:
+    """Remove sensitive keys from an env file if present."""
+    if not env_path.exists():
+        return False
+
+    try:
+        original = env_path.read_text(encoding="utf-8")
+        lines = original.splitlines()
+        kept = []
+        removed_any = False
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                kept.append(line)
+                continue
+            key = stripped.split("=", 1)[0].strip()
+            if key in keys:
+                removed_any = True
+                continue
+            kept.append(line)
+
+        if removed_any:
+            env_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        return removed_any
+    except Exception as e:
+        logger.debug(f"Failed to scrub secrets from {env_path}: {e}")
+        return False
+
+
+def _ensure_secure_firebase_secrets() -> None:
+    """Store Firebase connection details in the system keyring when available."""
+    if not is_secure_store_available():
+        return
+
+    config = get_settings()
+    db_url = os.environ.get("FIREBASE__DATABASE_URL") or config.firebase.database_url
+    api_key = os.environ.get("FIREBASE__API_KEY") or config.firebase.api_key
+
+    saved_any = False
+    if db_url:
+        saved_any = set_secret("firebase__database_url", db_url) or saved_any
+    if api_key:
+        saved_any = set_secret("firebase__api_key", api_key) or saved_any
+
+    if not api_key and not config.non_interactive:
+        prompt = "Enter Firebase Web API Key (anonymous auth): "
+        value = click.prompt(prompt, hide_input=True, default="", show_default=False)
+        if value:
+            saved_any = set_secret("firebase__api_key", value) or saved_any
+
+    if not db_url and not config.non_interactive:
+        prompt = "Enter Firebase Database URL: "
+        value = click.prompt(prompt, default="", show_default=False)
+        if value:
+            saved_any = set_secret("firebase__database_url", value) or saved_any
+
+    if saved_any:
+        env_path = REPO_ROOT / ".env"
+        _remove_env_secrets(env_path, {"FIREBASE__DATABASE_URL", "FIREBASE__API_KEY"})
+
+
 def _restore_stashed_changes() -> None:
     """Restore previously stashed changes."""
     click.echo("Restoring local changes...")
@@ -2249,6 +2263,7 @@ def update() -> None:
             click.echo("\n📦 Updating dependencies...")
             _update_dependencies()
             click.echo("✅ Dependencies updated")
+            _ensure_secure_firebase_secrets()
 
             # Install pre-commit hooks
             click.echo("\n🪝 Installing pre-commit hooks...")
@@ -2681,21 +2696,6 @@ def auto_update(action: str) -> None:
             click.echo("   Run 'sbm auto-update disable' to disable automatic updates")
 
 
-@cli.command(hidden=True)
-def internal_refresh_stats() -> None:
-    """
-    Internal command used for background stats refresh.
-    Runs the backfill script and then syncs pending Firebase items.
-    """
-    try:
-        # Process pending Firebase syncs (retry offline queue)
-        from .utils.tracker import process_pending_syncs
-
-        process_pending_syncs()
-    except Exception as e:
-        logger.debug(f"Internal stats refresh failed: {e}")
-
-
 @cli.command()
 def setup() -> None:
     """Run the environment setup script."""
@@ -2703,6 +2703,7 @@ def setup() -> None:
     setup_script = REPO_ROOT / "setup.sh"
     try:
         subprocess.run(["bash", str(setup_script)], check=True)
+        _ensure_secure_firebase_secrets()
     except subprocess.CalledProcessError as e:
         logger.error(f"Setup failed with exit code {e.returncode}")
         sys.exit(e.returncode)

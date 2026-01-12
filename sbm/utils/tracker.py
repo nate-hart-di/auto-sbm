@@ -14,10 +14,11 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from .processes import run_background_task
-from .firebase_sync import is_firebase_available, FirebaseSync
+from .firebase_sync import is_firebase_available, FirebaseSync, get_user_mode_identity
 from .slug_validation import is_official_slug
 
 from .logger import logger
+from sbm.config import get_settings
 
 # Local tracker file (legacy/individual)
 TRACKER_FILE = Path.home() / ".sbm_migrations.json"
@@ -62,6 +63,16 @@ def _get_user_id() -> str:
         return f"{socket.gethostname()}_{os.getlogin()}"
     except Exception:
         return "unknown_user"
+
+
+def _get_reporting_user_id() -> str:
+    """Return a stable identifier for Firebase reporting in user mode."""
+    settings = get_settings()
+    if settings.firebase.is_user_mode():
+        identity = get_user_mode_identity()
+        if identity:
+            return identity[0]
+    return _get_user_id()
 
 
 def _read_tracker() -> dict:
@@ -293,6 +304,14 @@ def get_migration_stats(
     Returns:
         Dictionary with migration stats, optionally filtered
     """
+    settings = get_settings()
+    if settings.firebase.is_user_mode() and not get_user_mode_identity():
+        return {
+            "error": "Stats unavailable (auth required)",
+            "message": "Firebase anonymous auth failed. Check FIREBASE__API_KEY.",
+            "user_id": _get_user_id(),
+        }
+
     # If team stats requested, try to get them from Firebase first
     if team:
         team_stats = fetch_team_stats()
@@ -322,7 +341,7 @@ def get_migration_stats(
         }
 
     # Extract personal stats from Firebase data
-    current_user_id = _get_user_id()
+    current_user_id = _get_reporting_user_id()
 
     # Filter to current user's runs from Firebase
     my_runs = [r for r in all_firebase_runs if r.get("_user") == current_user_id]
@@ -385,15 +404,31 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
         return all_runs, user_migrations
 
     try:
-        from .firebase_sync import FirebaseSync
+        settings = get_settings()
+        users_data = None
 
-        sync = FirebaseSync()
+        if settings.firebase.is_admin_mode():
+            # Admin mode: use firebase_admin SDK
+            from firebase_admin import db
 
-        # Get Firebase database reference
-        from firebase_admin import db
+            users_ref = db.reference("/users")
+            users_data = users_ref.get()
+        else:
+            # User mode: use REST API for read access
+            import requests
 
-        users_ref = db.reference("/users")
-        users_data = users_ref.get()
+            identity = get_user_mode_identity()
+            if not identity:
+                return all_runs, user_migrations
+            _, token = identity
+
+            url = f"{settings.firebase.database_url}/users.json?auth={token}"
+            resp = requests.get(url, timeout=10)
+            if resp.ok:
+                users_data = resp.json()
+            else:
+                logger.debug(f"Firebase REST fetch failed: {resp.status_code}")
+                return all_runs, user_migrations
 
         if not users_data:
             return all_runs, user_migrations
