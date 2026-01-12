@@ -384,8 +384,20 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
 
         # Process all users' data from Firebase
         for user_id, user_data in users_data.items():
+            if not isinstance(user_data, dict):
+                continue
             runs = user_data.get("runs", {})
             migrations_set = set()
+
+            migrations_node = user_data.get("migrations", [])
+            if isinstance(migrations_node, list):
+                for slug in migrations_node:
+                    if slug:
+                        migrations_set.add(slug)
+            elif isinstance(migrations_node, dict):
+                for slug in migrations_node.keys():
+                    if slug:
+                        migrations_set.add(slug)
 
             for run_id, run in runs.items():
                 run["_user"] = user_id

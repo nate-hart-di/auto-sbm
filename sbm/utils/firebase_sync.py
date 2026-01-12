@@ -282,8 +282,18 @@ class FirebaseSync:
                 if not isinstance(user_node, dict):
                     continue
                 runs_node = user_node.get("runs", {})
+                migrations_node = user_node.get("migrations", [])
                 if not runs_node:
-                    continue
+                    runs_node = {}
+
+                if isinstance(migrations_node, list):
+                    for slug in migrations_node:
+                        if slug:
+                            total_migrations.add(slug)
+                elif isinstance(migrations_node, dict):
+                    for slug in migrations_node.keys():
+                        if slug:
+                            total_migrations.add(slug)
 
                 user_run_count = 0
                 for _, run in runs_node.items():
@@ -299,7 +309,7 @@ class FirebaseSync:
                         total_time_saved_h += lines / 800.0
                         total_automation_seconds += run.get("automation_seconds", 0)
 
-                if user_run_count > 0:
+                if user_run_count > 0 or migrations_node:
                     user_counts[user_id] = user_run_count
 
             return {
@@ -349,8 +359,18 @@ class FirebaseSync:
                 if not isinstance(user_node, dict):
                     continue
                 runs_node = user_node.get("runs", {})
+                migrations_node = user_node.get("migrations", [])
                 if not runs_node:
-                    continue
+                    runs_node = {}
+
+                if isinstance(migrations_node, list):
+                    for slug in migrations_node:
+                        if slug and slug not in migrated_map:
+                            migrated_map[slug] = user_id
+                elif isinstance(migrations_node, dict):
+                    for slug in migrations_node.keys():
+                        if slug and slug not in migrated_map:
+                            migrated_map[slug] = user_id
 
                 for _, run in runs_node.items():
                     if run.get("status") == "success":

@@ -71,6 +71,23 @@ def load_local_history() -> List[Dict[str, Any]]:
     return data.get("runs", [])
 
 
+def load_local_migrations() -> List[str]:
+    """Load local migration slugs list from tracker."""
+    history_path = Path.home() / ".sbm_migrations.json"
+    if not history_path.exists():
+        return []
+
+    data = _load_json_with_recovery(history_path)
+    if not data:
+        return []
+    migrations = data.get("migrations", [])
+    if isinstance(migrations, list):
+        return [slug for slug in migrations if slug]
+    if isinstance(migrations, dict):
+        return [slug for slug in migrations.keys() if slug]
+    return []
+
+
 def _recover_tracker_json(text: str, error: json.JSONDecodeError) -> Dict[str, Any] | None:
     """Best-effort recovery for truncated tracker JSON."""
     # Trim to the point of failure and drop the last incomplete entry.
@@ -167,6 +184,42 @@ def _normalize_run(user_id: str, run: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
+def _normalize_migrations(migrations: List[str]) -> List[str]:
+    """Normalize migration slug list for Firebase storage."""
+    unique = []
+    seen = set()
+    for slug in migrations:
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        unique.append(slug)
+    return unique
+
+
+def _merge_migrations(existing: Any, incoming: List[str]) -> List[str]:
+    """Merge migrations from Firebase with local list."""
+    merged: List[str] = []
+    seen = set()
+
+    def _add(item: Any) -> None:
+        if not item or item in seen:
+            return
+        seen.add(item)
+        merged.append(item)
+
+    if isinstance(existing, list):
+        for slug in existing:
+            _add(slug)
+    elif isinstance(existing, dict):
+        for slug in existing.keys():
+            _add(slug)
+
+    for slug in incoming:
+        _add(slug)
+
+    return merged
+
+
 def perform_migration(user_id: str, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, int]:
     """Execute the migration process."""
     if history is None:
@@ -208,7 +261,7 @@ def perform_migration(user_id: str, history: Optional[List[Dict[str, Any]]] = No
     return stats
 
 
-def _iter_archive_users() -> Iterable[Tuple[str, List[Dict[str, Any]]]]:
+def _iter_archive_users() -> Iterable[Tuple[str, List[Dict[str, Any]], List[str]]]:
     """Yield (user_id, runs) from stats archive files."""
     archive_dir = Path("stats/archive")
     if not archive_dir.exists():
@@ -222,10 +275,17 @@ def _iter_archive_users() -> Iterable[Tuple[str, List[Dict[str, Any]]]]:
         if not isinstance(runs, list) or not runs:
             continue
         user_id = data.get("user") or path.stem
-        yield user_id, runs
+        migrations = data.get("migrations", [])
+        if isinstance(migrations, list):
+            migrations = [slug for slug in migrations if slug]
+        elif isinstance(migrations, dict):
+            migrations = [slug for slug in migrations.keys() if slug]
+        else:
+            migrations = []
+        yield user_id, runs, migrations
 
 
-def _iter_stats_users() -> Iterable[Tuple[str, List[Dict[str, Any]]]]:
+def _iter_stats_users() -> Iterable[Tuple[str, List[Dict[str, Any]], List[str]]]:
     """Yield (user_id, runs) from legacy stats/*.json files (non-archive)."""
     stats_dir = Path("stats")
     if not stats_dir.exists():
@@ -239,7 +299,50 @@ def _iter_stats_users() -> Iterable[Tuple[str, List[Dict[str, Any]]]]:
         if not isinstance(runs, list) or not runs:
             continue
         user_id = data.get("user") or path.stem
-        yield user_id, runs
+        migrations = data.get("migrations", [])
+        if isinstance(migrations, list):
+            migrations = [slug for slug in migrations if slug]
+        elif isinstance(migrations, dict):
+            migrations = [slug for slug in migrations.keys() if slug]
+        else:
+            migrations = []
+        yield user_id, runs, migrations
+
+
+def push_migrations_list(user_id: str, migrations: List[str]) -> bool:
+    """Push migration slug list to Firebase for historical backfill."""
+    if not migrations:
+        return True
+
+    try:
+        from sbm.config import get_settings
+        import requests
+
+        settings = get_settings()
+        merged = migrations
+
+        if settings.firebase.is_admin_mode():
+            db = get_firebase_db()
+            ref = db.reference(f"users/{user_id}/migrations")
+            existing = ref.get()
+            merged = _merge_migrations(existing, migrations)
+            ref.set(merged)
+        else:
+            url = f"{settings.firebase.database_url}/users/{user_id}/migrations.json"
+            resp = requests.get(url, timeout=10)
+            existing = resp.json() if resp.ok else []
+            merged = _merge_migrations(existing, migrations)
+            put = requests.put(url, json=merged, timeout=10)
+            if not put.ok:
+                console.print(
+                    f"[yellow]Failed to update migrations list for {user_id}: {put.status_code}[/yellow]"
+                )
+                return False
+
+        return True
+    except Exception as e:
+        console.print(f"[red]Error pushing migrations list: {e}[/red]")
+        return False
 
 
 def perform_global_migration() -> Dict[str, Dict[str, int]]:
@@ -251,7 +354,15 @@ def perform_global_migration() -> Dict[str, Dict[str, int]]:
         console.print("[yellow]No historical stats files found to migrate.[/yellow]")
         return results
 
-    for user_id, runs in sources:
+    if not is_firebase_available():
+        console.print("[yellow]Initializing Firebase connection...[/yellow]")
+        if not _initialize_firebase():
+            console.print("[red]Failed to initialize Firebase. check configuration.[/red]")
+            return results
+
+    for user_id, runs, migrations in sources:
+        migrations = _normalize_migrations(migrations)
+        push_migrations_list(user_id, migrations)
         console.print(
             f"[bold blue]Migrating {len(runs)} runs for user {user_id}...[/bold blue]"
         )
@@ -287,6 +398,8 @@ def main():
 
     console.print(f"[bold]Migrating history for user: {user_id}[/bold]")
 
+    migrations = _normalize_migrations(load_local_migrations())
+    push_migrations_list(user_id, migrations)
     stats = perform_migration(user_id)
 
     console.print("\n[bold green]Migration Complete![/bold green]")
