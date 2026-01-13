@@ -384,6 +384,7 @@ def get_migration_stats(
         "last_updated": max((r.get("timestamp", "") for r in my_runs), default=None),
         "path": str(TRACKER_FILE),  # Keep for compatibility
         "user_id": current_user_id,
+        "display_name": _get_user_id(),  # Use local system/git name for display
         "source": "firebase",
     }
 
@@ -529,6 +530,14 @@ def _sync_to_firebase(run_entry: dict) -> bool:
                 run_entry["sync_status"] = "validation_unavailable"
                 logger.warning("Devtools validation unavailable; delaying Firebase sync.")
                 return False
+
+        # Check for empty migrations (false positives)
+        lines = run_entry.get("lines_migrated", 0)
+        if lines <= 0:
+            run_entry["sync_status"] = "skipped_empty"
+            logger.info(f"Skipping Firebase sync for empty migration ({lines} lines)")
+            return False
+
         sync = FirebaseSync()
         return sync.push_run(_get_user_id(), run_entry)
     except Exception as e:

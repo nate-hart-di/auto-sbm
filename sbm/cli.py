@@ -1649,11 +1649,13 @@ def stats(
     rich_console.print(header)
 
     # Personal Impact
-    current_user = stats_data.get("user_id", "unknown")
+    current_user_id = stats_data.get("user_id", "unknown")
+    current_user_name = stats_data.get("display_name", current_user_id)
+
     rich_console.print(
         Text.assemble(
             Text("Auto-SBM Stats: ", style="bold cyan"),
-            Text(f"{current_user}", style="bold purple"),
+            Text(f"{current_user_name}", style="bold purple"),
         )
     )
 
@@ -1722,8 +1724,8 @@ def stats(
                 contrib_table.add_row(f"  {medal}", f"{user}", f"{count} sites")
             rich_console.print(contrib_table)
 
-    # User ID info
-    current_user = stats_data.get("user_id", "unknown")
+    current_user_id = stats_data.get("user_id", "unknown")
+    current_user_name = stats_data.get("display_name", current_user_id)
 
     last_updated_str = "Never"
     if stats_data.get("last_updated"):
@@ -1735,7 +1737,7 @@ def stats(
             last_updated_str = ts
 
     rich_console.print(
-        f"\n[dim]Contributing as: {current_user} | Last updated: {last_updated_str}[/dim]"
+        f"\n[dim]Contributing as: {current_user_name} | Last updated: {last_updated_str}[/dim]"
     )
 
     if history:
@@ -2175,9 +2177,7 @@ def _ensure_op_refs() -> None:
         refs["OP_FIREBASE_DATABASE_URL_REF"] = env_db_ref or refs.get(
             "OP_FIREBASE_DATABASE_URL_REF", ""
         )
-        refs["OP_FIREBASE_API_KEY_REF"] = env_key_ref or refs.get(
-            "OP_FIREBASE_API_KEY_REF", ""
-        )
+        refs["OP_FIREBASE_API_KEY_REF"] = env_key_ref or refs.get("OP_FIREBASE_API_KEY_REF", "")
         _write_op_refs_file(refs)
         OP_REFS_MARKER.touch()
 
@@ -2293,7 +2293,18 @@ def update() -> None:
     click.echo("🔄 Updating auto-sbm...")
 
     try:
+        from .utils.legacy_sync import sync_legacy_stats
+
         _validate_git_repository()
+
+        # 1. Recover from potential bad rebase state
+        git_dir = REPO_ROOT / ".git"
+        if (git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists():
+            click.echo("⚠️  Detected incomplete rebase. Aborting to restore clean state...")
+            subprocess.run(
+                ["git", "rebase", "--abort"], check=False, cwd=REPO_ROOT, capture_output=True
+            )
+
         current_branch = _get_current_branch()
 
         # Get current commit for comparison
@@ -2304,6 +2315,20 @@ def update() -> None:
             capture_output=True,
             text=True,
         ).stdout.strip()[:7]
+
+        # 2. Sync distinct legacy runs before overwriting
+        try:
+            click.echo("🔄 Syncing local stats to Firebase before update...")
+            sync_legacy_stats()
+        except Exception as e:
+            logger.warning(f"Stats sync warning: {e}")
+
+        # 3. Force reset legacy stats files to avoid conflicts
+        # These files should only be modified by the tool, and we synced them above.
+        click.echo("🧹 discarding local changes to stats/archive to prevent conflicts...")
+        subprocess.run(
+            ["git", "checkout", "stats/archive/"], check=False, cwd=REPO_ROOT, capture_output=True
+        )
 
         has_changes = _stash_changes_if_needed()
 
