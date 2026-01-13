@@ -10,12 +10,23 @@ from sbm.utils.firebase_sync import (
 )
 from sbm.utils.logger import logger
 
+# Marker file to skip redundant syncing after initial migration
+LEGACY_SYNC_MARKER = Path.home() / ".sbm_legacy_sync_complete"
+
 
 def sync_legacy_stats(specific_files: Optional[List[Path]] = None) -> bool:
     """
     Sync legacy archive stats to Firebase.
     Returns True if successful (or nothing to do), False on critical error.
+
+    This is a one-time migration from local archive files to Firebase.
+    After successful sync, a marker file is created to skip future syncs.
     """
+    # Skip if already synced (one-time migration)
+    if LEGACY_SYNC_MARKER.exists() and not specific_files:
+        logger.debug("Legacy sync already complete, skipping.")
+        return True
+
     if not is_firebase_available():
         logger.warning("Firebase unavailable. Cannot sync legacy stats.")
         return False
@@ -115,4 +126,13 @@ def sync_legacy_stats(specific_files: Optional[List[Path]] = None) -> bool:
             )
 
     logger.info(f"Legacy sync complete. Added {total_runs_added} runs.")
+
+    # Create marker to skip future syncs (one-time migration complete)
+    if not specific_files:
+        try:
+            LEGACY_SYNC_MARKER.touch()
+            logger.debug("Created legacy sync marker file.")
+        except Exception as e:
+            logger.debug(f"Could not create sync marker: {e}")
+
     return True
