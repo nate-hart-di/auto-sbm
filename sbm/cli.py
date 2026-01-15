@@ -1578,7 +1578,20 @@ def stats(
         logger.setLevel(logging.DEBUG)
     limit = min(limit, 100) if limit else 10
 
-    status_msg = "Retrieving Team Stats..." if team else "Retrieving Stats..."
+    parts = ["Retrieving"]
+    parts.append("Team Stats" if team else "Stats")
+
+    if filter_user:
+        parts.append(f"for user '[cyan]{filter_user}[/cyan]'")
+
+    if since_date:
+        parts.append(f"since [bold]{since_date}[/bold]")
+
+    if until_date:
+        parts.append(f"until [bold]{until_date}[/bold]")
+
+    status_msg = " ".join(parts) + "..."
+
     with get_console().status(f"[bold green]{status_msg}[/bold green]"):
         stats_data = get_migration_stats(
             limit=limit, since=since_date, until=until_date, user=filter_user, team=team
