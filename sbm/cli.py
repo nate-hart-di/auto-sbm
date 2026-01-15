@@ -1560,13 +1560,29 @@ def stats(
     filter_user: str,
     team: bool,
 ) -> None:
-    """Show migration statistics and savings."""
+    """Show migration statistics and savings.
+
+    Displays your personal impact or team-wide statistics.
+
+    Data Source:
+    - By default, shows YOUR stats from Firebase.
+    - With --team: Shows aggregated stats for all contributors.
+    - With --user: Shows stats for a specific user ID.
+
+    Strict Mode:
+    - The stats are based strictly on SUCCESSFUL runs logged in the database.
+    - Failed or invalid runs are excluded.
+    - Users with no run logs are not counted.
+    """
     if verbose:
         logger.setLevel(logging.DEBUG)
     limit = min(limit, 100) if limit else 10
-    stats_data = get_migration_stats(
-        limit=limit, since=since_date, until=until_date, user=filter_user, team=team
-    )
+
+    status_msg = "Retrieving Team Stats..." if team else "Retrieving Stats..."
+    with get_console().status(f"[bold green]{status_msg}[/bold green]"):
+        stats_data = get_migration_stats(
+            limit=limit, since=since_date, until=until_date, user=filter_user, team=team
+        )
 
     # Handle offline/error case
     if stats_data.get("error"):
@@ -1759,10 +1775,11 @@ def stats(
             table.add_column("Theme Slug", style="cyan")
             table.add_column("Command", style="green")
             table.add_column("Status", style="bold")
+            table.add_column("User", style="magenta")
             table.add_column("Duration", justify="right", style="yellow")
             table.add_column("Lines", justify="right", style="cyan")
             table.add_column("Saved", justify="right", style="green")
-            table.add_column("Report", style="dim", no_wrap=True, max_width=40)
+            table.add_column("PR", style="blue")
 
             for run in runs:
                 status = run.get("status", "unknown")
@@ -1779,16 +1796,39 @@ def stats(
                 saved_str = _calculate_time_saved(lines_migrated)
                 report_str = report_path if report_path else "N/A"
 
+                # PR Link logic
+                pr_link = "N/A"
+                if run.get("pr_url"):
+                    url = run.get("pr_url")
+                    state = run.get("pr_state", "").upper()
+
+                    link_text = "View"
+                    if state == "MERGED":
+                        link_text = "[green]Merged[/green]"
+                    elif state == "OPEN":
+                        link_text = "[yellow]Open[/yellow]"
+                    elif state == "CLOSED":
+                        link_text = "[red]Closed[/red]"
+                    elif state == "DRAFT":
+                        link_text = "[dim]Draft[/dim]"
+
+                    pr_link = f"[link={url}]{link_text}[/link]"
+
+                # User logic: prefer pr_author, fallback to generic user
+                user_display = run.get("pr_author") or run.get("_user") or "unknown"
+
                 table.add_row(
                     run.get("timestamp", "")[:19].replace("T", " "),
                     run.get("slug", "unknown"),
                     run.get("command", "unknown"),
                     f"[{status_color}]{status}[/{status_color}]",
+                    f"@{user_display}",
                     duration_str,
                     lines_str,
                     saved_str,
-                    report_str,
+                    pr_link,
                 )
+
             rich_console.print(table)
 
             # Show filter info if any filters applied

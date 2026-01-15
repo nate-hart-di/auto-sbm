@@ -355,44 +355,51 @@ def get_migration_stats(
     my_runs = [r for r in all_firebase_runs if r.get("_user") == current_user_id]
     my_migrations = user_migrations.get(current_user_id, set())
 
-    # Apply additional filters if provided
+    # If user filter is specified, we need to adjust the "stats subject"
+    # Otherwise we show "my" stats but list "their" runs, which is confusing.
+    target_user_id = current_user_id
+    stats_runs = my_runs
+    stats_migrations = my_migrations
+
     has_filters = any([limit, since, until, user])
     if has_filters:
-        # If user filter is specified, filter all runs not just current user's
+        # If user filter is specified, filter all runs
         runs_to_filter = all_firebase_runs if user else my_runs
+
+        if user:
+            # Find the best matching user ID for stats calculation
+            # Logic: exact match > partial match > first match
+            user_lower = user.lower()
+            candidates = [u for u in user_migrations.keys() if user_lower in u.lower()]
+            if candidates:
+                # Prefer exact match
+                target_user_id = next(
+                    (u for u in candidates if u.lower() == user_lower), candidates[0]
+                )
+                stats_migrations = user_migrations.get(target_user_id, set())
+                stats_runs = [r for r in all_firebase_runs if r.get("_user") == target_user_id]
+
         filtered_runs = filter_runs(
             runs_to_filter, limit=limit, since=since, until=until, user=user
         )
     else:
         filtered_runs = my_runs
 
-    # Calculate metrics from Firebase data (not local)
+    # Calculate metrics from the TARGET user's data (not necessarily current user)
     # Combine actual run data with estimates for migrations without run data
-    run_metrics = _calculate_metrics({"runs": my_runs})
-
-    # Count migrations that have run data
-    slugs_with_runs = {r.get("slug") for r in my_runs if r.get("status") == "success"}
-    migrations_without_runs = my_migrations - slugs_with_runs
-
-    # Estimate lines for migrations without run data
-    if migrations_without_runs:
-        # Add estimate: 500 lines per migration for those without run data
-        estimated_lines = len(migrations_without_runs) * 500
-        run_metrics["total_lines_migrated"] += estimated_lines
-        run_metrics["total_time_saved_h"] = round(run_metrics["total_lines_migrated"] / 800.0, 1)
-        run_metrics["estimated"] = True  # Flag to indicate some values are estimated
+    run_metrics = _calculate_metrics({"runs": stats_runs})
 
     firebase_stats = run_metrics
 
     return {
-        "count": len(my_migrations),
-        "migrations": sorted(my_migrations),
+        "count": len(stats_migrations),
+        "migrations": sorted(stats_migrations),
         "runs": filtered_runs,  # Return filtered runs from Firebase
         "metrics": firebase_stats,
-        "last_updated": max((r.get("timestamp", "") for r in my_runs), default=None),
+        "last_updated": max((r.get("timestamp", "") for r in stats_runs), default=None),
         "path": str(TRACKER_FILE),  # Keep for compatibility
-        "user_id": current_user_id,
-        "display_name": _get_user_id(),  # Use local system/git name for display
+        "user_id": target_user_id,  # Return the ID of the user whose stats we are showing
+        "display_name": target_user_id,
         "source": "firebase",
     }
 
@@ -532,7 +539,8 @@ def _sync_to_firebase(run_entry: dict) -> bool:
         slug = run_entry.get("slug")
         if slug:
             valid = is_official_slug(slug)
-            if valid is False:
+            # Allow backfill_recovery to bypass validation
+            if valid is False and run_entry.get("command") != "backfill_recovery":
                 run_entry["sync_status"] = "invalid_slug"
                 logger.warning(f"Skipping Firebase sync for invalid slug: {slug}")
                 return False

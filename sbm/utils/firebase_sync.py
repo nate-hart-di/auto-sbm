@@ -84,7 +84,7 @@ def _initialize_firebase() -> bool:
             if settings.firebase.is_user_mode():
                 # User Mode: No SDK initialization needed for REST usage
                 # We return True to indicate "connection" is ready (via REST)
-                logger.info("Initializing Firebase in USER MODE (REST API) - No SDK required")
+                logger.debug("Initializing Firebase in USER MODE (REST API) - No SDK required")
                 _firebase_app = None  # Explicitly None
                 _firebase_initialized = True
                 _firebase_user_mode = True
@@ -120,7 +120,7 @@ def _initialize_firebase() -> bool:
                         "databaseURL": settings.firebase.database_url,
                     },
                 )
-                logger.info("Firebase initialized (Admin Mode: full access)")
+                logger.debug("Firebase initialized (Admin Mode: full access)")
                 _firebase_user_mode = False
 
             _firebase_initialized = True
@@ -339,12 +339,29 @@ class FirebaseSync:
             if "sync_status" in data_to_push:
                 del data_to_push["sync_status"]
 
+            # Generate readable key
+            slug = data_to_push.get("slug", "unknown")
+            timestamp = data_to_push.get("timestamp", datetime.now().isoformat())
+
+            # Clean timestamp for key
+            ts_clean = timestamp.strip()
+            if ts_clean.endswith("Z"):
+                ts_clean = ts_clean[:-1]
+            try:
+                dt = datetime.fromisoformat(ts_clean.replace("Z", "+00:00"))
+                ts_str = dt.strftime("%Y-%m-%d_%H-%M-%S")
+            except ValueError:
+                # Fallback if timestamp is weird
+                ts_str = str(int(time.time()))
+
+            key = f"{slug}_{ts_str}"
+
             target_user_id = user_id
             if settings.firebase.is_admin_mode():
                 # Admin Mode: SDK
                 db = get_firebase_db()
                 ref = db.reference(f"users/{target_user_id}/runs")
-                ref.push(data_to_push)
+                ref.child(key).set(data_to_push)
             else:
                 # User Mode: REST
                 import requests
@@ -355,14 +372,14 @@ class FirebaseSync:
                 uid, token = identity
                 target_user_id = uid
 
-                # Use requests.post for random ID (equivalent to push)
-                url = f"{settings.firebase.database_url}/users/{target_user_id}/runs.json?auth={token}"
-                resp = requests.post(url, json=data_to_push, timeout=10)
+                # Use requests.put for custom ID
+                url = f"{settings.firebase.database_url}/users/{target_user_id}/runs/{key}.json?auth={token}"
+                resp = requests.put(url, json=data_to_push, timeout=10)
                 if not resp.ok:
-                    logger.debug(f"Firebase REST push failed: {resp.status_code} {resp.text}")
+                    logger.debug(f"Firebase REST put failed: {resp.status_code} {resp.text}")
                     return False
 
-            logger.debug(f"Synced run stats to Firebase for users/{target_user_id}/runs")
+            logger.debug(f"Synced run stats to Firebase for users/{target_user_id}/runs/{key}")
             return True
         except Exception as e:
             logger.debug(f"Firebase push failed: {e}")
@@ -412,19 +429,13 @@ class FirebaseSync:
                 if not isinstance(user_node, dict):
                     continue
                 runs_node = user_node.get("runs", {})
-                migrations_node = user_node.get("migrations", [])
-                migrations_set = set()
+                # migrations_node = user_node.get("migrations", []) # Ignored in strict mode
+                migrations_set = set()  # Only built from runs now
                 if not runs_node:
                     runs_node = {}
 
-                if isinstance(migrations_node, list):
-                    for slug in migrations_node:
-                        if slug:
-                            migrations_set.add(slug)
-                elif isinstance(migrations_node, dict):
-                    for slug in migrations_node.keys():
-                        if slug:
-                            migrations_set.add(slug)
+                # Strict Mode: Do NOT backfill from migrations node
+                # if isinstance(migrations_node, list): ...
 
                 user_run_count = 0
                 user_lines_from_runs = 0
@@ -446,15 +457,9 @@ class FirebaseSync:
                     user_counts[user_id] = user_migration_count
                     total_migrations += user_migration_count
 
-                    # Calculate lines and time saved: use actual lines from runs, or estimate if no runs
                     if user_lines_from_runs > 0:
                         total_lines_migrated += user_lines_from_runs
                         total_time_saved_h += user_lines_from_runs / 800.0
-                    else:
-                        # Estimate: 500 lines per migration for users without runs data
-                        estimated_lines = user_migration_count * 500
-                        total_lines_migrated += estimated_lines
-                        total_time_saved_h += estimated_lines / 800.0
 
             return {
                 "total_users": len(user_counts),

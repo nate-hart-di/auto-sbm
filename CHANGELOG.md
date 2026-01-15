@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.2] - 2026-01-15
+### Changed
+- **CLI Polish**: Replaced raw "Firebase initialized" logs with a sleek "Retrieving Stats..." spinner in `sbm stats`.
+- **Strict Stats**: Removed all "Estimation" logic (500 lines/site) from `sbm stats --team`. Stats now strictly reflect successful runs in the database (1:1 with reality).
+- **Cleanup**: Purged users with 0 successful runs and removed non-success runs (failed/invalid) from the database team-wide.
+- **Database Keys**: Migrated all random Firebase Push IDs to readable `slug_timestamp` keys for better auditability.
+
 ## [2.11.1] - 2026-01-14
 
 ### Fixed
