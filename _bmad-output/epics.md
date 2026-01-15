@@ -256,3 +256,29 @@ So that all users can read team data without admin credentials while maintaining
 **And** offline mode shows clear message: "Stats unavailable (offline mode)"
 **And** no fallback to git-based stats occurs
 **And** performance remains under 2 seconds for all queries
+
+## Epic 3: Data Quality & Accuracy
+
+Ensure stats calculations are accurate and reflect real data without artificial inflation or estimation fallbacks.
+
+### Story 3.1: Fix Stats Calculation Inflation
+
+As a User,
+I want the CLI stats to accurately reflect my actual migration work without inflated estimates,
+So that I can trust the numbers shown in `sbm stats` and they match the real data in Firebase.
+
+**Acceptance Criteria:**
+
+**Given** I have 164 unique migrations in Firebase with varying data completeness
+**When** I run `sbm stats`
+**Then** the displayed line count reflects ONLY actual merged PR data from Firebase
+**And** migrations without PR data are NOT inflated with 500-line estimates
+**And** duplicate runs for the same slug are handled correctly
+**And** the "Sites Migrated" count shows unique migrations (164)
+**And** the "Lines Migrated" count shows actual sum from `lines_migrated` field
+
+**Given** I have MERGED PRs with `lines_migrated = 0` in Firebase
+**When** the backfill script runs
+**Then** it populates these runs with actual GitHub PR line counts
+**And** duplicate runs for the same slug get deduplicated (LATEST run keeps lines, older runs set to 0)
+**And** all MERGED PRs have accurate line counts after backfill

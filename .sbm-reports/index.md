@@ -4,6 +4,7 @@ Table of contents for all migration reports.
 
 | Date | Slug | Status | Duration | Lines | Report |
 |------|------|--------|----------|-------|--------|
+| 2026-01-15 01:54 | `jerryseinersaltlakekia` | ✅ | 2m 25s | 142 | [jerryseinersaltlakekia-20260115-015406.md](./jerryseinersaltlakekia-20260115-015406.md) |
 | 2026-01-14 18:05 | `test-slug` | ✅ | 0s | 850 | [test-slug-20260114-180511.md](./test-slug-20260114-180511.md) |
 | 2026-01-14 18:05 | `test-slug` | ✅ | 0s | 100 | [test-slug-20260114-180511.md](./test-slug-20260114-180511.md) |
 | 2026-01-14 17:58 | `test-slug` | ✅ | 0s | 850 | [test-slug-20260114-175841.md](./test-slug-20260114-175841.md) |
