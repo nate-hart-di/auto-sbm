@@ -623,6 +623,7 @@ cd "\$PROJECT_ROOT" || {
 # This ensures auto-sbm runs in isolation even when called from another venv
 unset VIRTUAL_ENV
 unset PYTHONHOME
+unset PYTHONPATH
 
 # Remove any other venv's bin directory from PATH and add auto-sbm's venv
 export PATH="\$PROJECT_ROOT/.venv/bin:\$(echo \$PATH | tr ':' '\n' | grep -v '/\.venv/bin' | tr '\n' ':' | sed 's/:$//')"

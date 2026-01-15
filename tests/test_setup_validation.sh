@@ -1,5 +1,5 @@
 #!/bin/bash
-# 
+#
 # Setup validation test for auto-sbm
 # Tests the complete setup process in a clean environment
 #

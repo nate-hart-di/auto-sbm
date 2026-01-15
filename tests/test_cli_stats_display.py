@@ -2,6 +2,8 @@ import pytest
 from click.testing import CliRunner
 from unittest.mock import MagicMock, patch
 from sbm.cli import cli, stats
+from sbm.ui.console import SBMConsole
+from sbm.config import Config
 
 
 @pytest.fixture
@@ -25,12 +27,10 @@ def test_stats_display_uses_display_name(mock_get_migration_stats, runner):
         "last_updated": "2026-01-01T12:00:00",
     }
 
-    # Mock config/console/logger setup in cli.py which can be complex
-    with patch("sbm.cli.get_console"), patch("sbm.cli.get_settings"):
-        # We need to capture the output printed to the rich console
-        # Since sbm.cli creates its own console, we might need to mock it effectively
-        # Or simpler: look for the string in the runner output if rich prints to stdout
+    # Use real SBMConsole so output goes to stdout (captured by runner)
+    real_sbm_console = SBMConsole(config=Config({}))
 
+    with patch("sbm.cli.get_console", return_value=real_sbm_console), patch("sbm.cli.get_settings"):
         result = runner.invoke(cli, ["stats"])
 
         # Check output for the display name
@@ -50,6 +50,8 @@ def test_stats_display_fallback_to_uid(mock_get_migration_stats, runner):
         "last_updated": "2026-01-01T12:00:00",
     }
 
-    with patch("sbm.cli.get_console"), patch("sbm.cli.get_settings"):
+    real_sbm_console = SBMConsole(config=Config({}))
+
+    with patch("sbm.cli.get_console", return_value=real_sbm_console), patch("sbm.cli.get_settings"):
         result = runner.invoke(cli, ["stats"])
         assert "auth-uid-123" in result.output

@@ -1,0 +1,43 @@
+name: Daily Firebase Sync
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (midnight MST/1 AM MDT)
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  sync-firebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install firebase-admin requests
+
+      - name: Set up GitHub CLI
+        run: |
+          gh auth login --with-token <<< "${{ secrets.GH_TOKEN }}"
+
+      - name: Create Firebase credentials file
+        run: |
+          echo '${{ secrets.FIREBASE_CREDENTIALS }}' > /tmp/firebase-creds.json
+
+      - name: Run daily sync
+        env:
+          FIREBASE__CREDENTIALS_PATH: /tmp/firebase-creds.json
+          FIREBASE__DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+        run: |
+          python scripts/daily_firebase_sync.py
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f /tmp/firebase-creds.json

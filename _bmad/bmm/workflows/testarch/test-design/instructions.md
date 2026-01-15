@@ -25,11 +25,11 @@ The workflow auto-detects which mode to use based on project phase.
 ### Mode Detection
 
 1. **Check for sprint-status.yaml**
-   - If `{output_folder}/bmm-sprint-status.yaml` exists → **Epic-Level Mode** (Phase 4)
+   - If `{implementation_artifacts}/sprint-status.yaml` exists → **Epic-Level Mode** (Phase 4)
    - If NOT exists → Check workflow status
 
 2. **Check workflow-status.yaml**
-   - Read `{output_folder}/bmm-workflow-status.yaml`
+   - Read `{planning_artifacts}/bmm-workflow-status.yaml`
    - If `implementation-readiness: required` or `implementation-readiness: recommended` → **System-Level Mode** (Phase 3)
    - Otherwise → **Epic-Level Mode** (Phase 4 without sprint status yet)
 
@@ -764,7 +764,7 @@ After completing this workflow, provide a summary:
 
 1. Review risk assessment with team
 2. Prioritize mitigation for high-risk items (score ≥6)
-3. Run `atdd` workflow to generate failing tests for P0 scenarios
+3. Run `*atdd` to generate failing tests for P0 scenarios (separate workflow; not auto-run by `*test-design`)
 4. Allocate resources per effort estimates
 5. Set up test data factories and fixtures
 ```

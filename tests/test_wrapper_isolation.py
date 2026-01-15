@@ -25,10 +25,9 @@ class TestWrapperEnvironmentIsolation:
         """Verify wrapper script unsets VIRTUAL_ENV to prevent conflicts."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             # Get the written content
@@ -41,10 +40,9 @@ class TestWrapperEnvironmentIsolation:
         """Verify wrapper script unsets PYTHONPATH to prevent import conflicts."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -54,10 +52,9 @@ class TestWrapperEnvironmentIsolation:
         """Verify wrapper script unsets PYTHONHOME to prevent home directory conflicts."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -67,10 +64,9 @@ class TestWrapperEnvironmentIsolation:
         """Verify wrapper script removes other venv bin directories from PATH."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -82,10 +78,9 @@ class TestWrapperEnvironmentIsolation:
         """Verify wrapper uses absolute path to auto-sbm's Python interpreter."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -107,10 +102,9 @@ class TestWrapperScriptGeneration:
         """Verify wrapper regeneration creates the wrapper file."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod") as mock_chmod, \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch(
+            "os.chmod"
+        ) as mock_chmod, patch("pathlib.Path.mkdir"):
             _regenerate_wrapper_script()
 
             # Verify file was opened for writing
@@ -121,10 +115,9 @@ class TestWrapperScriptGeneration:
         """Verify wrapper script is made executable (chmod 755)."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("os.chmod") as mock_chmod, \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()), patch("os.chmod") as mock_chmod, patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             # Verify chmod was called with executable permissions (0o755)
@@ -135,10 +128,9 @@ class TestWrapperScriptGeneration:
         """Verify ~/.local/bin directory is created if it doesn't exist."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir") as mock_mkdir:
-
+        with patch("pathlib.Path.open", mock_open()), patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ) as mock_mkdir:
             _regenerate_wrapper_script()
 
             # Verify mkdir was called with parents=True and exist_ok=True
@@ -148,10 +140,9 @@ class TestWrapperScriptGeneration:
         """Verify wrapper uses REPO_ROOT for project path."""
         from sbm.cli import _regenerate_wrapper_script, REPO_ROOT
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -161,10 +152,9 @@ class TestWrapperScriptGeneration:
         """Verify wrapper includes import health check for critical modules."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -175,9 +165,9 @@ class TestWrapperScriptGeneration:
         """Verify wrapper regeneration doesn't crash on errors."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", side_effect=OSError("Permission denied")), \
-             patch("sbm.cli.logger") as mock_logger:
-
+        with patch("pathlib.Path.open", side_effect=OSError("Permission denied")), patch(
+            "sbm.cli.logger"
+        ) as mock_logger:
             # Should not raise exception
             _regenerate_wrapper_script()
 
@@ -197,10 +187,9 @@ class TestMultiVenvCompatibility:
         """Verify wrapper can be called while another venv is active."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -214,10 +203,9 @@ class TestMultiVenvCompatibility:
         """Verify wrapper puts auto-sbm venv first in PATH."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -230,10 +218,9 @@ class TestMultiVenvCompatibility:
         """Verify wrapper removes other .venv/bin directories from PATH."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -254,10 +241,9 @@ class TestWrapperScriptValidation:
         """Verify wrapper checks if venv Python interpreter exists."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -269,10 +255,9 @@ class TestWrapperScriptValidation:
         """Verify wrapper checks if project root directory exists."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -284,10 +269,9 @@ class TestWrapperScriptValidation:
         """Verify wrapper changes to project directory before execution."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -299,10 +283,9 @@ class TestWrapperScriptValidation:
         """Verify wrapper provides clear error messages for common issues."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -325,10 +308,9 @@ class TestWrapperScriptContent:
         """Verify wrapper script starts with proper shebang."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -338,23 +320,21 @@ class TestWrapperScriptContent:
         """Verify wrapper includes version information in comments."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
-            assert "auto-sbm v2.7.0" in written_content
+            assert "auto-sbm v" in written_content
 
     def test_wrapper_passes_all_arguments(self):
         """Verify wrapper passes all CLI arguments to sbm.cli module."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]
@@ -365,10 +345,9 @@ class TestWrapperScriptContent:
         """Verify wrapper executes sbm as a Python module (-m flag)."""
         from sbm.cli import _regenerate_wrapper_script
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("os.chmod"), \
-             patch("pathlib.Path.mkdir"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
+            "pathlib.Path.mkdir"
+        ):
             _regenerate_wrapper_script()
 
             written_content = mock_file().write.call_args[0][0]

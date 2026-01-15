@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] - 2026-01-14
+
+### Fixed
+- **Syntax Error**: Fixed broken multiline string in `scheduled_slack_reports.py` that caused SyntaxError on dry-run.
+- **Code Quality**: Reorganized imports in `tracker.py` to follow isort conventions.
+- **Linting**: Fixed inefficient `.keys()` iteration, unused loop variable, and nested else/if patterns in `tracker.py`.
+- **Style**: Updated type ignore comment specificity and line length violations in Slack scripts.
+
+## [2.11.0] - 2026-01-13
+
+### Changed
+- **Stats Accuracy**: Refined Firebase sync logic to strictly match SBM-related PRs (ignoring theme updates and unrelated fixes) and prioritize MERGED status.
+- **Backfill**: Added robust verification to `scripts/backfill_firebase_runs.py` to ensure only valid SBM PRs are tracked.
+- **Reporting**: Added timezone-aware filtering (CST) for daily Slack reports to ensure accurate "Yesterday's" stats.
+
+### Fixed
+- **Configuration**: Corrected default value handling for Firebase settings to ensure proper initialization in user mode.
+- **Robustness**: `sbm update` now reliably detects and aborts incomplete rebases before attempting updates.
+- **Setup**: `setup.sh` wrapper generation now correctly unsets `PYTHONPATH` to prevent environment bleeding.
+
 ## [2.10.9] - 2026-01-13
 
 ### Changed

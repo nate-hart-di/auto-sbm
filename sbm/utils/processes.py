@@ -17,7 +17,7 @@ def run_background_task(cmd_list: list[str]) -> None:
     """
     Fire-and-forget background process.
     Spawns a new process that is decoupled from the current terminal session.
-    
+
     Args:
         cmd_list: Command to run as a list of strings
     """

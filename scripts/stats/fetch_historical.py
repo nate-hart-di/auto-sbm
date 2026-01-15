@@ -31,19 +31,19 @@ def main() -> None:
     if not input_file.exists():
         print(f"File not found: {input_file}")
         return
-        
+
     try:
         with input_file.open("r", encoding="utf-8") as f:
             all_prs = json.load(f)
     except Exception as e:
         print(f"Error reading {input_file}: {e}")
         return
-    
+
     automated_prs = [
-        pr for pr in all_prs 
+        pr for pr in all_prs
         if pr.get("title", "").endswith(" - SBM FE Audit") or "PCON-727" in pr.get("title", "")
     ]
-    
+
     results = []
     print(f"Fetching data for {len(automated_prs)} PRs...")
     for i, pr in enumerate(automated_prs):
@@ -52,7 +52,7 @@ def main() -> None:
         data = get_pr_data(pr["url"])
         if data:
             results.append(data)
-    
+
     output_file = RAW_DATA_DIR / "historical_data.json"
     with output_file.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)

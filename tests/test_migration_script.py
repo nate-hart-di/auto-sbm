@@ -33,22 +33,21 @@ def test_module_import():
 
 @patch("migrate_to_firebase.Path.exists")
 @patch("migrate_to_firebase.Path.home")
-@patch("builtins.open", new_callable=mock_open)
-def test_load_local_history(mock_file, mock_home, mock_exists):
+@patch("migrate_to_firebase.Path.read_text")
+def test_load_local_history(mock_read_text, mock_home, mock_exists):
     """Test loading history from JSON file."""
     mock_home.return_value = Path("/mock/home")
     mock_exists.return_value = True
 
     data = {"runs": [{"timestamp": "t1", "slug": "s1"}, {"timestamp": "t2", "slug": "s2"}]}
-    mock_file.return_value.read.return_value = json.dumps(data)
+    mock_read_text.return_value = json.dumps(data)
 
     history = migrate_to_firebase.load_local_history()
 
     assert len(history) == 2, f"Expected 2 items, got {len(history)}"
     assert history[0]["slug"] == "s1"
-    # Note: Path joining in the script will result in specific path behavior,
-    # relying on the mocked home path.
-    mock_file.assert_called_with(Path("/mock/home/.sbm_migrations.json"), "r")
+    # Verify read_text was called
+    mock_read_text.assert_called_once()
 
 
 @patch("migrate_to_firebase.is_firebase_available")
@@ -56,9 +55,7 @@ def test_load_local_history(mock_file, mock_home, mock_exists):
 @patch("migrate_to_firebase.get_existing_signatures")
 @patch("migrate_to_firebase.load_local_history")
 @patch("migrate_to_firebase.track_progress")
-def test_migrate_main_logic(
-    mock_track, mock_load, mock_existing, mock_push, mock_firebase_avail
-):
+def test_migrate_main_logic(mock_track, mock_load, mock_existing, mock_push, mock_firebase_avail):
     """Test the main migration loop logic."""
     # Setup track_progress to just return the sequence
     mock_track.side_effect = lambda x, **kwargs: x

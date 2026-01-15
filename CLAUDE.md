@@ -22,9 +22,9 @@
 
 ## Project Overview
 
-**Repository**: auto-sbm (Site Builder Migration Tool)  
-**Version**: 2.0.0  
-**Purpose**: Production-ready automated tool for migrating DealerInspire dealer websites from legacy SCSS themes to Site Builder format  
+**Repository**: auto-sbm (Site Builder Migration Tool)
+**Version**: 2.0.0
+**Purpose**: Production-ready automated tool for migrating DealerInspire dealer websites from legacy SCSS themes to Site Builder format
 **Architecture**: Vertical slice architecture### Code Quality Standards
 
 **🚨 FILE ORGANIZATION REMINDER 🚨**
@@ -36,10 +36,10 @@
 
 ### Linting Configurationth type safety and Rich UI
 
-**Languages**: Python 3.8+ (primary), SCSS processing, Markdown documentation  
-**Package Management**: UV with pyproject.toml (modern Python packaging)  
-**Testing**: pytest with 90%+ coverage  
-**Code Quality**: ruff (linting), mypy (type checking), pre-commit hooks  
+**Languages**: Python 3.8+ (primary), SCSS processing, Markdown documentation
+**Package Management**: UV with pyproject.toml (modern Python packaging)
+**Testing**: pytest with 90%+ coverage
+**Code Quality**: ruff (linting), mypy (type checking), pre-commit hooks
 **UI Framework**: Rich for beautiful terminal interfaces
 
 ## 🛠️ MANDATORY AGENT WORKFLOW

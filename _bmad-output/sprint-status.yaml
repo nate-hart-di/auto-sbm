@@ -24,4 +24,5 @@ development_status:
   2-5-bulk-migration-duplicate-prevention: done
   2-6-legacy-data-import-utility: done
   2-7-firebase-first-architecture: done
+  2-8-code-review-fixes-slack-branch: done
   epic-2-retrospective: done

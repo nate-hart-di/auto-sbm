@@ -11,7 +11,7 @@ from .base import BaseOEMHandler
 class KiaHandler(BaseOEMHandler):
     """
     Kia-specific implementation.
-    
+
     Currently a placeholder that uses default behavior.
     Future: May include Kia-specific styles, components, or processing.
     """
@@ -45,6 +45,6 @@ class KiaHandler(BaseOEMHandler):
         Returns:
             str: CSS/SCSS content for directions box styles
         """
-        # For now, use default direction styles  
+        # For now, use default direction styles
         # Future: Could return Kia-specific direction styling
         return super().get_directions_styles()

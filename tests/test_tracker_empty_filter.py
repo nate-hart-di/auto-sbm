@@ -25,8 +25,14 @@ def mock_tracker_io(tmp_path):
         yield tracker_file
 
 
+@pytest.fixture
+def mock_slug_validation():
+    with patch("sbm.utils.tracker.is_official_slug", return_value=True) as mock:
+        yield mock
+
+
 def test_record_run_skips_empty_migration_sync(
-    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io
+    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io, mock_slug_validation
 ):
     """Verify that a run with 0 lines migrated is skipped and marked as skipped_empty."""
 
@@ -59,7 +65,7 @@ def test_record_run_skips_empty_migration_sync(
 
 
 def test_record_run_syncs_valid_migration(
-    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io
+    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io, mock_slug_validation
 ):
     """Verify that a run with >0 lines migrated is synced."""
 

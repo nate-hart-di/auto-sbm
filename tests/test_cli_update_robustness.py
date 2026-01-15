@@ -1,5 +1,5 @@
 import subprocess
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch, call, ANY
 import pytest
 from click.testing import CliRunner
 from sbm.cli import cli, update
@@ -13,7 +13,7 @@ def mock_subprocess():
 
 @pytest.fixture
 def mock_legacy_sync():
-    with patch("sbm.cli.sync_legacy_stats") as mock:
+    with patch("sbm.utils.legacy_sync.sync_legacy_stats") as mock:
         yield mock
 
 
@@ -24,40 +24,50 @@ def runner():
 
 def test_update_aborts_rebase(mock_subprocess, mock_legacy_sync, runner):
     """Verify that update attempts to abort a rebase if detected."""
-    # Mock existence of rebase-merge directory
-    with patch("pathlib.Path.exists") as mock_exists:
-        # Sequence of exists calls: .git -> True, rebase-merge -> True
+
+    # Mock Path.exists to Simulate .git and rebase-merge existing
+    # We patch sbm.cli.Path.exists because sbm.cli imports Path from pathlib
+    # autospec=True ensures the mock receives 'self' when called on an instance
+    with patch("sbm.cli.Path.exists", autospec=True) as mock_exists:
+
         def side_effect(self):
-            if str(self).endswith(".git"):
+            s = str(self)
+            print(f"DEBUG: Checking sbm.cli.Path.exists for {s}")
+            if s.endswith(".git"):
                 return True
-            if str(self).endswith("rebase-merge"):
+            if s.endswith("rebase-merge") or s.endswith("rebase-apply"):
                 return True
             return False
 
-        mock_exists.side_effect = side_effect  # Note: this might be tricky to mock exact path logic
+        mock_exists.side_effect = side_effect
 
-        # Simplified approach: Mock the specific check in the function if possible,
-        # but since it uses REPO_ROOT / .git ... let's try to patch Path.exists globally carefully
-        # or just trust the logic if we can mock the values it checks.
+        try:
+            # We use catch_exceptions=False to let exceptions bubble up for debugging
+            # But normally we might want to assert exit code.
+            # If it crashes, we want to see why.
+            result = runner.invoke(cli, ["update"], catch_exceptions=False)
+        except Exception as e:
+            print(f"DEBUG: Exception during invoke: {e}")
+            import traceback
 
-        # Actually, let's just patch the method in sbm.cli that does the check if we extracted it,
-        # but we didn't.
+            traceback.print_exc()
+            # If we catch it, result isn't created.
+            # We should probably fail the test with the traceback.
+            raise e
 
-        # Better: Mock Path objects logic directly in the module import context if possible,
-        # or just rely on subprocess calls if we can trigger that path.
+    print(f"DEBUG: Result exit code: {result.exit_code}")
+    print(f"DEBUG: Output: {result.output}")
+    print(f"DEBUG: Mock Subprocess calls: {mock_subprocess.call_args_list}")
 
-        # Let's try mocking the specific interaction.
-        # The code checks: (git_dir / "rebase-merge").exists()
+    # Verify rebase --abort was called
+    rebase_aborted = False
+    for call_args in mock_subprocess.call_args_list:
+        args, kwargs = call_args
+        if args[0] == ["git", "rebase", "--abort"]:
+            rebase_aborted = True
+            assert kwargs.get("check") is False
 
-        with patch(
-            "sbm.cli.Path.exists", side_effect=[True, True, True, True]
-        ):  # git exists, rebase-merge exists
-            result = runner.invoke(cli, ["update"])
-
-        # Verify rebase --abort was called
-        mock_subprocess.assert_any_call(
-            ["git", "rebase", "--abort"], check=False, cwd=pytest.any, capture_output=True
-        )
+    assert rebase_aborted, "git rebase --abort was not called"
 
 
 def test_update_syncs_and_resets(mock_subprocess, mock_legacy_sync, runner):
@@ -78,5 +88,5 @@ def test_update_syncs_and_resets(mock_subprocess, mock_legacy_sync, runner):
 
         # 2. Verify checkout of stats/archive
         mock_subprocess.assert_any_call(
-            ["git", "checkout", "stats/archive/"], check=False, cwd=pytest.any, capture_output=True
+            ["git", "checkout", "stats/archive/"], check=False, cwd=ANY, capture_output=ANY
         )

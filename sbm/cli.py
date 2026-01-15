@@ -1255,6 +1255,9 @@ def auto(
                         files_created_count=result.files_created_count,
                         scss_line_count=result.scss_line_count,
                         report_path=result.report_path,
+                        pr_url=result.pr_url,
+                        pr_author=result.pr_author,
+                        pr_state=result.pr_state,
                     )
                     # Show updated stats after each migration
                     ctx.invoke(stats)
@@ -1295,6 +1298,9 @@ def auto(
                         files_created_count=result.get("files_created_count", 0),
                         scss_line_count=result.get("scss_line_count", 0),
                         report_path=result.get("report_path"),
+                        pr_url=pr_url,
+                        pr_author=result.get("pr_author"),
+                        pr_state=result.get("pr_state"),
                     )
                     # Show updated stats after each migration
                     ctx.invoke(stats)

@@ -28,7 +28,7 @@ def test_import_removal():
 
     # TestCase 3: Import with spaces and newlines
     content = """
-    @import 
+    @import
         "variables"
     ;
     """

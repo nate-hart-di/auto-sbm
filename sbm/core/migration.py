@@ -86,15 +86,23 @@ class MigrationResult:
     files_created_count: int = 0  # Number of Site Builder files created
     scss_line_count: int = 0  # Total source SCSS lines processed
     report_path: Optional[str] = None  # Path to generated report
+    pr_author: Optional[str] = None
+    pr_state: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def mark_success(
-        self, pr_url: Optional[str] = None, salesforce_message: Optional[str] = None
+        self,
+        pr_url: Optional[str] = None,
+        salesforce_message: Optional[str] = None,
+        pr_author: Optional[str] = None,
+        pr_state: Optional[str] = None,
     ) -> None:
         """Mark the migration as successful."""
         self.status = "success"
         self.pr_url = pr_url
         self.salesforce_message = salesforce_message
+        self.pr_author = pr_author
+        self.pr_state = pr_state
 
     def mark_failed(self, step: MigrationStep, error: str, trace: Optional[str] = None) -> None:
         """Mark the migration as failed at a specific step."""

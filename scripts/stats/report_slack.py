@@ -184,6 +184,51 @@ def filter_runs_by_date(runs: List[Dict[str, Any]], days_or_period: str) -> List
     return filtered
 
 
+def filter_runs_by_previous_calendar_day(
+    runs: List[Dict[str, Any]], tz_name: str = "America/Chicago"
+) -> List[Dict[str, Any]]:
+    """Filter runs from the previous calendar day (midnight to midnight).
+
+    Args:
+        runs: List of run dictionaries
+        tz_name: Timezone name (default: America/Chicago for CST)
+
+    Returns:
+        List of runs from the previous calendar day
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(tz_name)
+    except ImportError:
+        tz = timezone.utc
+
+    now = datetime.now(tz)
+    prev_day_start = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=tz) - timedelta(days=1)
+    prev_day_end = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=tz)
+
+    filtered = []
+    for run in runs:
+        ts_str = run.get("timestamp")
+        if not ts_str:
+            continue
+        try:
+            if ts_str.endswith("+00:00Z"):
+                ts_str = ts_str[:-1]
+            elif ts_str.endswith("Z"):
+                ts_str = ts_str[:-1] + "+00:00"
+            run_dt = datetime.fromisoformat(ts_str)
+            if run_dt.tzinfo is None:
+                run_dt = run_dt.replace(tzinfo=timezone.utc)
+            run_dt_local = run_dt.astimezone(tz)
+            if prev_day_start <= run_dt_local < prev_day_end:
+                filtered.append(run)
+        except ValueError:
+            continue
+
+    return filtered
+
+
+
 def filter_runs_by_user(runs: List[Dict[str, Any]], username: str) -> List[Dict[str, Any]]:
     """Filter runs by user id or name (case-insensitive)."""
     if not username:

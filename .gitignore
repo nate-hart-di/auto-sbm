@@ -115,10 +115,13 @@ stats/*.json
 !stats/archive/
 
 # Codex Session Logs (Exclusion to prevent secret leaks)
-.codex/
+# .codex/ # Unignored to allow bmad visibility
+.codex/auth.json
+.codex/history.jsonl
+.codex/sessions/
+.codex/tmp/
+.codex/log/
 
-# User Files
-slugs.txt
 # User Files
 slugs.txt
 reports/

@@ -13,12 +13,13 @@ import socket
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from .processes import run_background_task
-from .firebase_sync import is_firebase_available, FirebaseSync, get_user_mode_identity
-from .slug_validation import is_official_slug
 
-from .logger import logger
 from sbm.config import get_settings
+
+from .firebase_sync import FirebaseSync, get_user_mode_identity, is_firebase_available
+from .logger import logger
+from .processes import run_background_task
+from .slug_validation import is_official_slug
 
 # Local tracker file (legacy/individual)
 TRACKER_FILE = Path.home() / ".sbm_migrations.json"
@@ -146,6 +147,9 @@ def record_run(
     scss_line_count: int = 0,
     manual_estimate_minutes: int = 240,
     report_path: str | None = None,
+    pr_url: str | None = None,
+    pr_author: str | None = None,
+    pr_state: str | None = None,
 ) -> None:
     """
     Record a detailed migration run.
@@ -161,6 +165,7 @@ def record_run(
         scss_line_count: Total lines in source SCSS files
         manual_estimate_minutes: Estimated manual effort in minutes (default 4 hours)
         report_path: Path to generated markdown report (optional)
+        pr_url: GitHub Pull Request URL (optional)
     """
     data = _read_tracker()
     runs = data.get("runs", [])
@@ -177,9 +182,11 @@ def record_run(
         "scss_line_count": scss_line_count,
         "manual_estimate_seconds": manual_estimate_minutes * 60,
         "report_path": report_path,
+        "pr_url": pr_url,
+        "pr_author": pr_author,
+        "pr_state": pr_state,
         "sync_status": "pending_sync",  # Default to pending
     }
-
     # Keep only the last 500 runs to prevent file bloat
     runs.append(run_entry)
     data["runs"] = runs[-500:]
@@ -191,7 +198,8 @@ def record_run(
     if status == "success":
         # Try immediate sync if online
         if _sync_to_firebase(run_entry):
-            # If successful, mark as synced immediately to prevent background process from sending duplicate
+            # If successful, mark as synced immediately to prevent background
+            # process from sending duplicate
             run_entry["sync_status"] = "synced"
         # Update the latest entry in the list and save, including validation status updates
         runs[-1] = run_entry
@@ -447,11 +455,13 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
                     if slug:
                         migrations_set.add(slug)
             elif isinstance(migrations_node, dict):
-                for slug in migrations_node.keys():
+                for slug in migrations_node:
                     if slug:
                         migrations_set.add(slug)
 
-            for run_id, run in runs.items():
+            for _run_id, run in runs.items():
+                if run.get("status") == "invalid":
+                    continue
                 run["_user"] = user_id
                 all_runs.append(run)
 
@@ -567,13 +577,12 @@ def process_pending_syncs() -> None:
                 if success:
                     run["sync_status"] = "synced"
                     updated = True
-                else:
+                elif run.get("sync_status") == "invalid_slug":
                     # If it failed, ensure it is marked as pending unless invalid
-                    if run.get("sync_status") == "invalid_slug":
-                        updated = True
-                    elif sync_status != "pending_sync":
-                        run["sync_status"] = "pending_sync"
-                        updated = True
+                    updated = True
+                elif sync_status != "pending_sync":
+                    run["sync_status"] = "pending_sync"
+                    updated = True
 
     if updated:
         _write_tracker(data)

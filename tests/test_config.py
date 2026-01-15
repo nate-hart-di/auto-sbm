@@ -30,12 +30,17 @@ def clean_settings():
 class TestFirebaseSettings:
     """Test usage of FirebaseSettings validation."""
 
-    def test_default_values(self):
+    @patch.dict(os.environ, {}, clear=True)
+    def test_default_values(self, clean_settings):
         """Test that default values are None."""
-        settings = FirebaseSettings()
+        # Try empty string to disable env file reading
+        settings = FirebaseSettings(_env_file="")
+        print(f"DEBUG: settings.database_url={settings.database_url}")
         assert settings.credentials_path is None
-        assert settings.database_url is None
-        assert not settings.is_configured()
+        # Default value is set in config.py
+        assert settings.database_url == "https://auto-sbm-default-rtdb.firebaseio.com"
+        # Since default URL and API key are set, it IS configured for user mode
+        assert settings.is_configured()
 
     def test_valid_configuration(self, tmp_path):
         """Test valid configuration with existing file and valid URL."""

@@ -34,6 +34,7 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-json
+        exclude: ^stats/raw/historical_raw\.json$
       - id: check-merge-conflict
       - id: check-added-large-files
       - id: debug-statements

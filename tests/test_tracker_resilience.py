@@ -60,6 +60,7 @@ def test_process_pending_syncs_success(mocker, mock_tracker_file, mock_firebase)
                 "slug": "pending-slug",
                 "status": "success",
                 "sync_status": "pending_sync",
+                "lines_migrated": 100,
                 "timestamp": "2024-01-01T00:00:00Z",
             }
         ]

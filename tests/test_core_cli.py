@@ -2,6 +2,7 @@
 Core CLI command registration and functionality tests.
 Tests the Click CLI interface and command registration.
 """
+
 import pytest
 from click.testing import CliRunner
 from unittest.mock import patch, MagicMock
@@ -18,7 +19,7 @@ class TestCLICommands:
     def test_cli_help_works(self):
         """Test main CLI help command works."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['--help'])
+        result = runner.invoke(cli, ["--help"])
 
         assert result.exit_code == 0
         assert "Auto-SBM" in result.output
@@ -27,15 +28,15 @@ class TestCLICommands:
     def test_cli_version_command(self):
         """Test version command exists and works."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['version'])
+        result = runner.invoke(cli, ["version"])
 
         assert result.exit_code == 0
-        assert "2.7.0" in result.output or "version" in result.output.lower()
+        assert "auto-sbm v" in result.output
 
     def test_migrate_command_exists(self):
         """Test migrate command is registered."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['migrate', '--help'])
+        result = runner.invoke(cli, ["migrate", "--help"])
 
         assert result.exit_code == 0
         assert "migrate" in result.output.lower()
@@ -43,7 +44,7 @@ class TestCLICommands:
     def test_validate_command_exists(self):
         """Test validate command is registered."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['validate', '--help'])
+        result = runner.invoke(cli, ["validate", "--help"])
 
         # Should either work or show that command exists
         assert result.exit_code in [0, 2]  # 0 = success, 2 = command exists but needs args
@@ -51,10 +52,14 @@ class TestCLICommands:
     def test_cli_handles_invalid_command(self):
         """Test CLI gracefully handles invalid commands."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['--invalid-flag'])
+        result = runner.invoke(cli, ["--invalid-flag"])
 
         assert result.exit_code != 0
-        assert "No such option" in result.output or "Usage:" in result.output or "Error:" in result.output
+        assert (
+            "No such option" in result.output
+            or "Usage:" in result.output
+            or "Error:" in result.output
+        )
 
 
 class TestCLIOptions:
@@ -63,7 +68,7 @@ class TestCLIOptions:
     def test_verbose_flag_exists(self):
         """Test --verbose flag is available."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['--help'])
+        result = runner.invoke(cli, ["--help"])
 
         assert result.exit_code == 0
         assert "--verbose" in result.output or "-v" in result.output
@@ -71,19 +76,19 @@ class TestCLIOptions:
     def test_config_option_exists(self):
         """Test --config option is available."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['--help'])
+        result = runner.invoke(cli, ["--help"])
 
         assert result.exit_code == 0
         assert "--config" in result.output
 
-    @patch('sbm.config.AutoSBMSettings')
+    @patch("sbm.config.AutoSBMSettings")
     def test_cli_loads_config(self, mock_config):
         """Test CLI attempts to load configuration."""
         mock_config.return_value = MagicMock()
 
         runner = CliRunner()
         # Try to run any command that would load config
-        runner.invoke(cli, ['--help'])
+        runner.invoke(cli, ["--help"])
 
         # Config should be imported/used somewhere in the CLI flow
         # This test ensures config loading doesn't crash the CLI
@@ -96,11 +101,11 @@ class TestCLIErrorHandling:
         """Test CLI handles missing configuration gracefully."""
         runner = CliRunner()
 
-        with patch('sbm.config.AutoSBMSettings') as mock_config:
+        with patch("sbm.config.AutoSBMSettings") as mock_config:
             # Simulate config loading error
             mock_config.side_effect = Exception("Config load failed")
 
-            result = runner.invoke(cli, ['--help'])
+            result = runner.invoke(cli, ["--help"])
 
             # CLI should either handle the error gracefully or show help
             # (help command shouldn't require full config)
@@ -110,7 +115,7 @@ class TestCLIErrorHandling:
         """Test CLI handles Ctrl+C gracefully."""
         runner = CliRunner()
 
-        with patch('sbm.cli.cli') as mock_cli:
+        with patch("sbm.cli.cli") as mock_cli:
             mock_cli.side_effect = KeyboardInterrupt()
 
             # This test ensures KeyboardInterrupt is handled properly
@@ -119,7 +124,7 @@ class TestCLIErrorHandling:
     def test_migrate_command_requires_theme(self):
         """Test migrate command requires theme argument."""
         runner = CliRunner()
-        result = runner.invoke(cli, ['migrate'])
+        result = runner.invoke(cli, ["migrate"])
 
         # Should fail with missing argument error
         assert result.exit_code != 0
@@ -129,7 +134,7 @@ class TestCLIErrorHandling:
 class TestCLIIntegration:
     """Test CLI integration with core functionality."""
 
-    @patch('sbm.config.AutoSBMSettings')
+    @patch("sbm.config.AutoSBMSettings")
     def test_cli_with_valid_config(self, mock_config):
         """Test CLI works with valid configuration."""
         # Mock valid config
@@ -139,7 +144,7 @@ class TestCLIIntegration:
         mock_config.return_value = mock_settings
 
         runner = CliRunner()
-        result = runner.invoke(cli, ['--help'])
+        result = runner.invoke(cli, ["--help"])
 
         assert result.exit_code == 0
 
@@ -149,7 +154,7 @@ class TestCLIIntegration:
         commands = cli.list_commands(None)
 
         # Should have main commands
-        expected_commands = ['migrate', 'version']
+        expected_commands = ["migrate", "version"]
 
         for cmd in expected_commands:
             if cmd in commands:
@@ -162,6 +167,7 @@ class TestCLIIntegration:
         # This test ensures all imports in cli.py work
         try:
             from sbm.cli import cli
+
             assert cli is not None
         except ImportError as e:
             pytest.fail(f"CLI import failed: {e}")
