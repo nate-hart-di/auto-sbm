@@ -126,3 +126,7 @@ stats/*.json
 slugs.txt
 reports/
 data/
+
+# SBM Reports
+.sbm-reports/*.md
+!.sbm-reports/index.md
