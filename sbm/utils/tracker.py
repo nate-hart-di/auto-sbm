@@ -443,12 +443,23 @@ def get_migration_stats(
         filtered_runs = filter_runs(
             runs_to_filter, limit=limit, since=since, until=until, user=user
         )
+        # When filters are active, calculate metrics FROM the filtered runs
+        # Get all matching runs (without limit) for accurate metric calculation
+        all_matching_runs = filter_runs(
+            runs_to_filter, limit=None, since=since, until=until, user=user
+        )
+        run_metrics = _calculate_metrics({"runs": all_matching_runs})
+        # Count unique slugs from filtered runs for "Sites Migrated"
+        filtered_slugs = {
+            r.get("slug")
+            for r in all_matching_runs
+            if r.get("slug") and r.get("status") == "success"
+        }
+        stats_migrations = filtered_slugs
     else:
         filtered_runs = my_runs
-
-    # Calculate metrics from the TARGET user's data (not necessarily current user)
-    # Combine actual run data with estimates for migrations without run data
-    run_metrics = _calculate_metrics({"runs": stats_runs})
+        # No filters: show all-time metrics
+        run_metrics = _calculate_metrics({"runs": stats_runs})
 
     firebase_stats = run_metrics
 
