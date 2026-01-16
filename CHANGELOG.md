@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.8] - 2026-01-16
+### Fixed
+- **Stats CLI**: Fixed datetime comparison bug (offset-naive vs offset-aware) causing crashes with `--since` filter.
+- **Stats CLI**: Added period-based filtering support (`--since day`, `--since week`, `--since month`, `--since N`).
+- **Stats CLI**: Fixed merged_at preference for filtering/sorting (better backfill accuracy).
+- **Tests**: Rewrote `test_history_filtering.py` with 22 comprehensive tests.
+
 ## [2.11.7] - 2026-01-15
 ### Fixed
 - Committed missing `datetime` import in `sbm/utils/firebase_sync.py`.

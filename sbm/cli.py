@@ -1784,7 +1784,7 @@ def stats(
                 show_header=True,
                 header_style="bold magenta",
             )
-            table.add_column("Timestamp", style="dim")
+            table.add_column("Merged At", style="dim")
             table.add_column("Theme Slug", style="cyan")
             table.add_column("Command", style="green")
             table.add_column("Status", style="bold")
@@ -1830,8 +1830,12 @@ def stats(
                 # User logic: prefer pr_author, fallback to generic user
                 user_display = run.get("pr_author") or run.get("_user") or "unknown"
 
+                # Use merged_at (actual PR merge date) when available, else timestamp
+                effective_date = run.get("merged_at") or run.get("timestamp", "")
+                date_display = effective_date[:19].replace("T", " ") if effective_date else "N/A"
+
                 table.add_row(
-                    run.get("timestamp", "")[:19].replace("T", " "),
+                    date_display,
                     run.get("slug", "unknown"),
                     run.get("command", "unknown"),
                     f"[{status_color}]{status}[/{status_color}]",

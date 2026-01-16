@@ -11,7 +11,7 @@ import json
 import os
 import socket
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sbm.config import get_settings
@@ -210,6 +210,35 @@ def record_run(
         trigger_background_stats_update()
 
 
+def _parse_period_to_days(period: str) -> int | None:
+    """Convert period string (day/week/month/N) to number of days.
+
+    Args:
+        period: Period string like "day", "week", "month", "7", "30"
+
+    Returns:
+        Number of days, or None if not a valid period string
+    """
+    period_lower = period.lower().strip()
+
+    # Named periods
+    if period_lower in {"day", "daily", "1"}:
+        return 1
+    if period_lower in {"week", "weekly", "7"}:
+        return 7
+    if period_lower in {"month", "monthly", "30"}:
+        return 30
+    if period_lower == "all":
+        return None  # No filtering
+
+    # Try numeric days
+    try:
+        days = int(period)
+        return days if days > 0 else None
+    except ValueError:
+        return None
+
+
 def filter_runs(
     runs: list[dict],
     limit: int | None = None,
@@ -223,43 +252,78 @@ def filter_runs(
     Args:
         runs: List of run dictionaries from tracker
         limit: Maximum number of runs to return (most recent)
-        since: ISO date string (YYYY-MM-DD) - include runs from this date onwards
+        since: Period string ("day", "week", "month", "7") OR ISO date (YYYY-MM-DD).
+               Period strings filter runs from the last N days.
         until: ISO date string (YYYY-MM-DD) - include runs up to this date
-        user: User ID to filter by
+        user: User ID to filter by (case-insensitive partial match)
 
     Returns:
-        Filtered list of runs
+        Filtered list of runs, sorted by date (most recent first)
+
+    Note:
+        Date filtering prefers 'merged_at' (actual PR merge date) over 'timestamp'
+        (when run was recorded) for more accurate stats, especially for backfills.
     """
     filtered = runs.copy()
 
-    # Parse since date
+    def get_effective_date(run: dict) -> str:
+        """Get best date for filtering: prefer merged_at over timestamp."""
+        return run.get("merged_at") or run.get("timestamp") or ""
+
+    # Parse since - could be period ("7", "week") or ISO date ("2024-01-15")
     since_date = None
     if since:
-        try:
-            since_date = datetime.fromisoformat(since).replace(tzinfo=timezone.utc)
-        except ValueError:
-            logger.warning(f"Invalid 'since' date format: {since}. Use YYYY-MM-DD.")
+        # First, try to interpret as a period (days)
+        days = _parse_period_to_days(since)
+        if days is not None:
+            since_date = datetime.now(timezone.utc) - timedelta(days=days)
+        else:
+            # Try as ISO date
+            try:
+                # Handle date-only format by adding time component
+                if len(since) == 10:  # YYYY-MM-DD
+                    since_date = datetime.fromisoformat(since + "T00:00:00+00:00")
+                else:
+                    since_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            except ValueError:
+                logger.warning(
+                    f"Invalid 'since' format: {since}. Use YYYY-MM-DD or period (day/week/month/N)."
+                )
 
     # Parse until date (end of day)
     until_date = None
     if until:
         try:
-            until_date = datetime.fromisoformat(until).replace(
-                hour=23, minute=59, second=59, tzinfo=timezone.utc
-            )
+            # Handle date-only format by adding end-of-day time
+            if len(until) == 10:  # YYYY-MM-DD
+                until_date = datetime.fromisoformat(until + "T23:59:59+00:00")
+            else:
+                until_date = datetime.fromisoformat(until.replace("Z", "+00:00"))
         except ValueError:
             logger.warning(f"Invalid 'until' date format: {until}. Use YYYY-MM-DD.")
 
-    # Apply date filtering
+    # Apply date filtering using effective date (merged_at or timestamp)
     if since_date or until_date:
         date_filtered = []
         for run in filtered:
-            timestamp_str = run.get("timestamp", "")
-            if not timestamp_str:
+            date_str = get_effective_date(run)
+            if not date_str:
                 continue
             try:
-                # Parse ISO8601 timestamp with Z suffix
-                run_ts = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                # Normalize timestamp to be parseable
+                ts = date_str
+                # Handle double-offset timestamps like "...+00:00Z"
+                if ts.endswith("+00:00Z"):
+                    ts = ts[:-1]  # Remove trailing Z
+                elif ts.endswith("Z"):
+                    ts = ts[:-1] + "+00:00"
+
+                run_ts = datetime.fromisoformat(ts)
+
+                # Ensure timezone-aware (some timestamps may be naive)
+                if run_ts.tzinfo is None:
+                    run_ts = run_ts.replace(tzinfo=timezone.utc)
+
                 if since_date and run_ts < since_date:
                     continue
                 if until_date and run_ts > until_date:
@@ -280,11 +344,8 @@ def filter_runs(
                 user_filtered.append(run)
         filtered = user_filtered
 
-    # Sort by timestamp (most recent first) before applying limit
-    def get_timestamp(run: dict) -> str:
-        return run.get("timestamp", "")
-
-    filtered.sort(key=get_timestamp, reverse=True)
+    # Sort by effective date (merged_at or timestamp, most recent first)
+    filtered.sort(key=get_effective_date, reverse=True)
 
     # Apply limit (take first N after sorting)
     if limit is not None and limit > 0:
