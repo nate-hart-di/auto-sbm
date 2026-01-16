@@ -4,6 +4,11 @@ Table of contents for all migration reports.
 
 | Date | Slug | Status | Duration | Lines | Report |
 |------|------|--------|----------|-------|--------|
+| 2026-01-15 02:08 | `vallejochryslerdodgejeepram` | ✅ | 2m 11s | 46 | [vallejochryslerdodgejeepram-20260115-020828.md](./vallejochryslerdodgejeepram-20260115-020828.md) |
+| 2026-01-15 02:06 | `iversonautogroup` | ✅ | 2m 14s | 34 | [iversonautogroup-20260115-020616.md](./iversonautogroup-20260115-020616.md) |
+| 2026-01-15 02:03 | `daviddodge` | ✅ | 2m 13s | 560 | [daviddodge-20260115-020359.md](./daviddodge-20260115-020359.md) |
+| 2026-01-15 02:01 | `boggustiptonchryslerdodgejeepram` | ✅ | 2m 13s | 215 | [boggustiptonchryslerdodgejeepram-20260115-020144.md](./boggustiptonchryslerdodgejeepram-20260115-020144.md) |
+| 2026-01-15 01:56 | `jerryseinerkiasouthjordan` | ✅ | 2m 11s | 161 | [jerryseinerkiasouthjordan-20260115-015620.md](./jerryseinerkiasouthjordan-20260115-015620.md) |
 | 2026-01-15 01:54 | `jerryseinersaltlakekia` | ✅ | 2m 25s | 142 | [jerryseinersaltlakekia-20260115-015406.md](./jerryseinersaltlakekia-20260115-015406.md) |
 | 2026-01-14 18:05 | `test-slug` | ✅ | 0s | 850 | [test-slug-20260114-180511.md](./test-slug-20260114-180511.md) |
 | 2026-01-14 18:05 | `test-slug` | ✅ | 0s | 100 | [test-slug-20260114-180511.md](./test-slug-20260114-180511.md) |
