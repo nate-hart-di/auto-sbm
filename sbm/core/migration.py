@@ -88,6 +88,9 @@ class MigrationResult:
     report_path: Optional[str] = None  # Path to generated report
     pr_author: Optional[str] = None
     pr_state: Optional[str] = None
+    created_at: Optional[str] = None  # PR creation timestamp from GitHub
+    merged_at: Optional[str] = None  # PR merge timestamp from GitHub
+    closed_at: Optional[str] = None  # PR close timestamp from GitHub
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def mark_success(
@@ -96,6 +99,9 @@ class MigrationResult:
         salesforce_message: Optional[str] = None,
         pr_author: Optional[str] = None,
         pr_state: Optional[str] = None,
+        created_at: Optional[str] = None,
+        merged_at: Optional[str] = None,
+        closed_at: Optional[str] = None,
     ) -> None:
         """Mark the migration as successful."""
         self.status = "success"
@@ -103,6 +109,9 @@ class MigrationResult:
         self.salesforce_message = salesforce_message
         self.pr_author = pr_author
         self.pr_state = pr_state
+        self.created_at = created_at
+        self.merged_at = merged_at
+        self.closed_at = closed_at
 
     def mark_failed(self, step: MigrationStep, error: str, trace: Optional[str] = None) -> None:
         """Mark the migration as failed at a specific step."""
@@ -1136,6 +1145,11 @@ def migrate_dealer_theme(
                 result.mark_success(
                     pr_url=post_result.get("pr_url"),
                     salesforce_message=post_result.get("salesforce_message"),
+                    pr_author=post_result.get("pr_author"),
+                    pr_state=post_result.get("pr_state"),
+                    created_at=post_result.get("created_at"),
+                    merged_at=post_result.get("merged_at"),
+                    closed_at=post_result.get("closed_at"),
                 )
             else:
                 # Step failed in post-migration - result should already be marked

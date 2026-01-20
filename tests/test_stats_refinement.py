@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from sbm.core.migration import MigrationResult
 from sbm.utils.tracker import record_run
-from scripts.stats.report_slack import filter_runs_by_previous_calendar_day
+from scripts.stats.report_slack import calculate_metrics, filter_runs_by_previous_calendar_day
 
 
 @pytest.fixture
@@ -118,3 +118,30 @@ def test_slack_calendar_day_filtering():
         assert "too-new" not in slugs
         assert "too-old" not in slugs
         assert len(filtered) == 2
+
+
+def test_calculate_metrics_counts_pr_states():
+    runs = [
+        {
+            "status": "success",
+            "slug": "merged",
+            "merged_at": "2026-01-10T10:00:00+00:00",
+            "lines_migrated": 800,
+            "automation_seconds": 3600,
+        },
+        {
+            "status": "success",
+            "slug": "open",
+            "created_at": "2026-01-11T10:00:00+00:00",
+            "pr_state": "OPEN",
+        },
+        {
+            "status": "success",
+            "slug": "closed",
+            "pr_state": "CLOSED",
+        },
+    ]
+    metrics = calculate_metrics(runs, {}, is_all_time=False)
+    assert metrics["success_count"] == 1
+    assert metrics["in_review_count"] == 1
+    assert metrics["closed_count"] == 1

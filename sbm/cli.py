@@ -17,11 +17,34 @@ import sys
 import time
 from pathlib import Path
 
-import click
+try:
+    import rich_click as click  # type: ignore
+    click.rich_click.SHOW_ARGUMENTS = True
+    click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
+    click.rich_click.SHOW_METAVARS_COLUMN = False
+    click.rich_click.SHOW_OPTION_DEFAULTS = True
+    click.rich_click.USE_RICH_MARKUP = True
+    click.rich_click.OPTION_GROUPS = {
+        "sbm stats": [
+            {"name": "Views", "options": ["--team", "--user"]},
+            {"name": "History & filters", "options": ["--history", "--since", "--limit", "--all"]},
+            {"name": "Output", "options": ["--list"]},
+            {"name": "Other", "options": ["--verbose", "--help"]},
+        ],
+        "stats": [
+            {"name": "Views", "options": ["--team", "--user"]},
+            {"name": "History & filters", "options": ["--history", "--since", "--limit", "--all"]},
+            {"name": "Output", "options": ["--list"]},
+            {"name": "Other", "options": ["--verbose", "--help"]},
+        ],
+    }
+except Exception:
+    import click
 from git import Repo
 
 from sbm.utils.tracker import (
     get_migration_stats,
+    get_pr_completion_state,
     record_migration,
     record_run,
     process_pending_syncs,
@@ -1007,7 +1030,18 @@ def _get_field(result: MigrationResult | dict, field: str):
     return result.get(field)
 
 
-@cli.command()
+@cli.command(
+    help=(
+        "Show migration stats from Firebase (personal or team).\n"
+        "\n"
+        "Examples:\n"
+        "  sbm stats\n"
+        "  sbm stats --history --since 7\n"
+        "  sbm stats --team --since 7\n"
+        "  sbm stats --team --history --all\n"
+        "  sbm stats --since 30 --user abondDealerInspire\n"
+    )
+)
 @click.argument("theme_names", nargs=-1, required=True)
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option("--skip-maps", is_flag=True, help="Skip map components migration.")
@@ -1258,6 +1292,9 @@ def auto(
                         pr_url=result.pr_url,
                         pr_author=result.pr_author,
                         pr_state=result.pr_state,
+                        created_at=result.created_at,
+                        merged_at=result.merged_at,
+                        closed_at=result.closed_at,
                     )
                     # Show updated stats after each migration
                     ctx.invoke(stats)
@@ -1301,6 +1338,9 @@ def auto(
                         pr_url=pr_url,
                         pr_author=result.get("pr_author"),
                         pr_state=result.get("pr_state"),
+                        created_at=result.get("created_at"),
+                        merged_at=result.get("merged_at"),
+                        closed_at=result.get("closed_at"),
                     )
                     # Show updated stats after each migration
                     ctx.invoke(stats)
@@ -1538,16 +1578,29 @@ def _calculate_time_saved(lines_migrated: int) -> str:
 
 
 @cli.command()
-@click.option("--list", "show_list", is_flag=True, help="List individual site migrations")
-@click.option("--history", is_flag=True, help="Show migration history over time")
-@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
+@click.option("--list", "show_list", is_flag=True, help="List migrated slugs")
+@click.option("--history", is_flag=True, help="Show run history")
+@click.option("--verbose", "-v", is_flag=True, help="Verbose logging")
 @click.option(
-    "--limit", type=int, default=10, help="Number of runs to display (default: 10, max: 100)"
+    "--limit",
+    type=int,
+    default=10,
+    help="Max runs to display (default: 10, max: 100)",
 )
-@click.option("--since", "since_date", type=str, help="Filter runs since date (YYYY-MM-DD)")
-@click.option("--until", "until_date", type=str, help="Filter runs until date (YYYY-MM-DD)")
-@click.option("--user", "filter_user", type=str, help="Filter runs by username")
-@click.option("--team", is_flag=True, help="Show aggregated team statistics (from Firebase)")
+@click.option(
+    "--since",
+    "since_days",
+    type=int,
+    help="Show runs from the last N days (e.g. --since 7)",
+)
+@click.option("--user", "filter_user", type=str, help="Filter by user")
+@click.option("--team", is_flag=True, help="Show team stats")
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    help="Show all items for the selected view (ignores --limit)",
+)
 @click.pass_context
 def stats(
     ctx: click.Context,
@@ -1555,28 +1608,18 @@ def stats(
     history: bool,
     verbose: bool,
     limit: int,
-    since_date: str,
-    until_date: str,
+    since_days: int,
     filter_user: str,
     team: bool,
+    show_all: bool,
 ) -> None:
-    """Show migration statistics and savings.
-
-    Displays your personal impact or team-wide statistics.
-
-    Data Source:
-    - By default, shows YOUR stats from Firebase.
-    - With --team: Shows aggregated stats for all contributors.
-    - With --user: Shows stats for a specific user ID.
-
-    Strict Mode:
-    - The stats are based strictly on SUCCESSFUL runs logged in the database.
-    - Failed or invalid runs are excluded.
-    - Users with no run logs are not counted.
-    """
+    """Show migration stats from Firebase (personal or team)."""
     if verbose:
         logger.setLevel(logging.DEBUG)
-    limit = min(limit, 100) if limit else 10
+    if show_all:
+        limit = None
+    else:
+        limit = min(limit, 100) if limit else 10
 
     parts = ["Retrieving"]
     parts.append("Team Stats" if team else "Stats")
@@ -1584,17 +1627,18 @@ def stats(
     if filter_user:
         parts.append(f"for user '[cyan]{filter_user}[/cyan]'")
 
-    if since_date:
-        parts.append(f"since [bold]{since_date}[/bold]")
-
-    if until_date:
-        parts.append(f"until [bold]{until_date}[/bold]")
+    if since_days:
+        parts.append(f"last [bold]{since_days}[/bold] days")
 
     status_msg = " ".join(parts) + "..."
 
     with get_console().status(f"[bold green]{status_msg}[/bold green]"):
         stats_data = get_migration_stats(
-            limit=limit, since=since_date, until=until_date, user=filter_user, team=team
+            limit=limit,
+            since=str(since_days) if since_days else None,
+            until=None,
+            user=filter_user,
+            team=team,
         )
 
     # Handle offline/error case
@@ -1627,6 +1671,77 @@ def stats(
     # 1. Handle Team View (if requested and available)
     if team and stats_data.get("team_stats"):
         ts = stats_data["team_stats"]
+        if since_days or filter_user:
+            from sbm.utils.tracker import get_global_reporting_data, filter_runs
+
+            all_runs, _ = get_global_reporting_data()
+            team_runs = filter_runs(
+                all_runs,
+                limit=None,
+                since=str(since_days) if since_days else None,
+                until=None,
+                user=filter_user,
+            )
+            complete_runs = [
+                r
+                for r in team_runs
+                if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+            ]
+
+            def run_effective_date(run: dict) -> datetime.datetime:
+                completion_state = get_pr_completion_state(run)
+                if completion_state == "complete":
+                    ts_val = run.get("merged_at") or run.get("timestamp") or ""
+                elif completion_state == "in_review":
+                    ts_val = run.get("created_at") or run.get("timestamp") or ""
+                elif completion_state == "closed":
+                    ts_val = run.get("closed_at") or run.get("timestamp") or ""
+                else:
+                    ts_val = run.get("merged_at") or run.get("timestamp") or ""
+                if ts_val.endswith("+00:00Z"):
+                    ts_val = ts_val[:-1]
+                elif ts_val.endswith("Z"):
+                    ts_val = ts_val[:-1] + "+00:00"
+                try:
+                    parsed = datetime.datetime.fromisoformat(ts_val)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+                    return parsed
+                except ValueError:
+                    return datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+
+            unique_complete_by_slug: dict[str, dict] = {}
+            for run in complete_runs:
+                slug = run.get("slug")
+                if not slug:
+                    continue
+                existing = unique_complete_by_slug.get(slug)
+                if not existing or run_effective_date(run) > run_effective_date(existing):
+                    unique_complete_by_slug[slug] = run
+
+            total_lines_migrated = sum(
+                r.get("lines_migrated", 0) for r in unique_complete_by_slug.values()
+            )
+            user_counts: dict[str, set] = {}
+            for run in unique_complete_by_slug.values():
+                author = run.get("pr_author") or run.get("_user") or "unknown"
+                user_counts.setdefault(author, set()).add(run.get("slug"))
+
+            ts = {
+                "total_users": len(user_counts),
+                "total_migrations": len(unique_complete_by_slug),
+                "total_lines_migrated": total_lines_migrated,
+                "total_runs": len(unique_complete_by_slug),
+                "total_time_saved_h": round(total_lines_migrated / 800.0, 1)
+                if total_lines_migrated
+                else 0.0,
+                "top_contributors": sorted(
+                    ((user, len(slugs)) for user, slugs in user_counts.items()),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )[:3],
+                "source": "firebase",
+            }
 
         # Header
         rich_console.print(
@@ -1649,9 +1764,149 @@ def stats(
         panels = [
             make_team_panel("Total Migrations", str(ts.get("total_migrations", 0)), "green"),
             make_team_panel("Lines Migrated", f"{ts.get('total_lines_migrated', 0):,}", "cyan"),
-            make_team_panel("Total Time Saved", f"{ts.get('total_time_saved_h', 0)}h", "yellow"),
         ]
         rich_console.print(Columns(panels, equal=True))
+        if since_days or filter_user:
+            filter_info = []
+            if since_days:
+                filter_info.append(f"last {since_days} days")
+            if filter_user:
+                filter_info.append(f"user: {filter_user}")
+            if filter_info:
+                rich_console.print(f"[dim]Filters applied: {', '.join(filter_info)}[/dim]")
+
+        # Full Contributors (optional)
+        if show_all:
+            from sbm.utils.tracker import (
+                get_global_reporting_data,
+                filter_runs,
+                _dedupe_runs_for_display,
+            )
+
+            all_runs, _ = get_global_reporting_data()
+            merged_runs = [
+                r
+                for r in all_runs
+                if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+            ]
+
+            # Deduplicate by slug per author
+            by_author: dict[str, set] = {}
+            for run in merged_runs:
+                author = run.get("pr_author")
+                slug = run.get("slug")
+                if not author or not slug:
+                    continue
+                by_author.setdefault(author, set()).add(slug)
+
+            table = Table(
+                title="All Contributors (Merged, Unique Slugs)",
+                show_header=True,
+                header_style="bold magenta",
+            )
+            table.add_column("User", style="cyan")
+            table.add_column("Sites Migrated", style="green", justify="right")
+
+            for user, slugs in sorted(by_author.items(), key=lambda x: len(x[1]), reverse=True):
+                table.add_row(user, str(len(slugs)))
+
+            rich_console.print(table)
+
+            total_unique_slugs = len({r.get("slug") for r in merged_runs if r.get("slug")})
+            total_user_slugs = sum(len(slugs) for slugs in by_author.values())
+            if total_unique_slugs != total_user_slugs:
+                rich_console.print(
+                    f"[yellow]⚠️ Sum of user counts ({total_user_slugs}) != unique slugs "
+                    f"({total_unique_slugs}).[/yellow]"
+                )
+            else:
+                rich_console.print(f"[dim]Total unique slugs: {total_unique_slugs}[/dim]")
+            # Continue for optional team history below
+
+        # Team History (optional)
+        if history:
+            from sbm.utils.tracker import get_global_reporting_data
+
+            all_runs, _ = get_global_reporting_data()
+            team_runs = filter_runs(
+                all_runs,
+                limit=limit,
+                since=str(since_days) if since_days else None,
+                until=None,
+                user=filter_user,
+            )
+            team_runs = _dedupe_runs_for_display(team_runs)
+
+            if team_runs:
+                table = Table(
+                    title="All Team Runs",
+                    title_style="bold cyan",
+                    show_header=True,
+                    header_style="bold magenta",
+                )
+                table.add_column("PR Date", style="dim")
+                table.add_column("Theme Slug", style="cyan")
+                table.add_column("Status", style="bold")
+                table.add_column("User", style="magenta")
+                table.add_column("Lines", style="cyan")
+                table.add_column("PR", style="blue")
+
+                for run in team_runs:
+                    completion_state = get_pr_completion_state(run)
+                    if completion_state == "complete":
+                        status_display = "[green]Complete[/green]"
+                    elif completion_state == "in_review":
+                        status_display = "[yellow]In Review[/yellow]"
+                    elif completion_state == "closed":
+                        status_display = "[red]Closed[/red]"
+                    else:
+                        status = run.get("status", "unknown")
+                        status_color = "green" if status == "success" else "red"
+                        status_display = f"[{status_color}]{status}[/{status_color}]"
+
+                    lines = run.get("lines_migrated", 0)
+                    lines_str = f"{lines:,}" if lines else "N/A"
+
+                    pr_link = "N/A"
+                    if run.get("pr_url"):
+                        url = run.get("pr_url")
+                        if completion_state == "complete":
+                            link_text = "[green]Merged[/green]"
+                        elif completion_state == "in_review":
+                            link_text = "[yellow]Open[/yellow]"
+                        elif completion_state == "closed":
+                            link_text = "[red]Closed[/red]"
+                        else:
+                            link_text = "View"
+                        pr_link = f"[link={url}]{link_text}[/link]"
+
+                    user_display = run.get("pr_author") or run.get("_user") or "unknown"
+
+                    if completion_state == "complete":
+                        effective_date = run.get("merged_at") or run.get("timestamp", "")
+                    elif completion_state == "in_review":
+                        effective_date = run.get("created_at") or run.get("timestamp", "")
+                    elif completion_state == "closed":
+                        effective_date = run.get("closed_at") or run.get("timestamp", "")
+                    else:
+                        effective_date = run.get("merged_at") or run.get("timestamp", "")
+
+                    if effective_date and len(effective_date) >= 19:
+                        date_display = effective_date[:19].replace("T", " ")
+                    else:
+                        date_display = "N/A"
+
+                    table.add_row(
+                        date_display,
+                        run.get("slug", "unknown"),
+                        status_display,
+                        f"@{user_display}",
+                        lines_str,
+                        pr_link,
+                    )
+
+                rich_console.print(table)
+            return
 
         # Top Contributors
         contributors = ts.get("top_contributors", [])
@@ -1711,11 +1966,6 @@ def stats(
             f"{metrics_local.get('total_lines_migrated', 0):,}",
             "cyan",
         ),
-        make_metric_panel(
-            "Time Saved",
-            f"{metrics_local.get('total_time_saved_h', 0)}h",
-            "yellow",
-        ),
     ]
 
     rich_console.print(Columns(metric_panels, equal=True))
@@ -1736,11 +1986,6 @@ def stats(
                 "Lines Migrated",
                 f"{global_metrics.get('total_lines_migrated', 0):,}",
                 "cyan",
-            ),
-            make_metric_panel(
-                "Team Time Saved",
-                f"{global_metrics.get('total_time_saved_h', 0)}h",
-                "yellow",
             ),
         ]
         rich_console.print(Columns(global_panels, equal=True))
@@ -1775,6 +2020,21 @@ def stats(
         f"\n[dim]Contributing as: {current_user_name} | Last updated: {last_updated_str}[/dim]"
     )
 
+    # Check for incomplete timestamp data and warn user
+    runs = stats_data.get("runs", [])
+    if runs:
+        unknown_count = sum(1 for r in runs if get_pr_completion_state(r) == "unknown")
+        if unknown_count > 0:
+            from rich.panel import Panel
+            warning_panel = Panel(
+                f"[yellow]⚠️  {unknown_count} run(s) missing PR timestamp data.[/yellow]\n"
+                f"[dim]Stats may be incomplete. Run:[/dim] [cyan]python scripts/migrate_pr_timestamps.py[/cyan]",
+                border_style="yellow",
+                title="Data Migration Needed",
+            )
+            rich_console.print()
+            rich_console.print(warning_panel)
+
     if history:
         runs = stats_data.get("runs", [])
         if runs:
@@ -1784,65 +2044,98 @@ def stats(
                 show_header=True,
                 header_style="bold magenta",
             )
-            table.add_column("Merged At", style="dim")
+            table.add_column("PR Date", style="dim")
             table.add_column("Theme Slug", style="cyan")
-            table.add_column("Command", style="green")
             table.add_column("Status", style="bold")
             table.add_column("User", style="magenta")
-            table.add_column("Duration", justify="right", style="yellow")
             table.add_column("Lines", justify="right", style="cyan")
-            table.add_column("Saved", justify="right", style="green")
             table.add_column("PR", style="blue")
 
             for run in runs:
-                status = run.get("status", "unknown")
-                status_color = "green" if status == "success" else "red"
+                # Determine PR completion state
+                completion_state = get_pr_completion_state(run)
+
+                # Status display based on completion state
+                if completion_state == "complete":
+                    status_display = "[green]Complete[/green]"
+                    status_color = "green"
+                elif completion_state == "in_review":
+                    status_display = "[yellow]In Review[/yellow]"
+                    status_color = "yellow"
+                elif completion_state == "closed":
+                    status_display = "[red]Closed[/red]"
+                    status_color = "red"
+                else:
+                    # Fallback to old behavior for backwards compat
+                    status = run.get("status", "unknown")
+                    status_color = "green" if status == "success" else "red"
+                    status_display = f"[{status_color}]{status}[/{status_color}]"
 
                 # Extract data with graceful fallbacks
-                duration_seconds = run.get("duration_seconds", 0)
                 lines_migrated = run.get("lines_migrated", 0)
                 report_path = run.get("report_path", "")
 
                 # Format values
-                duration_str = _format_duration(duration_seconds) if duration_seconds else "N/A"
                 lines_str = f"{lines_migrated:,}" if lines_migrated else "N/A"
-                saved_str = _calculate_time_saved(lines_migrated)
                 report_str = report_path if report_path else "N/A"
 
                 # PR Link logic
                 pr_link = "N/A"
                 if run.get("pr_url"):
                     url = run.get("pr_url")
-                    state = run.get("pr_state", "").upper()
 
-                    link_text = "View"
-                    if state == "MERGED":
+                    # Use completion state for link text
+                    if completion_state == "complete":
                         link_text = "[green]Merged[/green]"
-                    elif state == "OPEN":
+                    elif completion_state == "in_review":
                         link_text = "[yellow]Open[/yellow]"
-                    elif state == "CLOSED":
+                    elif completion_state == "closed":
                         link_text = "[red]Closed[/red]"
-                    elif state == "DRAFT":
-                        link_text = "[dim]Draft[/dim]"
+                    else:
+                        # Fallback to pr_state if no completion state
+                        state = run.get("pr_state", "").upper()
+                        if state == "MERGED":
+                            link_text = "[green]Merged[/green]"
+                        elif state == "OPEN":
+                            link_text = "[yellow]Open[/yellow]"
+                        elif state == "CLOSED":
+                            link_text = "[red]Closed[/red]"
+                        elif state == "DRAFT":
+                            link_text = "[dim]Draft[/dim]"
+                        else:
+                            link_text = "View"
 
                     pr_link = f"[link={url}]{link_text}[/link]"
 
                 # User logic: prefer pr_author, fallback to generic user
                 user_display = run.get("pr_author") or run.get("_user") or "unknown"
 
-                # Use merged_at (actual PR merge date) when available, else timestamp
-                effective_date = run.get("merged_at") or run.get("timestamp", "")
-                date_display = effective_date[:19].replace("T", " ") if effective_date else "N/A"
+                # Date display based on completion state
+                # Priority: merged_at > created_at > closed_at > timestamp
+                if completion_state == "complete":
+                    effective_date = run.get("merged_at") or run.get("timestamp", "")
+                elif completion_state == "in_review":
+                    effective_date = run.get("created_at") or run.get("timestamp", "")
+                elif completion_state == "closed":
+                    effective_date = run.get("closed_at") or run.get("timestamp", "")
+                else:
+                    effective_date = run.get("merged_at") or run.get("timestamp", "")
+
+                # Validate and format timestamp
+                if effective_date and len(effective_date) >= 19:
+                    try:
+                        date_display = effective_date[:19].replace("T", " ")
+                    except (TypeError, AttributeError):
+                        date_display = "Invalid"
+                else:
+                    date_display = "N/A"
 
                 table.add_row(
                     date_display,
                     run.get("slug", "unknown"),
-                    run.get("command", "unknown"),
-                    f"[{status_color}]{status}[/{status_color}]",
+                    status_display,
                     f"@{user_display}",
-                    duration_str,
                     lines_str,
-                    saved_str,
                     pr_link,
                 )
 
@@ -1850,16 +2143,14 @@ def stats(
 
             # Show filter info if any filters applied
             filter_info = []
-            if since_date:
-                filter_info.append(f"since {since_date}")
-            if until_date:
-                filter_info.append(f"until {until_date}")
+            if since_days:
+                filter_info.append(f"last {since_days} days")
             if filter_user:
                 filter_info.append(f"user: {filter_user}")
             if filter_info:
                 rich_console.print(f"[dim]Filters applied: {', '.join(filter_info)}[/dim]")
         else:
-            if since_date or until_date or filter_user:
+            if since_days or filter_user:
                 rich_console.print("[yellow]No runs found matching the specified filters.[/yellow]")
             else:
                 rich_console.print("[yellow]No run history found.[/yellow]")
@@ -1879,15 +2170,83 @@ def stats(
 @cli.command(name="internal-refresh-stats", hidden=True)
 def internal_refresh_stats() -> None:
     """
-    Internal command to process pending Firebase syncs.
+    Internal command to process pending Firebase syncs and update PR statuses.
     Running in background to avoid blocking the user.
+
+    This provides near-real-time PR status updates by checking in-progress PRs
+    after each successful migration.
     """
     try:
         # Process pending Firebase syncs (retry offline queue)
         process_pending_syncs()
 
+        # Update PR statuses for in-progress runs (async, limited to most recent)
+        _update_recent_pr_statuses()
+
     except Exception:
         # Silent failure for background tasks
+        pass
+
+
+def _update_recent_pr_statuses(max_to_check: int = 10) -> None:
+    """
+    Update PR statuses for recent in-progress runs.
+
+    Called by internal-refresh-stats to provide near-real-time updates.
+    Limits to recent runs to avoid excessive API calls.
+
+    Args:
+        max_to_check: Maximum number of recent runs to check (default: 10)
+    """
+    try:
+        from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db
+        from sbm.utils.github_pr import GitHubPRManager
+
+        if not is_firebase_available():
+            return
+
+        db = get_firebase_db()
+        users_ref = db.reference("/users")
+        users_data = users_ref.get() or {}
+
+        checked = 0
+        for user_id, user_data in users_data.items():
+            if checked >= max_to_check:
+                break
+
+            if not isinstance(user_data, dict):
+                continue
+
+            runs = user_data.get("runs", {})
+            for run_id, run_data in runs.items():
+                if checked >= max_to_check:
+                    break
+
+                if not isinstance(run_data, dict):
+                    continue
+
+                # Only check runs that need refresh
+                if GitHubPRManager.should_refresh_pr_data(run_data):
+                    # Enrich run with fresh data
+                    enriched = GitHubPRManager.enrich_run_with_pr_data(run_data, force_refresh=True)
+
+                    # Update Firebase
+                    run_ref = db.reference(f"/users/{user_id}/runs/{run_id}")
+                    update_data = {
+                        "created_at": enriched.get("created_at"),
+                        "merged_at": enriched.get("merged_at"),
+                        "closed_at": enriched.get("closed_at"),
+                        "pr_state": enriched.get("pr_state"),
+                    }
+                    # Remove None values
+                    update_data = {k: v for k, v in update_data.items() if v is not None}
+                    if update_data:
+                        run_ref.update(update_data)
+
+                    checked += 1
+
+    except Exception:
+        # Silent failure for background task
         pass
 
 

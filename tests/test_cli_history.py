@@ -108,7 +108,7 @@ class TestStatsHistoryCommand:
     @patch("sbm.cli.get_migration_stats")
     @patch("sbm.cli.get_console")
     def test_stats_history_with_since_filter(self, mock_console, mock_stats):
-        """Test stats --history with --since date filter."""
+        """Test stats --history with --since days filter."""
         mock_stats.return_value = {
             "count": 0,
             "migrations": [],
@@ -131,13 +131,13 @@ class TestStatsHistoryCommand:
         mock_console.return_value = MagicMock()
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["stats", "--history", "--since", "2026-01-01"])
+        result = runner.invoke(cli, ["stats", "--history", "--since", "7"])
         assert result.exit_code == 0
 
     @patch("sbm.cli.get_migration_stats")
     @patch("sbm.cli.get_console")
     def test_stats_history_invalid_date_format(self, mock_console, mock_stats):
-        """Test stats --history with invalid date format."""
+        """Test stats --history with invalid since value."""
         mock_stats.return_value = {
             "count": 0,
             "migrations": [],
@@ -156,8 +156,8 @@ class TestStatsHistoryCommand:
 
         runner = CliRunner()
         result = runner.invoke(cli, ["stats", "--history", "--since", "invalid-date"])
-        # Should complete but print error message about invalid date
-        assert result.exit_code == 0
+        # Click should reject non-integer --since values
+        assert result.exit_code != 0
 
 
 class TestStatsHistoryBackwardCompatibility:

@@ -198,9 +198,9 @@ class TestFirebaseSync:
         assert result is True
         mock_db.reference.assert_called_with("users/user1/runs")
 
-        # Verify sync_status was removed
+        # Verify sync_status was removed and data was set
         expected_push = {"slug": "test_slug", "status": "success"}
-        mock_ref.push.assert_called_with(expected_push)
+        mock_ref.child.return_value.set.assert_called_with(expected_push)
 
     @patch("sbm.utils.firebase_sync.is_firebase_available", return_value=True)
     @patch("sbm.utils.firebase_sync.get_firebase_db")
@@ -225,6 +225,7 @@ class TestFirebaseSync:
                         "slug": "slug1",
                         "lines_migrated": 800,
                         "automation_seconds": 3600,
+                        "merged_at": "2026-01-10T10:00:00Z",
                     }
                 }
             },
@@ -236,6 +237,7 @@ class TestFirebaseSync:
                         "slug": "slug2",
                         "lines_migrated": 1600,
                         "automation_seconds": 7200,
+                        "pr_state": "MERGED",
                     }
                 }
             },
@@ -247,7 +249,7 @@ class TestFirebaseSync:
         assert stats is not None
         assert stats["total_users"] == 2
         assert stats["total_runs"] == 2
-        assert stats["total_migrations"] == 4
+        assert stats["total_migrations"] == 2
         assert stats["total_time_saved_h"] == 3.0  # (800+1600)/800
         assert stats["total_automation_time_h"] == 3.0  # (3600+7200)/3600
 

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-01-20
+
+### Changed
+- add PR state-aware stats filtering and merged-run dedupe across CLI/Slack
+- fix team stats timezones and global slug totals to prevent overcounts
+- add metadata refresh/backfill scripts with GH PR enrichment
+- add rich-click help grouping and align runtime dependencies
+
 ## [2.11.8] - 2026-01-16
 ### Fixed
 - **Stats CLI**: Fixed datetime comparison bug (offset-naive vs offset-aware) causing crashes with `--since` filter.

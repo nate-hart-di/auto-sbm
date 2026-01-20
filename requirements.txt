@@ -20,6 +20,14 @@ tinycss2>=1.2.1
 cssutils>=2.11.0
 slack-bolt>=1.18.0
 slack-sdk>=3.20.0
+rich-click>=1.7.0
+colorama>=0.4.0
+jsbeautifier>=1.14.0
+cssbeautifier>=1.14.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+rapidfuzz>=3.0.0
+rich-click>=1.7.0
 
 # Development Dependencies (also available via pip install -e .[dev])
 pytest>=7.0.0

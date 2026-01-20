@@ -28,12 +28,14 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
                     "slug": "site-1",
                     "lines_migrated": 800,
                     "automation_seconds": 3600,
+                    "merged_at": "2024-01-01T10:00:00+00:00",
                 },
                 "push2": {
                     "status": "success",
                     "slug": "site-2",
                     "lines_migrated": 1600,
                     "automation_seconds": 3600,
+                    "pr_state": "OPEN",
                 },
                 "push3": {"status": "failed"},  # Should be ignored
             }
@@ -46,6 +48,7 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
                     "slug": "site-3",
                     "lines_migrated": 800,
                     "automation_seconds": 3600,
+                    "merged_at": "2024-01-02T10:00:00+00:00",
                 }
             }
         },
@@ -57,19 +60,17 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
 
     assert stats is not None
     assert stats["total_users"] == 2
-    assert stats["total_migrations"] == 4  # user_a: site-1, site-2, site-4; user_b: site-3
-    assert stats["total_runs"] == 3
-    # 800 + 1600 + 800 = 3200 lines. 3200 / 800 = 4.0 hours
-    assert stats["total_time_saved_h"] == 4.0
-    # 3600*3 = 10800s = 3h
-    assert stats["total_automation_time_h"] == 3.0
+    assert stats["total_migrations"] == 2  # merged only: site-1, site-3
+    assert stats["total_runs"] == 2
+    # 800 + 800 = 1600 lines. 1600 / 800 = 2.0 hours
+    assert stats["total_time_saved_h"] == 2.0
+    # 3600*2 = 7200s = 2h
+    assert stats["total_automation_time_h"] == 2.0
 
     # Check top contributors
-    # user_a: 3 migrations, user_b: 1 migration
+    # user_a: 1 migration, user_b: 1 migration
     top = stats["top_contributors"]
-    assert top[0][0] == "user_a"
-    assert top[0][1] == 3
-    assert top[1][0] == "user_b"
+    assert top[0][1] == 1
     assert top[1][1] == 1
 
 

@@ -150,6 +150,9 @@ def record_run(
     pr_url: str | None = None,
     pr_author: str | None = None,
     pr_state: str | None = None,
+    created_at: str | None = None,
+    merged_at: str | None = None,
+    closed_at: str | None = None,
 ) -> None:
     """
     Record a detailed migration run.
@@ -166,6 +169,11 @@ def record_run(
         manual_estimate_minutes: Estimated manual effort in minutes (default 4 hours)
         report_path: Path to generated markdown report (optional)
         pr_url: GitHub Pull Request URL (optional)
+        pr_author: PR author username from GitHub (optional)
+        pr_state: PR state (OPEN, MERGED, CLOSED) (optional)
+        created_at: PR creation timestamp from GitHub (optional)
+        merged_at: PR merge timestamp from GitHub (optional)
+        closed_at: PR close timestamp from GitHub (optional)
     """
     data = _read_tracker()
     runs = data.get("runs", [])
@@ -185,6 +193,9 @@ def record_run(
         "pr_url": pr_url,
         "pr_author": pr_author,
         "pr_state": pr_state,
+        "created_at": created_at,
+        "merged_at": merged_at,
+        "closed_at": closed_at,
         "sync_status": "pending_sync",  # Default to pending
     }
     # Keep only the last 500 runs to prevent file bloat
@@ -261,13 +272,21 @@ def filter_runs(
         Filtered list of runs, sorted by date (most recent first)
 
     Note:
-        Date filtering prefers 'merged_at' (actual PR merge date) over 'timestamp'
-        (when run was recorded) for more accurate stats, especially for backfills.
+        Date filtering uses PR state-aware timestamps:
+        merged_at for complete, created_at for in_review, closed_at for closed,
+        and timestamp as fallback.
     """
     filtered = runs.copy()
 
     def get_effective_date(run: dict) -> str:
-        """Get best date for filtering: prefer merged_at over timestamp."""
+        """Get best date for filtering based on PR completion state."""
+        completion_state = get_pr_completion_state(run)
+        if completion_state == "complete":
+            return run.get("merged_at") or run.get("timestamp") or ""
+        if completion_state == "in_review":
+            return run.get("created_at") or run.get("timestamp") or ""
+        if completion_state == "closed":
+            return run.get("closed_at") or run.get("timestamp") or ""
         return run.get("merged_at") or run.get("timestamp") or ""
 
     # Parse since - could be period ("7", "week") or ISO date ("2024-01-15")
@@ -340,7 +359,11 @@ def filter_runs(
         user_filtered = []
         for run in filtered:
             run_user = run.get("_user") or run.get("user_id", "")
-            if run_user and user_lower in run_user.lower():
+            run_author = run.get("pr_author", "")
+            if (
+                (run_user and user_lower in run_user.lower())
+                or (run_author and user_lower in run_author.lower())
+            ):
                 user_filtered.append(run)
         filtered = user_filtered
 
@@ -352,6 +375,50 @@ def filter_runs(
         filtered = filtered[:limit]
 
     return filtered
+
+
+def _dedupe_runs_for_display(runs: list[dict]) -> list[dict]:
+    """Keep only the most recent run per slug for user-facing displays."""
+    def get_effective_date(run: dict) -> str:
+        completion_state = get_pr_completion_state(run)
+        if completion_state == "complete":
+            return run.get("merged_at") or run.get("timestamp") or ""
+        if completion_state == "in_review":
+            return run.get("created_at") or run.get("timestamp") or ""
+        if completion_state == "closed":
+            return run.get("closed_at") or run.get("timestamp") or ""
+        return run.get("merged_at") or run.get("timestamp") or ""
+
+    def parse_date(ts: str) -> datetime:
+        if ts.endswith("+00:00Z"):
+            ts = ts[:-1]
+        elif ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(ts)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    best_by_slug: dict[str, dict] = {}
+    extras: list[dict] = []
+    for run in runs:
+        slug = run.get("slug")
+        if not slug:
+            extras.append(run)
+            continue
+        existing = best_by_slug.get(slug)
+        if not existing:
+            best_by_slug[slug] = run
+            continue
+        if parse_date(get_effective_date(run)) > parse_date(get_effective_date(existing)):
+            best_by_slug[slug] = run
+
+    deduped = extras + list(best_by_slug.values())
+    deduped.sort(key=get_effective_date, reverse=True)
+    return deduped
 
 
 def get_migration_stats(
@@ -450,16 +517,20 @@ def get_migration_stats(
         )
         run_metrics = _calculate_metrics({"runs": all_matching_runs})
         # Count unique slugs from filtered runs for "Sites Migrated"
+        # Only count complete (merged) runs
         filtered_slugs = {
             r.get("slug")
             for r in all_matching_runs
-            if r.get("slug") and r.get("status") == "success"
+            if r.get("slug") and r.get("status") == "success" and get_pr_completion_state(r) == "complete"
         }
         stats_migrations = filtered_slugs
     else:
         filtered_runs = my_runs
         # No filters: show all-time metrics
         run_metrics = _calculate_metrics({"runs": stats_runs})
+
+    # Only show most recent run per slug in user-facing history
+    filtered_runs = _dedupe_runs_for_display(filtered_runs)
 
     firebase_stats = run_metrics
 
@@ -528,16 +599,6 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
             runs = user_data.get("runs", {})
             migrations_set = set()
 
-            migrations_node = user_data.get("migrations", [])
-            if isinstance(migrations_node, list):
-                for slug in migrations_node:
-                    if slug:
-                        migrations_set.add(slug)
-            elif isinstance(migrations_node, dict):
-                for slug in migrations_node:
-                    if slug:
-                        migrations_set.add(slug)
-
             for _run_id, run in runs.items():
                 if run.get("status") == "invalid":
                     continue
@@ -545,8 +606,9 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
                 all_runs.append(run)
 
                 # Track unique migrations per user
+                # Only count complete (merged) runs
                 slug = run.get("slug")
-                if slug and run.get("status") == "success":
+                if slug and run.get("status") == "success" and get_pr_completion_state(run) == "complete":
                     migrations_set.add(slug)
 
             user_migrations[user_id] = migrations_set
@@ -558,16 +620,99 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
         return all_runs, user_migrations
 
 
+def get_pr_completion_state(run: dict) -> str:
+    """
+    Classify run completion state based on PR timestamps and state.
+
+    Priority order:
+    1. If merged_at exists → "complete" (PR was merged)
+    2. If pr_state is OPEN → "in_review" (PR currently open, even if previously closed)
+    3. If pr_state is CLOSED (with or without closed_at) → "closed"
+    4. If has created_at → "in_review" (assume open if no other info)
+    5. Fallback → "unknown" (no PR data available)
+
+    Note: GitHub doesn't clear closed_at when PR is reopened, so must check pr_state.
+
+    Args:
+        run: Run dict with optional created_at, merged_at, closed_at, pr_state fields
+
+    Returns:
+        One of: "complete", "in_review", "closed", "unknown"
+    """
+    merged_at = run.get("merged_at")
+    created_at = run.get("created_at")
+    closed_at = run.get("closed_at")
+    pr_state = run.get("pr_state", "").upper()
+
+    if merged_at:
+        return "complete"
+    elif pr_state == "OPEN":
+        # PR is currently open (even if it was previously closed and reopened)
+        return "in_review"
+    elif pr_state == "MERGED":
+        # State says merged but no merged_at timestamp (data inconsistency)
+        return "complete"
+    elif pr_state == "CLOSED":
+        # PR is closed without merge (legacy data may be missing closed_at)
+        return "closed"
+    elif created_at:
+        # Has created_at but no clear state - assume in review
+        return "in_review"
+    else:
+        # Backwards compatibility: runs without new fields
+        # Cannot determine completion state without timestamps
+        # Return "unknown" to avoid incorrectly inflating stats
+        # User should run migrate_pr_timestamps.py to fix
+        return "unknown"
+
+
 def _calculate_metrics(data: dict) -> dict:
-    """Helper to calculate metrics from tracker data structure."""
+    """
+    Helper to calculate metrics from tracker data structure.
+
+    Only counts MERGED PRs (merged_at exists) as complete for public stats.
+    """
     runs = data.get("runs", [])
     total_runs = len(runs)
-    successful_runs = [r for r in runs if r.get("status") == "success"]
-    success_count = len(successful_runs)
 
-    # Calculate time saved
-    total_automation_seconds = sum(r.get("automation_seconds", 0) for r in successful_runs)
-    total_lines_migrated = sum(r.get("lines_migrated", 0) for r in successful_runs)
+    def _run_sort_key(run: dict) -> datetime:
+        ts = run.get("merged_at") or run.get("timestamp") or ""
+        if ts.endswith("+00:00Z"):
+            ts = ts[:-1]
+        elif ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(ts)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed
+        except ValueError:
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    # Only count runs that are actually complete (merged), de-duped by slug
+    complete_runs = [
+        r for r in runs
+        if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+    ]
+    unique_complete_by_slug: dict[str, dict] = {}
+    for run in complete_runs:
+        slug = run.get("slug")
+        if not slug:
+            continue
+        existing = unique_complete_by_slug.get(slug)
+        if not existing or _run_sort_key(run) > _run_sort_key(existing):
+            unique_complete_by_slug[slug] = run
+
+    unique_complete_runs = list(unique_complete_by_slug.values())
+    success_count = len(unique_complete_runs)
+
+    # Calculate time saved from unique complete runs only
+    total_automation_seconds = sum(
+        r.get("automation_seconds", 0) for r in unique_complete_runs
+    )
+    total_lines_migrated = sum(
+        r.get("lines_migrated", 0) for r in unique_complete_runs
+    )
 
     # Mathematical time saved: 1 hour per 800 lines migrated
     time_saved_hours = total_lines_migrated / 800.0

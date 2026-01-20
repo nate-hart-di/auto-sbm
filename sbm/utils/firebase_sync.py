@@ -392,6 +392,28 @@ class FirebaseSync:
             return None
 
         try:
+            def is_complete_run(run: dict) -> bool:
+                """Return True if a run represents a merged PR."""
+                if run.get("status") != "success":
+                    return False
+                if run.get("merged_at"):
+                    return True
+                return run.get("pr_state", "").upper() == "MERGED"
+
+            def _run_sort_key(run: dict) -> datetime:
+                ts = run.get("merged_at") or run.get("timestamp") or ""
+                if ts.endswith("+00:00Z"):
+                    ts = ts[:-1]
+                elif ts.endswith("Z"):
+                    ts = ts[:-1] + "+00:00"
+                try:
+                    parsed = datetime.fromisoformat(ts)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    return parsed
+                except ValueError:
+                    return datetime.min.replace(tzinfo=timezone.utc)
+
             settings = get_settings()
             users_data = None
 
@@ -425,6 +447,7 @@ class FirebaseSync:
             total_time_saved_h = 0.0
             total_automation_seconds = 0.0
             user_counts = {}
+            global_best_by_slug: dict[str, dict] = {}
 
             for user_id, user_node in users_data.items():
                 if not isinstance(user_node, dict):
@@ -438,29 +461,35 @@ class FirebaseSync:
                 # Strict Mode: Do NOT backfill from migrations node
                 # if isinstance(migrations_node, list): ...
 
-                user_run_count = 0
-                user_lines_from_runs = 0
+                unique_complete_by_slug: dict[str, dict] = {}
                 for _, run in runs_node.items():
-                    if run.get("status") == "success":
-                        total_runs += 1
-                        user_run_count += 1
-
+                    if is_complete_run(run):
                         slug = run.get("slug")
-                        if slug:
-                            migrations_set.add(slug)
+                        if not slug:
+                            continue
+                        existing = unique_complete_by_slug.get(slug)
+                        if not existing or _run_sort_key(run) > _run_sort_key(existing):
+                            unique_complete_by_slug[slug] = run
 
-                        lines = run.get("lines_migrated", 0)
-                        user_lines_from_runs += lines
-                        total_automation_seconds += run.get("automation_seconds", 0)
+                for slug, run in unique_complete_by_slug.items():
+                    migrations_set.add(slug)
+                    existing_global = global_best_by_slug.get(slug)
+                    if not existing_global or _run_sort_key(run) > _run_sort_key(existing_global):
+                        global_best_by_slug[slug] = run
 
                 user_migration_count = len(migrations_set)
                 if user_migration_count > 0:
                     user_counts[user_id] = user_migration_count
-                    total_migrations += user_migration_count
 
-                    if user_lines_from_runs > 0:
-                        total_lines_migrated += user_lines_from_runs
-                        total_time_saved_h += user_lines_from_runs / 800.0
+            if global_best_by_slug:
+                total_runs = len(global_best_by_slug)
+                total_migrations = len(global_best_by_slug)
+                for run in global_best_by_slug.values():
+                    total_lines_migrated += run.get("lines_migrated", 0)
+                    total_automation_seconds += run.get("automation_seconds", 0)
+
+                if total_lines_migrated > 0:
+                    total_time_saved_h = total_lines_migrated / 800.0
 
             return {
                 "total_users": len(user_counts),
@@ -484,6 +513,13 @@ class FirebaseSync:
             return {}
 
         try:
+            def is_complete_run(run: dict) -> bool:
+                if run.get("status") != "success":
+                    return False
+                if run.get("merged_at"):
+                    return True
+                return run.get("pr_state", "").upper() == "MERGED"
+
             settings = get_settings()
             users_data = None
 
@@ -515,29 +551,15 @@ class FirebaseSync:
                 if not isinstance(user_node, dict):
                     continue
                 runs_node = user_node.get("runs", {})
-                migrations_node = user_node.get("migrations", [])
                 if not runs_node:
                     runs_node = {}
 
-                migrations_set = set()
-                if isinstance(migrations_node, list):
-                    for slug in migrations_node:
-                        if slug:
-                            migrations_set.add(slug)
-                elif isinstance(migrations_node, dict):
-                    for slug in migrations_node.keys():
-                        if slug:
-                            migrations_set.add(slug)
-
                 for _, run in runs_node.items():
-                    if run.get("status") == "success":
+                    if is_complete_run(run):
                         slug = run.get("slug")
                         if slug:
-                            migrations_set.add(slug)
-
-                for slug in migrations_set:
-                    if slug and slug not in migrated_map:
-                        migrated_map[slug] = user_id
+                            if slug not in migrated_map:
+                                migrated_map[slug] = user_id
             return migrated_map
         except Exception as e:
             logger.debug(f"Failed to fetch global history: {e}")

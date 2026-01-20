@@ -135,11 +135,22 @@ def handle_sbm_stats(ack, body, say, logger):
             metrics = report_slack.calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
         # 4. Format
+        current_in_review_runs = [
+            r for r in all_runs
+            if report_slack._get_completion_state(r) == "in_review" and r.get("pr_url")
+        ]
+        current_in_review_count = len(
+            [r for r in all_runs if report_slack._get_completion_state(r) == "in_review"]
+        )
+        current_in_review_links = [r.get("pr_url") for r in current_in_review_runs][:10]
+
         payload = report_slack.format_slack_payload(
             metrics,
             period,
             context_label,
             top_n if top_flag else None,
+            current_in_review_count=current_in_review_count,
+            current_in_review_links=current_in_review_links,
         )
 
         # 5. Branding

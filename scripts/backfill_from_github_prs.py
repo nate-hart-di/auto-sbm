@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -97,7 +98,7 @@ def get_all_sbm_prs() -> list[dict]:
                     "--search",
                     query,
                     "--json",
-                    "url,title,headRefName,additions,author,mergedAt,number",
+                    "url,title,headRefName,additions,author,createdAt,mergedAt,closedAt,state,number",
                     "--limit",
                     "500",
                 ],
@@ -149,7 +150,21 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
     args = parser.parse_args()
 
+    # Setup error logging
+    log_file = REPO_ROOT / "logs" / f"backfill_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    log_file.parent.mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
+    logging.info(f"Backfill started. Log file: {log_file}")
+
     if not is_firebase_available():
+        logging.error("Firebase not available")
         print("Error: Firebase not available")
         sys.exit(1)
 
@@ -181,7 +196,10 @@ def main():
                     "pr_number": pr.get("number"),
                     "lines": pr.get("additions", 0),
                     "author": pr.get("author", {}).get("login"),
+                    "created_at": pr.get("createdAt"),
                     "merged_at": pr.get("mergedAt"),
+                    "closed_at": pr.get("closedAt"),
+                    "state": pr.get("state"),
                     "title": title,
                 }
             )
@@ -225,13 +243,16 @@ def main():
             # Create run entry
             run_entry = {
                 "slug": run_info["slug"],
-                "timestamp": run_info["merged_at"] or datetime.now().isoformat() + "Z",
+                "timestamp": run_info["merged_at"] or run_info["created_at"] or datetime.now().isoformat() + "Z",
                 "command": "auto",
                 "status": "success",
                 "lines_migrated": run_info["lines"],
                 "pr_url": run_info["pr_url"],
                 "pr_author": run_info["author"],
-                "pr_state": "MERGED",
+                "pr_state": run_info.get("state", "MERGED"),
+                "created_at": run_info.get("created_at"),
+                "merged_at": run_info.get("merged_at"),
+                "closed_at": run_info.get("closed_at"),
                 "historical": True,
                 "source": "github_backfill",
                 "duration_seconds": 300.0,
@@ -246,10 +267,16 @@ def main():
                 print(f"  Added {added}/{len(missing_runs)}...")
 
         except Exception as e:
-            print(f"  Error adding {run_info['slug']}: {e}")
+            error_msg = f"Error adding {run_info['slug']}: {e}"
+            print(f"  {error_msg}")
+            logging.error(error_msg, exc_info=True)
             errors += 1
 
-    print(f"\nComplete! Added {added} runs, {errors} errors.")
+    summary = f"Complete! Added {added} runs, {errors} errors."
+    print(f"\n{summary}")
+    logging.info(summary)
+    if errors > 0:
+        logging.warning(f"Backfill completed with {errors} errors. Check log for details: {log_file}")
 
 
 if __name__ == "__main__":

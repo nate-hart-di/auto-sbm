@@ -40,6 +40,28 @@ REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
 STATS_DIR = REPO_ROOT / "stats"
 
 
+def _get_completion_state(run: Dict[str, Any]) -> str:
+    """Return PR completion state with a safe fallback."""
+    try:
+        from sbm.utils.tracker import get_pr_completion_state
+
+        return get_pr_completion_state(run)
+    except Exception:
+        return "complete" if run.get("merged_at") else "unknown"
+
+
+def _get_effective_timestamp(run: Dict[str, Any]) -> str | None:
+    """Select the best timestamp for a run based on PR completion state."""
+    completion_state = _get_completion_state(run)
+    if completion_state == "complete":
+        return run.get("merged_at") or run.get("timestamp")
+    if completion_state == "in_review":
+        return run.get("created_at") or run.get("timestamp")
+    if completion_state == "closed":
+        return run.get("closed_at") or run.get("timestamp")
+    return run.get("merged_at") or run.get("timestamp")
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Report SBM stats to Slack")
@@ -91,44 +113,13 @@ def load_all_stats() -> tuple[List[Dict[str, Any]], Dict[str, set]]:
         tuple: (all_runs_list, user_migrations_dict)
         user_migrations_dict maps user_id -> set of migrated slugs (for accurate site counts)
     """
-    try:
-        from sbm.utils.tracker import get_global_reporting_data
+    from sbm.utils.firebase_sync import is_firebase_available
+    from sbm.utils.tracker import get_global_reporting_data
 
-        return get_global_reporting_data()
-    except Exception as e:
-        print(f"Warning: Failed to load global reporting data: {e}", file=sys.stderr)
+    if not is_firebase_available():
+        raise RuntimeError("Firebase unavailable; Slack reports must be database-driven.")
 
-    all_runs = []
-    user_migrations = {}
-
-    fallback_dirs = [STATS_DIR, REPO_ROOT / "stats" / "archive"]
-    if not any(d.exists() for d in fallback_dirs):
-        return all_runs, user_migrations
-
-    for stats_dir in fallback_dirs:
-        for stats_file in stats_dir.glob("*.json"):
-            if stats_file.name.startswith("."):
-                continue
-
-            try:
-                with stats_file.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    user_id = data.get("user", stats_file.stem)
-                    runs = data.get("runs", [])
-                    migrations = set(data.get("migrations", []))
-
-                    # Store total distinct migrations for this user
-                    user_migrations[user_id] = migrations
-
-                    # Tag runs with user_id for attribution
-                    for run in runs:
-                        run["_user"] = user_id
-
-                    all_runs.extend(runs)
-            except Exception as e:
-                print(f"Warning: Failed to read {stats_file}: {e}", file=sys.stderr)
-
-    return all_runs, user_migrations
+    return get_global_reporting_data()
 
 
 def get_days_from_period(period: str) -> int:
@@ -158,7 +149,7 @@ def filter_runs_by_date(runs: List[Dict[str, Any]], days_or_period: str) -> List
     filtered = []
 
     for run in runs:
-        ts_str = run.get("timestamp")
+        ts_str = _get_effective_timestamp(run)
         if not ts_str:
             continue
 
@@ -208,7 +199,7 @@ def filter_runs_by_previous_calendar_day(
 
     filtered = []
     for run in runs:
-        ts_str = run.get("timestamp")
+        ts_str = _get_effective_timestamp(run)
         if not ts_str:
             continue
         try:
@@ -302,11 +293,53 @@ def calculate_metrics(
 ) -> Dict[str, Any]:
     """Calculate aggregate metrics."""
     total_runs = len(runs)
-    success_runs = [r for r in runs if r.get("status") == "success"]
-    success_count = len(success_runs)
 
-    lines_migrated = sum(r.get("lines_migrated", 0) for r in success_runs)
-    automation_seconds = sum(r.get("automation_seconds", 0) for r in success_runs)
+    def is_complete_run(run: Dict[str, Any]) -> bool:
+        if run.get("status") != "success":
+            return False
+        return _get_completion_state(run) == "complete"
+
+    def _run_sort_key(run: Dict[str, Any]) -> datetime:
+        ts = run.get("merged_at") or run.get("timestamp") or ""
+        if ts.endswith("+00:00Z"):
+            ts = ts[:-1]
+        elif ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(ts)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed
+        except ValueError:
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    complete_runs = [r for r in runs if is_complete_run(r)]
+    unique_complete_by_slug: Dict[str, Dict[str, Any]] = {}
+    for run in complete_runs:
+        slug = run.get("slug")
+        if not slug:
+            continue
+        existing = unique_complete_by_slug.get(slug)
+        if not existing or _run_sort_key(run) > _run_sort_key(existing):
+            unique_complete_by_slug[slug] = run
+
+    unique_complete_runs = list(unique_complete_by_slug.values())
+    success_count = len(unique_complete_runs)
+
+    in_review_count = 0
+    closed_count = 0
+    unknown_count = 0
+    for run in runs:
+        state = _get_completion_state(run)
+        if state == "in_review":
+            in_review_count += 1
+        elif state == "closed":
+            closed_count += 1
+        elif state == "unknown":
+            unknown_count += 1
+
+    lines_migrated = sum(r.get("lines_migrated", 0) for r in unique_complete_runs)
+    automation_seconds = sum(r.get("automation_seconds", 0) for r in unique_complete_runs)
 
     # Calculate Sites Migrated (Unique Slugs)
     if is_all_time:
@@ -317,7 +350,7 @@ def calculate_metrics(
         sites_migrated = len(all_unique_slugs)
     else:
         # For filtered periods, we must rely on the filtered runs
-        sites_migrated = len({r.get("slug") for r in success_runs if r.get("slug")})
+        sites_migrated = len({r.get("slug") for r in unique_complete_runs if r.get("slug")})
 
     # Mathematical time saved: 1 hour per 800 lines (SBM standard metric)
     time_saved_hours = lines_migrated / 800.0
@@ -335,13 +368,13 @@ def calculate_metrics(
             }
 
         # Add run stats just for display if we have them
-        for r in success_runs:
+        for r in unique_complete_runs:
             u = r.get("_user", "unknown")
             if u in contributors:
                 contributors[u]["lines"] += r.get("lines_migrated", 0)
     else:
         # Rank by Sites Migrated (within period)
-        for r in success_runs:
+        for r in unique_complete_runs:
             u = r.get("_user", "unknown")
             slug = r.get("slug")
             lines = r.get("lines_migrated", 0)
@@ -373,11 +406,14 @@ def calculate_metrics(
         "time_saved_hours": round(time_saved_hours, 1),
         "automation_hours": round(automation_seconds / 3600, 2),
         "top_contributors": top_contributors,
+        "in_review_count": in_review_count,
+        "closed_count": closed_count,
+        "unknown_count": unknown_count,
     }
 
 
 def calculate_global_metrics_all_time() -> Dict[str, Any]:
-    """Calculate all-time global metrics using Firebase runs + legacy migrations."""
+    """Calculate all-time global metrics using Firebase runs."""
     all_runs, user_migrations = load_all_stats()
     return calculate_metrics(all_runs, user_migrations, is_all_time=True)
 
@@ -387,6 +423,8 @@ def format_slack_payload(
     period: str,
     context_label: str | None = None,
     top_n: int | None = None,
+    current_in_review_count: int | None = None,
+    current_in_review_links: List[str] | None = None,
 ) -> Dict[str, Any]:
     """Format metrics into a Slack Block Kit payload."""
     now = datetime.now(timezone.utc)
@@ -478,6 +516,41 @@ def format_slack_payload(
             ],
         }
     )
+    blocks.append(
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Completed (Merged)*\n{metrics['success_count']}"},
+                {"type": "mrkdwn", "text": f"*In Review (Period)*\n{metrics['in_review_count']}"},
+            ],
+        }
+    )
+
+    if current_in_review_count is not None:
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"Currently in review (all time): *{current_in_review_count}*",
+                    }
+                ],
+            }
+        )
+
+    if current_in_review_links:
+        blocks.append({"type": "divider"})
+        link_lines = [f"- <{url}|PR>" for url in current_in_review_links]
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*Open PRs (In Review)*\n" + "\n".join(link_lines),
+                },
+            }
+        )
 
     # 5. Top Contributors (Optional)
     if top_n and metrics["top_contributors"]:
@@ -566,8 +639,11 @@ def main() -> None:
     args = parse_args()
 
     # 1. Load Data
-    # 1. Load Data
-    all_runs, user_migrations = load_all_stats()
+    try:
+        all_runs, user_migrations = load_all_stats()
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # 2. Filter
     filtered_runs = filter_runs_by_date(all_runs, args.period)
@@ -579,11 +655,21 @@ def main() -> None:
     else:
         metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
+    current_in_review_runs = [
+        r for r in all_runs if _get_completion_state(r) == "in_review" and r.get("pr_url")
+    ]
+    current_in_review_count = len(
+        [r for r in all_runs if _get_completion_state(r) == "in_review"]
+    )
+    current_in_review_links = [r.get("pr_url") for r in current_in_review_runs][:10]
+
     # 4. Format
     payload = format_slack_payload(
         metrics,
         args.period,
         context_label="Auto-SBM report • CLI",
+        current_in_review_count=current_in_review_count,
+        current_in_review_links=current_in_review_links,
     )
 
     # 5. Branding

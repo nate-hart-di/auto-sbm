@@ -1239,13 +1239,19 @@ PR: {pr_url}"""
 
             logger.debug(f"Successfully created PR: {pr_url}")
 
+            # Fetch PR metadata immediately after creation
+            from sbm.utils.github_pr import fetch_pr_metadata
+
+            pr_metadata = fetch_pr_metadata(pr_url)
+
             # Open the PR in browser after creation
             self._open_pr_in_browser(pr_url)
 
             # Copy Salesforce message to clipboard
             self._copy_salesforce_message_to_clipboard(what_section, pr_url)
 
-            return {
+            # Build response with complete PR metadata
+            result = {
                 "success": True,
                 "pr_url": pr_url,
                 "branch": safe_current_branch,
@@ -1253,6 +1259,20 @@ PR: {pr_url}"""
                 "body": pr_body,
                 "salesforce_message": what_section,
             }
+
+            # Add PR metadata if successfully fetched
+            if pr_metadata:
+                result.update(
+                    {
+                        "pr_author": pr_metadata.get("author"),
+                        "pr_state": pr_metadata.get("state"),
+                        "created_at": pr_metadata.get("created_at"),
+                        "merged_at": pr_metadata.get("merged_at"),
+                        "closed_at": pr_metadata.get("closed_at"),
+                    }
+                )
+
+            return result
 
         except Exception as e:
             error_str = str(e)
@@ -1264,12 +1284,18 @@ PR: {pr_url}"""
                     safe_head_branch = head or branch_name or "main"
                     existing_pr_url = self._handle_existing_pr(error_str, safe_head_branch)
                     logger.info(f"PR already exists: {existing_pr_url}")
+
+                    # Fetch metadata for existing PR
+                    from sbm.utils.github_pr import fetch_pr_metadata
+
+                    pr_metadata = fetch_pr_metadata(existing_pr_url)
+
                     # Still copy Salesforce message since migration likely completed
                     pr_content = self._build_stellantis_pr_content(slug, safe_head_branch, {})
                     what_section = pr_content["what_section"]
                     self._copy_salesforce_message_to_clipboard(what_section, existing_pr_url)
 
-                    return {
+                    result = {
                         "success": True,
                         "pr_url": existing_pr_url,
                         "branch": safe_head_branch,
@@ -1277,6 +1303,20 @@ PR: {pr_url}"""
                         "existing": True,
                         "salesforce_message": what_section,
                     }
+
+                    # Add PR metadata if successfully fetched
+                    if pr_metadata:
+                        result.update(
+                            {
+                                "pr_author": pr_metadata.get("author"),
+                                "pr_state": pr_metadata.get("state"),
+                                "created_at": pr_metadata.get("created_at"),
+                                "merged_at": pr_metadata.get("merged_at"),
+                                "closed_at": pr_metadata.get("closed_at"),
+                            }
+                        )
+
+                    return result
                 except Exception as handle_e:
                     logger.error(f"Failed to handle existing PR: {handle_e}")
 

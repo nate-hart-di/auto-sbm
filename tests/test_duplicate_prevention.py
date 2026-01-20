@@ -10,11 +10,13 @@ from sbm.utils.tracker import get_all_migrated_slugs
 MOCK_FIREBASE_USERS = {
     "user1": {
         "runs": {
-            "run1": {"slug": "site-a", "status": "success"},
+            "run1": {"slug": "site-a", "status": "success", "merged_at": "2026-01-10T10:00:00Z"},
             "run2": {"slug": "site-b", "status": "failed"},  # Should not be counted
         }
     },
-    "user2": {"runs": {"run3": {"slug": "site-c", "status": "success"}}},
+    "user2": {
+        "runs": {"run3": {"slug": "site-c", "status": "success", "pr_state": "MERGED"}}
+    },
 }
 
 

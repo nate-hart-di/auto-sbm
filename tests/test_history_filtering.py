@@ -5,13 +5,14 @@ Tests cover:
 - Period-based date filtering (day, week, month, N days)
 - User filtering
 - Limit/pagination
-- merged_at vs timestamp preference
+- PR state-aware date preference (merged_at/created_at/closed_at)
 - Edge cases and error handling
 """
 
 import pytest
 from datetime import datetime, timedelta, timezone
 from sbm.utils.tracker import filter_runs
+from sbm.utils.tracker import _dedupe_runs_for_display
 
 
 class TestFilterRunsByPeriod:
@@ -97,8 +98,8 @@ class TestFilterRunsByDate:
         assert result[0]["slug"] == "b"
 
 
-class TestMergedAtPreference:
-    """Test that merged_at is preferred over timestamp for filtering."""
+class TestDatePreferenceByState:
+    """Test that PR state-aware dates are preferred over timestamp for filtering."""
 
     def test_merged_at_used_for_filtering(self):
         """merged_at should be used for date filtering when available."""
@@ -125,8 +126,48 @@ class TestMergedAtPreference:
         result = filter_runs(runs, since="2024-01-10")
         assert len(result) == 1
 
+    def test_created_at_used_for_in_review(self):
+        """created_at should be used for filtering open PRs."""
+        runs = [
+            {
+                "timestamp": "2024-01-01T10:00:00+00:00",
+                "created_at": "2024-01-12T10:00:00+00:00",
+                "pr_state": "OPEN",
+                "slug": "open-run",
+            },
+        ]
+        result = filter_runs(runs, since="2024-01-10")
+        assert len(result) == 1
+
+    def test_closed_at_used_for_closed(self):
+        """closed_at should be used for filtering closed PRs."""
+        runs = [
+            {
+                "timestamp": "2024-01-01T10:00:00+00:00",
+                "created_at": "2024-01-10T10:00:00+00:00",
+                "closed_at": "2024-01-18T10:00:00+00:00",
+                "pr_state": "CLOSED",
+                "slug": "closed-run",
+            },
+        ]
+        result = filter_runs(runs, since="2024-01-15")
+        assert len(result) == 1
+
+    def test_closed_state_without_closed_at(self):
+        """PRs marked CLOSED without closed_at should still be closed."""
+        runs = [
+            {
+                "timestamp": "2024-01-18T10:00:00+00:00",
+                "created_at": "2024-01-10T10:00:00+00:00",
+                "pr_state": "CLOSED",
+                "slug": "legacy-closed",
+            },
+        ]
+        result = filter_runs(runs, since="2024-01-15")
+        assert len(result) == 1
+
     def test_sorting_uses_merged_at(self):
-        """Runs should be sorted by merged_at (most recent first)."""
+        """Runs should be sorted by state-aware dates (most recent first)."""
         runs = [
             {
                 "timestamp": "2024-01-01T10:00:00+00:00",
@@ -138,10 +179,15 @@ class TestMergedAtPreference:
                 "merged_at": "2024-01-10T10:00:00+00:00",
                 "slug": "b",
             },
-            {"timestamp": "2024-01-10T10:00:00+00:00", "slug": "c"},  # No merged_at
+            {
+                "timestamp": "2024-01-10T10:00:00+00:00",
+                "created_at": "2024-01-19T10:00:00+00:00",
+                "pr_state": "OPEN",
+                "slug": "c",
+            },
         ]
         result = filter_runs(runs)
-        # Order should be: a (Jan 20), c (Jan 10), b (Jan 10)
+        # Order should be: a (Jan 20), c (Jan 19), b (Jan 10)
         assert result[0]["slug"] == "a"
 
 
@@ -158,6 +204,17 @@ class TestFilterRunsByUser:
         result = filter_runs(runs, user="alice")
         assert len(result) == 2
         assert all(r["_user"] == "alice" for r in result)
+
+    def test_filter_by_pr_author(self):
+        """Filter runs by pr_author when _user is different or missing."""
+        runs = [
+            {"_user": "firebase-alice", "pr_author": "alice", "slug": "a"},
+            {"_user": "firebase-bob", "pr_author": "bob", "slug": "b"},
+            {"pr_author": "alice", "slug": "c"},
+        ]
+        result = filter_runs(runs, user="alice")
+        assert len(result) == 2
+        assert all(r.get("pr_author") == "alice" for r in result)
 
     def test_filter_by_user_case_insensitive(self):
         """User filter should be case insensitive."""
@@ -264,3 +321,28 @@ class TestEdgeCases:
         runs = [{"slug": "a"}, {"slug": "b"}]
         result = filter_runs(runs)
         assert len(result) == 2
+
+
+class TestDedupeRunsForDisplay:
+    def test_dedupe_keeps_most_recent_per_slug(self):
+        runs = [
+            {
+                "slug": "dup-slug",
+                "status": "success",
+                "merged_at": "2026-01-01T10:00:00+00:00",
+            },
+            {
+                "slug": "dup-slug",
+                "status": "success",
+                "merged_at": "2026-01-03T10:00:00+00:00",
+            },
+            {
+                "slug": "unique",
+                "status": "success",
+                "merged_at": "2026-01-02T10:00:00+00:00",
+            },
+        ]
+        result = _dedupe_runs_for_display(runs)
+        slugs = [r["slug"] for r in result if r.get("slug")]
+        assert slugs.count("dup-slug") == 1
+        assert "unique" in slugs
