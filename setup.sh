@@ -519,6 +519,25 @@ function install_auto_sbm() {
 
 install_auto_sbm
 
+# --- Verify rich-click is installed ---
+function ensure_rich_click() {
+  log "Verifying rich-click dependency..."
+
+  # Make sure we're in the virtual environment
+  source .venv/bin/activate
+
+  if ! python -c "import rich_click" &>/dev/null; then
+    warn "rich-click not found; installing..."
+    if [ "$PACKAGE_MANAGER" = "uv" ]; then
+      retry_command "uv pip install rich-click" "rich-click installation"
+    else
+      retry_command "python -m pip install rich-click" "rich-click installation"
+    fi
+  fi
+}
+
+ensure_rich_click
+
 echo ""
 echo "Step 5.5/7: Installing pre-commit hooks..."
 
@@ -595,15 +614,15 @@ fi
 
 # Validate critical modules are available (quick check for common issues)
 # We use exit code instead of string matching to allow for warnings during import
-if ! PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
-    IMPORT_ERROR=\$(PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+if ! PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" &>/dev/null; then
+    IMPORT_ERROR=\$(PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" 2>&1)
     echo "WARNING  Environment health check failed: \$IMPORT_ERROR" >&2
     echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
     cd "$PROJECT_ROOT" && bash setup.sh
 
     # Re-check after setup
-    if ! PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
-        IMPORT_ERROR_2=\$(PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+    if ! PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" &>/dev/null; then
+        IMPORT_ERROR_2=\$(PYTHONPATH="$PROJECT_ROOT" "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" 2>&1)
         echo "❌ Setup failed after retry: \$IMPORT_ERROR_2" >&2
         echo "Please run manually: cd $PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
         exit 1

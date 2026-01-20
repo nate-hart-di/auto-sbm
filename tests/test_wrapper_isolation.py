@@ -159,7 +159,7 @@ class TestWrapperScriptGeneration:
 
             written_content = mock_file().write.call_args[0][0]
             # Should check for critical imports
-            assert "import pydantic, click, rich, colorama, sbm.cli" in written_content
+            assert "import pydantic, click, rich, colorama, rich_click, sbm.cli" in written_content
 
     def test_regenerate_wrapper_handles_exceptions_gracefully(self):
         """Verify wrapper regeneration doesn't crash on errors."""

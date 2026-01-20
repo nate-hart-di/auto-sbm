@@ -19,19 +19,39 @@ from pathlib import Path
 
 try:
     import rich_click as click  # type: ignore
+
     click.rich_click.SHOW_ARGUMENTS = True
     click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
     click.rich_click.SHOW_METAVARS_COLUMN = False
     click.rich_click.SHOW_OPTION_DEFAULTS = True
     click.rich_click.USE_RICH_MARKUP = True
+    click.rich_click.STYLE_COMMANDS_TABLE_COLUMN_WIDTH_RATIO = (1, 3)
+    click.rich_click.COMMAND_GROUPS = {
+        "sbm": [
+            {
+                "name": "Migration Workflow",
+                "commands": ["auto", "migrate", "post-migrate", "reprocess"],
+            },
+            {
+                "name": "PR Management",
+                "commands": ["pr"],
+            },
+            {
+                "name": "Statistics & History",
+                "commands": ["stats", "get-slugs"],
+            },
+            {
+                "name": "Environment & Setup",
+                "commands": ["setup", "update", "doctor", "auto-update", "version"],
+            },
+            {
+                "name": "Testing & Validation",
+                "commands": ["validate", "test-compilation"],
+            },
+        ],
+    }
     click.rich_click.OPTION_GROUPS = {
         "sbm stats": [
-            {"name": "Views", "options": ["--team", "--user"]},
-            {"name": "History & filters", "options": ["--history", "--since", "--limit", "--all"]},
-            {"name": "Output", "options": ["--list"]},
-            {"name": "Other", "options": ["--verbose", "--help"]},
-        ],
-        "stats": [
             {"name": "Views", "options": ["--team", "--user"]},
             {"name": "History & filters", "options": ["--history", "--since", "--limit", "--all"]},
             {"name": "Output", "options": ["--list"]},
@@ -98,6 +118,7 @@ REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip", "op"]
 REQUIRED_PYTHON_PACKAGES = [
     "click",
     "rich",
+    "rich-click",
     "gitpython",
     "pyyaml",
     "jinja2",
@@ -163,6 +184,7 @@ def is_env_healthy() -> bool:
         "pytest": "pytest",
         "click": "click",
         "rich": "rich",
+        "rich-click": "rich_click",
         "jinja2": "jinja2",
         "requests": "requests",
         "colorama": "colorama",
@@ -416,15 +438,15 @@ if [ ! -d "$PROJECT_ROOT" ]; then
 fi
 
 # Validate critical modules are available (quick check for common issues)
-if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
-    IMPORT_ERROR=$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" &>/dev/null; then
+    IMPORT_ERROR=$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" 2>&1)
     echo "WARNING  Environment health check failed: $IMPORT_ERROR" >&2
     echo "WARNING  Re-running setup.sh to fix missing dependencies..." >&2
     cd "$PROJECT_ROOT" && bash setup.sh
 
     # Re-check after setup
-    if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" &>/dev/null; then
-        IMPORT_ERROR_2=$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, sbm.cli" 2>&1)
+    if ! "$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" &>/dev/null; then
+        IMPORT_ERROR_2=$("$VENV_PYTHON" -c "import pydantic, click, rich, colorama, rich_click, sbm.cli" 2>&1)
         echo "❌ Setup failed after retry: $IMPORT_ERROR_2" >&2
         echo "Please run manually: cd $PROJECT_ROOT && (.venv/bin/pip install -e . || .venv/bin/pip3 install -e .)" >&2
         exit 1
@@ -618,12 +640,12 @@ def check_and_run_daily_update():
 @click.option("--config", "config_path", default="config.json", help="Path to config file.")
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool, yes: bool, config_path: str) -> None:
-    """Auto-SBM: Automated Site Builder Migration Tool
+    """[bold blue]Auto-SBM[/]: Automated Site Builder Migration Tool
 
-    The main command for SBM migration with GitHub PR creation support.
-    By default, prompts to create PRs with default reviewers (carsdotcom/fe-dev)
-    and labels (fe-dev). Use 'sbm pr <theme-name>' for manual PR creation or
-    --no-create-pr to skip.
+    Migrate dealer themes to Site Builder format with automated SCSS
+    transformation, validation, and GitHub PR creation.
+
+    [dim]Run 'sbm COMMAND --help' for command-specific help.[/dim]
     """
     from sbm.config import get_settings
 
@@ -1030,18 +1052,7 @@ def _get_field(result: MigrationResult | dict, field: str):
     return result.get(field)
 
 
-@cli.command(
-    help=(
-        "Show migration stats from Firebase (personal or team).\n"
-        "\n"
-        "Examples:\n"
-        "  sbm stats\n"
-        "  sbm stats --history --since 7\n"
-        "  sbm stats --team --since 7\n"
-        "  sbm stats --team --history --all\n"
-        "  sbm stats --since 30 --user abondDealerInspire\n"
-    )
-)
+@cli.command()
 @click.argument("theme_names", nargs=-1, required=True)
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
 @click.option("--skip-maps", is_flag=True, help="Skip map components migration.")
@@ -1049,7 +1060,17 @@ def _get_field(result: MigrationResult | dict, field: str):
 def migrate(
     ctx: click.Context, theme_names: tuple[str, ...], force_reset: bool, skip_maps: bool
 ) -> None:
-    """Migrate one or more dealer theme SCSS files to Site Builder format."""
+    """Migrate dealer theme SCSS files to Site Builder format.
+
+    Transforms SCSS from dealer themes into Site Builder compatible files,
+    processing variables, mixins, and style patterns. Pauses for manual
+    review before finalizing.
+
+    [bold cyan]Examples:[/]
+        sbm migrate mydealer
+        sbm migrate dealer1 dealer2 dealer3
+        sbm migrate @slugs.txt --force-reset
+    """
     expanded_themes = _expand_theme_names(theme_names)
     if not expanded_themes:
         logger.error("No valid theme names provided.")
@@ -1141,7 +1162,16 @@ def auto(
     skip_post_migration: bool,
     verbose_docker: bool,
 ) -> None:
-    """Run the full automated migration for one or more themes."""
+    """Run the full automated migration workflow for one or more themes.
+
+    Handles the complete migration pipeline: SCSS transformation, Docker
+    compilation, error recovery, Git operations, and PR creation.
+
+    [bold cyan]Examples:[/]
+        sbm auto mydealer
+        sbm auto dealer1 dealer2 --skip-post-migration
+        sbm auto @slugs.txt -y
+    """
     from sbm.config import get_settings
 
     expanded_themes = _expand_theme_names(theme_names)
@@ -1613,7 +1643,17 @@ def stats(
     team: bool,
     show_all: bool,
 ) -> None:
-    """Show migration stats from Firebase (personal or team)."""
+    """Display migration statistics and impact metrics.
+
+    Shows your personal migration stats from Firebase, or team-wide
+    statistics with the --team flag.
+
+    [bold cyan]Examples:[/]
+        sbm stats                      Your personal stats
+        sbm stats --history            Show run history table
+        sbm stats --team --since 7     Team stats for last 7 days
+        sbm stats --user johndoe       Stats for specific user
+    """
     if verbose:
         logger.setLevel(logging.DEBUG)
     if show_all:
@@ -2026,6 +2066,7 @@ def stats(
         unknown_count = sum(1 for r in runs if get_pr_completion_state(r) == "unknown")
         if unknown_count > 0:
             from rich.panel import Panel
+
             warning_panel = Panel(
                 f"[yellow]⚠️  {unknown_count} run(s) missing PR timestamp data.[/yellow]\n"
                 f"[dim]Stats may be incomplete. Run:[/dim] [cyan]python scripts/migrate_pr_timestamps.py[/cyan]",
@@ -2519,6 +2560,27 @@ def _update_dependencies() -> None:
         click.echo("✅ Auto-sbm package reinstalled successfully.")
     except subprocess.CalledProcessError as e:
         click.echo(f"⚠️  Warning: Failed to reinstall auto-sbm package: {e}")
+
+    # Ensure rich-click is installed (sbm.cli falls back to click if missing)
+    try:
+        subprocess.run(
+            [sys.executable, "-c", "import rich_click"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        click.echo("⚠️  rich-click missing; installing...")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "rich-click"],
+                cwd=REPO_ROOT,
+                check=True,
+            )
+            click.echo("✅ rich-click installed.")
+        except subprocess.CalledProcessError as e:
+            click.echo(f"⚠️  Warning: Failed to install rich-click: {e}")
 
 
 def _ensure_devtools_cli() -> None:
