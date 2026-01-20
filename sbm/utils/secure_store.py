@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from sbm.utils.logger import logger
 
 SERVICE_NAME = "auto-sbm"
 
+def _keyring_enabled() -> bool:
+    """Return True only when explicitly enabled to avoid OS keychain prompts."""
+    flag = os.getenv("SBM_ENABLE_KEYRING", "").strip().lower()
+    return flag in {"1", "true", "yes", "on"}
+
 
 def _get_keyring():
+    if not _keyring_enabled():
+        return None
     try:
         import keyring
 
