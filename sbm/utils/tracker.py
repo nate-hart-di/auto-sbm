@@ -448,19 +448,89 @@ def get_migration_stats(
             "user_id": _get_user_id(),
         }
 
-    # If team stats requested, try to get them from Firebase first
+    # If team stats requested, handle filtered vs all-time separately
     if team:
+        if since or user:
+            all_runs, _ = get_global_reporting_data()
+            team_runs = filter_runs(
+                all_runs,
+                limit=None,
+                since=since,
+                until=until,
+                user=user,
+            )
+            complete_runs = [
+                r
+                for r in team_runs
+                if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+            ]
+
+            def _run_effective_date(run: dict) -> datetime:
+                completion_state = get_pr_completion_state(run)
+                if completion_state == "complete":
+                    ts_val = run.get("merged_at") or run.get("timestamp") or ""
+                elif completion_state == "in_review":
+                    ts_val = run.get("created_at") or run.get("timestamp") or ""
+                elif completion_state == "closed":
+                    ts_val = run.get("closed_at") or run.get("timestamp") or ""
+                else:
+                    ts_val = run.get("merged_at") or run.get("timestamp") or ""
+
+                if ts_val.endswith("+00:00Z"):
+                    ts_val = ts_val[:-1]
+                elif ts_val.endswith("Z"):
+                    ts_val = ts_val[:-1] + "+00:00"
+
+                try:
+                    parsed = datetime.fromisoformat(ts_val)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    return parsed
+                except ValueError:
+                    return datetime.min.replace(tzinfo=timezone.utc)
+
+            unique_complete_by_slug: dict[str, dict] = {}
+            for run in complete_runs:
+                slug = run.get("slug")
+                if not slug:
+                    continue
+                existing = unique_complete_by_slug.get(slug)
+                if not existing or _run_effective_date(run) > _run_effective_date(existing):
+                    unique_complete_by_slug[slug] = run
+
+            total_lines_migrated = sum(
+                r.get("lines_migrated", 0) for r in unique_complete_by_slug.values()
+            )
+            user_counts: dict[str, set] = {}
+            for run in unique_complete_by_slug.values():
+                author = run.get("pr_author") or run.get("_user") or "unknown"
+                user_counts.setdefault(author, set()).add(run.get("slug"))
+
+            return {
+                "team_stats": {
+                    "total_users": len(user_counts),
+                    "total_migrations": len(unique_complete_by_slug),
+                    "total_lines_migrated": total_lines_migrated,
+                    "total_runs": len(unique_complete_by_slug),
+                    "total_time_saved_h": round(total_lines_migrated / 800.0, 1)
+                    if total_lines_migrated
+                    else 0.0,
+                    "top_contributors": sorted(
+                        ((user_id, len(slugs)) for user_id, slugs in user_counts.items()),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:3],
+                    "source": "firebase",
+                },
+                "source": "firebase",
+                "user_id": _get_user_id(),
+            }
+
         team_stats = fetch_team_stats()
         if team_stats:
-            # If successful, return these (wrapped to match expected structure if needed,
-            # or just as 'global_metrics' override)
-
-            # For the CLI, if --team is passed, it likely wants the global view.
-            # We'll attach it to a standard response structure
             return {
                 "team_stats": team_stats,
                 "source": "firebase",
-                # Include local data for context
                 "user_id": _get_user_id(),
             }
 

@@ -100,3 +100,34 @@ def test_get_migration_stats_fallback(mocker):
     result = get_migration_stats(team=True)
 
     assert "error" in result
+
+
+def test_get_migration_stats_team_since_filters(mocker):
+    """Ensure team stats with since filter uses run data instead of cached team stats."""
+    mocker.patch("sbm.utils.tracker.fetch_team_stats", side_effect=AssertionError("should not call"))
+    mocker.patch("sbm.utils.tracker._get_user_id", return_value="test_user")
+
+    run_recent = {
+        "status": "success",
+        "slug": "site-1",
+        "lines_migrated": 800,
+        "merged_at": "2026-01-16T10:00:00+00:00",
+        "pr_state": "MERGED",
+        "pr_author": "user_a",
+    }
+    run_old = {
+        "status": "success",
+        "slug": "site-2",
+        "lines_migrated": 1200,
+        "merged_at": "2025-12-01T10:00:00+00:00",
+        "pr_state": "MERGED",
+        "pr_author": "user_b",
+    }
+
+    mocker.patch("sbm.utils.tracker.get_global_reporting_data", return_value=([run_recent, run_old], {}))
+    mocker.patch("sbm.utils.tracker.filter_runs", return_value=[run_recent])
+
+    result = get_migration_stats(team=True, since="7")
+
+    assert result["source"] == "firebase"
+    assert result["team_stats"]["total_migrations"] == 1
