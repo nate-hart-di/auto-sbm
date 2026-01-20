@@ -1,0 +1,5 @@
+[projects."/Users/nathanhart/auto-sbm"]
+trust_level = "trusted"
+
+[notice]
+hide_full_access_warning = true
