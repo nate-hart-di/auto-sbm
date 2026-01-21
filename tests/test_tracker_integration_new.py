@@ -11,11 +11,17 @@ def mock_tracker_file(tmp_path):
 
 
 @patch("sbm.utils.tracker._get_user_id", return_value="test-user")
+@patch("sbm.utils.tracker._get_github_login", return_value="test-user")
 @patch("sbm.utils.firebase_sync.FirebaseSync.push_run", return_value=True)
 @patch("sbm.utils.tracker.is_firebase_available")
 @patch("sbm.utils.tracker.is_official_slug", return_value=True)
 def test_record_run_with_metrics_and_firebase(
-    mock_is_official, mock_is_available, mock_push_run, mock_user_id, mock_tracker_file
+    mock_is_official,
+    mock_is_available,
+    mock_push_run,
+    mock_github_login,
+    mock_user_id,
+    mock_tracker_file,
 ):
     # Setup mocks
     mock_is_available.return_value = True

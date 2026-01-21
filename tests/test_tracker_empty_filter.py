@@ -31,8 +31,18 @@ def mock_slug_validation():
         yield mock
 
 
+@pytest.fixture
+def mock_github_login():
+    with patch("sbm.utils.tracker._get_github_login", return_value="test-user") as mock:
+        yield mock
+
+
 def test_record_run_skips_empty_migration_sync(
-    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io, mock_slug_validation
+    mock_firebase_settings,
+    mock_is_firebase_available,
+    mock_tracker_io,
+    mock_slug_validation,
+    mock_github_login,
 ):
     """Verify that a run with 0 lines migrated is skipped and marked as skipped_empty."""
 
@@ -65,7 +75,11 @@ def test_record_run_skips_empty_migration_sync(
 
 
 def test_record_run_syncs_valid_migration(
-    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io, mock_slug_validation
+    mock_firebase_settings,
+    mock_is_firebase_available,
+    mock_tracker_io,
+    mock_slug_validation,
+    mock_github_login,
 ):
     """Verify that a run with >0 lines migrated is synced."""
 
@@ -92,3 +106,56 @@ def test_record_run_syncs_valid_migration(
         data = tracker._read_tracker()
         last_run = data["runs"][-1]
         assert last_run["sync_status"] == "synced"
+
+
+def test_record_run_missing_github_auth_sets_status(
+    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io, mock_slug_validation
+):
+    """Verify missing GitHub auth blocks sync and marks run accordingly."""
+    with patch("sbm.utils.tracker._get_github_login", return_value=None):
+        with patch("sbm.utils.tracker.FirebaseSync") as MockFirebaseSync:
+            mock_sync_instance = MockFirebaseSync.return_value
+
+            tracker.record_run(
+                slug="test-missing-auth",
+                command="migrate",
+                status="success",
+                duration=10.0,
+                automation_time=5.0,
+                lines_migrated=100,
+                files_created_count=4,
+                scss_line_count=100,
+            )
+
+            mock_sync_instance.push_run.assert_not_called()
+
+            data = tracker._read_tracker()
+            last_run = data["runs"][-1]
+            assert last_run["sync_status"] == "missing_github_auth"
+
+
+def test_record_run_author_mismatch_blocks_sync(
+    mock_firebase_settings, mock_is_firebase_available, mock_tracker_io, mock_slug_validation
+):
+    """Verify pr_author mismatch blocks Firebase sync."""
+    with patch("sbm.utils.tracker._get_github_login", return_value="user-b"):
+        with patch("sbm.utils.tracker.FirebaseSync") as MockFirebaseSync:
+            mock_sync_instance = MockFirebaseSync.return_value
+
+            tracker.record_run(
+                slug="test-mismatch",
+                command="migrate",
+                status="success",
+                duration=10.0,
+                automation_time=5.0,
+                lines_migrated=100,
+                files_created_count=4,
+                scss_line_count=100,
+                pr_author="user-a",
+            )
+
+            mock_sync_instance.push_run.assert_not_called()
+
+            data = tracker._read_tracker()
+            last_run = data["runs"][-1]
+            assert last_run["sync_status"] == "author_mismatch"

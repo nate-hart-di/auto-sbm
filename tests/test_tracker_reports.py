@@ -10,8 +10,9 @@ class TestTrackerReports:
         with patch("sbm.utils.tracker.TRACKER_FILE", tracker_file):
             yield tracker_file
 
+    @patch("sbm.utils.tracker._get_github_login", return_value="test-user")
     @patch("sbm.utils.tracker.is_firebase_available")
-    def test_record_run_with_report_path(self, mock_is_available, mock_tracker_file):
+    def test_record_run_with_report_path(self, mock_is_available, mock_github_login, mock_tracker_file):
         # Setup
         mock_is_available.return_value = False
 
@@ -30,8 +31,11 @@ class TestTrackerReports:
         last_run = data["runs"][-1]
         assert last_run["report_path"] == "/path/to/report.md"
 
+    @patch("sbm.utils.tracker._get_github_login", return_value="test-user")
     @patch("sbm.utils.tracker.is_firebase_available")
-    def test_record_run_backward_compatibility(self, mock_is_available, mock_tracker_file):
+    def test_record_run_backward_compatibility(
+        self, mock_is_available, mock_github_login, mock_tracker_file
+    ):
         # Setup
         mock_is_available.return_value = False
 

@@ -446,7 +446,7 @@ class FirebaseSync:
             total_lines_migrated = 0
             total_time_saved_h = 0.0
             total_automation_seconds = 0.0
-            user_counts = {}
+            author_migrations: dict[str, set] = {}
             global_best_by_slug: dict[str, dict] = {}
 
             for user_id, user_node in users_data.items():
@@ -454,7 +454,6 @@ class FirebaseSync:
                     continue
                 runs_node = user_node.get("runs", {})
                 # migrations_node = user_node.get("migrations", []) # Ignored in strict mode
-                migrations_set = set()  # Only built from runs now
                 if not runs_node:
                     runs_node = {}
 
@@ -472,14 +471,15 @@ class FirebaseSync:
                             unique_complete_by_slug[slug] = run
 
                 for slug, run in unique_complete_by_slug.items():
-                    migrations_set.add(slug)
                     existing_global = global_best_by_slug.get(slug)
                     if not existing_global or _run_sort_key(run) > _run_sort_key(existing_global):
                         global_best_by_slug[slug] = run
 
-                user_migration_count = len(migrations_set)
-                if user_migration_count > 0:
-                    user_counts[user_id] = user_migration_count
+                for slug, run in unique_complete_by_slug.items():
+                    author = run.get("pr_author") or run.get("user_id") or run.get("_user") or user_id
+                    author_migrations.setdefault(author, set()).add(slug)
+
+            user_counts = {author: len(slugs) for author, slugs in author_migrations.items()}
 
             if global_best_by_slug:
                 total_runs = len(global_best_by_slug)
@@ -557,9 +557,9 @@ class FirebaseSync:
                 for _, run in runs_node.items():
                     if is_complete_run(run):
                         slug = run.get("slug")
-                        if slug:
-                            if slug not in migrated_map:
-                                migrated_map[slug] = user_id
+                        if slug and slug not in migrated_map:
+                            author = run.get("pr_author") or run.get("user_id") or run.get("_user") or user_id
+                            migrated_map[slug] = author
             return migrated_map
         except Exception as e:
             logger.debug(f"Failed to fetch global history: {e}")
