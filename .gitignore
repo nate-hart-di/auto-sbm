@@ -121,6 +121,7 @@ stats/*.json
 .codex/sessions/
 .codex/tmp/
 .codex/log/
+.codex/shell_snapshots/
 
 # User Files
 slugs.txt
