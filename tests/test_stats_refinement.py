@@ -39,7 +39,8 @@ def test_migration_result_pr_fields(clean_migration_result):
 
 @patch("sbm.utils.tracker._read_tracker")
 @patch("sbm.utils.tracker._write_tracker")
-def test_record_run_stores_pr_fields(mock_write, mock_read):
+@patch("sbm.utils.tracker._get_github_login", return_value="author-name")
+def test_record_run_stores_pr_fields(mock_github_login, mock_write, mock_read):
     """Verify record_run accepts and stores updated PR context."""
     # Setup mock data
     mock_read.return_value = {"runs": []}
@@ -68,6 +69,31 @@ def test_record_run_stores_pr_fields(mock_write, mock_read):
     assert last_run["pr_url"] == "https://github.com/org/repo/pull/456"
     assert last_run["pr_author"] == "author-name"
     assert last_run["pr_state"] == "OPEN"
+
+
+@patch("sbm.utils.tracker._read_tracker")
+@patch("sbm.utils.tracker._write_tracker")
+@patch("sbm.utils.tracker._get_github_login", return_value="user-b")
+def test_record_run_mismatch_author_warns(mock_github_login, mock_write, mock_read, caplog):
+    """Verify mismatch between pr_author and GH login logs a warning."""
+    mock_read.return_value = {"runs": []}
+
+    record_run(
+        slug="test-slug",
+        command="auto",
+        duration=60,
+        automation_time=60,
+        status="success",
+        files_created_count=5,
+        scss_line_count=500,
+        report_path="/tmp/report.md",
+        pr_url="https://github.com/org/repo/pull/456",
+        pr_author="user-a",
+        pr_state="OPEN",
+    )
+
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert any("PR author mismatch" in r.message for r in warnings)
 
 
 def test_slack_calendar_day_filtering():

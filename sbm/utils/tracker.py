@@ -28,9 +28,18 @@ TRACKER_FILE = Path.home() / ".sbm_migrations.json"
 REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
 
 
-def _get_user_id() -> str:
-    """Generate a unique ID for the user based on GitHub username, git config, or hostname."""
-    # 1. Try to get GitHub username (most preferred)
+class SyncStatus:
+    PENDING = "pending_sync"
+    SYNCED = "synced"
+    MISSING_GITHUB_AUTH = "missing_github_auth"
+    AUTHOR_MISMATCH = "author_mismatch"
+    INVALID_SLUG = "invalid_slug"
+    VALIDATION_UNAVAILABLE = "validation_unavailable"
+    SKIPPED_EMPTY = "skipped_empty"
+
+
+def _get_github_login() -> str | None:
+    """Return the authenticated GitHub username, if available."""
     try:
         result = subprocess.run(
             ["gh", "api", "user", "-q", ".login"],
@@ -42,7 +51,15 @@ def _get_user_id() -> str:
         if username:
             return username
     except Exception as e:
-        logger.debug(f"Could not get GitHub username via gh cli: {e}")
+        logger.debug(f"Could not get GitHub username via GitHub CLI: {e}")
+    return None
+
+
+def _get_user_id() -> str:
+    """Generate a unique ID for the user based on GitHub username, git config, or hostname."""
+    github_login = _get_github_login()
+    if github_login:
+        return github_login
 
     # 2. Try to get git email (fallback)
     try:
@@ -68,12 +85,15 @@ def _get_user_id() -> str:
 
 def _get_reporting_user_id() -> str:
     """Return a stable identifier for Firebase reporting in user mode."""
-    settings = get_settings()
-    if settings.firebase.is_user_mode():
-        identity = get_user_mode_identity()
-        if identity:
-            return identity[0]
+    github_login = _get_github_login()
+    if github_login:
+        return github_login
     return _get_user_id()
+
+
+def _get_run_author(run: dict) -> str:
+    """Canonical author attribution for runs."""
+    return run.get("pr_author") or run.get("user_id") or run.get("_user") or "unknown"
 
 
 def _read_tracker() -> dict:
@@ -178,6 +198,13 @@ def record_run(
     data = _read_tracker()
     runs = data.get("runs", [])
 
+    github_login = _get_github_login()
+    if github_login and pr_author and pr_author != github_login:
+        logger.warning(
+            "PR author mismatch. Expected authenticated GitHub user "
+            f"'{github_login}', got '{pr_author}'."
+        )
+
     run_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         "slug": slug,
@@ -191,12 +218,13 @@ def record_run(
         "manual_estimate_seconds": manual_estimate_minutes * 60,
         "report_path": report_path,
         "pr_url": pr_url,
-        "pr_author": pr_author,
+        "user_id": github_login or _get_user_id(),
+        "pr_author": pr_author or github_login,
         "pr_state": pr_state,
         "created_at": created_at,
         "merged_at": merged_at,
         "closed_at": closed_at,
-        "sync_status": "pending_sync",  # Default to pending
+        "sync_status": SyncStatus.PENDING,  # Default to pending
     }
     # Keep only the last 500 runs to prevent file bloat
     runs.append(run_entry)
@@ -211,7 +239,7 @@ def record_run(
         if _sync_to_firebase(run_entry):
             # If successful, mark as synced immediately to prevent background
             # process from sending duplicate
-            run_entry["sync_status"] = "synced"
+            run_entry["sync_status"] = SyncStatus.SYNCED
         # Update the latest entry in the list and save, including validation status updates
         runs[-1] = run_entry
         data["runs"] = runs
@@ -358,7 +386,7 @@ def filter_runs(
         user_lower = user.lower()
         user_filtered = []
         for run in filtered:
-            run_user = run.get("_user") or run.get("user_id", "")
+            run_user = _get_run_author(run)
             run_author = run.get("pr_author", "")
             if (
                 (run_user and user_lower in run_user.lower())
@@ -503,7 +531,7 @@ def get_migration_stats(
             )
             user_counts: dict[str, set] = {}
             for run in unique_complete_by_slug.values():
-                author = run.get("pr_author") or run.get("_user") or "unknown"
+                author = _get_run_author(run)
                 user_counts.setdefault(author, set()).add(run.get("slug"))
 
             return {
@@ -667,21 +695,19 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
             if not isinstance(user_data, dict):
                 continue
             runs = user_data.get("runs", {})
-            migrations_set = set()
 
             for _run_id, run in runs.items():
                 if run.get("status") == "invalid":
                     continue
-                run["_user"] = user_id
+                run_author = _get_run_author(run)
+                run["_user"] = run_author
                 all_runs.append(run)
 
                 # Track unique migrations per user
                 # Only count complete (merged) runs
                 slug = run.get("slug")
                 if slug and run.get("status") == "success" and get_pr_completion_state(run) == "complete":
-                    migrations_set.add(slug)
-
-            user_migrations[user_id] = migrations_set
+                    user_migrations.setdefault(run_author, set()).add(slug)
 
         return all_runs, user_migrations
 
@@ -823,28 +849,46 @@ def _sync_to_firebase(run_entry: dict) -> bool:
         return False
 
     try:
+        github_login = _get_github_login()
+        if not github_login:
+            run_entry["sync_status"] = SyncStatus.MISSING_GITHUB_AUTH
+            logger.warning("Skipping Firebase sync: GitHub CLI not authenticated.")
+            return False
+
+        pr_author = run_entry.get("pr_author")
+        if pr_author and pr_author != github_login:
+            run_entry["sync_status"] = SyncStatus.AUTHOR_MISMATCH
+            logger.warning(
+                "Skipping Firebase sync: PR author does not match authenticated GitHub user "
+                f"('{pr_author}' != '{github_login}')."
+            )
+            return False
+
+        run_entry["user_id"] = github_login
+        run_entry["pr_author"] = github_login
+
         slug = run_entry.get("slug")
         if slug:
             valid = is_official_slug(slug)
             # Allow backfill_recovery to bypass validation
             if valid is False and run_entry.get("command") != "backfill_recovery":
-                run_entry["sync_status"] = "invalid_slug"
+                run_entry["sync_status"] = SyncStatus.INVALID_SLUG
                 logger.warning(f"Skipping Firebase sync for invalid slug: {slug}")
                 return False
             if valid is None:
-                run_entry["sync_status"] = "validation_unavailable"
+                run_entry["sync_status"] = SyncStatus.VALIDATION_UNAVAILABLE
                 logger.warning("Devtools validation unavailable; delaying Firebase sync.")
                 return False
 
         # Check for empty migrations (false positives)
         lines = run_entry.get("lines_migrated", 0)
         if lines <= 0:
-            run_entry["sync_status"] = "skipped_empty"
+            run_entry["sync_status"] = SyncStatus.SKIPPED_EMPTY
             logger.info(f"Skipping Firebase sync for empty migration ({lines} lines)")
             return False
 
         sync = FirebaseSync()
-        return sync.push_run(_get_user_id(), run_entry)
+        return sync.push_run(github_login, run_entry)
     except Exception as e:
         logger.debug(f"Firebase sync unavailable: {e}")
         return False
@@ -864,19 +908,19 @@ def process_pending_syncs() -> None:
         # Check if it's a success run that hasn't been synced (or marked as failed/pending)
         # We primarily care about runs where status='success' and sync_status != 'synced'
         if run.get("status") == "success":
-            sync_status = run.get("sync_status", "pending_sync")  # Default to pending if missing
+            sync_status = run.get("sync_status", SyncStatus.PENDING)  # Default to pending if missing
 
-            if sync_status in {"pending_sync", "validation_unavailable"}:
+            if sync_status in {SyncStatus.PENDING, SyncStatus.VALIDATION_UNAVAILABLE}:
                 # Attempt sync
                 success = _sync_to_firebase(run)
                 if success:
-                    run["sync_status"] = "synced"
+                    run["sync_status"] = SyncStatus.SYNCED
                     updated = True
-                elif run.get("sync_status") == "invalid_slug":
+                elif run.get("sync_status") == SyncStatus.INVALID_SLUG:
                     # If it failed, ensure it is marked as pending unless invalid
                     updated = True
-                elif sync_status != "pending_sync":
-                    run["sync_status"] = "pending_sync"
+                elif sync_status != SyncStatus.PENDING:
+                    run["sync_status"] = SyncStatus.PENDING
                     updated = True
 
     if updated:
