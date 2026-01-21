@@ -2809,9 +2809,9 @@ def update() -> None:
 
         # 3. Force reset legacy stats files to avoid conflicts
         # These files should only be modified by the tool, and we synced them above.
-        click.echo("🧹 discarding local changes to stats/archive to prevent conflicts...")
+        click.echo("🧹 discarding local changes to stats/ to prevent conflicts...")
         subprocess.run(
-            ["git", "checkout", "stats/archive/"], check=False, cwd=REPO_ROOT, capture_output=True
+            ["git", "checkout", "stats/"], check=False, cwd=REPO_ROOT, capture_output=True
         )
 
         has_changes = _stash_changes_if_needed()

@@ -53,9 +53,81 @@ elif [ -d "/usr/local/bin" ]; then
   export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 fi
 
+# --- Pull Latest Changes from Git ---
+function pull_latest_changes() {
+  log "Pulling latest changes from Git..."
+
+  # Check if we're in a git repository
+  if [ ! -d ".git" ]; then
+    warn "Not a git repository. Skipping git pull."
+    return 0
+  fi
+
+  # Fetch the latest changes
+  if ! git fetch origin; then
+    warn "Failed to fetch from origin. Continuing with existing code..."
+    return 0
+  fi
+
+  # Determine the default branch (master or main)
+  local default_branch
+  if git show-ref --verify --quiet refs/remotes/origin/master; then
+    default_branch="master"
+  elif git show-ref --verify --quiet refs/remotes/origin/main; then
+    default_branch="main"
+  else
+    warn "Could not determine default branch. Continuing with existing code..."
+    return 0
+  fi
+
+  # Check if there's a rebase in progress - abort it
+  if [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
+    warn "Git rebase in progress. Aborting rebase..."
+    git rebase --abort 2>/dev/null || true
+  fi
+
+  # Check if there's a merge in progress - abort it
+  if [ -f ".git/MERGE_HEAD" ]; then
+    warn "Git merge in progress. Aborting merge..."
+    git merge --abort 2>/dev/null || true
+  fi
+
+  # Discard any local changes - users shouldn't be modifying this repo
+  # First, try a clean pull
+  if git pull --rebase origin "$default_branch" 2>/dev/null; then
+    log "✅ Successfully pulled latest changes"
+    return 0
+  fi
+
+  # If that fails, try without rebase
+  if git pull origin "$default_branch" 2>/dev/null; then
+    log "✅ Successfully pulled latest changes (merge)"
+    return 0
+  fi
+
+  # If normal pull fails, force reset to remote - prefer remote changes always
+  warn "Normal pull failed. Force resetting to origin/$default_branch..."
+  warn "⚠️  Discarding any local changes (users should not modify this repo)"
+
+  # Reset to the remote branch, discarding all local changes
+  git reset --hard "origin/$default_branch" 2>/dev/null
+  git clean -fd 2>/dev/null  # Remove untracked files (but keep .env and data/)
+
+  if [ $? -eq 0 ]; then
+    log "✅ Force reset to origin/$default_branch complete"
+  else
+    error "Failed to reset to remote. Please manually run: git reset --hard origin/$default_branch"
+    return 1
+  fi
+}
+
 echo ""
 echo "🚀 Auto-SBM v${SBM_VERSION} Setup Starting..."
-echo "Step 1/7: Installing system dependencies..."
+echo "Step 0/8: Pulling latest changes..."
+pull_latest_changes
+
+echo ""
+echo "Step 1/8: Installing system dependencies..."
 echo ""
 
 # --- Ensure Devtools CLI is available ---
@@ -289,7 +361,7 @@ else
 fi
 
 echo ""
-echo "Step 2/7: Setting up package manager (after virtual environment)..."
+echo "Step 2/8: Setting up package manager (after virtual environment)..."
 # Package manager setup moved to after venv creation
 
 # --- Docker Desktop (optional, for local platform dev) ---
@@ -300,7 +372,7 @@ else
 fi
 
 echo ""
-echo "Step 3/7: Setting up PATH and local bin directory..."
+echo "Step 3/8: Setting up PATH and local bin directory..."
 
 # --- Ensure ~/.local/bin exists and is in PATH ---
 function setup_local_bin_path() {
@@ -468,7 +540,7 @@ ZSHRC_EOF
 setup_local_bin_path
 
 echo ""
-echo "Step 4/7: Creating Python virtual environment..."
+echo "Step 4/8: Creating Python virtual environment..."
 
 # --- Python Virtual Environment ---
 function setup_virtual_environment() {
@@ -488,7 +560,7 @@ setup_virtual_environment
 setup_package_manager
 
 echo ""
-echo "Step 5/7: Installing Python dependencies (this may take 2-3 minutes)..."
+echo "Step 5/8: Installing Python dependencies (this may take 2-3 minutes)..."
 
 # --- Install Auto-SBM Package ---
 function install_auto_sbm() {
@@ -539,7 +611,7 @@ function ensure_rich_click() {
 ensure_rich_click
 
 echo ""
-echo "Step 5.5/7: Installing pre-commit hooks..."
+echo "Step 5.5/8: Installing pre-commit hooks..."
 
 # --- Install Pre-commit Hooks ---
 function install_precommit_hooks() {
@@ -565,7 +637,7 @@ function install_precommit_hooks() {
 install_precommit_hooks
 
 echo ""
-echo "Step 6/7: Creating global wrapper script..."
+echo "Step 6/8: Creating global wrapper script..."
 
 # --- Environment Configuration ---
 function setup_environment_config() {
@@ -660,7 +732,7 @@ EOF
 create_global_wrapper
 
 echo ""
-echo "Step 7/7: Setting up GitHub authentication..."
+echo "Step 7/8: Setting up GitHub authentication..."
 
 # --- GitHub CLI Authentication ---
 function setup_github_auth() {
