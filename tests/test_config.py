@@ -39,8 +39,10 @@ class TestFirebaseSettings:
         assert settings.credentials_path is None
         # Default value is set in config.py
         assert settings.database_url == "https://auto-sbm-default-rtdb.firebaseio.com"
-        # Since default URL and API key are set, it IS configured for user mode
-        assert settings.is_configured()
+        # API key default is None now - must be provided via .env or GitHub Actions
+        assert settings.api_key is None
+        # Without API key, Firebase is NOT configured
+        assert not settings.is_configured()
 
     def test_valid_configuration(self, tmp_path):
         """Test valid configuration with existing file and valid URL."""

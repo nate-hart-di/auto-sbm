@@ -123,11 +123,11 @@ function pull_latest_changes() {
 
 echo ""
 echo "🚀 Auto-SBM v${SBM_VERSION} Setup Starting..."
-echo "Step 0/8: Pulling latest changes..."
+echo "Step 0/10: Pulling latest changes..."
 pull_latest_changes
 
 echo ""
-echo "Step 1/8: Installing system dependencies..."
+echo "Step 1/10: Installing system dependencies..."
 echo ""
 
 # --- Ensure Devtools CLI is available ---
@@ -167,17 +167,12 @@ function install_homebrew() {
 
 # --- Install Required CLI Tools ---
 function install_required_tools() {
-  local tools=("git" "gh" "python3" "node" "op")
+  local tools=("git" "gh" "python3" "node")
 
   for tool in "${tools[@]}"; do
     if ! command -v "$tool" &> /dev/null; then
-      if [ "$tool" == "op" ]; then
-        log "Installing 1Password CLI (op) via Homebrew..."
-        retry_command "brew install 1password-cli" "1Password CLI installation"
-      else
-        log "Installing $tool via Homebrew..."
-        retry_command "brew install $tool" "$tool installation"
-      fi
+      log "Installing $tool via Homebrew..."
+      retry_command "brew install $tool" "$tool installation"
       log "✅ $tool installed successfully"
     else
       log "✅ $tool already installed"
@@ -361,7 +356,7 @@ else
 fi
 
 echo ""
-echo "Step 2/8: Setting up package manager (after virtual environment)..."
+echo "Step 2/10: Setting up package manager (after virtual environment)..."
 # Package manager setup moved to after venv creation
 
 # --- Docker Desktop (optional, for local platform dev) ---
@@ -372,7 +367,7 @@ else
 fi
 
 echo ""
-echo "Step 3/8: Setting up PATH and local bin directory..."
+echo "Step 3/10: Setting up PATH and local bin directory..."
 
 # --- Ensure ~/.local/bin exists and is in PATH ---
 function setup_local_bin_path() {
@@ -540,7 +535,7 @@ ZSHRC_EOF
 setup_local_bin_path
 
 echo ""
-echo "Step 4/8: Creating Python virtual environment..."
+echo "Step 4/10: Creating Python virtual environment..."
 
 # --- Python Virtual Environment ---
 function setup_virtual_environment() {
@@ -560,7 +555,7 @@ setup_virtual_environment
 setup_package_manager
 
 echo ""
-echo "Step 5/8: Installing Python dependencies (this may take 2-3 minutes)..."
+echo "Step 5/10: Installing Python dependencies (this may take 2-3 minutes)..."
 
 # --- Install Auto-SBM Package ---
 function install_auto_sbm() {
@@ -637,7 +632,7 @@ function install_precommit_hooks() {
 install_precommit_hooks
 
 echo ""
-echo "Step 6/8: Creating global wrapper script..."
+echo "Step 6/10: Creating global wrapper script..."
 
 # --- Environment Configuration ---
 function setup_environment_config() {
@@ -732,7 +727,7 @@ EOF
 create_global_wrapper
 
 echo ""
-echo "Step 7/8: Setting up GitHub authentication..."
+echo "Step 7/10: Setting up GitHub authentication..."
 
 # --- GitHub CLI Authentication ---
 function setup_github_auth() {
@@ -745,10 +740,97 @@ function setup_github_auth() {
   fi
 }
 
+# --- Fetch Firebase API Key via GitHub Actions artifact ---
+function fetch_firebase_api_key_from_github_actions() {
+  local workflow_file="fetch-firebase-api-key.yml"
+  local artifact_name="firebase-api-key"
+  local download_dir="/tmp/auto-sbm-firebase-key"
+  local key_file="$download_dir/firebase_api_key.txt"
+
+  log "Fetching Firebase API key via GitHub Actions..."
+
+  if ! command -v gh &> /dev/null; then
+    warn "❌ GitHub CLI not found"
+    return 1
+  fi
+
+  if ! gh workflow list --json path -q '.[].path' | grep -q "$workflow_file"; then
+    warn "❌ GitHub Actions workflow not found: $workflow_file"
+    return 1
+  fi
+
+  local start_time
+  start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  # Trigger workflow run
+  if ! gh workflow run "$workflow_file" &> /dev/null; then
+    warn "❌ Failed to trigger GitHub Actions workflow: $workflow_file"
+    return 1
+  fi
+
+  # Wait for latest run to complete
+  local run_id=""
+  for _ in {1..30}; do
+    run_id=$(gh run list --workflow "$workflow_file" --limit 5 --json databaseId,createdAt -q 'map(select(.createdAt > "'"$start_time"'")) | .[0].databaseId')
+    if [ -n "$run_id" ]; then
+      run_status=$(gh run view "$run_id" --json status -q '.status')
+      run_conclusion=$(gh run view "$run_id" --json conclusion -q '.conclusion')
+      if [ "$run_status" = "completed" ]; then
+        if [ "$run_conclusion" != "success" ]; then
+          warn "❌ GitHub Actions run failed (conclusion: $run_conclusion)"
+          return 1
+        fi
+        break
+      fi
+    fi
+    sleep 2
+  done
+
+  if [ -z "$run_id" ]; then
+    warn "❌ Could not find a completed GitHub Actions run"
+    return 1
+  fi
+
+  rm -rf "$download_dir"
+  mkdir -p "$download_dir"
+
+  if ! gh run download "$run_id" -n "$artifact_name" -D "$download_dir" &> /dev/null; then
+    warn "❌ Failed to download artifact: $artifact_name"
+    return 1
+  fi
+
+  if [ ! -f "$key_file" ]; then
+    warn "❌ Firebase API key file missing in artifact"
+    return 1
+  fi
+
+  local firebase_key
+  firebase_key="$(cat "$key_file" | tr -d '\r\n')"
+
+  if [ -z "$firebase_key" ]; then
+    warn "❌ Firebase API key file is empty"
+    return 1
+  fi
+
+  log "✅ Firebase API key fetched from GitHub Actions"
+  if grep -q "^FIREBASE__API_KEY=" .env 2>/dev/null; then
+    sed -i.bak "s|^FIREBASE__API_KEY=.*|FIREBASE__API_KEY=$firebase_key|" .env
+    rm -f .env.bak
+  else
+    echo "FIREBASE__API_KEY=$firebase_key" >> .env
+  fi
+  export FIREBASE__API_KEY="$firebase_key"
+  return 0
+}
+
 setup_github_auth
 
 echo ""
-echo "Step 8/8: Validating Firebase auth..."
+echo "Step 8/10: Fetching Firebase API key from GitHub Actions..."
+fetch_firebase_api_key_from_github_actions
+
+echo ""
+echo "Step 9/10: Validating Firebase auth..."
 
 # --- Firebase API Key Check (required for stats) ---
 function validate_firebase_api_key() {
@@ -763,18 +845,42 @@ function validate_firebase_api_key() {
   fi
 
   if [ -z "${FIREBASE__API_KEY:-}" ] || [ "${FIREBASE__API_KEY}" = "your-firebase-web-api-key" ]; then
-    error "❌ FIREBASE__API_KEY is required for stats (anonymous auth)."
-    error "Set FIREBASE__API_KEY in .env or export it before running setup."
-    error "If you use 1Password, set OP_FIREBASE_API_KEY_REF and rerun setup."
-    return 1
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "⚠️  Firebase API Key Required"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Auto-SBM requires a Firebase API key for stats tracking."
+    echo "The key could not be fetched automatically."
+    echo ""
+    echo "If you have a custom key, enter it now."
+    echo ""
+    read -p "Enter Firebase API key (or press Enter to exit setup): " USER_KEY
+
+    if [ -z "$USER_KEY" ]; then
+      error "Setup cannot continue without Firebase API key"
+      return 1
+    fi
+
+    # Write user-provided key to .env
+    if grep -q "^FIREBASE__API_KEY=" .env 2>/dev/null; then
+      sed -i.bak "s|^FIREBASE__API_KEY=.*|FIREBASE__API_KEY=$USER_KEY|" .env
+      rm -f .env.bak
+    else
+      echo "FIREBASE__API_KEY=$USER_KEY" >> .env
+    fi
+
+    export FIREBASE__API_KEY="$USER_KEY"
+    log "✅ Firebase API key stored in .env"
+  else
+    log "✅ FIREBASE__API_KEY detected"
   fi
-  log "✅ FIREBASE__API_KEY detected"
 }
 
 validate_firebase_api_key || exit 1
 
 echo ""
-echo "Step 9/9: Validating installation..."
+echo "Step 10/10: Validating installation..."
 
 # --- Validation Function ---
 function validate_installation() {

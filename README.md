@@ -79,24 +79,14 @@ Migration runs sync to Firebase for team-wide statistics.
 
 ### Team Members (Default)
 
-Anonymous auth is used for reads/writes. Defaults are built in, so no setup is required.
-You can override with `.env` values or keychain if needed (keychain is opt-in):
+Anonymous auth is used for reads/writes. The Firebase API key is fetched via a GitHub Actions workflow during setup and synced into `.env`. You can override it by setting `FIREBASE__API_KEY` in `.env` if needed.
+
+The key is stored in `.env`:
 
 ```bash
 FIREBASE__DATABASE_URL=https://auto-sbm-default-rtdb.firebaseio.com
-FIREBASE__API_KEY=your-firebase-web-api-key
+FIREBASE__API_KEY=<fetched-via-github-actions>
 ```
-
-Optional: seed the keychain from 1Password using `op://` references:
-
-```bash
-OP_FIREBASE_DATABASE_URL_REF=op://vault/auto-sbm/firebase_database_url
-OP_FIREBASE_API_KEY_REF=op://vault/auto-sbm/firebase_api_key
-SBM_ENABLE_KEYRING=1
-```
-
-On first run, `sbm setup`/`sbm update` will store the references in `.sbm_op_refs` and
-won't prompt again. Delete `.sbm_op_refs` + `.sbm_op_refs_complete` to reconfigure.
 
 Stats commands work automatically:
 
@@ -213,10 +203,6 @@ Suggested rules:
 Required env values (user installs):
 - `FIREBASE__API_KEY` (required for anonymous auth)
 - `FIREBASE__DATABASE_URL` (defaults to auto-sbm DB if not overridden)
-
-Secure distribution options:
-- Use a shared 1Password vault and set `OP_FIREBASE_API_KEY_REF` (recommended).
-- Set `SBM_ENABLE_KEYRING=1` and run `sbm setup` to store secrets in Keychain.
 
 ## Troubleshooting
 

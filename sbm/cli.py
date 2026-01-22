@@ -102,7 +102,6 @@ from .utils.path import get_dealer_theme_dir, get_platform_dir
 from .utils.timer import get_total_automation_time, get_total_duration
 from rich.table import Table
 from .utils.version_utils import get_changelog, get_version
-from sbm.utils.secure_store import is_secure_store_available, set_secret
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
 # Use the predictable installation location as the primary root
@@ -114,10 +113,8 @@ if not REPO_ROOT.exists():
 
 SETUP_MARKER = REPO_ROOT / ".sbm_setup_complete"
 SETUP_SCRIPT = REPO_ROOT / "setup.sh"
-OP_REFS_FILE = Path(os.environ.get("SBM_OP_REFS_FILE", REPO_ROOT / ".sbm_op_refs"))
-OP_REFS_MARKER = Path(os.environ.get("SBM_OP_REFS_MARKER", REPO_ROOT / ".sbm_op_refs_complete"))
 
-REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip", "op"]
+REQUIRED_CLI_TOOLS = ["git", "gh", "just", "python3", "pip"]
 REQUIRED_PYTHON_PACKAGES = [
     "click",
     "rich",
@@ -1055,6 +1052,22 @@ def _get_field(result: MigrationResult | dict, field: str):
     return result.get(field)
 
 
+def _validate_firebase_key_required() -> None:
+    """Validate Firebase API key is present before running commands."""
+    config = get_settings()
+
+    # Check if API key is present and not a placeholder
+    if not config.firebase.api_key or config.firebase.api_key == "your-firebase-web-api-key":
+        logger.error("❌ Firebase API key is required for this operation")
+        logger.error("")
+        logger.error("The Firebase API key is missing or not configured properly.")
+        logger.error("")
+        logger.error("To resolve this:")
+        logger.error("  1. Run: sbm setup")
+        logger.error("  2. Or add it to .env: FIREBASE__API_KEY=<your-key>")
+        sys.exit(1)
+
+
 @cli.command()
 @click.argument("theme_names", nargs=-1, required=True)
 @click.option("--force-reset", is_flag=True, help="Force reset of existing Site Builder files.")
@@ -1074,6 +1087,7 @@ def migrate(
         sbm migrate dealer1 dealer2 dealer3
         sbm migrate @slugs.txt --force-reset
     """
+    _validate_firebase_key_required()
     expanded_themes = _expand_theme_names(theme_names)
     if not expanded_themes:
         logger.error("No valid theme names provided.")
@@ -1175,6 +1189,7 @@ def auto(
         sbm auto dealer1 dealer2 --skip-post-migration
         sbm auto @slugs.txt -y
     """
+    _validate_firebase_key_required()
     from sbm.config import get_settings
 
     expanded_themes = _expand_theme_names(theme_names)
@@ -2626,150 +2641,8 @@ def _ensure_devtools_cli() -> None:
         click.echo(f"⚠️  Warning: Failed to install Devtools CLI: {e}")
 
 
-def _read_op_refs_file() -> dict[str, str]:
-    if not OP_REFS_FILE.exists():
-        return {}
-    try:
-        refs = {}
-        for line in OP_REFS_FILE.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            if "=" not in stripped:
-                continue
-            key, value = stripped.split("=", 1)
-            refs[key.strip()] = value.strip()
-        return refs
-    except Exception as e:
-        logger.debug(f"Failed to read 1Password refs file: {e}")
-        return {}
 
 
-def _write_op_refs_file(refs: dict[str, str]) -> None:
-    try:
-        lines = [
-            "# Auto-SBM 1Password references (op://vault/item/field)",
-            f"OP_FIREBASE_DATABASE_URL_REF={refs.get('OP_FIREBASE_DATABASE_URL_REF', '')}",
-            f"OP_FIREBASE_API_KEY_REF={refs.get('OP_FIREBASE_API_KEY_REF', '')}",
-            "",
-        ]
-        OP_REFS_FILE.write_text("\n".join(lines), encoding="utf-8")
-    except Exception as e:
-        logger.debug(f"Failed to write 1Password refs file: {e}")
-
-
-def _ensure_op_refs() -> None:
-    """Persist 1Password refs from env to a local file (no prompts)."""
-    if OP_REFS_MARKER.exists():
-        return
-
-    refs = _read_op_refs_file()
-    env_db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip()
-    env_key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip()
-    if env_db_ref or env_key_ref:
-        refs["OP_FIREBASE_DATABASE_URL_REF"] = env_db_ref or refs.get(
-            "OP_FIREBASE_DATABASE_URL_REF", ""
-        )
-        refs["OP_FIREBASE_API_KEY_REF"] = env_key_ref or refs.get("OP_FIREBASE_API_KEY_REF", "")
-        _write_op_refs_file(refs)
-        OP_REFS_MARKER.touch()
-
-
-def _read_1password_reference(ref: str) -> str | None:
-    """Read a secret from 1Password using an op:// reference."""
-    if not ref:
-        return None
-    try:
-        result = subprocess.run(
-            ["op", "read", ref],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            logger.debug(f"1Password read failed for {ref}: {result.stderr.strip()}")
-            return None
-        return result.stdout.strip() or None
-    except FileNotFoundError:
-        logger.debug("1Password CLI (op) not found.")
-        return None
-    except Exception as e:
-        logger.debug(f"1Password read failed: {e}")
-        return None
-
-
-def _load_firebase_from_1password() -> tuple[str | None, str | None]:
-    """Fetch Firebase URL/API key from 1Password if references are provided."""
-    file_refs = _read_op_refs_file()
-    db_ref = os.environ.get("OP_FIREBASE_DATABASE_URL_REF", "").strip() or file_refs.get(
-        "OP_FIREBASE_DATABASE_URL_REF", ""
-    )
-    key_ref = os.environ.get("OP_FIREBASE_API_KEY_REF", "").strip() or file_refs.get(
-        "OP_FIREBASE_API_KEY_REF", ""
-    )
-    db_url = _read_1password_reference(db_ref) if db_ref else None
-    api_key = _read_1password_reference(key_ref) if key_ref else None
-    return db_url, api_key
-
-
-def _remove_env_secrets(env_path: Path, keys: set[str]) -> bool:
-    """Remove sensitive keys from an env file if present."""
-    if not env_path.exists():
-        return False
-
-    try:
-        original = env_path.read_text(encoding="utf-8")
-        lines = original.splitlines()
-        kept = []
-        removed_any = False
-        for line in lines:
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                kept.append(line)
-                continue
-            key = stripped.split("=", 1)[0].strip()
-            if key in keys:
-                removed_any = True
-                continue
-            kept.append(line)
-
-        if removed_any:
-            env_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
-        return removed_any
-    except Exception as e:
-        logger.debug(f"Failed to scrub secrets from {env_path}: {e}")
-        return False
-
-
-def _ensure_secure_firebase_secrets() -> None:
-    """Store Firebase connection details in the system keyring when available."""
-    if not is_secure_store_available():
-        return
-
-    _ensure_op_refs()
-    config = get_settings()
-    db_url = os.environ.get("FIREBASE__DATABASE_URL") or config.firebase.database_url
-    api_key = os.environ.get("FIREBASE__API_KEY") or config.firebase.api_key
-
-    if not db_url or not api_key:
-        op_db_url, op_api_key = _load_firebase_from_1password()
-        db_url = db_url or op_db_url
-        api_key = api_key or op_api_key
-
-    saved_any = False
-    if db_url:
-        saved_any = set_secret("firebase__database_url", db_url) or saved_any
-    if api_key:
-        saved_any = set_secret("firebase__api_key", api_key) or saved_any
-
-    if not saved_any and not config.non_interactive:
-        click.echo(
-            "⚠️  Firebase secrets not stored. Set OP_FIREBASE_* refs or export FIREBASE__* vars."
-        )
-
-    if saved_any:
-        env_path = REPO_ROOT / ".env"
-        _remove_env_secrets(env_path, {"FIREBASE__DATABASE_URL", "FIREBASE__API_KEY"})
 
 
 def _restore_stashed_changes() -> None:
@@ -2783,6 +2656,7 @@ def _restore_stashed_changes() -> None:
 @cli.command()
 def update() -> None:
     """Update auto-sbm to the latest version."""
+    _validate_firebase_key_required()
     click.echo("🔄 Updating auto-sbm...")
 
     try:
@@ -2870,7 +2744,6 @@ def update() -> None:
             click.echo("\n📦 Updating dependencies...")
             _update_dependencies()
             click.echo("✅ Dependencies updated")
-            _ensure_secure_firebase_secrets()
 
             # Install pre-commit hooks
             click.echo("\n🪝 Installing pre-commit hooks...")
@@ -3318,7 +3191,6 @@ def setup() -> None:
     setup_script = REPO_ROOT / "setup.sh"
     try:
         subprocess.run(["bash", str(setup_script)], check=True)
-        _ensure_secure_firebase_secrets()
     except subprocess.CalledProcessError as e:
         logger.error(f"Setup failed with exit code {e.returncode}")
         sys.exit(e.returncode)

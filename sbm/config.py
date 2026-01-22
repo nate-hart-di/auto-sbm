@@ -111,7 +111,7 @@ class FirebaseSettings(BaseSettings):
         description="Firebase Realtime Database URL (e.g., https://project-id.firebaseio.com)",
     )
     api_key: str | None = Field(
-        default="AIzaSyC278H_TiIrtGE_YYip1r28eDENYs-1RiI",
+        default=None,
         description="Firebase Web API Key (required for user mode/anonymous auth)",
     )
 
@@ -187,7 +187,10 @@ class AutoSBMSettings(BaseSettings):
     """Unified Pydantic v2 configuration replacing legacy JSON config."""
 
     model_config = SettingsConfigDict(
-        env_file=str(Path.home() / "auto-sbm" / ".env"),
+        env_file=[
+            str(Path(__file__).resolve().parent.parent / ".env"),
+            str(Path.home() / "auto-sbm" / ".env"),
+        ],
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,
@@ -223,27 +226,6 @@ class AutoSBMSettings(BaseSettings):
         ]
         return any(os.getenv(indicator) for indicator in ci_indicators)
 
-    @classmethod
-    def settings_customise_sources(
-        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings
-    ):
-        from sbm.utils.secure_store import get_secret, is_secure_store_available
-
-        def keyring_settings_source():
-            if not is_secure_store_available():
-                return {}
-            return {
-                "firebase__database_url": get_secret("firebase__database_url"),
-                "firebase__api_key": get_secret("firebase__api_key"),
-            }
-
-        return (
-            init_settings,
-            env_settings,
-            dotenv_settings,
-            keyring_settings_source,
-            file_secret_settings,
-        )
 
 
 # Global settings instance - lazy loaded
