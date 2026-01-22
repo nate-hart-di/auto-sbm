@@ -58,6 +58,14 @@ def should_refresh_run(run: dict, force_all: bool) -> bool:
     return GitHubPRManager.should_refresh_pr_data(run) or not run.get("pr_author")
 
 
+def should_fix_user_id(run: dict) -> bool:
+    """Return True if user_id should be set to the PR author."""
+    pr_author = run.get("pr_author")
+    if not pr_author:
+        return False
+    return run.get("user_id") != pr_author
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Refresh Firebase run metadata")
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
@@ -119,6 +127,10 @@ def main() -> None:
                             "pr_author": metadata.get("author"),
                         }
                     )
+            if "pr_author" in update_data and update_data["pr_author"]:
+                update_data["user_id"] = update_data["pr_author"]
+            elif should_fix_user_id(run):
+                update_data["user_id"] = run.get("pr_author")
 
             if needs_lines_backfill(run):
                 additions = fetch_additions(pr_url)
