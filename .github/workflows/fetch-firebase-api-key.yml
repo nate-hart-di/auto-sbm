@@ -1,0 +1,19 @@
+name: Fetch Firebase API Key
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export-firebase-key:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write Firebase API key to artifact
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: |
+          printf "%s" "$FIREBASE_API_KEY" > firebase_api_key.txt
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-api-key
+          path: firebase_api_key.txt

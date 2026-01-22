@@ -199,7 +199,12 @@ class TestFirebaseSync:
         mock_db.reference.assert_called_with("users/user1/runs")
 
         # Verify sync_status was removed and data was set
-        expected_push = {"slug": "test_slug", "status": "success"}
+        expected_push = {
+            "slug": "test_slug",
+            "status": "success",
+            "user_id": "user1",
+            "pr_author": "user1",
+        }
         mock_ref.child.return_value.set.assert_called_with(expected_push)
 
     @patch("sbm.utils.firebase_sync.is_firebase_available", return_value=True)
@@ -258,11 +263,13 @@ class TestAnonymousAuth:
     """Tests for Story 2.7: Anonymous Auth / user_mode functionality."""
 
     def test_is_user_mode_without_credentials(self):
-        """Test that is_user_mode returns True when only database_url is set."""
+        """Test that is_user_mode returns True when database_url and api_key are set."""
         settings = FirebaseSettings(
-            credentials_path=None, database_url="https://test.firebaseio.com"
+            credentials_path=None,
+            database_url="https://test.firebaseio.com",
+            api_key="test-api-key"
         )
-        assert settings.is_configured() is True  # database_url is enough
+        assert settings.is_configured() is True  # database_url + api_key required
         assert settings.is_admin_mode() is False  # no credentials
         assert settings.is_user_mode() is True  # configured but not admin
 

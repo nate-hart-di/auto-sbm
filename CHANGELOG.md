@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.0] - 2026-01-22
+
+### Changed
+- **Firebase Authentication**: Simplified to use GitHub Secrets → .env only
+- Removed 1Password CLI integration (op) - no longer required
+- Removed macOS Keyring/secure_store - simpler authentication flow
+- Added automatic Firebase API key fetch via GitHub Actions during setup
+- Added manual fallback prompt if GitHub fetch fails
+- Added mandatory Firebase API key validation before all migration commands
+
 ## [2.12.8] - 2026-01-22
 
 ### Changed
