@@ -123,12 +123,12 @@ stats/*.json
 .codex/log/
 .codex/version.json
 .codex/shell_snapshots/
+.codex/version.json
 
 # User Files
 slugs.txt
-reports/
 data/
+reports/
 
 # SBM Reports
-.sbm-reports/*.md
-!.sbm-reports/index.md
+.sbm-reports/
