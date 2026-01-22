@@ -68,6 +68,9 @@ from sbm.utils.tracker import (
     record_migration,
     record_run,
     process_pending_syncs,
+    filter_runs,
+    get_global_reporting_data,
+    _dedupe_runs_for_display,
 )
 
 from .config import Config, ConfigurationError, get_config, get_settings
@@ -1712,8 +1715,6 @@ def stats(
     if team and stats_data.get("team_stats"):
         ts = stats_data["team_stats"]
         if since_days or filter_user:
-            from sbm.utils.tracker import get_global_reporting_data, filter_runs
-
             all_runs, _ = get_global_reporting_data()
             team_runs = filter_runs(
                 all_runs,
@@ -1817,12 +1818,6 @@ def stats(
 
         # Full Contributors (optional)
         if show_all:
-            from sbm.utils.tracker import (
-                get_global_reporting_data,
-                filter_runs,
-                _dedupe_runs_for_display,
-            )
-
             all_runs, _ = get_global_reporting_data()
             merged_runs = [
                 r
@@ -1833,9 +1828,9 @@ def stats(
             # Deduplicate by slug per author
             by_author: dict[str, set] = {}
             for run in merged_runs:
-                author = run.get("pr_author")
+                author = run.get("pr_author") or run.get("_user") or "unknown"
                 slug = run.get("slug")
-                if not author or not slug:
+                if not slug:
                     continue
                 by_author.setdefault(author, set()).add(slug)
 
@@ -1865,8 +1860,6 @@ def stats(
 
         # Team History (optional)
         if history:
-            from sbm.utils.tracker import get_global_reporting_data
-
             all_runs, _ = get_global_reporting_data()
             team_runs = filter_runs(
                 all_runs,

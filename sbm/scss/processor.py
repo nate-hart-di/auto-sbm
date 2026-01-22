@@ -372,7 +372,7 @@ class SCSSProcessor:
         lines = content.splitlines(keepends=True)
 
         for i, line in enumerate(lines):
-            if not re.match(r"^\s*//\s*[^/].*\{\s*$", line):
+            if not re.match(r"^\s*(?://\s*)+[^/].*\{\s*$", line):
                 continue
 
             j = i + 1
@@ -385,9 +385,11 @@ class SCSSProcessor:
             next_stripped = lines[j].lstrip()
             if next_stripped.startswith(("//", "/*")):
                 continue
+            if not lines[j].startswith((" ", "\t")):
+                continue
 
             # Uncomment the selector line to avoid orphaned declarations.
-            lines[i] = re.sub(r"^(\s*)//\s?", r"\1", line)
+            lines[i] = re.sub(r"^(\s*)(?://\s*)+", r"\1", line)
 
         return "".join(lines)
 

@@ -39,6 +39,17 @@ except ImportError:
 REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
 STATS_DIR = REPO_ROOT / "stats"
 
+AUTO_SBM_OPEN_PRS_REPO = os.environ.get(
+    "AUTO_SBM_PR_REPO", "carsdotcom/di-websites-platform"
+)
+AUTO_SBM_OPEN_PRS_QUERY = os.environ.get(
+    "AUTO_SBM_PR_QUERY", "is:pr is:open -is:draft label:fe-dev PCON-727 SBM"
+)
+AUTO_SBM_OPEN_PRS_URL = (
+    f"https://github.com/{AUTO_SBM_OPEN_PRS_REPO}/pulls?q="
+    + urllib.parse.quote_plus(AUTO_SBM_OPEN_PRS_QUERY)
+)
+
 
 def _get_completion_state(run: Dict[str, Any]) -> str:
     """Return PR completion state with a safe fallback."""
@@ -424,7 +435,6 @@ def format_slack_payload(
     context_label: str | None = None,
     top_n: int | None = None,
     current_in_review_count: int | None = None,
-    current_in_review_links: List[str] | None = None,
 ) -> Dict[str, Any]:
     """Format metrics into a Slack Block Kit payload."""
     now = datetime.now(timezone.utc)
@@ -512,7 +522,6 @@ def format_slack_payload(
             "type": "section",
             "fields": [
                 {"type": "mrkdwn", "text": f"*Lines of Code*\n{metrics['lines_migrated']:,}"},
-                {"type": "mrkdwn", "text": f"*Success Rate*\n{metrics['success_rate']:.1f}%"},
             ],
         }
     )
@@ -527,30 +536,34 @@ def format_slack_payload(
     )
 
     if current_in_review_count is not None:
+        in_review_text = (
+            f"Currently in review (all time): *{current_in_review_count}*"
+        )
+        if current_in_review_count == 0:
+            in_review_text += " — Auto-SBM search may show none."
         blocks.append(
             {
                 "type": "context",
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": f"Currently in review (all time): *{current_in_review_count}*",
+                        "text": in_review_text,
                     }
                 ],
             }
         )
 
-    if current_in_review_links:
-        blocks.append({"type": "divider"})
-        link_lines = [f"- <{url}|PR>" for url in current_in_review_links]
-        blocks.append(
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "*Open PRs (In Review)*\n" + "\n".join(link_lines),
-                },
-            }
-        )
+    blocks.append({"type": "divider"})
+    blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Open PRs (Auto-SBM)*\n"
+                f"<{AUTO_SBM_OPEN_PRS_URL}|View open Auto-SBM PRs>",
+            },
+        }
+    )
 
     # 5. Top Contributors (Optional)
     if top_n and metrics["top_contributors"]:
@@ -655,13 +668,9 @@ def main() -> None:
     else:
         metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
-    current_in_review_runs = [
-        r for r in all_runs if _get_completion_state(r) == "in_review" and r.get("pr_url")
-    ]
     current_in_review_count = len(
         [r for r in all_runs if _get_completion_state(r) == "in_review"]
     )
-    current_in_review_links = [r.get("pr_url") for r in current_in_review_runs][:10]
 
     # 4. Format
     payload = format_slack_payload(
@@ -669,7 +678,6 @@ def main() -> None:
         args.period,
         context_label="Auto-SBM report • CLI",
         current_in_review_count=current_in_review_count,
-        current_in_review_links=current_in_review_links,
     )
 
     # 5. Branding

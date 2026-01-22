@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Dict, Any, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import click
 from rich.prompt import Confirm
@@ -557,9 +557,8 @@ def migrate_styles(
             # Note: SCSS formatting is applied at the end of the full migration
             # after all content (predetermined styles, map components) is added
             return True, total_lines_processed, files_with_content, total_source_lines
-        else:
-            logger.error("SCSS migration failed during file writing.")
-            return False, 0, 0, 0
+        logger.error("SCSS migration failed during file writing.")
+        return False, 0, 0, 0
 
     except Exception as e:
         logger.error(f"Error migrating styles: {e}", exc_info=True)
@@ -1067,7 +1066,7 @@ def migrate_dealer_theme(
         except Exception as e:
             result.mark_failed(
                 MigrationStep.GIT_SETUP,
-                f"Git setup exception for {slug}: {str(e)}",
+                f"Git setup exception for {slug}: {e!s}",
                 traceback.format_exc(),
             )
             result.elapsed_time = time.time() - start_time
@@ -1088,7 +1087,7 @@ def migrate_dealer_theme(
         except Exception as e:
             result.mark_failed(
                 MigrationStep.DOCKER_STARTUP,
-                f"Docker startup exception for {slug}: {str(e)}",
+                f"Docker startup exception for {slug}: {e!s}",
                 traceback.format_exc(),
             )
             result.elapsed_time = time.time() - start_time
@@ -1117,7 +1116,7 @@ def migrate_dealer_theme(
     except Exception as e:
         result.mark_failed(
             MigrationStep.CORE_MIGRATION,
-            f"Core migration exception for {slug}: {str(e)}",
+            f"Core migration exception for {slug}: {e!s}",
             traceback.format_exc(),
         )
         result.elapsed_time = time.time() - start_time
@@ -1151,13 +1150,12 @@ def migrate_dealer_theme(
                     merged_at=post_result.get("merged_at"),
                     closed_at=post_result.get("closed_at"),
                 )
-            else:
-                # Step failed in post-migration - result should already be marked
-                if result.status == "pending":
-                    result.mark_failed(
-                        post_result.get("step_failed", MigrationStep.PR_CREATION),
-                        post_result.get("error", "Post-migration workflow failed"),
-                    )
+            # Step failed in post-migration - result should already be marked
+            elif result.status == "pending":
+                result.mark_failed(
+                    post_result.get("step_failed", MigrationStep.PR_CREATION),
+                    post_result.get("error", "Post-migration workflow failed"),
+                )
 
         result.elapsed_time = time.time() - start_time
 
@@ -1300,6 +1298,11 @@ def run_post_migration_workflow(
     # Automated PR creation
     pr_url = None
     salesforce_message = None
+    pr_author = None
+    pr_state = None
+    created_at = None
+    merged_at = None
+    closed_at = None
     success = True
 
     if create_pr:
@@ -1310,6 +1313,12 @@ def run_post_migration_workflow(
             success = pr_result.get("success", False)
             pr_url = pr_result.get("pr_url")
             salesforce_message = pr_result.get("salesforce_message")
+            # Extract PR metadata for tracking
+            pr_author = pr_result.get("pr_author")
+            pr_state = pr_result.get("pr_state")
+            created_at = pr_result.get("created_at")
+            merged_at = pr_result.get("merged_at")
+            closed_at = pr_result.get("closed_at")
         else:
             success, pr_url = pr_result
 
@@ -1331,7 +1340,16 @@ def run_post_migration_workflow(
                 "step_failed": MigrationStep.PR_CREATION,
             }
 
-    return {"success": success, "pr_url": pr_url, "salesforce_message": salesforce_message}
+    return {
+        "success": success,
+        "pr_url": pr_url,
+        "salesforce_message": salesforce_message,
+        "pr_author": pr_author,
+        "pr_state": pr_state,
+        "created_at": created_at,
+        "merged_at": merged_at,
+        "closed_at": closed_at,
+    }
 
 
 def _prepare_test_scaffolding(
@@ -1446,7 +1464,7 @@ def _verify_scss_compilation_with_docker(
                         ):
                             captured_errors.append(line.strip())
             except Exception as e:
-                captured_errors.append(f"Failed to capture Docker logs: {str(e)}")
+                captured_errors.append(f"Failed to capture Docker logs: {e!s}")
 
         if rerun_requested:
             logger.info("Manual fixes applied. Restarting verification cycle...")
@@ -1651,11 +1669,10 @@ def _prompt_user_for_manual_fix(
                 click.echo("Recent errors from Gulp:")
                 for line in error_lines[-3:]:
                     click.echo(f"  {line.strip()}")
+        elif console:
+            console.print_error("Unable to parse error details from logs.")
         else:
-            if console:
-                console.print_error("Unable to parse error details from logs.")
-            else:
-                click.echo("Unable to parse error details from logs.")
+            click.echo("Unable to parse error details from logs.")
 
         if console:
             console.print_info(f"Please check these files in: {theme_path}")
@@ -2100,11 +2117,25 @@ def _fix_commented_selector_block(error_info: dict, css_dir: Path) -> bool:
                 continue
 
             if stripped.startswith("//") and "{" in stripped:
-                uncommented = re.sub(r"^\s*//\s?", "", lines[i])
+                uncommented = re.sub(r"^\s*(?://\s*)+", "", lines[i])
                 if "{" in uncommented:
                     lines[i] = uncommented
                     test_file_path.write_text("".join(lines))
                     logger.info(f"Uncommented selector in {test_file_path.name} at line {i + 1}")
+                    theme_file_path = css_dir.parent / file_name
+                    if theme_file_path.exists():
+                        try:
+                            theme_lines = theme_file_path.read_text().splitlines(keepends=True)
+                            if i < len(theme_lines):
+                                theme_lines[i] = uncommented
+                                theme_file_path.write_text("".join(theme_lines))
+                                logger.info(
+                                    f"Uncommented selector in {theme_file_path.name} at line {i + 1}"
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                f"Error updating source file {theme_file_path.name}: {e}"
+                            )
                     return True
             break
 

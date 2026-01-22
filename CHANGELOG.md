@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.5] - 2026-01-22
+
+### Changed
+- remove Success Rate from Slack/CLI stats displays and add configurable Auto-SBM PR link
+- normalize stats team/history views to use shared tracker imports
+- restore commented selector blocks during SCSS processing and recovery to prevent invalid braces
+
 ## [2.12.4] - 2026-01-21
 
 ### Changed

@@ -86,7 +86,7 @@ def test_update_syncs_and_resets(mock_subprocess, mock_legacy_sync, runner):
         # 1. Verify sync called
         mock_legacy_sync.assert_called_once()
 
-        # 2. Verify checkout of stats/archive
+        # 2. Verify checkout of stats/
         mock_subprocess.assert_any_call(
-            ["git", "checkout", "stats/archive/"], check=False, cwd=ANY, capture_output=ANY
+            ["git", "checkout", "stats/"], check=False, cwd=ANY, capture_output=ANY
         )

@@ -87,3 +87,18 @@ def test_broken_block_comment_cleanup_safe():
     processed = processor._clean_comment_blocks(content)
     assert ".valid-selector" in processed
     assert "color: red" in processed
+
+
+def test_fix_commented_selector_blocks_strips_multiple_markers():
+    processor = SCSSProcessor("test-slug")
+    content = """
+// // // .mapRow {
+  @media(min-width: 1025px){
+    padding: 490px 0px 50px;
+  }
+}
+"""
+
+    processed = processor._fix_commented_selector_blocks(content)
+    assert ".mapRow {" in processed
+    assert "// .mapRow" not in processed
