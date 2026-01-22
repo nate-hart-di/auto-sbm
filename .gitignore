@@ -124,6 +124,8 @@ stats/*.json
 .codex/version.json
 .codex/shell_snapshots/
 .codex/version.json
+.codex/version.json
+
 
 # User Files
 slugs.txt
