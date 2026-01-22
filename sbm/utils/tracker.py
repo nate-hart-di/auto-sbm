@@ -204,6 +204,10 @@ def record_run(
             "PR author mismatch. Expected authenticated GitHub user "
             f"'{github_login}', got '{pr_author}'."
         )
+    if not github_login:
+        logger.warning(
+            "GitHub CLI not authenticated; user_id/pr_author will be missing until `gh auth login`."
+        )
 
     run_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
@@ -218,7 +222,7 @@ def record_run(
         "manual_estimate_seconds": manual_estimate_minutes * 60,
         "report_path": report_path,
         "pr_url": pr_url,
-        "user_id": github_login or _get_user_id(),
+        "user_id": github_login,
         "pr_author": pr_author or github_login,
         "pr_state": pr_state,
         "created_at": created_at,

@@ -339,6 +339,10 @@ class FirebaseSync:
             data_to_push = run_data.copy()
             if "sync_status" in data_to_push:
                 del data_to_push["sync_status"]
+            if not data_to_push.get("user_id"):
+                data_to_push["user_id"] = user_id
+            if not data_to_push.get("pr_author"):
+                data_to_push["pr_author"] = user_id
 
             # Generate readable key
             slug = data_to_push.get("slug", "unknown")
@@ -370,8 +374,7 @@ class FirebaseSync:
                 identity = _get_user_mode_identity()
                 if not identity:
                     return False
-                uid, token = identity
-                target_user_id = uid
+                _, token = identity
 
                 # Use requests.put for custom ID
                 url = f"{settings.firebase.database_url}/users/{target_user_id}/runs/{key}.json?auth={token}"

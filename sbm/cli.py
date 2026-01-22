@@ -2069,6 +2069,22 @@ def stats(
             rich_console.print()
             rich_console.print(warning_panel)
 
+        missing_author_count = sum(
+            1 for r in runs if not r.get("pr_author") and not r.get("user_id")
+        )
+        if missing_author_count > 0:
+            from rich.panel import Panel
+
+            author_panel = Panel(
+                f"[yellow]⚠️  {missing_author_count} run(s) missing PR author data.[/yellow]\n"
+                f"[dim]Tip: ensure `gh auth status` is OK on user machines and run:[/dim] "
+                f"[cyan]python scripts/refresh_run_metadata.py[/cyan]",
+                border_style="yellow",
+                title="Author Data Missing",
+            )
+            rich_console.print()
+            rich_console.print(author_panel)
+
     if history:
         runs = stats_data.get("runs", [])
         if runs:

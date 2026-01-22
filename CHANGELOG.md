@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.6] - 2026-01-22
+
+### Fixed
+- enforce GitHub user id attribution for Firebase runs in user mode
+- warn when GitHub auth is missing during run tracking
+
 ## [2.12.5] - 2026-01-22
 
 ### Changed
