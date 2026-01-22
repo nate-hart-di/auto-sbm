@@ -1,6 +1,6 @@
 # Auto-SBM
 
-Current version: 2.12.7
+Current version: 2.12.8
 Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
 to Site Builder format, validates output, and tracks migration stats with optional Slack
 reporting.
@@ -186,6 +186,37 @@ Behavior:
 - Tue–Fri: daily report for previous day
 - Mon: weekly report for previous week + leaderboard
 - 1st of month: monthly report + all-time leaderboard
+
+## Firebase Security Rules (Required)
+
+Firebase **anonymous auth must be enabled** and **rules must require auth**.
+Suggested rules:
+
+```json
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "runs": {
+          "$runid": {
+            ".validate": "newData.hasChildren(['user_id','pr_author','slug','status']) && newData.child('user_id').val() == newData.child('pr_author').val()"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Required env values (user installs):
+- `FIREBASE__API_KEY` (required for anonymous auth)
+- `FIREBASE__DATABASE_URL` (defaults to auto-sbm DB if not overridden)
+
+Secure distribution options:
+- Use a shared 1Password vault and set `OP_FIREBASE_API_KEY_REF` (recommended).
+- Set `SBM_ENABLE_KEYRING=1` and run `sbm setup` to store secrets in Keychain.
 
 ## Troubleshooting
 

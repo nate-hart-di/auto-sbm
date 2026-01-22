@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.8] - 2026-01-22
+
+### Changed
+- require FIREBASE__API_KEY during setup/doctor for authenticated stats access
+- document Firebase auth rules and secure key distribution
+
 ## [2.12.7] - 2026-01-22
 
 ### Changed

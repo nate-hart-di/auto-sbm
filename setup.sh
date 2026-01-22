@@ -748,7 +748,33 @@ function setup_github_auth() {
 setup_github_auth
 
 echo ""
-echo "Step 8/8: Validating installation..."
+echo "Step 8/8: Validating Firebase auth..."
+
+# --- Firebase API Key Check (required for stats) ---
+function validate_firebase_api_key() {
+  if [ -z "${FIREBASE__API_KEY:-}" ]; then
+    # Try reading from .env if present
+    if [ -f ".env" ]; then
+      ENV_KEY=$(grep -E "^FIREBASE__API_KEY=" .env | tail -n 1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+      if [ -n "$ENV_KEY" ] && [ "$ENV_KEY" != "your-firebase-web-api-key" ]; then
+        export FIREBASE__API_KEY="$ENV_KEY"
+      fi
+    fi
+  fi
+
+  if [ -z "${FIREBASE__API_KEY:-}" ] || [ "${FIREBASE__API_KEY}" = "your-firebase-web-api-key" ]; then
+    error "❌ FIREBASE__API_KEY is required for stats (anonymous auth)."
+    error "Set FIREBASE__API_KEY in .env or export it before running setup."
+    error "If you use 1Password, set OP_FIREBASE_API_KEY_REF and rerun setup."
+    return 1
+  fi
+  log "✅ FIREBASE__API_KEY detected"
+}
+
+validate_firebase_api_key || exit 1
+
+echo ""
+echo "Step 9/9: Validating installation..."
 
 # --- Validation Function ---
 function validate_installation() {

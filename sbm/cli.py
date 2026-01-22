@@ -3247,6 +3247,14 @@ def doctor() -> None:
     else:
         console.console.print("❌ GitHub CLI not found")
 
+    # Check Firebase API key (required for anonymous auth)
+    config = get_settings()
+    api_key = os.environ.get("FIREBASE__API_KEY") or config.firebase.api_key
+    if not api_key or api_key == "your-firebase-web-api-key":
+        console.console.print("❌ FIREBASE__API_KEY missing (required for stats)")
+        console.console.print("   Set FIREBASE__API_KEY in .env or export it, then rerun setup.")
+        sys.exit(1)
+
     # Summary and recommendations
     console.console.print("\n📊 Summary:")
     if missing_modules:
