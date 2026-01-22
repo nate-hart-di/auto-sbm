@@ -1,69 +1,113 @@
-# Story 1.1: Fix SBM Stats Timestamps and PR State Tracking
+---
+title: 'Remove Success Rate displays, fix Slack PR link, and SCSS migration'
+slug: 'remove-success-rate-fix-slack-pr-link-and-scss-migration'
+created: '2026-01-22T16:48:42.000Z'
+status: 'in-progress'
+stepsCompleted: [1, 2]
+tech_stack:
+  - Python
+  - Click
+  - Rich
+  - Slack Block Kit (JSON)
+  - GitHub Search (PR query)
+  - SCSS processing pipeline
+files_to_modify:
+  - scripts/stats/report_slack.py
+  - tests/archive/test_slack_report.py
+  - sbm/cli.py
+  - sbm/core/migration.py
+  - sbm/scss/processor.py
+  - sbm/scss/classifiers.py
+  - sbm/core/maps.py
+code_patterns:
+  - Slack payloads built as Block Kit sections/fields in `format_slack_payload`
+  - CLI stats display uses Rich Panels/Columns in `sbm/cli.py`
+  - SCSS processing via `SCSSProcessor.transform_scss_content` and `reprocess_scss_content`
+  - Compilation error recovery modifies test-* SCSS in css/ during verification
+test_patterns:
+  - unittest-based tests in `tests/archive/test_slack_report.py`
+---
 
-Status: done
-Created: 2026-01-20
+# Tech-Spec: Remove Success Rate displays, fix Slack PR link, and SCSS migration
 
-## Story
+**Created:** 2026-01-22T16:48:42.000Z
 
-As an SBM maintainer,
-I want migration stats to reflect accurate PR timestamps and states,
-so that historical metrics and in-progress work are tracked correctly.
+## Overview
 
-## Acceptance Criteria
+### Problem Statement
 
-1. Firebase run records include `created_at`, `merged_at`, `closed_at`, and `pr_state` when available from GitHub.
-2. Public stats count only merged PRs as complete; open/closed PRs are excluded from completion metrics.
-3. CLI `sbm stats --history` displays PR state categories with clear status labels and a state-appropriate date column.
-4. Date filtering and sorting use PR state-aware timestamps (merged/created/closed) instead of only `timestamp`.
-5. Backfill/migration scripts fetch all three timestamps with validation, rate limiting, and retries.
-6. Team stats obey the same merged-only completion rule as personal stats.
+Front-end stats UIs show “Success Rate” (should be removed), Slack app links to an unfiltered PR list instead of Auto-SBM open PRs, and the SCSS migration process is corrupting a `.mapRow` block by commenting out the selector and leaving a stray brace, breaking compilation.
 
-## Tasks / Subtasks
+### Solution
 
-- [x] Capture PR timestamps on runs and backfills (AC: 1, 5)
-  - [x] Include `created_at`, `merged_at`, `closed_at` in tracker records and PR metadata fetches
-- [x] Update stats classification and filtering to use PR state (AC: 2, 4)
-  - [x] Add and use PR completion classification in metrics and filters
-- [x] Update CLI history rendering to show PR state and correct date (AC: 3)
-- [x] Enforce merged-only logic in team stats (AC: 6)
-- [x] Add tests for PR state filtering and team stats behavior (AC: 2, 4, 6)
+Remove “Success Rate” from CLI and Slack display output (display-only), update Slack to link to an Auto-SBM open PRs filtered view, and fix the SCSS migration logic so `.mapRow` blocks are not commented out or duplicated; add tests/validation as appropriate.
 
-### Review Follow-ups (AI)
+### Scope
 
-- [x] [AI-Review][High] Add proper Story/AC/Tasks sections; "completed" status without ACs is invalid. `_bmad-output/implementation-artifacts/tech-spec-wip.md:1`
-- [x] [AI-Review][High] Treat runs with `closed_at` but missing `pr_state` as closed to avoid false "in review". `sbm/utils/tracker.py:574`
-- [x] [AI-Review][High] Team stats must count only merged PRs as complete. `sbm/utils/firebase_sync.py:389`
-- [x] [AI-Review][Medium] Date filtering must use PR state-aware timestamps. `sbm/utils/tracker.py:253`
-- [x] [AI-Review][Medium] Story file list must match actual git changes. `_bmad-output/implementation-artifacts/tech-spec-wip.md:1`
-- [x] [AI-Review][Low] Add tests for new PR state logic and filtering. `tests/test_history_filtering.py:1`
+**In Scope:**
+- CLI stats display
+- Slack stats display and link
+- SCSS migration pipeline that produces `sb-inside.scss`
 
-## Dev Notes
+**Out of Scope:**
+- Changing metrics computation/storage
+- Non-SBM dashboards
+- Modifying source SCSS in the repo itself
 
-- PR state priority: merged → open → closed (closed only when not open) → created → unknown.
-- Backwards compatibility: runs without PR timestamps should be treated as `unknown` and excluded from completion metrics.
-- CLI history should show a warning panel when PR timestamp data is missing.
+## Context for Development
 
-## Dev Agent Record
+### Codebase Patterns
 
-### Agent Model Used
+- Slack stats rendering is centralized in `scripts/stats/report_slack.py` (metrics calculation + Block Kit layout).
+- CLI stats display is assembled in `sbm/cli.py` with Rich Panels/Columns for metrics.
+- SCSS migrations are processed through `sbm/scss/processor.py` and error recovery in `sbm/core/migration.py`.
+- Map SCSS migration uses `sbm/core/maps.py` with `SCSSProcessor.transform_scss_content`.
 
-GPT-5 (Codex CLI)
+### Files to Reference
 
-### Debug Log References
+| File | Purpose |
+| ---- | ------- |
+| scripts/stats/report_slack.py | Slack stats aggregation + Block Kit payload |
+| tests/archive/test_slack_report.py | Tests for Slack report metrics/payload |
+| sbm/cli.py | CLI stats display (Rich panels/tables) |
+| sbm/core/migration.py | SCSS compilation error recovery + reprocess flow |
+| sbm/scss/processor.py | SCSS transformation + cleanup logic |
+| sbm/scss/classifiers.py | Rule parsing/exclusion logic |
+| sbm/core/maps.py | Map SCSS migration, map import handling |
+### Technical Decisions
 
-- None
+- Remove “Success Rate” from display only; keep metric calculation unless needed for other logic/tests.
+- Replace “Open PRs (In Review)” link list with a single GitHub search link filtered to open Auto‑SBM PRs.
+- Align PR filter with existing SBM PR detection patterns (branch/title in `scripts/backfill_firebase_runs.py`), and confirm the encoded GitHub search URL via `gh` if available.
+- Fix SCSS mis‑migration by preventing selector lines from being commented out without matching closing brace handling; update processor/recovery logic as needed.
 
-### Completion Notes List
+## Implementation Plan
 
-- Added PR state-aware date selection for filtering/sorting and fixed closed PR classification.
-- Updated team stats aggregation to include only merged PRs.
-- Refined tests to cover PR state-based filtering and team stats behavior.
-- Story reformatted to proper story structure and synced with actual changes.
+### Tasks
 
-### File List
+- Remove “Success Rate” display from Slack Block Kit and CLI stats views.
+- Update Slack “Open PRs” section to link to filtered Auto‑SBM open PRs query.
+- Identify root cause of commented selector lines in SCSS migration; fix in SCSS processor/recovery path.
+- Update tests covering Slack payload/metrics display changes.
 
-- _bmad-output/implementation-artifacts/tech-spec-wip.md
-- sbm/utils/tracker.py
-- sbm/utils/firebase_sync.py
-- tests/test_history_filtering.py
-- tests/test_team_stats.py
+### Acceptance Criteria
+
+- CLI and Slack stats no longer display “Success Rate”.
+- Slack PRs section links to a GitHub search that returns only open Auto‑SBM PRs (non‑draft, fe‑dev).
+- SCSS migration no longer comments out valid selector lines (e.g., `.mapRow {}`) or leaves stray braces that break compilation.
+- Tests updated/added to reflect new Slack payload structure.
+
+## Additional Context
+
+### Dependencies
+
+- TBD in investigation
+
+### Testing Strategy
+
+- TBD in investigation
+
+### Notes
+
+- Slack PR link should use GitHub filters: `is:pr is:open -is:draft label:fe-dev PCON-727 SBM` (confirm exact query string with gh cli).
+- SCSS migration error example: `.mapRow` block gets commented out, resulting in stray `}` and SCSS compile failure.
