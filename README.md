@@ -152,8 +152,8 @@ python3 scripts/stats/report_slack.py --period week
 Open PRs link configuration (optional overrides):
 
 ```bash
-export AUTO_SBM_PR_REPO="carsdotcom/di-websites-platform"
-export AUTO_SBM_PR_QUERY="is:pr is:open -is:draft label:fe-dev PCON-727 SBM"
+# AUTO_SBM_PR_REPO="carsdotcom/di-websites-platform"
+# AUTO_SBM_PR_QUERY="is:pr is:open -is:draft label:fe-dev PCON-727 SBM"
 ```
 
 Slash command listener (Socket Mode):
