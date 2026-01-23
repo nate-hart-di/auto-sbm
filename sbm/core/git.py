@@ -977,8 +977,8 @@ class GitOperations:
         self, slug: str, branch: str, repo_info: Dict[str, str]
     ) -> Dict[str, str]:
         """Build PR content using Stellantis template with dynamic What section based on actual Git changes."""
-        # All Site Builder migrations use PCON-727
-        title = f"PCON-727: {slug} SBM FE Audit"
+        # All Site Builder migrations use PCON-864
+        title = f"PCON-864: {slug} SBM FE Audit"
 
         # Get automated migration changes
         automated_items = self._analyze_migration_changes()

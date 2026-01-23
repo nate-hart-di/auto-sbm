@@ -30,7 +30,7 @@ from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
 # Valid SBM PR title patterns
 SBM_TITLE_PATTERNS = [
     r"^(.+?)\s*-\s*SBM FE Audit",  # "slug - SBM FE Audit"
-    r"^PCON-\d+:\s*(.+?)\s+SBM",  # "PCON-727: slug SBM FE Audit"
+    r"^PCON-\d+:\s*(.+?)\s+SBM",  # "PCON-864: slug SBM FE Audit"
     r"^SBM:\s*Migrate\s+(.+?)\s+to",  # "SBM: Migrate slug to Site Builder"
     r"^\[(.+?)\]\s*-\s*Site Builder",  # "[slug] - Site Builder Migration"
     r"^(.+?)\s*-\s*Site Builder Migration",  # "slug - Site Builder Migration"
@@ -54,7 +54,7 @@ def extract_slug_from_branch(branch: str) -> str | None:
     """Extract slug from SBM branch patterns."""
     branch_lower = branch.lower()
 
-    # "pcon-727-{slug}-sbm{mmyy}"
+    # "pcon-864-{slug}-sbm{mmyy}"
     match = re.match(r"^pcon-\d+-(.+?)-sbm\d{4}$", branch_lower)
     if match:
         return match.group(1)

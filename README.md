@@ -1,6 +1,6 @@
 # Auto-SBM
 
-Current version: 2.12.8
+Current version: 2.13.3
 Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
 to Site Builder format, validates output, and tracks migration stats with optional Slack
 reporting.
@@ -143,7 +143,7 @@ Open PRs link configuration (optional overrides):
 
 ```bash
 # AUTO_SBM_PR_REPO="carsdotcom/di-websites-platform"
-# AUTO_SBM_PR_QUERY="is:pr is:open -is:draft label:fe-dev PCON-727 SBM"
+# AUTO_SBM_PR_QUERY="is:pr is:open -is:draft label:fe-dev PCON-864 SBM"
 ```
 
 Slash command listener (Socket Mode):
