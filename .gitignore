@@ -121,6 +121,8 @@ stats/*.json
 .codex/log/
 .codex/version.json
 .codex/shell_snapshots/
+.codex/models_cache.json
+
 
 # User Files
 slugs.txt
