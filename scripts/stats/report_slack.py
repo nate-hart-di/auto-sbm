@@ -41,7 +41,7 @@ STATS_DIR = REPO_ROOT / "stats"
 
 AUTO_SBM_OPEN_PRS_REPO = os.environ.get("AUTO_SBM_PR_REPO", "carsdotcom/di-websites-platform")
 AUTO_SBM_OPEN_PRS_QUERY = os.environ.get(
-    "AUTO_SBM_PR_QUERY", "is:pr is:open -is:draft label:fe-dev PCON-727 SBM"
+    "AUTO_SBM_PR_QUERY", "is:pr is:open -is:draft label:fe-dev PCON-864 SBM"
 )
 AUTO_SBM_OPEN_PRS_URL = (
     f"https://github.com/{AUTO_SBM_OPEN_PRS_REPO}/pulls?q="
