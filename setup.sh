@@ -757,14 +757,52 @@ function setup_github_auth() {
   gh auth refresh -s workflow,repo &> /dev/null || true
 }
 
-# --- Ensure GitHub repo access for workflow dispatch/artifacts ---
-function ensure_github_repo_access() {
+# --- Ensure GitHub auth scopes + repo permissions are correct ---
+function ensure_github_auth_ready() {
   local repo="nate-hart-di/auto-sbm"
-  if ! gh repo view "$repo" &> /dev/null; then
+  local required_scopes="repo workflow"
+  local scopes=""
+  local permission=""
+
+  log "Validating GitHub auth scopes and repo access..."
+
+  # Ensure active auth exists
+  if ! gh auth status --active --hostname github.com &> /dev/null; then
+    warn "GitHub auth status not healthy. Re-authenticating..."
+    gh auth login -h github.com -s workflow,repo
+  fi
+
+  # Check scopes on active account
+  scopes=$(gh auth status --json hosts --jq '.hosts["github.com"][] | select(.active==true) | .scopes' 2>/dev/null || true)
+  if [[ -z "$scopes" ]] || ! echo "$scopes" | grep -q "workflow" || ! echo "$scopes" | grep -q "repo"; then
+    warn "Missing required GitHub scopes (need: $required_scopes). Refreshing..."
+    gh auth refresh -s workflow,repo &> /dev/null || true
+    scopes=$(gh auth status --json hosts --jq '.hosts["github.com"][] | select(.active==true) | .scopes' 2>/dev/null || true)
+    if [[ -z "$scopes" ]] || ! echo "$scopes" | grep -q "workflow" || ! echo "$scopes" | grep -q "repo"; then
+      warn "Scopes still missing. Forcing re-login with required scopes..."
+      gh auth logout -h github.com &> /dev/null || true
+      gh auth login -h github.com -s workflow,repo
+    fi
+  fi
+
+  # Verify repo access and permission level
+  if ! permission=$(gh repo view "$repo" --json viewerPermission -q '.viewerPermission' 2>/dev/null); then
     warn "❌ GitHub repo access check failed for $repo"
     warn "   You may be logged into the wrong GitHub account or missing repo access."
     return 1
   fi
+
+  case "$permission" in
+    ADMIN|MAINTAIN|WRITE)
+      log "✅ Repo access confirmed ($permission)"
+      ;;
+    *)
+      warn "❌ Insufficient repo permission ($permission) for workflow dispatch."
+      warn "   Ask for write/maintain/admin access to $repo."
+      return 1
+      ;;
+  esac
+
   return 0
 }
 
@@ -893,7 +931,7 @@ function fetch_firebase_api_key_from_github_actions() {
 }
 
 setup_github_auth
-ensure_github_repo_access || true
+ensure_github_auth_ready || true
 
 echo ""
 echo "Step 8/10: Fetching Firebase API key from GitHub Actions..."
