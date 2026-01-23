@@ -49,12 +49,21 @@ def test_get_all_migrated_slugs_offline(mock_is_avail):
 @patch("sbm.cli.migrate_dealer_theme")
 @patch("sbm.cli.get_console")
 @patch("sbm.cli.InteractivePrompts")
+@patch("sbm.cli.get_settings")
 def test_auto_duplicate_warn_skip(
-    mock_prompts_class, mock_console, mock_migrate, mock_get_slugs, mock_expand
+    mock_get_settings, mock_prompts_class, mock_console, mock_migrate, mock_get_slugs, mock_expand
 ):
     """Test that CLI warns and skips validation when user confirms skip."""
     # Reset settings singleton
     sbm.config._settings = None
+
+    # Mock Firebase settings with valid API key
+    from unittest.mock import MagicMock
+    mock_firebase = MagicMock()
+    mock_firebase.api_key = "test-api-key"
+    mock_settings = MagicMock()
+    mock_settings.firebase = mock_firebase
+    mock_get_settings.return_value = mock_settings
 
     # Configure mocks
     mock_get_slugs.return_value = {"site-a": "user1"}
@@ -82,12 +91,21 @@ def test_auto_duplicate_warn_skip(
 @patch("sbm.cli.migrate_dealer_theme")
 @patch("sbm.cli.get_console")
 @patch("sbm.cli.InteractivePrompts")
+@patch("sbm.cli.get_settings")
 def test_auto_duplicate_warn_force(
-    mock_prompts_class, mock_console, mock_migrate, mock_get_slugs, mock_expand
+    mock_get_settings, mock_prompts_class, mock_console, mock_migrate, mock_get_slugs, mock_expand
 ):
     """Test that CLI proceeds with duplicates when user says No to skip."""
     # Reset settings singleton
     sbm.config._settings = None
+
+    # Mock Firebase settings with valid API key
+    from unittest.mock import MagicMock
+    mock_firebase = MagicMock()
+    mock_firebase.api_key = "test-api-key"
+    mock_settings = MagicMock()
+    mock_settings.firebase = mock_firebase
+    mock_get_settings.return_value = mock_settings
 
     mock_get_slugs.return_value = {"site-a": "user1"}
 

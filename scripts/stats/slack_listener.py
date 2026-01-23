@@ -14,6 +14,7 @@ Environment Variables:
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -73,40 +74,78 @@ def handle_sbm_stats(ack, body, say, logger):
     command_str = "/sbm-stats" + (f" {text}" if text else "")
     context_label = f"Auto-SBM {command_str} received"
 
-    # Parse optional args: [period] [username]
-    # If no args: default to all time
+    # Parse optional args: [period/date/range] [username]
     period = "all"
     username = None
     top_n = None
     top_flag = False
     tokens = text.split() if text else []
+
     if tokens:
         lower_tokens = [t.lower() for t in tokens]
+
+        # 1. Handle "top N"
         if "top" in lower_tokens:
             top_flag = True
             idx = lower_tokens.index("top")
             if idx + 1 < len(lower_tokens) and lower_tokens[idx + 1].isdigit():
                 top_n = int(lower_tokens[idx + 1])
                 del tokens[idx : idx + 2]
-                del lower_tokens[idx : idx + 2]
             else:
                 top_n = 3
                 del tokens[idx : idx + 1]
-                del lower_tokens[idx : idx + 1]
+            lower_tokens = [t.lower() for t in tokens]
 
+        # 2. Extract Period/Date/Range
+        # We look for:
+        # - Named periods: day, week, month, all
+        # - Date ranges: "1/1/25 to 2/1/25"
+        # - Duration ranges: "14 1/1/25"
+        # - Specific dates: "1/25", "1/1/25"
+
+        full_text = " ".join(tokens)
+
+        # Regex for common patterns
+        # Range: date to date
+        range_match = re.search(
+            r"(\d{1,2}/\d{1,2}(?:/\d{2,4})?\s+to\s+\d{1,2}/\d{1,2}(?:/\d{2,4})?)", full_text, re.I
+        )
+        # Duration: N date
+        duration_match = re.search(r"(\d+\s+\d{1,2}/\d{1,2}(?:/\d{2,4})?)", full_text, re.I)
+        # Specific date: MM/DD/YY or MM/YY
+        date_match = re.search(r"(\d{1,2}/\d{1,2}(?:/\d{2,4})?|\d{1,2}/\d{2,4})", full_text, re.I)
+        # Named period
         period_tokens = {"day", "daily", "week", "weekly", "month", "monthly", "all"}
-        period_idx = None
-        for i, token in enumerate(lower_tokens):
-            if token in period_tokens or token.isdigit():
-                period_idx = i
+        found_period = None
+        for t in lower_tokens:
+            if t in period_tokens or t.isdigit():
+                found_period = t
                 break
-        if period_idx is not None:
-            period = lower_tokens[period_idx]
-            del tokens[period_idx]
-            del lower_tokens[period_idx]
 
-        if tokens:
-            username = " ".join(tokens).strip()
+        if range_match:
+            period = range_match.group(1)
+            # Remove from tokens to find username
+            remaining_text = full_text.replace(period, "").strip()
+            username = remaining_text if remaining_text else None
+        elif duration_match:
+            period = duration_match.group(1)
+            remaining_text = full_text.replace(period, "").strip()
+            username = remaining_text if remaining_text else None
+        elif date_match:
+            # Important: specific dates might be part of a larger string
+            # We only treat it as the period if it matches a token exactly or is the start
+            period = date_match.group(1)
+            remaining_text = full_text.replace(period, "").strip()
+            username = remaining_text if remaining_text else None
+        elif found_period:
+            period = found_period
+            # Find the original token to remove
+            idx = lower_tokens.index(found_period)
+            del tokens[idx]
+            username = " ".join(tokens).strip() if tokens else None
+        else:
+            # No clear period, assume text is username and period is 'all'
+            username = full_text.strip() if full_text else None
 
     logger.info(
         f"Received /sbm-stats command from {user_id} with period: {period} user: {username or 'all'} top: {top_n}"
@@ -116,7 +155,42 @@ def handle_sbm_stats(ack, body, say, logger):
         # 1. Load Data
         all_runs, user_migrations = report_slack.load_all_stats()
 
-        # 2. Filter
+        # 2. Parse date range for header
+        from datetime import datetime, timedelta, timezone
+        from sbm.utils.tracker import _parse_date_input, _parse_period_to_days
+        import re
+
+        start_date = None
+        end_date = None
+        is_month_only = False
+
+        if period != "all":
+            # Detect month-only format: M/YY or MM/YY (no day component)
+            month_only_match = re.match(r"^(\d{1,2})/(\d{2,4})$", period.strip())
+            if month_only_match:
+                is_month_only = True
+
+            # Try new flexible formats first
+            parsed = _parse_date_input(period)
+            if parsed:
+                start_date, end_date = parsed
+            else:
+                # Try period-based ("7", "week", etc)
+                days = _parse_period_to_days(period)
+                if days:
+                    end_date = datetime.now(timezone.utc)
+                    start_date = end_date - timedelta(days=days)
+                else:
+                    # Fallback to ISO date
+                    try:
+                        dt = datetime.fromisoformat(period)
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        start_date = dt
+                    except (ValueError, TypeError):
+                        pass
+
+        # 3. Filter
         if top_flag and period == "all" and not username and not tokens:
             payload = report_slack.format_top_users_payload(user_migrations, top_n, context_label)
             payload["username"] = "SBM Stats Bot"
@@ -127,22 +201,17 @@ def handle_sbm_stats(ack, body, say, logger):
         if username:
             filtered_runs = report_slack.filter_runs_by_user(filtered_runs, username)
 
-        # 3. Aggregate
+        # 4. Aggregate
         is_all_time = period == "all"
         if is_all_time and not username:
             metrics = report_slack.calculate_global_metrics_all_time()
         else:
             metrics = report_slack.calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
-        # 4. Format
-        current_in_review_runs = [
-            r for r in all_runs
-            if report_slack._get_completion_state(r) == "in_review" and r.get("pr_url")
-        ]
+        # 5. Format
         current_in_review_count = len(
             [r for r in all_runs if report_slack._get_completion_state(r) == "in_review"]
         )
-        current_in_review_links = [r.get("pr_url") for r in current_in_review_runs][:10]
 
         payload = report_slack.format_slack_payload(
             metrics,
@@ -150,13 +219,15 @@ def handle_sbm_stats(ack, body, say, logger):
             context_label,
             top_n if top_flag else None,
             current_in_review_count=current_in_review_count,
-            current_in_review_links=current_in_review_links,
+            start_date=start_date,
+            end_date=end_date,
+            is_month_only=is_month_only,
         )
 
-        # 5. Branding
+        # 6. Branding
         payload["username"] = "SBM Stats Bot"
 
-        # 6. Respond
+        # 7. Respond
         # By default, slash command responses are ephemeral (visible only to user)
         # We can use say() to post to the channel or just return the blocks
         if username and not filtered_runs:

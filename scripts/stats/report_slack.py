@@ -39,9 +39,7 @@ except ImportError:
 REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
 STATS_DIR = REPO_ROOT / "stats"
 
-AUTO_SBM_OPEN_PRS_REPO = os.environ.get(
-    "AUTO_SBM_PR_REPO", "carsdotcom/di-websites-platform"
-)
+AUTO_SBM_OPEN_PRS_REPO = os.environ.get("AUTO_SBM_PR_REPO", "carsdotcom/di-websites-platform")
 AUTO_SBM_OPEN_PRS_QUERY = os.environ.get(
     "AUTO_SBM_PR_QUERY", "is:pr is:open -is:draft label:fe-dev PCON-727 SBM"
 )
@@ -152,38 +150,9 @@ def get_days_from_period(period: str) -> int:
 
 def filter_runs_by_date(runs: List[Dict[str, Any]], days_or_period: str) -> List[Dict[str, Any]]:
     """Filter runs that occurred within a given period or number of days."""
-    if days_or_period.lower() == "all":
-        return runs
+    from sbm.utils.tracker import filter_runs
 
-    days = get_days_from_period(days_or_period)
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    filtered = []
-
-    for run in runs:
-        ts_str = _get_effective_timestamp(run)
-        if not ts_str:
-            continue
-
-        try:
-            # Handle ISO format with Z
-            # Fix for malformed SBM timestamps: "2026-01-06...27+00:00Z" -> double offset
-            if ts_str.endswith("+00:00Z"):
-                ts_str = ts_str[:-1]  # Just remove the Z, leaving +00:00
-            elif ts_str.endswith("Z"):
-                ts_str = ts_str[:-1] + "+00:00"
-
-            run_dt = datetime.fromisoformat(ts_str)
-            if run_dt.tzinfo is None:
-                # Assume UTC if naive, though SBM writes with timezone
-                run_dt = run_dt.replace(tzinfo=timezone.utc)
-
-            if run_dt >= cutoff:
-                filtered.append(run)
-        except ValueError as e:
-            print(f"Warning: Skipping run with invalid timestamp '{ts_str}': {e}", file=sys.stderr)
-            continue
-
-    return filtered
+    return filter_runs(runs, since=days_or_period)
 
 
 def filter_runs_by_previous_calendar_day(
@@ -200,6 +169,7 @@ def filter_runs_by_previous_calendar_day(
     """
     try:
         from zoneinfo import ZoneInfo
+
         tz = ZoneInfo(tz_name)
     except ImportError:
         tz = timezone.utc
@@ -228,7 +198,6 @@ def filter_runs_by_previous_calendar_day(
             continue
 
     return filtered
-
 
 
 def filter_runs_by_user(runs: List[Dict[str, Any]], username: str) -> List[Dict[str, Any]]:
@@ -435,6 +404,9 @@ def format_slack_payload(
     context_label: str | None = None,
     top_n: int | None = None,
     current_in_review_count: int | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    is_month_only: bool = False,
 ) -> Dict[str, Any]:
     """Format metrics into a Slack Block Kit payload."""
     now = datetime.now(timezone.utc)
@@ -442,11 +414,47 @@ def format_slack_payload(
     if period.lower() == "all":
         period_label = "All Time"
         date_range_str = "Project Inception - Present"
+    elif is_month_only and start_date:
+        # Month-only input: "Month of December 2025"
+        date_range_str = f"Month of {start_date.strftime('%B %Y')}"
+        period_label = "Month"
+    elif start_date and end_date:
+        # Use provided dates for precise display with year
+        days_diff = (end_date - start_date).days
+        if days_diff <= 1:
+            # Single day: "Jan 26, 2026"
+            date_range_str = start_date.strftime("%b %d, %Y")
+            period_label = "24 Hours"
+        else:
+            # Date range with years: "Jan 01, 2026 - Feb 01, 2026"
+            # If same year, only show year once: "Jan 01 - Feb 01, 2026"
+            if start_date.year == end_date.year:
+                date_range_str = (
+                    f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
+                )
+            else:
+                date_range_str = (
+                    f"{start_date.strftime('%b %d, %Y')} - {end_date.strftime('%b %d, %Y')}"
+                )
+
+            if days_diff == 7:
+                period_label = "7 Days"
+            elif days_diff == 30:
+                period_label = "30 Days"
+            else:
+                period_label = f"{days_diff} Days"
+    elif start_date:
+        # Single date (since only)
+        date_range_str = f"{start_date.strftime('%b %d, %Y')} - Present"
+        period_label = "Custom Range"
     else:
+        # Fallback to period-based calculation
         days = get_days_from_period(period)
         start_date = now - timedelta(days=days)
-        # Format: "Dec 30 - Jan 06"
-        date_range_str = f"{start_date.strftime('%b %d')} - {now.strftime('%b %d')}"
+        if start_date.year == now.year:
+            date_range_str = f"{start_date.strftime('%b %d')} - {now.strftime('%b %d, %Y')}"
+        else:
+            date_range_str = f"{start_date.strftime('%b %d, %Y')} - {now.strftime('%b %d, %Y')}"
         period_label = "24 Hours" if days == 1 else f"{days} Days"
 
     has_activity = metrics.get("success_count", 0) > 0 or metrics.get("sites_migrated", 0) > 0
@@ -522,23 +530,13 @@ def format_slack_payload(
             "type": "section",
             "fields": [
                 {"type": "mrkdwn", "text": f"*Lines of Code*\n{metrics['lines_migrated']:,}"},
-            ],
-        }
-    )
-    blocks.append(
-        {
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Completed (Merged)*\n{metrics['success_count']}"},
                 {"type": "mrkdwn", "text": f"*In Review (Period)*\n{metrics['in_review_count']}"},
             ],
         }
     )
 
     if current_in_review_count is not None:
-        in_review_text = (
-            f"Currently in review (all time): *{current_in_review_count}*"
-        )
+        in_review_text = f"Currently in review (all time): *{current_in_review_count}*"
         if current_in_review_count == 0:
             in_review_text += " — Auto-SBM search may show none."
         blocks.append(
@@ -559,8 +557,7 @@ def format_slack_payload(
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "*Open PRs (Auto-SBM)*\n"
-                f"<{AUTO_SBM_OPEN_PRS_URL}|View open Auto-SBM PRs>",
+                "text": f"*Open PRs (Auto-SBM)*\n<{AUTO_SBM_OPEN_PRS_URL}|View open Auto-SBM PRs>",
             },
         }
     )
@@ -668,9 +665,7 @@ def main() -> None:
     else:
         metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
 
-    current_in_review_count = len(
-        [r for r in all_runs if _get_completion_state(r) == "in_review"]
-    )
+    current_in_review_count = len([r for r in all_runs if _get_completion_state(r) == "in_review"])
 
     # 4. Format
     payload = format_slack_payload(

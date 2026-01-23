@@ -25,10 +25,16 @@ def runner():
 def test_update_aborts_rebase(mock_subprocess, mock_legacy_sync, runner):
     """Verify that update attempts to abort a rebase if detected."""
 
+    # Mock Firebase settings with valid API key
+    mock_firebase = MagicMock()
+    mock_firebase.api_key = "test-api-key"
+    mock_settings = MagicMock()
+    mock_settings.firebase = mock_firebase
+
     # Mock Path.exists to Simulate .git and rebase-merge existing
     # We patch sbm.cli.Path.exists because sbm.cli imports Path from pathlib
     # autospec=True ensures the mock receives 'self' when called on an instance
-    with patch("sbm.cli.Path.exists", autospec=True) as mock_exists:
+    with patch("sbm.cli.get_settings", return_value=mock_settings), patch("sbm.cli.Path.exists", autospec=True) as mock_exists:
 
         def side_effect(self):
             s = str(self)
@@ -72,8 +78,14 @@ def test_update_aborts_rebase(mock_subprocess, mock_legacy_sync, runner):
 
 def test_update_syncs_and_resets(mock_subprocess, mock_legacy_sync, runner):
     """Verify that update syncs legacy stats and checkouts archives."""
+    # Mock Firebase settings with valid API key
+    mock_firebase = MagicMock()
+    mock_firebase.api_key = "test-api-key"
+    mock_settings = MagicMock()
+    mock_settings.firebase = mock_firebase
+
     # Setup mocks to bypass rebase check and git validation
-    with patch("sbm.cli._validate_git_repository"), patch(
+    with patch("sbm.cli.get_settings", return_value=mock_settings), patch("sbm.cli._validate_git_repository"), patch(
         "sbm.cli._get_current_branch", return_value="main"
     ), patch("sbm.cli.Path.exists", return_value=False), patch(
         "sbm.cli._stash_changes_if_needed", return_value=False

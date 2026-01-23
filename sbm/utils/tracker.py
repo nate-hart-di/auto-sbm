@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import subprocess
 from datetime import datetime, timedelta, timezone
@@ -262,6 +263,9 @@ def _parse_period_to_days(period: str) -> int | None:
     Returns:
         Number of days, or None if not a valid period string
     """
+    if not period:
+        return None
+
     period_lower = period.lower().strip()
 
     # Named periods
@@ -276,10 +280,106 @@ def _parse_period_to_days(period: str) -> int | None:
 
     # Try numeric days
     try:
-        days = int(period)
-        return days if days > 0 else None
+        # Purely numeric or semantic: "14", "14d", "14 days"
+        # Avoid matching "2024-01-15" (ISO date)
+        if re.match(r"^\d+$", period_lower):
+            days = int(period_lower)
+            return days if days > 0 else None
+
+        semantic_match = re.match(r"^(\d+)\s*(d|day|days)$", period_lower)
+        if semantic_match:
+            days = int(semantic_match.group(1))
+            return days if days > 0 else None
     except ValueError:
+        pass
+
+    return None
+
+
+def _parse_date_input(input_str: str) -> tuple[datetime, datetime] | None:
+    """
+    Parse a flexible date/range string into a (start_dt, end_dt) tuple.
+    All dates are treated as UTC for filtering consistency.
+
+    Formats supported:
+    - MM/DD/YY or M/D/YY (Specific day)
+    - MM/YY or M/YY (Specific month)
+    - date to date (Range)
+    - N date (N days starting from date)
+
+    Args:
+        input_str: The user-provided date/range string
+
+    Returns:
+        tuple of (start_dt, end_dt) or None if unparseable
+    """
+    if not input_str:
         return None
+
+    s = input_str.lower().strip()
+
+    # 1. Handle "date to date" ranges
+    if " to " in s:
+        parts = s.split(" to ")
+        if len(parts) == 2:
+            start_range = _parse_date_input(parts[0])
+            end_range = _parse_date_input(parts[1])
+            if start_range and end_range:
+                # Return start of first and end of second
+                return start_range[0], end_range[1]
+
+    # 2. Handle "N date" (e.g., "14 1/1/26")
+    duration_match = re.match(r"^(\d+)\s+(.*)$", s)
+    if duration_match:
+        try:
+            days = int(duration_match.group(1))
+            date_part = duration_match.group(2)
+            base_range = _parse_date_input(date_part)
+            if base_range:
+                # Start at the specified date, duration extends N days
+                start_dt = base_range[0]
+                end_dt = start_dt + timedelta(days=days)
+                return start_dt, end_dt
+        except ValueError:
+            pass
+
+    # 3. Handle specific dates: MM/DD/YY, M/D/YY, MM/YY, M/YY
+    # Avoid matching ISO dates (YYYY-MM-DD) by ensuring month is 1-2 digits and we're at start
+    # format: MM/DD/YY(YY) or MM/YY(YY)
+    date_match = re.search(r"\b(\d{1,2})/(?:(\d{1,2})/)?(\d{2,4})\b", s)
+    if date_match:
+        month = int(date_match.group(1))
+        day_raw = date_match.group(2)
+        year_raw = date_match.group(3)
+
+        # Handle 2-digit years
+        year = int(year_raw)
+        if len(year_raw) == 2:
+            year += 2000
+
+        if day_raw:
+            # Specific day: MM/DD/YY
+            day = int(day_raw)
+            try:
+                start_dt = datetime(year, month, day, tzinfo=timezone.utc)
+                end_dt = start_dt + timedelta(days=1)
+                return start_dt, end_dt
+            except ValueError:
+                return None
+        else:
+            # Specific month: MM/YY
+            try:
+                start_dt = datetime(year, month, 1, tzinfo=timezone.utc)
+                # Calculate end of month
+                if month == 12:
+                    end_dt = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+                else:
+                    end_dt = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+                return start_dt, end_dt
+            except ValueError:
+                return None
+
+    return None
 
 
 def filter_runs(
@@ -321,39 +421,48 @@ def filter_runs(
             return run.get("closed_at") or run.get("timestamp") or ""
         return run.get("merged_at") or run.get("timestamp") or ""
 
-    # Parse since - could be period ("7", "week") or ISO date ("2024-01-15")
+    # Apply date filtering using effective date
     since_date = None
-    if since:
-        # First, try to interpret as a period (days)
-        days = _parse_period_to_days(since)
-        if days is not None:
-            since_date = datetime.now(timezone.utc) - timedelta(days=days)
-        else:
-            # Try as ISO date
-            try:
-                # Handle date-only format by adding time component
-                if len(since) == 10:  # YYYY-MM-DD
-                    since_date = datetime.fromisoformat(since + "T00:00:00+00:00")
-                else:
-                    since_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
-            except ValueError:
-                logger.warning(
-                    f"Invalid 'since' format: {since}. Use YYYY-MM-DD or period (day/week/month/N)."
-                )
-
-    # Parse until date (end of day)
     until_date = None
+
+    if since:
+        # 1. Try new flexible formats (MM/DD/YY, ranges, etc.)
+        range_data = _parse_date_input(since)
+        if range_data:
+            since_date, until_date = range_data
+        else:
+            # 2. Try semantic periods (day, week, etc.)
+            days = _parse_period_to_days(since)
+            if days is not None:
+                since_date = datetime.now(timezone.utc) - timedelta(days=days)
+            # 3. Try ISO date
+            elif len(since) >= 10:
+                try:
+                    if len(since) == 10:
+                        parsed_date = datetime.fromisoformat(since + "T00:00:00+00:00")
+                    else:
+                        parsed_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                    since_date = parsed_date
+                except ValueError:
+                    logger.warning(f"Invalid 'since' format: {since}")
+
+    # Explicit 'until' overrides any range end from 'since'
     if until:
         try:
-            # Handle date-only format by adding end-of-day time
-            if len(until) == 10:  # YYYY-MM-DD
-                until_date = datetime.fromisoformat(until + "T23:59:59+00:00")
+            if len(until) == 10:
+                parsed_date = datetime.fromisoformat(until + "T23:59:59+00:00")
             else:
-                until_date = datetime.fromisoformat(until.replace("Z", "+00:00"))
+                parsed_date = datetime.fromisoformat(until.replace("Z", "+00:00"))
+            until_date = parsed_date
         except ValueError:
-            logger.warning(f"Invalid 'until' date format: {until}. Use YYYY-MM-DD.")
+            logger.warning(f"Invalid 'until' format: {until}")
 
-    # Apply date filtering using effective date (merged_at or timestamp)
+    # Ensure timezone awareness
+    if since_date and since_date.tzinfo is None:
+        since_date = since_date.replace(tzinfo=timezone.utc)
+    if until_date and until_date.tzinfo is None:
+        until_date = until_date.replace(tzinfo=timezone.utc)
+
     if since_date or until_date:
         date_filtered = []
         for run in filtered:
@@ -361,17 +470,13 @@ def filter_runs(
             if not date_str:
                 continue
             try:
-                # Normalize timestamp to be parseable
                 ts = date_str
-                # Handle double-offset timestamps like "...+00:00Z"
                 if ts.endswith("+00:00Z"):
-                    ts = ts[:-1]  # Remove trailing Z
+                    ts = ts[:-1]
                 elif ts.endswith("Z"):
                     ts = ts[:-1] + "+00:00"
 
                 run_ts = datetime.fromisoformat(ts)
-
-                # Ensure timezone-aware (some timestamps may be naive)
                 if run_ts.tzinfo is None:
                     run_ts = run_ts.replace(tzinfo=timezone.utc)
 
@@ -381,7 +486,6 @@ def filter_runs(
                     continue
                 date_filtered.append(run)
             except ValueError:
-                # Skip runs with unparseable timestamps
                 continue
         filtered = date_filtered
 
@@ -392,9 +496,8 @@ def filter_runs(
         for run in filtered:
             run_user = _get_run_author(run)
             run_author = run.get("pr_author", "")
-            if (
-                (run_user and user_lower in run_user.lower())
-                or (run_author and user_lower in run_author.lower())
+            if (run_user and user_lower in run_user.lower()) or (
+                run_author and user_lower in run_author.lower()
             ):
                 user_filtered.append(run)
         filtered = user_filtered
@@ -411,6 +514,7 @@ def filter_runs(
 
 def _dedupe_runs_for_display(runs: list[dict]) -> list[dict]:
     """Keep only the most recent run per slug for user-facing displays."""
+
     def get_effective_date(run: dict) -> str:
         completion_state = get_pr_completion_state(run)
         if completion_state == "complete":
@@ -623,7 +727,9 @@ def get_migration_stats(
         filtered_slugs = {
             r.get("slug")
             for r in all_matching_runs
-            if r.get("slug") and r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+            if r.get("slug")
+            and r.get("status") == "success"
+            and get_pr_completion_state(r) == "complete"
         }
         stats_migrations = filtered_slugs
     else:
@@ -710,7 +816,11 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
                 # Track unique migrations per user
                 # Only count complete (merged) runs
                 slug = run.get("slug")
-                if slug and run.get("status") == "success" and get_pr_completion_state(run) == "complete":
+                if (
+                    slug
+                    and run.get("status") == "success"
+                    and get_pr_completion_state(run) == "complete"
+                ):
                     user_migrations.setdefault(run_author, set()).add(slug)
 
         return all_runs, user_migrations
@@ -791,8 +901,7 @@ def _calculate_metrics(data: dict) -> dict:
 
     # Only count runs that are actually complete (merged), de-duped by slug
     complete_runs = [
-        r for r in runs
-        if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+        r for r in runs if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
     ]
     unique_complete_by_slug: dict[str, dict] = {}
     for run in complete_runs:
@@ -807,12 +916,8 @@ def _calculate_metrics(data: dict) -> dict:
     success_count = len(unique_complete_runs)
 
     # Calculate time saved from unique complete runs only
-    total_automation_seconds = sum(
-        r.get("automation_seconds", 0) for r in unique_complete_runs
-    )
-    total_lines_migrated = sum(
-        r.get("lines_migrated", 0) for r in unique_complete_runs
-    )
+    total_automation_seconds = sum(r.get("automation_seconds", 0) for r in unique_complete_runs)
+    total_lines_migrated = sum(r.get("lines_migrated", 0) for r in unique_complete_runs)
 
     # Mathematical time saved: 1 hour per 800 lines migrated
     time_saved_hours = total_lines_migrated / 800.0
@@ -912,7 +1017,9 @@ def process_pending_syncs() -> None:
         # Check if it's a success run that hasn't been synced (or marked as failed/pending)
         # We primarily care about runs where status='success' and sync_status != 'synced'
         if run.get("status") == "success":
-            sync_status = run.get("sync_status", SyncStatus.PENDING)  # Default to pending if missing
+            sync_status = run.get(
+                "sync_status", SyncStatus.PENDING
+            )  # Default to pending if missing
 
             if sync_status in {SyncStatus.PENDING, SyncStatus.VALIDATION_UNAVAILABLE}:
                 # Attempt sync
