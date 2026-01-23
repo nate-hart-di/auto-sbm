@@ -648,6 +648,22 @@ function setup_environment_config() {
   else
     log "✅ .env file already exists"
   fi
+
+  # Ensure FIREBASE__DATABASE_URL is set to the real default (not placeholder)
+  local DEFAULT_DB_URL="https://auto-sbm-default-rtdb.firebaseio.com"
+  if [ -f ".env" ]; then
+    local ENV_DB_URL
+    ENV_DB_URL=$(grep -E "^FIREBASE__DATABASE_URL=" .env | tail -n 1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    if [ -z "$ENV_DB_URL" ] || [ "$ENV_DB_URL" = "https://your-project-id-default-rtdb.firebaseio.com" ]; then
+      sed -i.bak "/^FIREBASE__DATABASE_URL=/d" .env
+      rm -f .env.bak
+      echo "FIREBASE__DATABASE_URL=$DEFAULT_DB_URL" >> .env
+      export FIREBASE__DATABASE_URL="$DEFAULT_DB_URL"
+      log "✅ FIREBASE__DATABASE_URL set to default"
+    else
+      export FIREBASE__DATABASE_URL="$ENV_DB_URL"
+    fi
+  fi
 }
 
 setup_environment_config
@@ -743,6 +759,21 @@ function setup_github_auth() {
   else
     log "✅ GitHub CLI already authenticated"
   fi
+
+  # Ensure required scopes for workflow dispatch and artifact download
+  log "Ensuring GitHub auth scopes include workflow and repo..."
+  gh auth refresh -s workflow,repo &> /dev/null || true
+}
+
+# --- Ensure GitHub repo access for workflow dispatch/artifacts ---
+function ensure_github_repo_access() {
+  local repo="nate-hart-di/auto-sbm"
+  if ! gh repo view "$repo" &> /dev/null; then
+    warn "❌ GitHub repo access check failed for $repo"
+    warn "   You may be logged into the wrong GitHub account or missing repo access."
+    return 1
+  fi
+  return 0
 }
 
 # --- Fetch Firebase API Key via GitHub Actions artifact ---
@@ -775,6 +806,40 @@ function fetch_firebase_api_key_from_github_actions() {
     gh auth refresh -s workflow,repo &> /dev/null || true
     if ! gh workflow run "$workflow_file" &> /dev/null; then
       warn "❌ Retry failed to trigger GitHub Actions workflow: $workflow_file"
+      warn "Attempting to use latest successful workflow run artifact (if available)..."
+      # Fall back to latest successful run artifact without triggering a new run
+      local latest_success_id
+      latest_success_id=$(gh run list --workflow "$workflow_file" --limit 10 --json databaseId,conclusion -q 'map(select(.conclusion=="success")) | .[0].databaseId')
+      if [ -z "$latest_success_id" ]; then
+        warn "❌ No successful workflow runs found to download artifact from"
+        return 0
+      fi
+      run_id="$latest_success_id"
+      # Skip the polling loop and jump to download
+      rm -rf "$download_dir"
+      mkdir -p "$download_dir"
+      if ! gh run download "$run_id" -n "$artifact_name" -D "$download_dir" &> /dev/null; then
+        warn "❌ Failed to download artifact from latest successful run"
+        return 0
+      fi
+      if [ ! -f "$key_file" ]; then
+        warn "❌ Firebase API key file missing in artifact"
+        return 0
+      fi
+      local firebase_key
+      firebase_key="$(cat "$key_file" | tr -d '\r\n')"
+      if [ -z "$firebase_key" ]; then
+        warn "❌ Firebase API key file is empty"
+        return 0
+      fi
+      log "✅ Firebase API key fetched from latest successful workflow run"
+      if [ -f .env ]; then
+        sed -i.bak "/^FIREBASE__API_KEY=/d" .env
+        rm -f .env.bak
+      fi
+      echo "FIREBASE__API_KEY=$firebase_key" >> .env
+      export FIREBASE__API_KEY="$firebase_key"
+      FIREBASE_FETCH_OK=1
       return 0
     fi
   fi
@@ -836,6 +901,7 @@ function fetch_firebase_api_key_from_github_actions() {
 }
 
 setup_github_auth
+ensure_github_repo_access || true
 
 echo ""
 echo "Step 8/10: Fetching Firebase API key from GitHub Actions..."
