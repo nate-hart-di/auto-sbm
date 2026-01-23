@@ -139,17 +139,9 @@ function ensure_devtools_cli() {
     return 0
   fi
 
-  log "Devtools CLI not found. Cloning feature-dev-shared-scripts..."
-  mkdir -p "$HOME/code/dealerinspire"
-  retry_command "git clone git@bitbucket.org:dealerinspire/feature-dev-shared-scripts.git $HOME/code/dealerinspire/feature-dev-shared-scripts" "Devtools CLI clone"
-
-  if [ -f "$devtools_script" ]; then
-    log "✅ Devtools CLI installed successfully"
-    return 0
-  fi
-
-  warn "Devtools CLI still not found after clone. Please verify the repo."
-  return 1
+  warn "Devtools CLI not found. Skipping install (optional)."
+  warn "If needed, install manually: git clone git@bitbucket.org:dealerinspire/feature-dev-shared-scripts.git \$HOME/code/dealerinspire/feature-dev-shared-scripts"
+  return 0
 }
 
 # --- Install Homebrew (package manager for macOS) ---
