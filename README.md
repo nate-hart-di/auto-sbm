@@ -1,6 +1,6 @@
 # Auto-SBM
 
-Current version: 2.13.2
+Current version: 2.13.3
 Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
 to Site Builder format, validates output, and tracks migration stats with optional Slack
 reporting.

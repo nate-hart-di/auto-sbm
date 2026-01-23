@@ -21,8 +21,8 @@ def extract_slug(title: str | None) -> str | None:
     # Clean title
     title = title.strip()
 
-    # Pattern 1: PCON-727: {slug} SBM FE Audit
-    match1 = re.search(r"PCON-727:\s+([a-zA-Z0-9_-]+)", title, re.IGNORECASE)
+    # Pattern 1: PCON-864: {slug} SBM FE Audit
+    match1 = re.search(r"PCON-864:\s+([a-zA-Z0-9_-]+)", title, re.IGNORECASE)
     if match1:
         return match1.group(1).lower()
 

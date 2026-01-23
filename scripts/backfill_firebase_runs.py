@@ -36,14 +36,14 @@ def is_valid_sbm_pr(slug: str, title: str, branch: str) -> bool:
 
     Valid title patterns:
     - "{slug} - SBM FE Audit"
-    - "PCON-727: {slug} SBM FE Audit"
+    - "PCON-864: {slug} SBM FE Audit"
     - "SBM: Migrate {slug} to Site Builder format"
     - "[{slug}] - Site Builder Migration"
     - "{slug} - Site Builder Migration"
 
     Valid branch patterns:
     - "{slug}-sbm{mmyy}" (e.g., "fowlerjeepofboulder-sbm0725")
-    - "pcon-727-{slug}-sbm{mmyy}" (e.g., "pcon-727-lexusofclearwater-sbm1225")
+    - "pcon-864-{slug}-sbm{mmyy}" (e.g., "pcon-864-lexusofclearwater-sbm1225")
     - "sbm/{slug}"
     """
     slug_lower = slug.lower()
@@ -61,7 +61,7 @@ def is_valid_sbm_pr(slug: str, title: str, branch: str) -> bool:
     # Branch pattern checks
     branch_patterns = [
         re.match(rf"^{re.escape(slug_lower)}-sbm\d{{4}}$", branch_lower) is not None,
-        re.match(rf"^pcon-727-{re.escape(slug_lower)}-sbm\d{{4}}$", branch_lower) is not None,
+        re.match(rf"^pcon-864-{re.escape(slug_lower)}-sbm\d{{4}}$", branch_lower) is not None,
         branch_lower == f"sbm/{slug_lower}",
     ]
 

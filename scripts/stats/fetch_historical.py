@@ -41,7 +41,7 @@ def main() -> None:
 
     automated_prs = [
         pr for pr in all_prs
-        if pr.get("title", "").endswith(" - SBM FE Audit") or "PCON-727" in pr.get("title", "")
+        if pr.get("title", "").endswith(" - SBM FE Audit") or "PCON-864" in pr.get("title", "")
     ]
 
     results = []

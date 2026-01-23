@@ -7,8 +7,8 @@ import re
 GLOBAL_STATS_DIR = Path("stats")
 
 def extract_slug(title):
-    # Pattern 1: PCON-727: {slug} SBM FE Audit
-    match1 = re.search(r"PCON-727:\s+([a-zA-Z0-9_-]+)\s+SBM FE Audit", title)
+    # Pattern 1: PCON-864: {slug} SBM FE Audit
+    match1 = re.search(r"PCON-864:\s+([a-zA-Z0-9_-]+)\s+SBM FE Audit", title)
     if match1:
         return match1.group(1)
 
