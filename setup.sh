@@ -14,9 +14,8 @@ function error() { echo "[ERROR] $1" >&2; }
 # Cleanup function for failed installations
 function cleanup_failed_installation() {
   log "Cleaning up failed installation..."
+  # Keep wrapper and .env to avoid breaking existing installs when optional steps fail.
   rm -rf .venv
-  rm -f ~/.local/bin/sbm
-  rm -f .env
   rm -f .sbm_setup_complete
   log "Cleanup complete. You can re-run setup.sh"
 }
@@ -111,7 +110,7 @@ function pull_latest_changes() {
 
   # Reset to the remote branch, discarding all local changes
   git reset --hard "origin/$default_branch" 2>/dev/null
-  git clean -fd 2>/dev/null  # Remove untracked files (but keep .env and data/)
+  git clean -fd -e .env -e .venv -e data/ 2>/dev/null  # Keep local env and venv
 
   if [ $? -eq 0 ]; then
     log "✅ Force reset to origin/$default_branch complete"
@@ -373,20 +372,26 @@ echo "Step 3/10: Setting up PATH and local bin directory..."
 function setup_local_bin_path() {
   LOCAL_BIN_DIR="$HOME/.local/bin"
   ZSHRC_FILE="$HOME/.zshrc"
+  ZPROFILE_FILE="$HOME/.zprofile"
 
   # Create the directory if it doesn't exist
   mkdir -p "$LOCAL_BIN_DIR"
 
-  # Add to .zshrc if not already present
-  if ! grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$ZSHRC_FILE"; then
-    log "Adding ~/.local/bin to PATH in $ZSHRC_FILE"
-    echo -e "\nexport PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$ZSHRC_FILE"
-    # Export it for the current session as well
-    export PATH="$LOCAL_BIN_DIR:$PATH"
-    log "✅ ~/.local/bin added to PATH"
-  else
-    log "✅ ~/.local/bin already in PATH"
-  fi
+  # Add to .zshrc and .zprofile so login shells also inherit PATH
+  for shell_file in "$ZSHRC_FILE" "$ZPROFILE_FILE"; do
+    if [ ! -f "$shell_file" ]; then
+      touch "$shell_file"
+    fi
+    if ! grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$shell_file"; then
+      log "Adding ~/.local/bin to PATH in $shell_file"
+      printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$shell_file"
+      log "✅ ~/.local/bin added to PATH in $shell_file"
+    else
+      log "✅ ~/.local/bin already in PATH in $shell_file"
+    fi
+  done
+  # Export it for the current session as well
+  export PATH="$LOCAL_BIN_DIR:$PATH"
 
   # Add prettier/node wrapper functions if not already present
   if ! grep -q "##### PRETTIER/NODE WRAPPER #####" "$ZSHRC_FILE"; then
@@ -746,17 +751,18 @@ function fetch_firebase_api_key_from_github_actions() {
   local artifact_name="firebase-api-key"
   local download_dir="/tmp/auto-sbm-firebase-key"
   local key_file="$download_dir/firebase_api_key.txt"
+  FIREBASE_FETCH_OK=0
 
   log "Fetching Firebase API key via GitHub Actions..."
 
   if ! command -v gh &> /dev/null; then
     warn "❌ GitHub CLI not found"
-    return 1
+    return 0
   fi
 
   if ! gh workflow list --json path -q '.[].path' | grep -q "$workflow_file"; then
     warn "❌ GitHub Actions workflow not found: $workflow_file"
-    return 1
+    return 0
   fi
 
   local start_time
@@ -765,7 +771,12 @@ function fetch_firebase_api_key_from_github_actions() {
   # Trigger workflow run
   if ! gh workflow run "$workflow_file" &> /dev/null; then
     warn "❌ Failed to trigger GitHub Actions workflow: $workflow_file"
-    return 1
+    warn "Attempting to refresh GitHub auth scopes (workflow, repo) and retry..."
+    gh auth refresh -s workflow,repo &> /dev/null || true
+    if ! gh workflow run "$workflow_file" &> /dev/null; then
+      warn "❌ Retry failed to trigger GitHub Actions workflow: $workflow_file"
+      return 0
+    fi
   fi
 
   # Wait for latest run to complete
@@ -788,7 +799,7 @@ function fetch_firebase_api_key_from_github_actions() {
 
   if [ -z "$run_id" ]; then
     warn "❌ Could not find a completed GitHub Actions run"
-    return 1
+    return 0
   fi
 
   rm -rf "$download_dir"
@@ -796,12 +807,12 @@ function fetch_firebase_api_key_from_github_actions() {
 
   if ! gh run download "$run_id" -n "$artifact_name" -D "$download_dir" &> /dev/null; then
     warn "❌ Failed to download artifact: $artifact_name"
-    return 1
+    return 0
   fi
 
   if [ ! -f "$key_file" ]; then
     warn "❌ Firebase API key file missing in artifact"
-    return 1
+    return 0
   fi
 
   local firebase_key
@@ -809,7 +820,7 @@ function fetch_firebase_api_key_from_github_actions() {
 
   if [ -z "$firebase_key" ]; then
     warn "❌ Firebase API key file is empty"
-    return 1
+    return 0
   fi
 
   log "✅ Firebase API key fetched from GitHub Actions"
@@ -820,6 +831,7 @@ function fetch_firebase_api_key_from_github_actions() {
   fi
   echo "FIREBASE__API_KEY=$firebase_key" >> .env
   export FIREBASE__API_KEY="$firebase_key"
+  FIREBASE_FETCH_OK=1
   return 0
 }
 
@@ -869,11 +881,15 @@ function validate_firebase_api_key() {
     echo ""
     echo "If you have a custom key, enter it now."
     echo ""
-    read -p "Enter Firebase API key (or press Enter to exit setup): " USER_KEY
+    if [ -t 0 ] && [ -t 1 ]; then
+      read -p "Enter Firebase API key (or press Enter to skip for now): " USER_KEY
+    else
+      USER_KEY=""
+    fi
 
     if [ -z "$USER_KEY" ]; then
-      error "Setup cannot continue without Firebase API key"
-      return 1
+      warn "Setup will continue without Firebase API key. Stats will be unavailable."
+      return 0
     fi
 
     # Write user-provided key to .env (dedupe existing entries)
@@ -888,9 +904,10 @@ function validate_firebase_api_key() {
   else
     log "✅ FIREBASE__API_KEY detected"
   fi
+  return 0
 }
 
-validate_firebase_api_key || exit 1
+validate_firebase_api_key
 
 echo ""
 echo "Step 10/10: Validating installation..."
@@ -928,7 +945,7 @@ function validate_installation() {
 }
 
 validate_installation
-zsh -c "source ~/.zshrc"
+zsh -c "source ~/.zprofile; source ~/.zshrc"
 echo ""
 echo " 🚀 Auto-SBM Setup Complete!"
 echo ""
