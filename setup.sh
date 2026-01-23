@@ -813,12 +813,12 @@ function fetch_firebase_api_key_from_github_actions() {
   fi
 
   log "✅ Firebase API key fetched from GitHub Actions"
-  if grep -q "^FIREBASE__API_KEY=" .env 2>/dev/null; then
-    sed -i.bak "s|^FIREBASE__API_KEY=.*|FIREBASE__API_KEY=$firebase_key|" .env
+  # Remove any existing FIREBASE__API_KEY lines, then write a single clean entry
+  if [ -f .env ]; then
+    sed -i.bak "/^FIREBASE__API_KEY=/d" .env
     rm -f .env.bak
-  else
-    echo "FIREBASE__API_KEY=$firebase_key" >> .env
   fi
+  echo "FIREBASE__API_KEY=$firebase_key" >> .env
   export FIREBASE__API_KEY="$firebase_key"
   return 0
 }
@@ -834,6 +834,7 @@ echo "Step 9/10: Validating Firebase auth..."
 
 # --- Firebase API Key Check (required for stats) ---
 function validate_firebase_api_key() {
+  local DEFAULT_DB_URL="https://auto-sbm-default-rtdb.firebaseio.com"
   if [ -z "${FIREBASE__API_KEY:-}" ]; then
     # Try reading from .env if present
     if [ -f ".env" ]; then
@@ -841,6 +842,19 @@ function validate_firebase_api_key() {
       if [ -n "$ENV_KEY" ] && [ "$ENV_KEY" != "your-firebase-web-api-key" ]; then
         export FIREBASE__API_KEY="$ENV_KEY"
       fi
+    fi
+  fi
+
+  # Ensure database URL is set to the real default if placeholder is present
+  if [ -f ".env" ]; then
+    ENV_DB_URL=$(grep -E "^FIREBASE__DATABASE_URL=" .env | tail -n 1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+    if [ -z "$ENV_DB_URL" ] || [ "$ENV_DB_URL" = "https://your-project-id-default-rtdb.firebaseio.com" ]; then
+      sed -i.bak "/^FIREBASE__DATABASE_URL=/d" .env
+      rm -f .env.bak
+      echo "FIREBASE__DATABASE_URL=$DEFAULT_DB_URL" >> .env
+      export FIREBASE__DATABASE_URL="$DEFAULT_DB_URL"
+    else
+      export FIREBASE__DATABASE_URL="$ENV_DB_URL"
     fi
   fi
 
@@ -862,13 +876,12 @@ function validate_firebase_api_key() {
       return 1
     fi
 
-    # Write user-provided key to .env
-    if grep -q "^FIREBASE__API_KEY=" .env 2>/dev/null; then
-      sed -i.bak "s|^FIREBASE__API_KEY=.*|FIREBASE__API_KEY=$USER_KEY|" .env
+    # Write user-provided key to .env (dedupe existing entries)
+    if [ -f .env ]; then
+      sed -i.bak "/^FIREBASE__API_KEY=/d" .env
       rm -f .env.bak
-    else
-      echo "FIREBASE__API_KEY=$USER_KEY" >> .env
     fi
+    echo "FIREBASE__API_KEY=$USER_KEY" >> .env
 
     export FIREBASE__API_KEY="$USER_KEY"
     log "✅ Firebase API key stored in .env"

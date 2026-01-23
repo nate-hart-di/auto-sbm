@@ -213,6 +213,12 @@ def _get_user_mode_identity() -> tuple[str, str] | None:
                         )
                         _save_auth_cache(_user_auth_state)
                         return _user_auth_state["local_id"], _user_auth_state["id_token"]
+                    else:
+                        logger.warning(
+                            "Firebase token refresh failed: %s %s",
+                            resp.status_code,
+                            resp.text[:200],
+                        )
                 except Exception as e:
                     logger.debug(f"Firebase token refresh failed: {e}")
 
@@ -238,6 +244,12 @@ def _get_user_mode_identity() -> tuple[str, str] | None:
                 )
                 _save_auth_cache(_user_auth_state)
                 return _user_auth_state["local_id"], _user_auth_state["id_token"]
+            else:
+                logger.warning(
+                    "Firebase anonymous auth failed: %s %s",
+                    resp.status_code,
+                    resp.text[:200],
+                )
         except Exception as e:
             logger.debug(f"Firebase anonymous auth failed: {e}")
 
@@ -438,7 +450,11 @@ class FirebaseSync:
                 if resp.ok:
                     users_data = resp.json()
                 else:
-                    logger.debug(f"Firebase REST fetch failed: {resp.status_code}")
+                    logger.warning(
+                        "Firebase REST fetch failed: %s %s",
+                        resp.status_code,
+                        resp.text[:200],
+                    )
                     return None
 
             if not users_data:
