@@ -2517,12 +2517,27 @@ def _stash_changes_if_needed() -> bool:
     return has_changes
 
 
+def _get_repo_python() -> str:
+    """Return the repo venv Python if present, otherwise fall back to current Python."""
+    venv_python = REPO_ROOT / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        return str(venv_python)
+
+    # Warn once if we're running outside the repo venv.
+    if not getattr(_get_repo_python, "_warned", False):
+        if ".venv" not in sys.executable:
+            logger.warning("Update running outside repo venv; using current Python interpreter.")
+        _get_repo_python._warned = True
+
+    return sys.executable
+
+
 def _install_precommit_hooks() -> None:
     """Install pre-commit hooks for code quality."""
     try:
         # Check if pre-commit is available in the venv
         check_result = subprocess.run(
-            [sys.executable, "-m", "pre_commit", "--version"],
+            [_get_repo_python(), "-m", "pre_commit", "--version"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -2533,7 +2548,7 @@ def _install_precommit_hooks() -> None:
             # Install hooks
             subprocess.run(
                 [
-                    sys.executable,
+                    _get_repo_python(),
                     "-m",
                     "pre_commit",
                     "install",
@@ -2561,11 +2576,12 @@ def _install_precommit_hooks() -> None:
 
 def _update_dependencies() -> None:
     """Update requirements and reinstall package."""
+    python_bin = _get_repo_python()
     # Install/update requirements after git pull
     click.echo("Installing updated requirements...")
     try:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            [python_bin, "-m", "pip", "install", "-r", "requirements.txt"],
             cwd=REPO_ROOT,
             check=True,
         )
@@ -2577,7 +2593,7 @@ def _update_dependencies() -> None:
     click.echo("Reinstalling auto-sbm package...")
     try:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-e", "."],
+            [python_bin, "-m", "pip", "install", "-e", "."],
             cwd=REPO_ROOT,
             check=True,
         )
@@ -2588,7 +2604,7 @@ def _update_dependencies() -> None:
     # Ensure rich-click is installed (sbm.cli falls back to click if missing)
     try:
         subprocess.run(
-            [sys.executable, "-c", "import rich_click"],
+            [python_bin, "-c", "import rich_click"],
             cwd=REPO_ROOT,
             check=True,
             capture_output=True,
@@ -2598,7 +2614,7 @@ def _update_dependencies() -> None:
         click.echo("⚠️  rich-click missing; installing...")
         try:
             subprocess.run(
-                [sys.executable, "-m", "pip", "install", "rich-click"],
+                [python_bin, "-m", "pip", "install", "rich-click"],
                 cwd=REPO_ROOT,
                 check=True,
             )
