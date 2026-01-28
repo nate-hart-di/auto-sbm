@@ -14,6 +14,7 @@ from sbm.utils.logger import logger
 
 from .default import DefaultHandler
 from .kia import KiaHandler
+from .lexus import LexusHandler
 from .stellantis import StellantisHandler
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class OEMFactory:
     _handlers: ClassVar[list[type[BaseOEMHandler]]] = [
         StellantisHandler,
         KiaHandler,
+        LexusHandler,
         # Add more handlers here as they are needed
     ]
 

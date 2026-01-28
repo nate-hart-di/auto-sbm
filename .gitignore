@@ -71,12 +71,7 @@ node_modules/
 *.ipynb
 
 # Setup Files
-.sbm_setup_complete
-
-# Auto-update settings
-.sbm-no-auto-update
-.sbm_last_update
-auto-sbm.code-workspace
+.sbm_*
 
 # Development/Internal files that users don't need
 PRPs/
@@ -123,32 +118,6 @@ stats/*.json
 .codex/shell_snapshots/
 .codex/models_cache.json
 
-branch 'master' set up to track 'origin/master'.
-(base) ➜  auto-sbm git:(master) sbm stats --team --limit 1
-⚠️  Could not fetch live team stats. Showing local data.
-╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ Global Auto-SBM Stats                                                                                                                                                                      │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-Auto-SBM Stats: nate-hart-di
-╭────────────────╮ ╭────────────────╮
-│ 0              │ │ 0              │
-│ Sites Migrated │ │ Lines Migrated │
-╰────────────────╯ ╰────────────────╯
-
-Contributing as: nate-hart-di | Last updated: Never
-(base) ➜  auto-sbm git:(master) sbm stats --team --all
-⚠️  Could not fetch live team stats. Showing local data.
-╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ Global Auto-SBM Stats                                                                                                                                                                      │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-Auto-SBM Stats: nate-hart-di
-╭────────────────╮ ╭────────────────╮
-│ 0              │ │ 0              │
-│ Sites Migrated │ │ Lines Migrated │
-╰────────────────╯ ╰────────────────╯
-
-Contributing as: nate-hart-di | Last updated: Never
-(base) ➜  auto-sbm git:(master)
 # User Files
 slugs.txt
 data/

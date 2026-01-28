@@ -1690,6 +1690,19 @@ def stats(
 
     status_msg = " ".join(parts) + "..."
 
+    # Synchronous update to ensure fresh stats
+    with get_console().status(
+        "[bold cyan]Refreshing stats and syncing pending runs...[/bold cyan]"
+    ):
+        try:
+            # 1. Sync any local pending runs to Firebase
+            process_pending_syncs()
+            # 2. Check and update PR statuses for recent runs
+            # Pass limit so that --all triggers full history update
+            _update_recent_pr_statuses(max_to_check=limit)
+        except Exception as e:
+            logger.debug(f"Stats refresh failed: {e}")
+
     with get_console().status(f"[bold green]{status_msg}[/bold green]"):
         stats_data = get_migration_stats(
             limit=limit,
@@ -2253,7 +2266,7 @@ def internal_refresh_stats() -> None:
         pass
 
 
-def _update_recent_pr_statuses(max_to_check: int = 10) -> None:
+def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
     """
     Update PR statuses for recent in-progress runs.
 
@@ -2261,7 +2274,7 @@ def _update_recent_pr_statuses(max_to_check: int = 10) -> None:
     Limits to recent runs to avoid excessive API calls.
 
     Args:
-        max_to_check: Maximum number of recent runs to check (default: 10)
+        max_to_check: Maximum number of recent runs to check (default: 10). None = unlimited.
     """
     try:
         from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db
@@ -2276,7 +2289,7 @@ def _update_recent_pr_statuses(max_to_check: int = 10) -> None:
 
         checked = 0
         for user_id, user_data in users_data.items():
-            if checked >= max_to_check:
+            if max_to_check is not None and checked >= max_to_check:
                 break
 
             if not isinstance(user_data, dict):
@@ -2284,7 +2297,7 @@ def _update_recent_pr_statuses(max_to_check: int = 10) -> None:
 
             runs = user_data.get("runs", {})
             for run_id, run_data in runs.items():
-                if checked >= max_to_check:
+                if max_to_check is not None and checked >= max_to_check:
                     break
 
                 if not isinstance(run_data, dict):
@@ -2655,10 +2668,6 @@ def _ensure_devtools_cli() -> None:
         click.echo("✅ Devtools CLI installed.")
     except subprocess.CalledProcessError as e:
         click.echo(f"⚠️  Warning: Failed to install Devtools CLI: {e}")
-
-
-
-
 
 
 def _restore_stashed_changes() -> None:

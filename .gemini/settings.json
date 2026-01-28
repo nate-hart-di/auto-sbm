@@ -1,0 +1,54 @@
+{
+  "mcpServers": {},
+  "security": {
+    "auth": {
+      "selectedType": "oauth-personal"
+    },
+    "enablePermanentToolApproval": true,
+    "environmentVariableRedaction": {
+      "enabled": true
+    }
+  },
+  "ui": {
+    "theme": "Shades Of Purple",
+    "footer": {
+      "hideContextPercentage": false,
+      "hideSandboxStatus": true,
+      "hideModelInfo": false
+    },
+    "showMemoryUsage": true,
+    "showLineNumbers": false,
+    "showCitations": true
+  },
+  "general": {
+    "previewFeatures": true,
+    "disableAutoUpdate": false,
+    "enablePromptCompletion": true,
+    "debugKeystrokeLogging": true,
+    "enableAutoUpdate": true
+  },
+  "hasSeenIdeIntegrationNudge": true,
+  "ide": {
+    "enabled": true
+  },
+  "model": {
+    "name": "gemini-3-pro-preview"
+  },
+  "output": {
+    "format": "json"
+  },
+  "tools": {
+    "autoAccept": true
+  },
+  "context": {
+    "fileFiltering": {
+      "respectGitIgnore": false
+    }
+  },
+  "experimental": {
+    "skills": true,
+    "codebaseInvestigatorSettings": {
+      "maxNumTurns": 15
+    }
+  }
+}

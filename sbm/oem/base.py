@@ -49,6 +49,15 @@ class BaseOEMHandler:
         msg = f"{self.name} handler must implement get_directions_styles()"
         raise NotImplementedError(msg)
 
+    def should_force_map_migration(self) -> bool:
+        """
+        Whether to force map migration even if explicit imports are found.
+
+        Returns:
+            bool: True if map migration should be forced to sb-inside.scss
+        """
+        return False
+
     def get_map_partial_patterns(self):
         """
         Get OEM-specific patterns for identifying map partials.

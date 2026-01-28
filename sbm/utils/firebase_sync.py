@@ -373,9 +373,12 @@ class FirebaseSync:
 
             key = f"{slug}_{ts_str}"
 
+            # Default to provided user_id (GitHub login)
             target_user_id = user_id
+
             if settings.firebase.is_admin_mode():
                 # Admin Mode: SDK
+                # Use github_login as key (preferred for readability if admin)
                 db = get_firebase_db()
                 ref = db.reference(f"users/{target_user_id}/runs")
                 ref.child(key).set(data_to_push)
@@ -386,7 +389,11 @@ class FirebaseSync:
                 identity = _get_user_mode_identity()
                 if not identity:
                     return False
-                _, token = identity
+                local_id, token = identity  # Unpack local_id (UID)
+
+                # CRITICAL FIX: Use local_id (UID) as the key in the database path
+                # This aligns with Firebase Security Rules allow-write owner check
+                target_user_id = local_id
 
                 # Use requests.put for custom ID
                 url = f"{settings.firebase.database_url}/users/{target_user_id}/runs/{key}.json?auth={token}"
