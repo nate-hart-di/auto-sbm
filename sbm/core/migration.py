@@ -1305,6 +1305,34 @@ def run_post_migration_workflow(
     closed_at = None
     success = True
 
+    # Check if there are changes to merge before creating PR
+    try:
+        # Check commit count between origin/main and HEAD
+        # We use origin/main as the base because that's what the PR targets
+        check_res = subprocess.run(
+            ["git", "rev-list", "--count", "origin/main..HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=get_platform_dir(),
+            check=False,
+        )
+
+        if check_res.returncode == 0:
+            commit_count = int(check_res.stdout.strip())
+            if commit_count == 0:
+                logger.info(
+                    f"No commits found for {slug} (branch {branch_name}). Skipping PR creation."
+                )
+                return {
+                    "success": True,
+                    "pr_url": None,
+                    "salesforce_message": "No changes required - migration skipped.",
+                    "pr_author": None,
+                    "pr_state": None,
+                }
+    except Exception as e:
+        logger.warning(f"Could not verify commit count, proceeding with PR creation attempt: {e}")
+
     if create_pr:
         logger.info(f"Creating PR for {slug}...")
         pr_result = git_create_pr(slug, branch_name)
