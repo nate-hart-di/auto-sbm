@@ -1,6 +1,6 @@
 # Story 4.1: Analyze Current Map Migration Logic
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,28 +19,28 @@ So that I understand exactly how map components are currently identified and mig
 
 ## Tasks / Subtasks
 
-- [ ] Analyze map detection logic in maps.py (AC: Complete logic flow documentation)
-  - [ ] Document `migrate_map_components()` orchestration flow
-  - [ ] Document `find_commontheme_map_imports()` pattern matching
-  - [ ] Document `find_map_shortcodes_in_functions()` shortcode detection
-  - [ ] Document `derive_map_imports_from_partials()` fallback logic
-- [ ] Analyze SCSS migration logic (AC: Explain style placement decisions)
-  - [ ] Document `migrate_map_scss_content()` file targeting
-  - [ ] Document when styles go to `sb-inside.scss` vs `sb-home.scss` vs `style.scss`
-  - [ ] Document the deduplication and pre-scan logic
-- [ ] Analyze PHP partial migration logic (AC: Identify OEM-specific handling)
-  - [ ] Document `migrate_map_partials()` flow
-  - [ ] Document `find_template_parts_in_file()` pattern detection
-  - [ ] Document `copy_partial_to_dealer_theme()` with fuzzy matching
-- [ ] Analyze Lexus OEM handler (AC: Document all conditionals)
-  - [ ] Document `LexusHandler.get_map_partial_patterns()` regex patterns
-  - [ ] Document `should_force_map_migration()` behavior
-  - [ ] Identify how Lexus patterns differ from default/other OEMs
-- [ ] Create comprehensive documentation artifact (AC: Flowchart/detailed docs)
-  - [ ] Create visual flowchart showing decision tree
-  - [ ] Document entry points and exit conditions
-  - [ ] Document all keyword lists and regex patterns used
-  - [ ] Create summary document in `_bmad-output/planning-artifacts/`
+- [x] Analyze map detection logic in maps.py (AC: Complete logic flow documentation)
+  - [x] Document `migrate_map_components()` orchestration flow
+  - [x] Document `find_commontheme_map_imports()` pattern matching
+  - [x] Document `find_map_shortcodes_in_functions()` shortcode detection
+  - [x] Document `derive_map_imports_from_partials()` fallback logic
+- [x] Analyze SCSS migration logic (AC: Explain style placement decisions)
+  - [x] Document `migrate_map_scss_content()` file targeting
+  - [x] Document when styles go to `sb-inside.scss` vs `sb-home.scss` vs `style.scss`
+  - [x] Document the deduplication and pre-scan logic
+- [x] Analyze PHP partial migration logic (AC: Identify OEM-specific handling)
+  - [x] Document `migrate_map_partials()` flow
+  - [x] Document `find_template_parts_in_file()` pattern detection
+  - [x] Document `copy_partial_to_dealer_theme()` with fuzzy matching
+- [x] Analyze Lexus OEM handler (AC: Document all conditionals)
+  - [x] Document `LexusHandler.get_map_partial_patterns()` regex patterns
+  - [x] Document `should_force_map_migration()` behavior
+  - [x] Identify how Lexus patterns differ from default/other OEMs
+- [x] Create comprehensive documentation artifact (AC: Flowchart/detailed docs)
+  - [x] Create visual flowchart showing decision tree
+  - [x] Document entry points and exit conditions
+  - [x] Document all keyword lists and regex patterns used
+  - [x] Create summary document in `_bmad-output/planning-artifacts/`
 
 ## Dev Notes
 
@@ -196,16 +196,25 @@ From CLAUDE.md:
 
 ### Agent Model Used
 
-_To be filled by dev agent_
+Gemini 2.0 Flash
 
 ### Debug Log References
 
-_To be filled by dev agent_
+- Analyzed `sbm/core/maps.py` (Orchestration, Detection, Migration logic)
+- Analyzed `sbm/oem/lexus.py` (OEM specific patterns)
+- Created detailed analysis document and Mermaid flowchart
 
 ### Completion Notes List
 
-_To be filled by dev agent_
+- ✅ Documented `migrate_map_components` orchestration flow
+- ✅ Analyzed and documented SCSS migration decisions (Implicit vs Explicit)
+- ✅ Analyzed and documented PHP partial migration logic (Inheritance checks)
+- ✅ Documented Lexus-specific regex patterns and overrides
+- ✅ Identified potential failure modes (Inheritance assumption, Dead code)
+- ✅ Created summary document linking to detailed artifacts
 
 ### File List
 
-_To be filled by dev agent_
+- `_bmad-output/planning-artifacts/lexus-map-migration-analysis/current-logic-analysis/map-migration-logic-analysis.md`
+- `_bmad-output/planning-artifacts/lexus-map-migration-analysis/current-logic-analysis/map-migration-flowchart.md`
+- `_bmad-output/planning-artifacts/lexus-map-migration-analysis-summary.md`

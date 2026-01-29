@@ -25,6 +25,7 @@ COMMON_THEME_DIR = "/Users/nathanhart/di-websites-platform/app/dealer-inspire/wp
 MAP_KEYWORDS = [
     "mapsection",
     "section-map",
+    "section-directions",
     "map-row",
     "maprow",
     "map_rt",
@@ -36,7 +37,90 @@ MAP_KEYWORDS = [
 ]
 
 # Shared regex for map shortcodes and template parts
-MAP_REGEX_PATTERN = r"(?i)\W(?:mapsection|section-map|map-row|maprow|map_rt|mapbox|mapboxdirections|full-map|get-directions|getdirections)\W"
+MAP_REGEX_PATTERN = r"(?i)\W(?:mapsection|section-map|section-directions|map-row|maprow|map_rt|mapbox|mapboxdirections|full-map|get-directions|getdirections)\W"
+
+
+def _resolve_scss_candidates(base_dir: Path, relative_path: str) -> List[Path]:
+    """Generate candidate SCSS file paths (handling underscores and extensions)."""
+    target = base_dir / relative_path
+    directory = target.parent
+    filename = target.name
+
+    candidates = [target]
+
+    # Add underscore if missing
+    if not filename.startswith("_"):
+        candidates.append(directory / f"_{filename}")
+
+    # Add extension if missing
+    if not filename.endswith(".scss"):
+        candidates.append(target.with_suffix(".scss"))
+        if not filename.startswith("_"):
+            candidates.append(directory / f"_{filename}.scss")
+
+    return candidates
+
+
+def should_migrate_map_import(import_path: str, dealer_theme_dir: Union[str, Path]) -> bool:
+    """
+    Determine if a map import should be migrated by resolving its path.
+
+    Args:
+        import_path: The import string (e.g. 'map-section' or '../../DealerInspireCommonTheme/...')
+        dealer_theme_dir: The dealer theme directory
+
+    Returns:
+        bool: True if it should be migrated (found in CommonTheme, not found locally), False otherwise.
+    """
+    import_path = import_path.strip().strip("'").strip('"')
+    dealer_theme_dir = Path(dealer_theme_dir)
+
+    # 1. Check Local Existence (relative to css/)
+    # We assume imports are relative to css/ folder where style.scss lives
+    css_base = dealer_theme_dir / "css"
+    if not css_base.exists():
+        css_base = dealer_theme_dir
+
+    local_candidates = _resolve_scss_candidates(css_base, import_path)
+
+    # CRITICAL FIX: Ensure we only consider it "local" if it's actually INSIDE the dealer theme
+    # This prevents ../../DealerInspireCommonTheme/... from being treated as local
+    # just because it resolves to a file on disk.
+    dealer_theme_abs = dealer_theme_dir.resolve()
+
+    for p in local_candidates:
+        if p.exists():
+            try:
+                # Check if the resolved path is inside the dealer theme
+                if p.resolve().is_relative_to(dealer_theme_abs):
+                    logger.debug(f"Import {import_path} found locally at {p}. Skipping.")
+                    return False
+            except Exception:
+                # is_relative_to can fail or behave oddly across drives, safe to ignore
+                pass
+
+    # 2. Check CommonTheme Existence
+    # Extract relative path if it contains "DealerInspireCommonTheme"
+    if "DealerInspireCommonTheme" in import_path:
+        relative_part = re.sub(r"^.*?DealerInspireCommonTheme/", "", import_path)
+    else:
+        relative_part = import_path
+
+    # Ensure relative_part is relative (remove leading slashes/dots if any residue)
+    # But usually re.sub handles the specific pattern.
+    # If it was just "map-section", relative_part is "map-section".
+
+    common_base = Path(COMMON_THEME_DIR)
+    common_candidates = _resolve_scss_candidates(common_base, relative_part)
+
+    found_common = next((p for p in common_candidates if p.exists()), None)
+
+    if found_common:
+        logger.debug(f"Import {import_path} resolved to CommonTheme: {found_common}")
+        return True
+
+    logger.warning(f"Map import {import_path} not found locally or in CommonTheme.")
+    return False
 
 
 def remove_php_comments(content: str) -> str:
@@ -111,18 +195,27 @@ def migrate_map_components(
             except Exception as e:
                 logger.warning(f"Failed to instantiate SCSSProcessor: {e}")
 
-        # Step 1: Find CommonTheme map imports in style.scss
+        # Step 1: explicit imports
         map_imports = find_commontheme_map_imports(style_scss_path, oem_handler)
 
-        # Step 1b: Discover map shortcodes/partials in functions.php (fallback path)
+        # Step 1b: Shortcodes
         shortcode_partials = find_map_shortcodes_in_functions(str(theme_dir), oem_handler)
-        shortcode_map_imports = derive_map_imports_from_partials(shortcode_partials)
-        if shortcode_map_imports:
-            map_imports.extend(shortcode_map_imports)
-            map_imports = dedupe_map_imports(map_imports)
 
-        if not shortcode_partials and not map_imports:
-            # Only skip if NEITHER shortcodes nor imports are found.
+        # Step 1c: Template Partials (Always scan)
+        template_partials = find_map_partials_in_templates(slug, oem_handler)
+
+        # Combine all partials
+        all_partials = shortcode_partials + template_partials
+
+        # Derive SCSS from all partials
+        derived_imports = derive_map_imports_from_partials(all_partials)
+
+        # Combine all imports
+        all_imports = map_imports + derived_imports
+        all_imports = dedupe_map_imports(all_imports)
+
+        if not all_imports and not all_partials:
+            # Only skip if NEITHER shortcodes nor imports nor template parts are found.
             if console:
                 console.print_info("i No map components detected; skipping map migration.")
             else:
@@ -139,43 +232,35 @@ def migrate_map_components(
             )
             return True
 
-        if not map_imports and not shortcode_map_imports:
-            # Case: Shortcodes found, but no assets found in CommonTheme to migrate
-            # logic handled below...
-            pass
-
         if not map_imports:
-            logger.info(
-                "No CommonTheme map imports found, but shortcodes detected. Proceeding with partial migration."
+             logger.info(
+                "No explicit CommonTheme map imports found. Proceeding with derived/template migration."
             )
-            if console:
-                console.print_info(
-                    "i Map shortcodes detected but no CommonTheme map assets found; checking for partials..."
-                )
+
+        # Step 2: Migrate SCSS content
+        # Filter using should_migrate_map_import
+        valid_imports = []
+        for imp in all_imports:
+            # Use 'import_path' if available, otherwise 'commontheme_relative'
+            path_check = imp.get("import_path") or imp.get("commontheme_relative")
+            if should_migrate_map_import(path_check, theme_dir):
+                valid_imports.append(imp)
             else:
-                click.echo(
-                    "i Map shortcodes detected but no CommonTheme map assets found; checking for partials..."
-                )
-
-        # Step 2: Migrate SCSS content to sb-inside.scss and sb-home.scss
-        # CHANGE: We ONLY migrate SCSS for 'implicit' imports (derived from shortcodes) here.
-        # 'Explicit' imports found in style.scss (map_imports detected above) are handled
-        # by the main migrate_styles process (which inlines them into style.scss).
-        # Migrating them here again would cause duplication (once in style.scss, once in sb-inside.scss).
-
-        scss_targets_to_migrate = shortcode_map_imports if shortcode_map_imports else []
+                logger.debug(f"Skipping import {path_check} (already local or invalid)")
 
         scss_success, scss_targets = migrate_map_scss_content(
-            slug, scss_targets_to_migrate, processor=processor
+            slug, valid_imports, processor=processor
         )
 
-        # Step 3: Find and migrate corresponding PHP partials
+        # Step 3: Migrate Partials
+        # Pass all_partials to avoid re-scanning
         partials_success, copied_partials = migrate_map_partials(
             slug,
-            map_imports,
+            valid_imports,
             interactive=interactive,
-            extra_partials=shortcode_partials,
+            extra_partials=all_partials,
             oem_handler=oem_handler,
+            scan_templates=False, # Skip internal scan
         )
 
         if scss_targets or copied_partials:
@@ -202,8 +287,8 @@ def migrate_map_components(
             _set_map_report(
                 slug,
                 {
-                    "shortcodes_found": True,
-                    "imports_found": True,
+                    "shortcodes_found": bool(shortcode_partials),
+                    "imports_found": bool(map_imports),
                     "scss_targets": scss_targets,
                     "partials_copied": [c for c in copied_partials if c],
                     "skipped_reason": None,
@@ -220,8 +305,8 @@ def migrate_map_components(
             _set_map_report(
                 slug,
                 {
-                    "shortcodes_found": True,
-                    "imports_found": True,
+                    "shortcodes_found": bool(shortcode_partials),
+                    "imports_found": bool(map_imports),
                     "scss_targets": scss_targets,
                     "partials_copied": [c for c in copied_partials if c],
                     "skipped_reason": reason,
@@ -237,6 +322,29 @@ def migrate_map_components(
     except Exception as e:
         logger.error(f"Error during enhanced map migration for {slug}: {e}")
         return False
+
+
+def find_map_partials_in_templates(slug: str, oem_handler: Optional[object] = None) -> List[dict]:
+    """Scan all template files for map partials."""
+    theme_dir = Path(get_dealer_theme_dir(slug))
+    template_files = [
+        theme_dir / "front-page.php",
+        theme_dir / "index.php",
+        theme_dir / "page.php",
+        theme_dir / "home.php",
+        theme_dir / "functions.php",
+    ]
+    partials_dir = theme_dir / "partials"
+    if partials_dir.exists():
+        template_files.extend(list(partials_dir.rglob("*.php")))
+
+    partial_paths = []
+    for template_file in template_files:
+        if template_file.exists():
+            partial_paths.extend(
+                find_template_parts_in_file(str(template_file), [], oem_handler)
+            )
+    return partial_paths
 
 
 def find_commontheme_map_imports(
@@ -726,6 +834,7 @@ def migrate_map_partials(
     interactive: bool = False,
     extra_partials: Optional[List[dict]] = None,
     oem_handler: Optional[object] = None,
+    scan_templates: bool = True,
 ) -> tuple[bool, List[str]]:
     """
     Find and migrate corresponding PHP partials for map components.
@@ -736,48 +845,43 @@ def migrate_map_partials(
         interactive: Whether to prompt for user confirmation (default: False)
         extra_partials: Optional list of additional partials to migrate.
         oem_handler: Optional OEM handler to use for specific patterns
+        scan_templates: Whether to scan template files for partials (default: True)
 
     Returns:
         tuple[bool, list]: (success, list of copied partials)
     """
-    if not map_imports and not extra_partials:
+    if not map_imports and not extra_partials and not scan_templates:
         return True, []
 
     logger.info(f"Migrating map PHP partials for {slug}")
 
     try:
         theme_dir = Path(get_dealer_theme_dir(slug))
-
-        # Look for PHP partials in front-page.php and other template files
-        template_files = [
-            theme_dir / "front-page.php",
-            theme_dir / "index.php",
-            theme_dir / "page.php",
-            theme_dir / "home.php",
-            theme_dir / "functions.php",
-        ]
-
-        # Also check partials directory
-        partials_dir = theme_dir / "partials"
-        if partials_dir.exists():
-            template_files.extend(list(partials_dir.rglob("*.php")))
-
         partial_paths = []
 
-        # Scan template files for get_template_part calls
-        for template_file in template_files:
-            if template_file.exists():
-                partial_paths.extend(
-                    find_template_parts_in_file(str(template_file), map_imports, oem_handler)
-                )
+        if scan_templates:
+            # Look for PHP partials in front-page.php and other template files
+            template_files = [
+                theme_dir / "front-page.php",
+                theme_dir / "index.php",
+                theme_dir / "page.php",
+                theme_dir / "home.php",
+                theme_dir / "functions.php",
+            ]
 
-        # Guessing logic REMOVED to enforce strict detection.
-        # We only migrate partials if they are explicitly found in templates or shortcodes.
-        if not partial_paths:
-            # Only rely on extra_partials (from shortcodes) if template scan found nothing
-            pass
+            # Also check partials directory
+            partials_dir = theme_dir / "partials"
+            if partials_dir.exists():
+                template_files.extend(list(partials_dir.rglob("*.php")))
 
-        # Include any extra partials discovered via shortcodes/functions
+            # Scan template files for get_template_part calls
+            for template_file in template_files:
+                if template_file.exists():
+                    partial_paths.extend(
+                        find_template_parts_in_file(str(template_file), map_imports, oem_handler)
+                    )
+
+        # Include any extra partials provided (from shortcodes or pre-scanned)
         if extra_partials:
             partial_paths.extend(extra_partials)
 
@@ -867,8 +971,8 @@ def find_template_parts_in_file(
         # and search_patterns above. Removing redundant keyword-only search.
 
         # Pattern: function xyz_map() { ... get_template_part('...directions...') ... }
-        # More flexible pattern to match your full_map() function
-        shortcode_function_pattern = r"function\s+(\w*(?:mapsection|maprow|mapbox|getdirections)\w*)\s*\([^)]*\)\s*\{[^}]*get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections|mapsection)[^'\"]*)['\"]"
+        # More flexible pattern: Use non-greedy match .*? instead of [^}]* to allow nested blocks
+        shortcode_function_pattern = r"function\s+(\w*(?:mapsection|maprow|mapbox|getdirections)\w*)\s*\([^)]*\)\s*\{(?P<body>.*?)get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections|mapsection)[^'\"]*)['\"]"
         matches = re.finditer(shortcode_function_pattern, content, re.IGNORECASE | re.DOTALL)
 
         for match in matches:
@@ -1017,13 +1121,13 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
                         logger.info(f"Using first match: {commontheme_source.name}")
 
         # Check if we can rely on theme inheritance (AC: Avoid unnecessary copying)
-        if commontheme_source.exists():
-            # If the file exists in CommonTheme, WordPress will find it via template hierarchy.
-            # We don't need to copy it to the child theme unless we plan to modify it.
-            logger.info(
-                f"⏭️  Skipping partial copy - CommonTheme partial will be used via theme inheritance: {commontheme_partial_path}.php"
-            )
-            return "skipped_inheritance"
+        # FIX: We want to MIGRATE (copy) the files to ensure the child theme is standalone.
+        # Inheritance is fragile for SBM purposes.
+        # if commontheme_source.exists():
+        #    logger.info(
+        #        f"⏭️  Skipping partial copy - CommonTheme partial will be used via theme inheritance: {commontheme_partial_path}.php"
+        #    )
+        #    return "skipped_inheritance"
 
         # Verify source exists after fuzzy matching attempt
         if not commontheme_source.exists():

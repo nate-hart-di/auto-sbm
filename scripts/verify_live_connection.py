@@ -81,30 +81,57 @@ def run_verification():
 
     elif settings.firebase.is_user_mode():
         import requests
+        from sbm.utils.firebase_sync import get_user_mode_identity
 
         print(f"    -> [USER] Using REST API (Anonymous Auth)")
         base_url = settings.firebase.database_url
 
-        # Test READ (Public/User writable)
-        # Note: /verification_ping might be protected by rules?
-        # Assuming we can read/write it for now or we test /users/{user}/ping
+        # Authenticate first
+        print("    -> [USER] Authenticating via Identity Toolkit...")
+        identity = get_user_mode_identity()
 
-        # Try reading /verification_ping.json
+        if not identity:
+            print("    ❌ Authentication Failed: Could not get anonymous token.")
+            print("       Check FIREBASE__API_KEY in .env and internet connection.")
+            return
+
+        uid, token = identity
+        print(f"    ✅ Authenticated as: {uid}")
+
+        # Test READ (Public/User writable)
+        # Try reading /verification_ping.json with auth
         print(f"    -> [USER] Attempting REST READ from /verification_ping.json...")
         try:
-            resp = requests.get(f"{base_url}/verification_ping.json", timeout=10)
+            resp = requests.get(f"{base_url}/verification_ping.json?auth={token}", timeout=10)
             if resp.status_code == 200:
                 print(f"    ✅ REST READ Successful: {resp.json()}")
+            elif resp.status_code == 401:
+                print(f"    ⚠️ REST READ Permission Denied (Expected if rules block root).")
             else:
                 print(f"    ⚠️ REST READ Status: {resp.status_code} {resp.text}")
         except Exception as e:
             print(f"    ❌ REST READ Failed: {e}")
 
-        # Try Writing (likely fails if rules block anon write to root)
-        # But we can try validation!
-        # Retrospective: "User Mode ... non-admin users can operate without service account"
-        # Usually checking if we can READ /users.json (shallow) or specific user node.
-        pass
+        # Try Writing to user's own run node (should succeed if rules allow runs)
+        print(f"    -> [USER] Attempting REST WRITE to users/{uid}/runs/ping.json...")
+        try:
+            payload = {
+                "timestamp": timestamp,
+                "agent": "Antigravity",
+                "mode": "user_verified",
+                "slug": "verification-ping",
+                "status": "success",
+            }
+            url = f"{base_url}/users/{uid}/runs/ping.json?auth={token}"
+            resp = requests.put(url, json=payload, timeout=10)
+
+            if resp.status_code == 200:
+                print(f"    ✅ REST WRITE Successful: {resp.json()}")
+            else:
+                print(f"    ❌ REST WRITE Status: {resp.status_code} {resp.text}")
+
+        except Exception as e:
+            print(f"    ❌ REST WRITE Failed: {e}")
 
     else:
         print("    ℹ️  Skipping Connection Test (Not Configured)")

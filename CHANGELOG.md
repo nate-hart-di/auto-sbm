@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.9] - 2026-01-28
+
+### Fixed
+- **Map Migration**: Fixed critical path traversal vulnerability where external CommonTheme files were treated as local and skipped.
+- **Map Detection**: Enhanced detection logic to always scan template files for map partials, fixing issues with dynamic shortcode registration.
+- **Partial Migration**: Enabled copying of PHP partials even if they exist in CommonTheme, ensuring standalone functionality.
+- **Keywords**: Added `section-directions` to map component detection keywords.
+
 ## [2.13.8] - 2026-01-23
 
 ### Changed

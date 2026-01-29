@@ -2273,58 +2273,63 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
     Called by internal-refresh-stats to provide near-real-time updates.
     Limits to recent runs to avoid excessive API calls.
 
+    Now supports User Mode by using FirebaseSync abstraction and only updates
+    the current user's runs (distributed update model).
+
     Args:
         max_to_check: Maximum number of recent runs to check (default: 10). None = unlimited.
     """
     try:
-        from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db
+        from sbm.utils.firebase_sync import is_firebase_available, FirebaseSync
         from sbm.utils.github_pr import GitHubPRManager
 
         if not is_firebase_available():
             return
 
-        db = get_firebase_db()
-        users_ref = db.reference("/users")
-        users_data = users_ref.get() or {}
+        sync = FirebaseSync()
+
+        # In User Mode (and generally for scalability), we only update the CURRENT user's runs.
+        # This allows everyone to maintain their own stats without needing Admin privileges
+        # to write to other users' nodes.
+        my_runs = sync.fetch_user_runs()  # Defaults to current user
+
+        if not my_runs:
+            return
 
         checked = 0
-        for user_id, user_data in users_data.items():
+        # Sort runs by timestamp desc to check most recent first
+        sorted_runs = sorted(my_runs.items(), key=lambda x: x[1].get("timestamp", ""), reverse=True)
+
+        for run_id, run_data in sorted_runs:
             if max_to_check is not None and checked >= max_to_check:
                 break
 
-            if not isinstance(user_data, dict):
+            if not isinstance(run_data, dict):
                 continue
 
-            runs = user_data.get("runs", {})
-            for run_id, run_data in runs.items():
-                if max_to_check is not None and checked >= max_to_check:
-                    break
+            # Only check runs that need refresh
+            if GitHubPRManager.should_refresh_pr_data(run_data):
+                # Enrich run with fresh data
+                enriched = GitHubPRManager.enrich_run_with_pr_data(run_data, force_refresh=True)
 
-                if not isinstance(run_data, dict):
-                    continue
+                # Update Firebase via helper (supports REST/User Mode)
+                update_data = {
+                    "created_at": enriched.get("created_at"),
+                    "merged_at": enriched.get("merged_at"),
+                    "closed_at": enriched.get("closed_at"),
+                    "pr_state": enriched.get("pr_state"),
+                    "pr_author": enriched.get("pr_author"),  # Ensure author is synced
+                }
+                # Remove None values
+                update_data = {k: v for k, v in update_data.items() if v is not None}
 
-                # Only check runs that need refresh
-                if GitHubPRManager.should_refresh_pr_data(run_data):
-                    # Enrich run with fresh data
-                    enriched = GitHubPRManager.enrich_run_with_pr_data(run_data, force_refresh=True)
+                if update_data:
+                    sync.update_run(user_id=None, run_key=run_id, updates=update_data)
 
-                    # Update Firebase
-                    run_ref = db.reference(f"/users/{user_id}/runs/{run_id}")
-                    update_data = {
-                        "created_at": enriched.get("created_at"),
-                        "merged_at": enriched.get("merged_at"),
-                        "closed_at": enriched.get("closed_at"),
-                        "pr_state": enriched.get("pr_state"),
-                    }
-                    # Remove None values
-                    update_data = {k: v for k, v in update_data.items() if v is not None}
-                    if update_data:
-                        run_ref.update(update_data)
+                checked += 1
 
-                    checked += 1
-
-    except Exception:
-        # Silent failure for background task
+    except Exception as e:
+        # Silent failure for background task, but log debug
         pass
 
 

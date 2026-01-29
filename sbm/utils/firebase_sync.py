@@ -414,6 +414,7 @@ class FirebaseSync:
             return None
 
         try:
+
             def is_complete_run(run: dict) -> bool:
                 """Return True if a run represents a merged PR."""
                 if run.get("status") != "success":
@@ -502,7 +503,9 @@ class FirebaseSync:
                         global_best_by_slug[slug] = run
 
                 for slug, run in unique_complete_by_slug.items():
-                    author = run.get("pr_author") or run.get("user_id") or run.get("_user") or user_id
+                    author = (
+                        run.get("pr_author") or run.get("user_id") or run.get("_user") or user_id
+                    )
                     author_migrations.setdefault(author, set()).add(slug)
 
             user_counts = {author: len(slugs) for author, slugs in author_migrations.items()}
@@ -539,6 +542,7 @@ class FirebaseSync:
             return {}
 
         try:
+
             def is_complete_run(run: dict) -> bool:
                 if run.get("status") != "success":
                     return False
@@ -584,15 +588,150 @@ class FirebaseSync:
                     if is_complete_run(run):
                         slug = run.get("slug")
                         if slug and slug not in migrated_map:
-                            author = run.get("pr_author") or run.get("user_id") or run.get("_user") or user_id
+                            author = (
+                                run.get("pr_author")
+                                or run.get("user_id")
+                                or run.get("_user")
+                                or user_id
+                            )
                             migrated_map[slug] = author
             return migrated_map
         except Exception as e:
             logger.debug(f"Failed to fetch global history: {e}")
             return {}
 
+    def fetch_user_runs(self, user_id: str | None = None) -> dict:
+        """
+        Fetch runs for a specific user.
 
-def get_firebase_app() -> App | None:
+        Args:
+            user_id: The user ID to fetch runs for. If None, tries to use current User Mode identity.
+
+        Returns:
+            Dictionary of runs, or empty dict if not found/error.
+        """
+        if not is_firebase_available():
+            return {}
+
+        try:
+            settings = get_settings()
+
+            # Determine target user ID
+            target_uid = user_id
+            token = None
+            if not target_uid:
+                if settings.firebase.is_admin_mode():
+                    raise ValueError("Must provide user_id in Admin Mode")
+
+                identity = _get_user_mode_identity()
+                if not identity:
+                    return {}
+                target_uid, token = identity
+            elif not settings.firebase.is_admin_mode() and not token:
+                # If user_id provided in User Mode, check if it matches current identity
+                # User Mode can only read self via authenticated endpoint,
+                # OR read public nodes if rules allow.
+                # We assume we want to read "users/{uid}/runs" which is generally readable.
+                identity = _get_user_mode_identity()
+                if identity:
+                    current_uid, current_token = identity
+                    # If fetching self, use auth token
+                    if current_uid == target_uid:
+                        token = current_token
+                    else:
+                        # Fetching others: try anonymous/public read (token not strictly needed if rules allow)
+                        # But we'll try to use the token if we have it, as it adds "auth != null" context
+                        token = current_token
+
+            if settings.firebase.is_admin_mode():
+                db = get_firebase_db()
+                ref = db.reference(f"users/{target_uid}/runs")
+                data = ref.get()
+                return data if isinstance(data, dict) else {}
+
+            # User Mode: REST
+            import requests
+
+            url = f"{settings.firebase.database_url}/users/{target_uid}/runs.json"
+            if token:
+                url += f"?auth={token}"
+
+            resp = requests.get(url, timeout=10)
+            if resp.ok:
+                data = resp.json()
+                return data if isinstance(data, dict) else {}
+            else:
+                logger.debug(f"REST fetch failed for {target_uid}: {resp.status_code}")
+                return {}
+
+        except Exception as e:
+            logger.debug(f"Failed to fetch user runs: {e}")
+            return {}
+
+    def update_run(self, user_id: str | None, run_key: str, updates: dict) -> bool:
+        """
+        Update specific fields of a run.
+
+        Args:
+            user_id: Owner of the run. If None, infers from current identity.
+            run_key: The key of the run to update.
+            updates: Dictionary of fields to update.
+
+        Returns:
+            True if successful.
+        """
+        try:
+            settings = get_settings()
+
+            target_uid = user_id
+            token = None
+
+            if not target_uid:
+                if settings.firebase.is_admin_mode():
+                    raise ValueError("Must provide user_id in Admin Mode")
+                identity = _get_user_mode_identity()
+                if not identity:
+                    return False
+                target_uid, token = identity
+
+            # If User Mode, we explicitly need the token to write
+            if not settings.firebase.is_admin_mode() and not token:
+                identity = _get_user_mode_identity()
+                if identity:
+                    current_uid, current_token = identity
+                    if current_uid == target_uid:
+                        token = current_token
+                    else:
+                        # Trying to update someone else's run in User Mode?
+                        # Only works if Rules allow it (e.g. Universal Admin)
+                        token = current_token
+
+            if settings.firebase.is_admin_mode():
+                db = get_firebase_db()
+                ref = db.reference(f"users/{target_uid}/runs/{run_key}")
+                ref.update(updates)
+                return True
+
+            # User Mode: REST
+            import requests
+
+            if not token:
+                logger.debug("Cannot update run in User Mode without auth token")
+                return False
+
+            url = f"{settings.firebase.database_url}/users/{target_uid}/runs/{run_key}.json?auth={token}"
+            resp = requests.patch(url, json=updates, timeout=10)
+
+            if resp.ok:
+                return True
+            else:
+                logger.debug(f"REST update failed: {resp.status_code} {resp.text}")
+                return False
+
+        except Exception as e:
+            logger.debug(f"Failed to update run: {e}")
+            return False
+
     """
     Get the initialized Firebase app instance.
 
