@@ -1,3 +1,5 @@
+model = "gpt-5.2-codex"
+model_reasoning_effort = "medium"
 [projects."/Users/nathanhart/auto-sbm"]
 trust_level = "trusted"
 
@@ -8,3 +10,4 @@ hide_full_access_warning = true
 shell_snapshot = true
 steer = true
 collab = true
+suppress_unstable_features_warning = true
