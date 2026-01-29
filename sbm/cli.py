@@ -2020,12 +2020,21 @@ def stats(
             border_style=color,
         )
 
+    # Calculate local time saved
+    local_lines = metrics_local.get('total_lines_migrated', 0)
+    local_hours = round(local_lines / 800.0, 1) if local_lines else 0.0
+
     metric_panels = [
         make_metric_panel("Sites Migrated", str(stats_data["count"]), "green"),
         make_metric_panel(
             "Lines Migrated",
-            f"{metrics_local.get('total_lines_migrated', 0):,}",
+            f"{local_lines:,}",
             "cyan",
+        ),
+        make_metric_panel(
+            "Time Saved",
+            f"{local_hours}h",
+            "magenta",
         ),
     ]
 
@@ -2036,6 +2045,12 @@ def stats(
     if global_metrics:
         rich_console.print("\n[bold cyan]Global Auto-SBM Stats[/bold cyan]")
 
+        # Calculate global time saved (fallback if missing from payload)
+        global_lines = global_metrics.get('total_lines_migrated', 0)
+        global_hours = global_metrics.get('total_time_saved_h')
+        if global_hours is None:
+             global_hours = round(global_lines / 800.0, 1) if global_lines else 0.0
+
         global_panels = [
             make_metric_panel("Total Users", str(global_metrics.get("total_users", 0)), "blue"),
             make_metric_panel(
@@ -2045,8 +2060,13 @@ def stats(
             ),
             make_metric_panel(
                 "Lines Migrated",
-                f"{global_metrics.get('total_lines_migrated', 0):,}",
+                f"{global_lines:,}",
                 "cyan",
+            ),
+            make_metric_panel(
+                "Time Saved",
+                f"{global_hours}h",
+                "magenta",
             ),
         ]
         rich_console.print(Columns(global_panels, equal=True))
@@ -2128,6 +2148,7 @@ def stats(
             table.add_column("User", style="magenta")
             table.add_column("Lines", justify="right", style="cyan")
             table.add_column("PR", style="blue")
+            table.add_column("Time Saved", style="green")
 
             for run in runs:
                 # Determine PR completion state
@@ -2153,11 +2174,57 @@ def stats(
                 lines_migrated = run.get("lines_migrated", 0)
                 report_path = run.get("report_path", "")
 
+                # Calculate Time Saved (Align with Slack/Summary: 800 lines = 1 hour)
+                lines_migrated = run.get("lines_migrated", 0)
+                time_saved_str = "N/A"
+
+                # Prefer calculated metric for consistency
+                if lines_migrated > 0:
+                    hours_float = lines_migrated / 800.0
+                    if hours_float < 0.1:
+                         time_saved_str = "< 0.1h"
+                    else:
+                         time_saved_str = f"{hours_float:.1f}h"
+
+                # Fallback to manual estimate if no lines recorded but time exists
+                elif run.get("manual_estimate_seconds", 0):
+                    manual_seconds = run.get("manual_estimate_seconds", 0)
+                    h = int(manual_seconds // 3600)
+                    m = int((manual_seconds % 3600) // 60)
+                    time_saved_str = f"{h}h {m}m"
+
                 # Format values
                 lines_str = f"{lines_migrated:,}" if lines_migrated else "N/A"
                 report_str = report_path if report_path else "N/A"
 
                 # PR Link logic
+                pr_url = run.get("pr_url")
+                pr_state = run.get("pr_state", "UNKNOWN")
+
+                if pr_url:
+                    pr_display = f"[link={pr_url}]{pr_state}[/link]"
+                else:
+                    pr_display = pr_state
+
+                # Use PR Author if available, else User ID
+                user_display = run.get("pr_author")
+                if not user_display:
+                    user_display = run.get("user_id", "Unknown")
+
+                # Format user display (e.g. @username)
+                if user_display and not user_display.startswith("@"):
+                    user_display = f"@{user_display}"
+
+                table.add_row(
+                    _format_timestamp(run.get("timestamp")),
+                    run.get("slug", "unknown"),
+                    status_display,
+                    user_display,
+                    lines_str,
+                    pr_display,
+                    time_saved_str,
+                )
+
                 pr_link = "N/A"
                 if run.get("pr_url"):
                     url = run.get("pr_url")
@@ -2288,19 +2355,31 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
 
         sync = FirebaseSync()
 
-        # In User Mode (and generally for scalability), we only update the CURRENT user's runs.
-        # This allows everyone to maintain their own stats without needing Admin privileges
-        # to write to other users' nodes.
-        my_runs = sync.fetch_user_runs()  # Defaults to current user
+        # GLOBAL UPDATE STRATEGY
+        # We fetch ALL data so we can update ANY stale run, regardless of who owns it.
+        # This relies on Firebase Rules being set to allow global writes (auth != null).
+        all_data = sync.fetch_all_users_raw()
 
-        if not my_runs:
+        if not all_data:
             return
 
-        checked = 0
-        # Sort runs by timestamp desc to check most recent first
-        sorted_runs = sorted(my_runs.items(), key=lambda x: x[1].get("timestamp", ""), reverse=True)
+        # Flatten all runs into a list of (user_id, run_id, run_data)
+        all_runs_flat = []
+        for u_id, u_data in all_data.items():
+            if not isinstance(u_data, dict):
+                continue
+            runs = u_data.get("runs", {})
+            for r_id, r_data in runs.items():
+                # Filter out verification-ping here too so we don't waste time checking it
+                if r_data.get("slug") == "verification-ping":
+                    continue
+                all_runs_flat.append((u_id, r_id, r_data))
 
-        for run_id, run_data in sorted_runs:
+        checked = 0
+        # Sort runs by timestamp desc to check most recent first (GLOBAL priority)
+        sorted_runs = sorted(all_runs_flat, key=lambda x: x[2].get("timestamp", ""), reverse=True)
+
+        for user_id, run_id, run_data in sorted_runs:
             if max_to_check is not None and checked >= max_to_check:
                 break
 
@@ -2324,7 +2403,8 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
                 update_data = {k: v for k, v in update_data.items() if v is not None}
 
                 if update_data:
-                    sync.update_run(user_id=None, run_key=run_id, updates=update_data)
+                    # Pass the specific user_id of the run owner
+                    sync.update_run(user_id=user_id, run_key=run_id, updates=update_data)
 
                 checked += 1
 

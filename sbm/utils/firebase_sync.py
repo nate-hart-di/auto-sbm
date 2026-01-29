@@ -491,7 +491,7 @@ class FirebaseSync:
                 for _, run in runs_node.items():
                     if is_complete_run(run):
                         slug = run.get("slug")
-                        if not slug:
+                        if not slug or slug == "verification-ping":
                             continue
                         existing = unique_complete_by_slug.get(slug)
                         if not existing or _run_sort_key(run) > _run_sort_key(existing):
@@ -668,6 +668,48 @@ class FirebaseSync:
             logger.debug(f"Failed to fetch user runs: {e}")
             return {}
 
+    def fetch_all_users_raw(self) -> dict:
+        """
+        Fetch ALL users and their runs.
+
+        Used for global stats update (scanning everyone's runs for PR status changes).
+        """
+        if not is_firebase_available():
+            return {}
+
+        try:
+            settings = get_settings()
+
+            if settings.firebase.is_admin_mode():
+                db = get_firebase_db()
+                ref = db.reference("users")
+                data = ref.get()
+                return data if isinstance(data, dict) else {}
+
+            # User Mode: REST
+            import requests
+
+            # We need an identity to read, even if rules are public,
+            # but usually 'users' is readable by auth users.
+            identity = _get_user_mode_identity()
+            token = identity[1] if identity else None
+
+            url = f"{settings.firebase.database_url}/users.json"
+            if token:
+                url += f"?auth={token}"
+
+            resp = requests.get(url, timeout=15)
+            if resp.ok:
+                data = resp.json()
+                return data if isinstance(data, dict) else {}
+            else:
+                logger.debug(f"Global REST fetch failed: {resp.status_code}")
+                return {}
+
+        except Exception as e:
+            logger.debug(f"Failed to fetch all users: {e}")
+            return {}
+
     def update_run(self, user_id: str | None, run_key: str, updates: dict) -> bool:
         """
         Update specific fields of a run.
@@ -732,6 +774,8 @@ class FirebaseSync:
             logger.debug(f"Failed to update run: {e}")
             return False
 
+
+def get_firebase_app() -> App | None:
     """
     Get the initialized Firebase app instance.
 

@@ -809,6 +809,8 @@ def get_global_reporting_data() -> tuple[list[dict], dict[str, set]]:
             for _run_id, run in runs.items():
                 if run.get("status") == "invalid":
                     continue
+                if run.get("slug") == "verification-ping":
+                    continue
                 run_author = _get_run_author(run)
                 run["_user"] = run_author
                 all_runs.append(run)

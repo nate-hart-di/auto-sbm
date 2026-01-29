@@ -75,7 +75,7 @@ def handle_sbm_stats(ack, body, say, logger):
     context_label = f"Auto-SBM {command_str} received"
 
     # Parse optional args: [period/date/range] [username]
-    period = "all"
+    period = "week"
     username = None
     top_n = None
     top_flag = False
@@ -144,8 +144,12 @@ def handle_sbm_stats(ack, body, say, logger):
             del tokens[idx]
             username = " ".join(tokens).strip() if tokens else None
         else:
-            # No clear period, assume text is username and period is 'all'
+            # No clear period, assume text is username and period is 'week' (default)
             username = full_text.strip() if full_text else None
+            if username:
+                period = "week"
+            else:
+                period = "week"  # Fallback just in case
 
     logger.info(
         f"Received /sbm-stats command from {user_id} with period: {period} user: {username or 'all'} top: {top_n}"
