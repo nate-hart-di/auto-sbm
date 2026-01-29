@@ -8,6 +8,7 @@ Rich-enhanced progress tracking, status displays, and interactive elements.
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 import os
 import re
@@ -2535,7 +2536,18 @@ def post_migrate(
         sys.exit(1)
 
 
-@cli.command()
+@cli.group()
+@click.pass_context
+def pr(ctx: click.Context) -> None:
+    """
+    Manage GitHub Pull Requests.
+
+    Commands for creating and managing PRs for Site Builder migrations.
+    """
+    pass
+
+
+@pr.command("create")
 @click.argument("theme_name")
 @click.option(
     "--title", "-t", help="Title for the Pull Request. (Optional: auto-generated if not provided)"
@@ -2556,7 +2568,7 @@ def post_migrate(
     "--publish", "-p", is_flag=True, default=True, help="Create as published PR (default: true)."
 )
 @click.pass_context
-def pr(
+def pr_create(
     ctx: click.Context,
     theme_name: str,
     title: str | None,
@@ -2623,6 +2635,149 @@ def pr(
 
     except Exception:
         logger.exception("Unexpected error occurred")
+        sys.exit(1)
+
+
+@pr.command("merge")
+@click.option(
+    "--pattern",
+    "-p",
+    default="pcon-864",
+    help="Branch name pattern to match (default: pcon-864)",
+)
+@click.option(
+    "--dry-run",
+    "-n",
+    is_flag=True,
+    default=False,
+    help="Show what would be done without making changes",
+)
+@click.pass_context
+def pr_merge(ctx: click.Context, pattern: str, dry_run: bool) -> None:
+    """
+    Enable auto-merge on open PRs matching a branch pattern.
+
+    Finds all open PRs with branch names containing the pattern,
+    updates branches to be current with base, and enables auto-merge.
+
+    Examples:
+        sbm pr merge                    # Enable auto-merge on all pcon-864* PRs
+        sbm pr merge -p pcon-123        # Enable for specific project PRs
+        sbm pr merge --dry-run          # Preview without making changes
+    """
+    console = get_console()
+
+    try:
+        # Get all open PRs matching the pattern
+        result = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "list",
+                "--state",
+                "open",
+                "--json",
+                "number,headRefName,title,url",
+                "--jq",
+                f'.[] | select(.headRefName | contains("{pattern}")) | [.number, .headRefName, .title, .url] | @tsv',
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        prs = result.stdout.strip().split("\n") if result.stdout.strip() else []
+
+        if not prs or (len(prs) == 1 and not prs[0]):
+            console.console.print(f"[yellow]No open PRs found matching pattern: {pattern}[/yellow]")
+            return
+
+        console.console.print(f"\n[bold]Found {len(prs)} matching PR(s)[/bold]\n")
+
+        if dry_run:
+            console.console.print("[yellow]DRY RUN - No changes will be made[/yellow]\n")
+
+        for pr_line in prs:
+            if not pr_line.strip():
+                continue
+
+            parts = pr_line.split("\t")
+            if len(parts) != 4:
+                continue
+
+            pr_number, branch_name, title, pr_url = parts
+
+            console.console.print(f"[bold cyan]PR #{pr_number}:[/bold cyan] {title}")
+            console.console.print(f"[dim]Branch: {branch_name}[/dim]")
+            console.console.print(f"[dim]URL: {pr_url}[/dim]\n")
+
+            if dry_run:
+                console.console.print("[dim]Would enable auto-merge[/dim]\n")
+                continue
+
+            # Check current merge status
+            merge_result = subprocess.run(
+                [
+                    "gh",
+                    "pr",
+                    "view",
+                    pr_number,
+                    "--json",
+                    "mergeable,mergeStateStatus,autoMergeRequest,statusCheckRollup,reviewDecision",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            merge_info = json.loads(merge_result.stdout)
+            merge_state = merge_info.get("mergeStateStatus")
+            auto_merge_enabled = merge_info.get("autoMergeRequest") is not None
+
+            # Update branch if needed
+            if merge_state in ["BEHIND", "DIRTY"]:
+                console.console.print("🔄 Updating branch to be current with base...")
+                try:
+                    subprocess.run(
+                        ["gh", "pr", "merge", pr_number, "--update-branch"],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    console.console.print("[green]✓[/green] Branch updated successfully\n")
+                    time.sleep(2)  # Wait for GitHub to process
+                except subprocess.TimeoutExpired:
+                    console.console.print("[yellow]⚠[/yellow] Branch update timed out - may complete in background\n")
+                except subprocess.CalledProcessError as e:
+                    error_msg = e.stderr if e.stderr else str(e)
+                    if "already up to date" not in error_msg.lower():
+                        console.console.print(f"[yellow]⚠[/yellow] Could not update branch: {error_msg}\n")
+
+            # Enable auto-merge if not already enabled
+            if auto_merge_enabled:
+                console.console.print("[green]✓[/green] Auto-merge already enabled\n")
+            else:
+                console.console.print("🔄 Enabling auto-merge...")
+                try:
+                    subprocess.run(
+                        ["gh", "pr", "merge", pr_number, "--auto", "--squash"],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    console.console.print("[green]✓[/green] Auto-merge enabled (squash strategy)\n")
+                except subprocess.CalledProcessError as e:
+                    error_msg = e.stderr if e.stderr else str(e)
+                    console.console.print(f"[red]✗[/red] Failed to enable auto-merge: {error_msg}\n")
+
+        console.console.print(f"[bold green]✓[/bold green] Processed {len(prs)} PR(s)")
+
+    except subprocess.CalledProcessError as e:
+        console.console.print(f"[red]Error:[/red] {e.stderr if e.stderr else str(e)}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        console.console.print(f"[red]Unexpected error:[/red] {str(e)}", err=True)
         sys.exit(1)
 
 

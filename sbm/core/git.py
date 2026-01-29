@@ -562,21 +562,7 @@ class GitOperations:
             cmd.extend(["--label", ",".join(labels)])
 
         try:
-            # Set up environment with custom token if available
-            env = os.environ.copy()
-
-            # Check for custom GitHub token in config
-            if hasattr(self.config, "github_token") and self.config.github_token:
-                env["GH_TOKEN"] = self.config.github_token
-                logger.debug("Using custom GitHub token from config")
-            elif hasattr(self.config, "git") and self.config.git:
-                git_config = self.config.git
-                if isinstance(git_config, dict) and "github_token" in git_config:
-                    env["GH_TOKEN"] = git_config["github_token"]
-                    logger.debug("Using custom GitHub token from git config")
-                elif hasattr(git_config, "github_token") and git_config.github_token:
-                    env["GH_TOKEN"] = git_config.github_token
-                    logger.debug("Using custom GitHub token from git config")
+            env = self._get_gh_env()
 
             result = subprocess.run(
                 cmd, check=True, capture_output=True, text=True, cwd=get_platform_dir(), env=env
@@ -596,6 +582,25 @@ class GitOperations:
             or "pull request for branch" in error_output.lower()
         )
 
+    def _get_gh_env(self) -> Dict[str, str]:
+        """Get environment with GitHub token configured."""
+        env = os.environ.copy()
+
+        # Check for custom GitHub token in config
+        if hasattr(self.config, "github_token") and self.config.github_token:
+            env["GH_TOKEN"] = self.config.github_token
+            logger.debug("Using custom GitHub token from config")
+        elif hasattr(self.config, "git") and self.config.git:
+            git_config = self.config.git
+            if isinstance(git_config, dict) and "github_token" in git_config:
+                env["GH_TOKEN"] = git_config["github_token"]
+                logger.debug("Using custom GitHub token from git config")
+            elif hasattr(git_config, "github_token") and git_config.github_token:
+                env["GH_TOKEN"] = git_config.github_token
+                logger.debug("Using custom GitHub token from git config")
+
+        return env
+
     def _handle_existing_pr(self, error_output: str, head_branch: str) -> str:
         """Extracts the existing PR URL from the error output or by listing PRs."""
         # Try to extract PR URL from error message
@@ -604,18 +609,7 @@ class GitOperations:
             return url_match.group(1)
         # Fallback to gh pr list
         try:
-            # Set up environment with custom token if available
-            env = os.environ.copy()
-
-            # Check for custom GitHub token in config
-            if hasattr(self.config, "github_token") and self.config.github_token:
-                env["GH_TOKEN"] = self.config.github_token
-            elif hasattr(self.config, "git") and self.config.git:
-                git_config = self.config.git
-                if isinstance(git_config, dict) and "github_token" in git_config:
-                    env["GH_TOKEN"] = git_config["github_token"]
-                elif hasattr(git_config, "github_token") and git_config.github_token:
-                    env["GH_TOKEN"] = git_config.github_token
+            env = self._get_gh_env()
 
             list_result = subprocess.run(
                 ["gh", "pr", "list", "--head", head_branch, "--json", "url"],
@@ -632,6 +626,173 @@ class GitOperations:
             logger.warning(f"Could not list existing PRs: {list_e}")
         msg = f"PR already exists but could not retrieve URL: {error_output}"
         raise Exception(msg)
+
+    def _check_pr_merge_status(self, pr_url: str) -> Dict[str, Any]:
+        """
+        Check why a PR might not be auto-merging.
+
+        Returns:
+            dict with mergeable state, required checks, and blocking reasons
+        """
+        try:
+            env = self._get_gh_env()
+
+            result = subprocess.run(
+                [
+                    "gh",
+                    "pr",
+                    "view",
+                    pr_url,
+                    "--json",
+                    "mergeable,mergeStateStatus,statusCheckRollup,reviewDecision",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
+                env=env,
+            )
+
+            data = json.loads(result.stdout)
+
+            # Parse status checks
+            status_checks = data.get("statusCheckRollup", [])
+            failing_checks = [
+                check["name"]
+                for check in status_checks
+                if check.get("conclusion") not in ["SUCCESS", "NEUTRAL", "SKIPPED", None]
+            ]
+            pending_checks = [
+                check["name"] for check in status_checks if check.get("state") == "PENDING"
+            ]
+
+            return {
+                "mergeable": data.get("mergeable"),
+                "merge_state": data.get("mergeStateStatus"),
+                "review_decision": data.get("reviewDecision"),
+                "failing_checks": failing_checks,
+                "pending_checks": pending_checks,
+            }
+
+        except Exception as e:
+            logger.debug(f"Could not check PR merge status: {e}")
+            return {}
+
+    def _update_branch(self, pr_url: str) -> bool:
+        """
+        Update PR branch to be current with base branch.
+
+        Returns:
+            bool: True if branch was updated successfully
+        """
+        try:
+            env = self._get_gh_env()
+
+            # Check if branch needs updating first
+            result = subprocess.run(
+                ["gh", "pr", "view", pr_url, "--json", "mergeStateStatus"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
+                env=env,
+            )
+
+            data = json.loads(result.stdout)
+            merge_state = data.get("mergeStateStatus")
+
+            # BEHIND means branch is behind base, DIRTY means behind and has conflicts
+            if merge_state in ["BEHIND", "DIRTY"]:
+                logger.info("🔄 Updating branch to be current with base...")
+
+                # Update the branch using gh pr
+                subprocess.run(
+                    ["gh", "pr", "merge", pr_url, "--update-branch"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    cwd=get_platform_dir(),
+                    env=env,
+                    timeout=30,
+                )
+
+                logger.info("✓ Branch updated successfully")
+                return True
+            else:
+                logger.debug(f"Branch already up-to-date (state: {merge_state})")
+                return True
+
+        except subprocess.TimeoutExpired:
+            logger.warning("⚠ Branch update timed out - may complete in background")
+            return False
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr if e.stderr else str(e)
+            # Don't fail on certain expected errors
+            if "already up to date" in error_msg.lower():
+                logger.debug("Branch already up-to-date")
+                return True
+            elif "cannot update" in error_msg.lower():
+                logger.warning(f"⚠ Cannot update branch: {error_msg}")
+                return False
+            else:
+                logger.warning(f"Could not update branch: {error_msg}")
+                return False
+
+    def _enable_auto_merge(self, pr_url: str) -> bool:
+        """
+        Enable auto-merge on a PR with squash strategy.
+        Updates branch first if needed.
+
+        Returns:
+            bool: True if auto-merge was enabled successfully
+        """
+        try:
+            env = self._get_gh_env()
+
+            # First, try to update the branch if it's behind
+            self._update_branch(pr_url)
+
+            # Enable auto-merge with squash
+            subprocess.run(
+                ["gh", "pr", "merge", pr_url, "--auto", "--squash"],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=get_platform_dir(),
+                env=env,
+            )
+
+            logger.info("✓ Auto-merge enabled (squash strategy)")
+
+            # Check merge status to diagnose potential blocking issues
+            status = self._check_pr_merge_status(pr_url)
+            if status:
+                # Log diagnostics about why it might not merge immediately
+                if status.get("mergeable") == "CONFLICTING":
+                    logger.warning("⚠ PR has merge conflicts - auto-merge will wait for resolution")
+                elif status.get("pending_checks"):
+                    logger.info(
+                        f"⏳ Auto-merge waiting for checks: {', '.join(status['pending_checks'])}"
+                    )
+                elif status.get("failing_checks"):
+                    logger.warning(
+                        f"⚠ Auto-merge blocked by failing checks: {', '.join(status['failing_checks'])}"
+                    )
+                elif status.get("review_decision") == "REVIEW_REQUIRED":
+                    logger.info("⏳ Auto-merge waiting for required reviews")
+                elif status.get("review_decision") == "CHANGES_REQUESTED":
+                    logger.warning("⚠ Auto-merge blocked - changes requested in review")
+                elif status.get("merge_state") == "BLOCKED":
+                    logger.warning("⚠ Auto-merge blocked by branch protection rules")
+                else:
+                    logger.info("✓ PR ready to auto-merge when checks pass")
+
+            return True
+
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr if e.stderr else str(e)
+            logger.warning(f"Could not enable auto-merge: {error_msg}")
+            return False
 
     def _analyze_migration_changes(self) -> List[str]:
         """Analyze Git changes to determine what was actually migrated."""
@@ -1239,6 +1400,9 @@ PR: {pr_url}"""
 
             logger.debug(f"Successfully created PR: {pr_url}")
 
+            # Enable auto-merge immediately after PR creation
+            self._enable_auto_merge(pr_url)
+
             # Fetch PR metadata immediately after creation
             from sbm.utils.github_pr import fetch_pr_metadata
 
@@ -1284,6 +1448,9 @@ PR: {pr_url}"""
                     safe_head_branch = head or branch_name or "main"
                     existing_pr_url = self._handle_existing_pr(error_str, safe_head_branch)
                     logger.info(f"PR already exists: {existing_pr_url}")
+
+                    # Enable auto-merge for existing PR (in case it wasn't enabled)
+                    self._enable_auto_merge(existing_pr_url)
 
                     # Fetch metadata for existing PR
                     from sbm.utils.github_pr import fetch_pr_metadata

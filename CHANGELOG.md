@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] - 2026-01-29
+
+### Added
+- **PR Merge CLI Command**: Added `sbm pr merge` command for enabling auto-merge on PRs
+  - New command: `sbm pr merge` - Enable auto-merge on all open PRs matching pattern
+  - Option: `-p/--pattern` to specify branch name pattern (default: pcon-864)
+  - Option: `--dry-run` to preview changes without making them
+  - Automatically updates branches to be current with base before enabling auto-merge
+  - Shows detailed status and diagnostics for each PR
+  - Examples:
+    - `sbm pr merge` - Enable auto-merge on all pcon-864* PRs
+    - `sbm pr merge -p pcon-123` - Enable for specific project PRs
+    - `sbm pr merge --dry-run` - Preview without making changes
+
+### Changed
+- **PR Command Restructured**: Converted `sbm pr` from simple command to command group
+  - `sbm pr create <theme>` - Create a new PR (formerly `sbm pr <theme>`)
+  - `sbm pr merge` - Enable auto-merge on existing PRs (new)
+  - Maintains backward compatibility through command group structure
+
+## [2.14.2] - 2026-01-29
+
+### Fixed
+- **Auto-Merge Branch Update**: Auto-merge now updates branches to be current with base before enabling
+  - New `_update_branch()` method updates PR branches when behind base
+  - Prevents "branch must be up to date" blocking issue
+  - Script `enable_auto_merge.sh` now updates branches before enabling auto-merge
+  - Handles BEHIND and DIRTY merge states automatically
+
+## [2.14.1] - 2026-01-29
+
+### Added
+- **Auto-Merge Diagnostic Script**: Added `scripts/enable_auto_merge.sh` for batch enabling auto-merge on existing PRs
+  - Shows detailed diagnostics for each PR (merge status, checks, reviews)
+  - Explains why PRs aren't merging (conflicts, pending reviews, failing checks)
+  - Usage: `./scripts/enable_auto_merge.sh pcon-864`
+
+## [2.14.0] - 2026-01-29
+
+### Added
+- **Auto-Merge Support**: PRs now automatically enable auto-merge (squash strategy) upon creation
+  - New `_enable_auto_merge()` method enables auto-merge with squash on PR creation
+  - New `_check_pr_merge_status()` method provides diagnostics on merge blockers
+  - Auto-merge enabled for both new and existing PRs
+  - Detailed logging shows why PRs might not merge immediately (pending checks, failing checks, review requirements, merge conflicts, branch protection)
+  - Refactored GitHub token env setup into reusable `_get_gh_env()` method
+
 ## [2.13.20] - 2026-01-29
 
 ### Changed
