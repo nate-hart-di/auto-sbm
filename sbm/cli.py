@@ -1204,7 +1204,8 @@ def auto(
         yes = True
         skip_post_migration = True
 
-    if yes:
+    # Use explicit_yes (not yes) to avoid enabling non-interactive mode for batch
+    if explicit_yes:
         get_settings().non_interactive = True
 
     config = ctx.obj.get("config", Config({}))
