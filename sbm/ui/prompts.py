@@ -498,7 +498,8 @@ class InteractivePrompts:
         if get_settings().non_interactive:
             return DuplicateAction.SKIP
 
-        console = get_console()
+        sbm_console = get_console()
+        console = sbm_console.console  # Get the actual Rich Console
         console.print("\n[bold cyan]What would you like to do with these duplicates?[/bold cyan]")
         console.print("  [yellow]1[/yellow] - Skip duplicates (proceed with remaining sites)")
         console.print("  [green]2[/green] - Remigrate (mark old PRs as superseded, create new ones)")
