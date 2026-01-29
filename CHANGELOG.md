@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] - 2026-01-29
+
+### Added
+- **Auto-Merge Support**: PRs now automatically enable auto-merge (squash strategy) upon creation
+  - New `_enable_auto_merge()` method enables auto-merge with squash on PR creation
+  - New `_check_pr_merge_status()` method provides diagnostics on merge blockers
+  - Auto-merge enabled for both new and existing PRs
+  - Detailed logging shows why PRs might not merge immediately (pending checks, failing checks, review requirements, merge conflicts, branch protection)
+  - Refactored GitHub token env setup into reusable `_get_gh_env()` method
+
 ## [2.13.20] - 2026-01-29
 
 ### Changed
