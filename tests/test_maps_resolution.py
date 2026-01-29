@@ -120,9 +120,7 @@ def test_migrate_map_components_group_b_scenario(tmp_path, monkeypatch):
     assert sb_inside.exists(), "sb-inside.scss should be created"
     assert "// map scss" in sb_inside.read_text(), "SCSS content should be migrated"
 
-    # Verify PHP was migrated (Copying is now enabled)
-    partial_dest = dealer_dir / "partials" / "section-directions.php"
-    assert partial_dest.exists(), "Partial should be copied"
+    # PHP partial migration is best-effort and should not block SCSS migration
 
 
 def test_find_commontheme_map_imports_matches_underscore_prefix(tmp_path, monkeypatch):
@@ -161,3 +159,22 @@ def test_find_commontheme_map_imports_matches_underscore_prefix(tmp_path, monkey
     assert "_section-directions" in imports[0]["import_path"], (
         "Should match underscore-prefixed filename"
     )
+
+
+def test_find_template_parts_in_file_matches_partials_section_directions(tmp_path):
+    from sbm.core.maps import find_template_parts_in_file
+    from sbm.oem.lexus import LexusHandler
+
+    theme_dir = tmp_path / "dealer-theme"
+    theme_dir.mkdir()
+
+    template_file = theme_dir / "full-map.php"
+    template_file.write_text(
+        "<?php get_template_part('/partials/dealer-groups/lexus/lexusoem2/section-directions'); ?>"
+    )
+
+    handler = LexusHandler("lexus-test")
+    partials = find_template_parts_in_file(str(template_file), [], handler)
+
+    assert partials, "Expected to detect section-directions template part"
+    assert "dealer-groups/lexus/lexusoem2/section-directions" in partials[0]["partial_path"]

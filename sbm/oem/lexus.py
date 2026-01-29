@@ -34,6 +34,7 @@ class LexusHandler(BaseOEMHandler):
         """
         return [
             r"dealer-groups/lexus/lexusoem\d+/_?section-map",
+            r"dealer-groups/lexus/lexusoem\d+/_?section-directions",
             r"dealer-groups/lexus/lexusoem\d+/mapsection\d*",
             r"dealer-groups/([^/]+)/map-row-\d+",
             r"dealer-groups/([^/]+)/directions",

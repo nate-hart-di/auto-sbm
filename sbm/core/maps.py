@@ -210,7 +210,7 @@ def migrate_map_components(
         # Derive SCSS from all partials
         derived_imports = derive_map_imports_from_partials(all_partials)
 
-        # Combine all imports
+        # Combine all imports (explicit + derived)
         all_imports = map_imports + derived_imports
         all_imports = dedupe_map_imports(all_imports)
 
@@ -287,8 +287,8 @@ def migrate_map_components(
             _set_map_report(
                 slug,
                 {
-                    "shortcodes_found": bool(shortcode_partials),
-                    "imports_found": bool(map_imports),
+                    "shortcodes_found": bool(shortcode_partials or template_partials),
+                    "imports_found": bool(map_imports or derived_imports),
                     "scss_targets": scss_targets,
                     "partials_copied": [c for c in copied_partials if c],
                     "skipped_reason": None,
@@ -305,8 +305,8 @@ def migrate_map_components(
             _set_map_report(
                 slug,
                 {
-                    "shortcodes_found": bool(shortcode_partials),
-                    "imports_found": bool(map_imports),
+                    "shortcodes_found": bool(shortcode_partials or template_partials),
+                    "imports_found": bool(map_imports or derived_imports),
                     "scss_targets": scss_targets,
                     "partials_copied": [c for c in copied_partials if c],
                     "skipped_reason": reason,
@@ -948,7 +948,9 @@ def find_template_parts_in_file(
             search_patterns = [f"[^'\"]*\\b(?:{keyword_list})[^'\"]*"]
 
         for pattern in search_patterns:
-            template_part_pattern = r"get_template_part\s*\(\s*['\"](" + pattern + r")['\"]"
+            template_part_pattern = (
+                r"get_template_part\s*\(\s*['\"](?:/)?(?:partials/)?(" + pattern + r")['\"]"
+            )
             matches = re.finditer(template_part_pattern, content, re.IGNORECASE)
 
             for match in matches:
