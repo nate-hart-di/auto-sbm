@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 from sbm.cli import cli, _expand_theme_names
 from sbm.utils.tracker import get_all_migrated_slugs
+from sbm.ui.prompts import DuplicateAction
 
 # Mock data
 MOCK_FIREBASE_USERS = {
@@ -23,7 +24,18 @@ MOCK_FIREBASE_USERS = {
 @patch("sbm.utils.tracker.is_firebase_available", return_value=True)
 @patch("sbm.utils.firebase_sync.is_firebase_available", return_value=True)
 @patch("sbm.utils.firebase_sync.get_firebase_db")
-def test_get_all_migrated_slugs_success(mock_get_db, mock_sync_avail, mock_is_avail):
+@patch("sbm.utils.firebase_sync.get_settings")
+def test_get_all_migrated_slugs_success(mock_get_settings, mock_get_db, mock_sync_avail, mock_is_avail):
+    # Reset settings singleton
+    sbm.config._settings = None
+
+    # Mock Firebase settings for admin mode
+    mock_firebase = MagicMock()
+    mock_firebase.is_admin_mode.return_value = True
+    mock_settings = MagicMock()
+    mock_settings.firebase = mock_firebase
+    mock_get_settings.return_value = mock_settings
+
     mock_db = MagicMock()
     mock_ref = MagicMock()
     mock_ref.get.return_value = MOCK_FIREBASE_USERS
@@ -70,7 +82,7 @@ def test_auto_duplicate_warn_skip(
 
     # Configure prompts
     mock_prompts_class.confirm_migration_start.return_value = True
-    mock_prompts_class.confirm_duplicate_migration.return_value = True
+    mock_prompts_class.confirm_duplicate_migration.return_value = DuplicateAction.SKIP
 
     runner = CliRunner()
     # Ensure NON_INTERACTIVE is false
@@ -88,14 +100,59 @@ def test_auto_duplicate_warn_skip(
 
 @patch("sbm.cli._expand_theme_names", return_value=["site-a", "site-new"])
 @patch("sbm.utils.tracker.get_all_migrated_slugs")
+@patch("sbm.utils.tracker.mark_runs_for_remigration")
 @patch("sbm.cli.migrate_dealer_theme")
 @patch("sbm.cli.get_console")
 @patch("sbm.cli.InteractivePrompts")
 @patch("sbm.cli.get_settings")
-def test_auto_duplicate_warn_force(
+def test_auto_duplicate_warn_remigrate(
+    mock_get_settings, mock_prompts_class, mock_console, mock_migrate,
+    mock_mark_remigration, mock_get_slugs, mock_expand
+):
+    """Test that CLI remigrates duplicates when user selects remigrate option."""
+    # Reset settings singleton
+    sbm.config._settings = None
+
+    # Mock Firebase settings with valid API key
+    from unittest.mock import MagicMock
+    mock_firebase = MagicMock()
+    mock_firebase.api_key = "test-api-key"
+    mock_settings = MagicMock()
+    mock_settings.firebase = mock_firebase
+    mock_get_settings.return_value = mock_settings
+
+    mock_get_slugs.return_value = {"site-a": "user1"}
+    mock_mark_remigration.return_value = {"updated": 1, "failed": 0, "not_found": 0}
+
+    # Configure prompts
+    mock_prompts_class.confirm_migration_start.return_value = True
+    mock_prompts_class.confirm_duplicate_migration.return_value = DuplicateAction.REMIGRATE
+
+    runner = CliRunner()
+    # Ensure NON_INTERACTIVE is false
+    result = runner.invoke(
+        cli, ["auto", "site-a", "site-new"], env={"NON_INTERACTIVE": "false", "CI": ""}
+    )
+
+    assert result.exit_code == 0
+    # Verify both sites were migrated
+    assert mock_migrate.call_count == 2
+    # Verify remigration marking was called
+    assert mock_mark_remigration.called
+    mock_mark_remigration.assert_called_once_with(["site-a"])
+    assert mock_prompts_class.confirm_duplicate_migration.called
+
+
+@patch("sbm.cli._expand_theme_names", return_value=["site-a", "site-new"])
+@patch("sbm.utils.tracker.get_all_migrated_slugs")
+@patch("sbm.cli.migrate_dealer_theme")
+@patch("sbm.cli.get_console")
+@patch("sbm.cli.InteractivePrompts")
+@patch("sbm.cli.get_settings")
+def test_auto_duplicate_warn_cancel(
     mock_get_settings, mock_prompts_class, mock_console, mock_migrate, mock_get_slugs, mock_expand
 ):
-    """Test that CLI proceeds with duplicates when user says No to skip."""
+    """Test that CLI cancels operation when user selects cancel option."""
     # Reset settings singleton
     sbm.config._settings = None
 
@@ -111,7 +168,7 @@ def test_auto_duplicate_warn_force(
 
     # Configure prompts
     mock_prompts_class.confirm_migration_start.return_value = True
-    mock_prompts_class.confirm_duplicate_migration.return_value = False  # No, do NOT skip
+    mock_prompts_class.confirm_duplicate_migration.return_value = DuplicateAction.CANCEL
 
     runner = CliRunner()
     # Ensure NON_INTERACTIVE is false
@@ -119,7 +176,8 @@ def test_auto_duplicate_warn_force(
         cli, ["auto", "site-a", "site-new"], env={"NON_INTERACTIVE": "false", "CI": ""}
     )
 
+    # Verify operation was cancelled (exit code 0 from sys.exit(0))
     assert result.exit_code == 0
-    # Verify call count 2 (both ran)
-    assert mock_migrate.call_count == 2
+    # Verify no migrations were run
+    assert mock_migrate.call_count == 0
     assert mock_prompts_class.confirm_duplicate_migration.called

@@ -1213,7 +1213,8 @@ def auto(
     migration_results = []
 
     # --- Bulk Migration Duplicate Prevention ---
-    from sbm.utils.tracker import get_all_migrated_slugs
+    from sbm.utils.tracker import get_all_migrated_slugs, mark_runs_for_remigration
+    from sbm.ui.prompts import DuplicateAction
 
     # 1. Fetch global history (best effort)
     migrated_map = get_all_migrated_slugs()
@@ -1240,7 +1241,9 @@ def auto(
         )
 
         if not explicit_yes:
-            if InteractivePrompts.confirm_duplicate_migration(duplicates, default=True):
+            action = InteractivePrompts.confirm_duplicate_migration(duplicates, default="skip")
+
+            if action == DuplicateAction.SKIP:
                 # Filter out duplicates
                 original_count = len(expanded_themes)
                 duplicate_slugs = {d[0] for d in duplicates}
@@ -1248,20 +1251,49 @@ def auto(
                 rich_console.print(
                     f"[green]Removed {original_count - len(expanded_themes)} duplicate(s). Proceeding with {len(expanded_themes)} slugs.[/green]"
                 )
-            else:
-                rich_console.print("[red]Proceeding with duplicates included.[/red]")
+
+            elif action == DuplicateAction.REMIGRATE:
+                # Mark previous runs as remigrated and proceed with all themes
+                duplicate_slugs = [d[0] for d in duplicates]
+                rich_console.print(
+                    f"[cyan]Marking {len(duplicate_slugs)} previous run(s) as remigrated...[/cyan]"
+                )
+
+                results = mark_runs_for_remigration(duplicate_slugs)
+
+                if results["updated"] > 0:
+                    rich_console.print(
+                        f"[green]✓ Successfully marked {results['updated']} run(s) for remigration[/green]"
+                    )
+                if results["failed"] > 0:
+                    rich_console.print(
+                        f"[yellow]⚠ Failed to mark {results['failed']} run(s)[/yellow]"
+                    )
+                if results["not_found"] > 0:
+                    rich_console.print(
+                        f"[yellow]⚠ {results['not_found']} slug(s) had no completed runs to mark[/yellow]"
+                    )
+
+                rich_console.print(
+                    f"[green]Proceeding with remigration of {len(expanded_themes)} slugs.[/green]"
+                )
+
+            elif action == DuplicateAction.CANCEL:
+                rich_console.print("[red]Operation cancelled by user.[/red]")
+                sys.exit(0)
 
         else:
-            # In non-interactive mode (yes=True), we typically skip to be safe, but let's log it.
-            # Requirements didn't specify auto-skip behavior for --yes, but standard safety suggests skipping or warning.
-            # Given "auto" implies automation, let's keep them unless explicitly told otherwise,
-            # OR if this is a specialized bulk run.
-            # For safety in this story, let's just Log and Proceed in non-interactive mode
-            # unless we want to enforce skipping. The story says "prompt me", implying interactive.
-            # Let's assume non-interactive proceeds as is, maybe with a warning log.
+            # In non-interactive mode (yes=True), skip duplicates to be safe
             logger.warning(
-                f"Duplicates detected but proceeding due to --yes: {[d[0] for d in duplicates]}"
+                f"Duplicates detected in non-interactive mode - skipping: {[d[0] for d in duplicates]}"
             )
+            original_count = len(expanded_themes)
+            duplicate_slugs = {d[0] for d in duplicates}
+            expanded_themes = [s for s in expanded_themes if s not in duplicate_slugs]
+            if original_count > len(expanded_themes):
+                logger.info(
+                    f"Removed {original_count - len(expanded_themes)} duplicate(s). Proceeding with {len(expanded_themes)} slugs."
+                )
 
     if not expanded_themes:
         logger.warning("No themes left to migrate.")

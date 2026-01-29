@@ -8,6 +8,7 @@ improving user experience during manual review and decision points.
 import sys
 import select
 import time
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from rich.panel import Panel
@@ -20,6 +21,13 @@ from sbm.utils.path import get_dealer_theme_dir
 from .console import get_console
 from .panels import StatusPanels
 from sbm.config import get_settings
+
+
+class DuplicateAction(Enum):
+    """Action to take when duplicates are detected."""
+    SKIP = "skip"           # Skip duplicates, proceed with remaining
+    REMIGRATE = "remigrate" # Remigrate duplicates, mark old runs as superseded
+    CANCEL = "cancel"       # Cancel the entire operation
 
 
 class InteractivePrompts:
@@ -476,18 +484,35 @@ class InteractivePrompts:
             return False
 
     @staticmethod
-    def confirm_duplicate_migration(duplicates: List[tuple], default: bool = True) -> bool:
+    def confirm_duplicate_migration(duplicates: List[tuple], default: str = "skip") -> DuplicateAction:
         """
-        Prompt user to confirm skipping duplicates.
+        Prompt user to decide what to do with duplicate migrations.
 
         Args:
             duplicates: List of (slug, user) tuples.
-            default: Default choice (True to skip).
+            default: Default choice ("skip", "remigrate", or "cancel").
 
         Returns:
-            True if user wants to skip duplicates.
+            DuplicateAction indicating the user's choice.
         """
         if get_settings().non_interactive:
-            return True
+            return DuplicateAction.SKIP
 
-        return Confirm.ask("Skip these duplicates?", default=default)
+        console = get_console()
+        console.print("\n[bold cyan]What would you like to do with these duplicates?[/bold cyan]")
+        console.print("  [yellow]1[/yellow] - Skip duplicates (proceed with remaining sites)")
+        console.print("  [green]2[/green] - Remigrate (mark old PRs as superseded, create new ones)")
+        console.print("  [red]3[/red] - Cancel (abort the entire operation)")
+
+        choice = Prompt.ask(
+            "\nYour choice",
+            choices=["1", "2", "3"],
+            default="1" if default == "skip" else ("2" if default == "remigrate" else "3")
+        )
+
+        if choice == "1":
+            return DuplicateAction.SKIP
+        elif choice == "2":
+            return DuplicateAction.REMIGRATE
+        else:
+            return DuplicateAction.CANCEL

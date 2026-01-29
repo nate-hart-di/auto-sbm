@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.12] - 2026-01-29
+
+### Added
+- **Remigration Support**: Added interactive prompt with three options when duplicates are detected:
+  - Skip duplicates (existing behavior - proceed with remaining sites only)
+  - Remigrate (new feature - mark old PRs as superseded, move status back to "in_review", create new migrations)
+  - Cancel (abort the entire operation)
+- **Status Rollback**: Implemented `mark_runs_for_remigration()` to update Firebase records, changing PR state to "OPEN" and adding remigration metadata
+- **Enhanced Testing**: Updated duplicate prevention tests to cover all three action types (Skip, Remigrate, Cancel)
+
+### Changed
+- **Duplicate Prompt**: Replaced yes/no confirmation with numbered menu for better UX
+- **Non-Interactive Mode**: Now skips duplicates by default in `--yes` mode with improved logging
+
 ## [2.13.11] - 2026-01-28
 
 ### Fixed

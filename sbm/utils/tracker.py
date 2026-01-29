@@ -1060,3 +1060,135 @@ def get_all_migrated_slugs() -> dict[str, str]:
         return sync.get_all_migrated_slugs()
     except Exception:
         return {}
+
+
+def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
+    """
+    Mark previous completed runs for the given slugs as remigrated.
+
+    Updates the pr_state to "OPEN" and adds a remigrated_at timestamp
+    to indicate these are being superseded by new migrations.
+
+    Args:
+        slugs: List of theme slugs to mark for remigration.
+
+    Returns:
+        Dictionary with counts: {"updated": N, "failed": M, "not_found": K}
+    """
+    if not is_firebase_available():
+        logger.warning("Firebase not available - cannot mark runs for remigration")
+        return {"updated": 0, "failed": 0, "not_found": len(slugs)}
+
+    try:
+        sync = FirebaseSync()
+        settings = get_settings()
+        results = {"updated": 0, "failed": 0, "not_found": 0}
+
+        # Fetch all users' data to find runs for these slugs
+        users_data = None
+
+        if settings.firebase.is_admin_mode():
+            from sbm.utils.firebase_sync import get_firebase_db
+            db = get_firebase_db()
+            ref = db.reference("users")
+            users_data = ref.get()
+        else:
+            # User Mode: REST
+            import requests
+            from sbm.utils.firebase_sync import _get_user_mode_identity
+
+            identity = _get_user_mode_identity()
+            if not identity:
+                logger.warning("Cannot authenticate for remigration marking")
+                return {"updated": 0, "failed": 0, "not_found": len(slugs)}
+
+            _, token = identity
+            url = f"{settings.firebase.database_url}/users.json?auth={token}"
+            resp = requests.get(url, timeout=10)
+            if resp.ok:
+                users_data = resp.json()
+            else:
+                logger.warning("Failed to fetch users data for remigration")
+                return {"updated": 0, "failed": 0, "not_found": len(slugs)}
+
+        if not users_data:
+            return {"updated": 0, "failed": 0, "not_found": len(slugs)}
+
+        # Find the most recent completed run for each slug
+        slug_to_runs = {}
+        for user_id, user_node in users_data.items():
+            if not isinstance(user_node, dict):
+                continue
+
+            runs_node = user_node.get("runs", {})
+            if not runs_node:
+                continue
+
+            for run_key, run in runs_node.items():
+                if not isinstance(run, dict):
+                    continue
+
+                run_slug = run.get("slug")
+                if run_slug not in slugs:
+                    continue
+
+                # Only consider completed runs (merged PRs)
+                if run.get("status") != "success":
+                    continue
+
+                if not (run.get("merged_at") or run.get("pr_state", "").upper() == "MERGED"):
+                    continue
+
+                # Track the most recent run for this slug
+                if run_slug not in slug_to_runs:
+                    slug_to_runs[run_slug] = []
+
+                slug_to_runs[run_slug].append({
+                    "user_id": user_id,
+                    "run_key": run_key,
+                    "merged_at": run.get("merged_at"),
+                    "timestamp": run.get("timestamp")
+                })
+
+        # Update each slug's most recent run
+        from datetime import datetime, timezone
+        remigrated_at = datetime.now(timezone.utc).isoformat()
+
+        for slug in slugs:
+            if slug not in slug_to_runs:
+                results["not_found"] += 1
+                logger.info(f"No completed run found for {slug} - skipping remigration marking")
+                continue
+
+            # Find the most recent run (by merged_at or timestamp)
+            runs = slug_to_runs[slug]
+            most_recent = max(
+                runs,
+                key=lambda r: r.get("merged_at") or r.get("timestamp") or ""
+            )
+
+            # Mark this run as being remigrated
+            updates = {
+                "pr_state": "OPEN",  # Move back to in_review state
+                "remigrated_at": remigrated_at,
+                "remigration_note": "Superseded by new migration run"
+            }
+
+            success = sync.update_run(
+                user_id=most_recent["user_id"],
+                run_key=most_recent["run_key"],
+                updates=updates
+            )
+
+            if success:
+                results["updated"] += 1
+                logger.info(f"Marked run for {slug} as remigrated")
+            else:
+                results["failed"] += 1
+                logger.warning(f"Failed to mark run for {slug} as remigrated")
+
+        return results
+
+    except Exception as e:
+        logger.error(f"Error marking runs for remigration: {e}")
+        return {"updated": 0, "failed": 0, "not_found": len(slugs)}
