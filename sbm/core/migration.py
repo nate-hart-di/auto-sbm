@@ -1908,8 +1908,12 @@ def _parse_compilation_errors(logs: str) -> list[dict]:
                 if "message" not in error:
                     error["message"] = error.get("error_message", error["line_content"])
 
+                # Skip verbose object dumps from Gulp
+                if "formatted:" in line or "messageOriginal:" in line:
+                    continue
+
                 errors.append(error)
-                logger.info(f"Detected {error['type']}: {error['line_content']}")
+                logger.debug(f"Detected {error['type']}: {error['line_content']}")
 
     # Enrich errors with file/line details from multi-line log patterns
     error_details = _extract_error_details_from_logs(logs)
