@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] - 2026-01-29
+
+### Added
+- **PR Merge CLI Command**: Added `sbm pr merge` command for enabling auto-merge on PRs
+  - New command: `sbm pr merge` - Enable auto-merge on all open PRs matching pattern
+  - Option: `-p/--pattern` to specify branch name pattern (default: pcon-864)
+  - Option: `--dry-run` to preview changes without making them
+  - Automatically updates branches to be current with base before enabling auto-merge
+  - Shows detailed status and diagnostics for each PR
+  - Examples:
+    - `sbm pr merge` - Enable auto-merge on all pcon-864* PRs
+    - `sbm pr merge -p pcon-123` - Enable for specific project PRs
+    - `sbm pr merge --dry-run` - Preview without making changes
+
+### Changed
+- **PR Command Restructured**: Converted `sbm pr` from simple command to command group
+  - `sbm pr create <theme>` - Create a new PR (formerly `sbm pr <theme>`)
+  - `sbm pr merge` - Enable auto-merge on existing PRs (new)
+  - Maintains backward compatibility through command group structure
+
 ## [2.14.2] - 2026-01-29
 
 ### Fixed
