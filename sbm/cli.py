@@ -1797,6 +1797,8 @@ def stats(
                     ts_val = run.get("created_at") or run.get("timestamp") or ""
                 elif completion_state == "closed":
                     ts_val = run.get("closed_at") or run.get("timestamp") or ""
+                elif completion_state == "superseded":
+                    ts_val = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp") or ""
                 else:
                     ts_val = run.get("merged_at") or run.get("timestamp") or ""
                 if ts_val.endswith("+00:00Z"):
@@ -1954,6 +1956,8 @@ def stats(
                         status_display = "[yellow]In Review[/yellow]"
                     elif completion_state == "closed":
                         status_display = "[red]Closed[/red]"
+                    elif completion_state == "superseded":
+                        status_display = "[dim]Superseded[/dim]"
                     else:
                         status = run.get("status", "unknown")
                         status_color = "green" if status == "success" else "red"
@@ -1971,6 +1975,8 @@ def stats(
                             link_text = "[yellow]Open[/yellow]"
                         elif completion_state == "closed":
                             link_text = "[red]Closed[/red]"
+                        elif completion_state == "superseded":
+                            link_text = "[dim]Superseded[/dim]"
                         else:
                             link_text = "View"
                         pr_link = f"[link={url}]{link_text}[/link]"
@@ -1983,6 +1989,8 @@ def stats(
                         effective_date = run.get("created_at") or run.get("timestamp", "")
                     elif completion_state == "closed":
                         effective_date = run.get("closed_at") or run.get("timestamp", "")
+                    elif completion_state == "superseded":
+                        effective_date = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp", "")
                     else:
                         effective_date = run.get("merged_at") or run.get("timestamp", "")
 
@@ -2198,6 +2206,9 @@ def stats(
                 elif completion_state == "closed":
                     status_display = "[red]Closed[/red]"
                     status_color = "red"
+                elif completion_state == "superseded":
+                    status_display = "[dim]Superseded[/dim]"
+                    status_color = "dim"
                 else:
                     # Fallback to old behavior for backwards compat
                     status = run.get("status", "unknown")
@@ -2277,6 +2288,8 @@ def stats(
                         link_text = "[yellow]Open[/yellow]"
                     elif completion_state == "closed":
                         link_text = "[red]Closed[/red]"
+                    elif completion_state == "superseded":
+                        link_text = "[dim]Superseded[/dim]"
                     else:
                         # Fallback to pr_state if no completion state
                         state = run.get("pr_state", "").upper()
@@ -2297,13 +2310,15 @@ def stats(
                 user_display = run.get("pr_author") or run.get("_user") or "unknown"
 
                 # Date display based on completion state
-                # Priority: merged_at > created_at > closed_at > timestamp
+                # Priority: merged_at > created_at > closed_at > superseded_at > timestamp
                 if completion_state == "complete":
                     effective_date = run.get("merged_at") or run.get("timestamp", "")
                 elif completion_state == "in_review":
                     effective_date = run.get("created_at") or run.get("timestamp", "")
                 elif completion_state == "closed":
                     effective_date = run.get("closed_at") or run.get("timestamp", "")
+                elif completion_state == "superseded":
+                    effective_date = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp", "")
                 else:
                     effective_date = run.get("merged_at") or run.get("timestamp", "")
 

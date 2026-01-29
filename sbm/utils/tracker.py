@@ -17,9 +17,21 @@ from pathlib import Path
 
 from sbm.config import get_settings
 
+from .constants import (
+    COMPLETION_CLOSED,
+    COMPLETION_COMPLETE,
+    COMPLETION_IN_REVIEW,
+    COMPLETION_SUPERSEDED,
+    COMPLETION_UNKNOWN,
+    PR_STATE_CLOSED,
+    PR_STATE_MERGED,
+    PR_STATE_OPEN,
+    RUN_STATUS_SUCCESS,
+)
 from .firebase_sync import FirebaseSync, get_user_mode_identity, is_firebase_available
 from .logger import logger
 from .processes import run_background_task
+from .run_helpers import is_complete_run
 from .slug_validation import is_official_slug
 
 # Local tracker file (legacy/individual)
@@ -413,12 +425,14 @@ def filter_runs(
     def get_effective_date(run: dict) -> str:
         """Get best date for filtering based on PR completion state."""
         completion_state = get_pr_completion_state(run)
-        if completion_state == "complete":
+        if completion_state == COMPLETION_COMPLETE:
             return run.get("merged_at") or run.get("timestamp") or ""
-        if completion_state == "in_review":
+        if completion_state == COMPLETION_IN_REVIEW:
             return run.get("created_at") or run.get("timestamp") or ""
-        if completion_state == "closed":
+        if completion_state == COMPLETION_CLOSED:
             return run.get("closed_at") or run.get("timestamp") or ""
+        if completion_state == COMPLETION_SUPERSEDED:
+            return run.get("superseded_at") or run.get("merged_at") or run.get("timestamp") or ""
         return run.get("merged_at") or run.get("timestamp") or ""
 
     # Apply date filtering using effective date
@@ -517,12 +531,14 @@ def _dedupe_runs_for_display(runs: list[dict]) -> list[dict]:
 
     def get_effective_date(run: dict) -> str:
         completion_state = get_pr_completion_state(run)
-        if completion_state == "complete":
+        if completion_state == COMPLETION_COMPLETE:
             return run.get("merged_at") or run.get("timestamp") or ""
-        if completion_state == "in_review":
+        if completion_state == COMPLETION_IN_REVIEW:
             return run.get("created_at") or run.get("timestamp") or ""
-        if completion_state == "closed":
+        if completion_state == COMPLETION_CLOSED:
             return run.get("closed_at") or run.get("timestamp") or ""
+        if completion_state == COMPLETION_SUPERSEDED:
+            return run.get("superseded_at") or run.get("merged_at") or run.get("timestamp") or ""
         return run.get("merged_at") or run.get("timestamp") or ""
 
     def parse_date(ts: str) -> datetime:
@@ -603,12 +619,14 @@ def get_migration_stats(
 
             def _run_effective_date(run: dict) -> datetime:
                 completion_state = get_pr_completion_state(run)
-                if completion_state == "complete":
+                if completion_state == COMPLETION_COMPLETE:
                     ts_val = run.get("merged_at") or run.get("timestamp") or ""
-                elif completion_state == "in_review":
+                elif completion_state == COMPLETION_IN_REVIEW:
                     ts_val = run.get("created_at") or run.get("timestamp") or ""
-                elif completion_state == "closed":
+                elif completion_state == COMPLETION_CLOSED:
                     ts_val = run.get("closed_at") or run.get("timestamp") or ""
+                elif completion_state == COMPLETION_SUPERSEDED:
+                    ts_val = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp") or ""
                 else:
                     ts_val = run.get("merged_at") or run.get("timestamp") or ""
 
@@ -837,6 +855,7 @@ def get_pr_completion_state(run: dict) -> str:
     Classify run completion state based on PR timestamps and state.
 
     Priority order:
+    0. If superseded → "superseded" (run was remigrated)
     1. If merged_at exists → "complete" (PR was merged)
     2. If pr_state is OPEN → "in_review" (PR currently open, even if previously closed)
     3. If pr_state is CLOSED (with or without closed_at) → "closed"
@@ -846,36 +865,40 @@ def get_pr_completion_state(run: dict) -> str:
     Note: GitHub doesn't clear closed_at when PR is reopened, so must check pr_state.
 
     Args:
-        run: Run dict with optional created_at, merged_at, closed_at, pr_state fields
+        run: Run dict with optional created_at, merged_at, closed_at, pr_state, superseded fields
 
     Returns:
-        One of: "complete", "in_review", "closed", "unknown"
+        One of: "superseded", "complete", "in_review", "closed", "unknown"
     """
+    # NEW: Check superseded flag first
+    if run.get("superseded"):
+        return COMPLETION_SUPERSEDED
+
     merged_at = run.get("merged_at")
     created_at = run.get("created_at")
     closed_at = run.get("closed_at")
     pr_state = run.get("pr_state", "").upper()
 
     if merged_at:
-        return "complete"
-    elif pr_state == "OPEN":
+        return COMPLETION_COMPLETE
+    elif pr_state == PR_STATE_OPEN:
         # PR is currently open (even if it was previously closed and reopened)
-        return "in_review"
-    elif pr_state == "MERGED":
+        return COMPLETION_IN_REVIEW
+    elif pr_state == PR_STATE_MERGED:
         # State says merged but no merged_at timestamp (data inconsistency)
-        return "complete"
-    elif pr_state == "CLOSED":
+        return COMPLETION_COMPLETE
+    elif pr_state == PR_STATE_CLOSED:
         # PR is closed without merge (legacy data may be missing closed_at)
-        return "closed"
+        return COMPLETION_CLOSED
     elif created_at:
         # Has created_at but no clear state - assume in review
-        return "in_review"
+        return COMPLETION_IN_REVIEW
     else:
         # Backwards compatibility: runs without new fields
         # Cannot determine completion state without timestamps
         # Return "unknown" to avoid incorrectly inflating stats
         # User should run migrate_pr_timestamps.py to fix
-        return "unknown"
+        return COMPLETION_UNKNOWN
 
 
 def _calculate_metrics(data: dict) -> dict:
@@ -883,9 +906,13 @@ def _calculate_metrics(data: dict) -> dict:
     Helper to calculate metrics from tracker data structure.
 
     Only counts MERGED PRs (merged_at exists) as complete for public stats.
+    Excludes superseded runs (remigrations).
     """
     runs = data.get("runs", [])
-    total_runs = len(runs)
+
+    # Filter out superseded runs before calculating any metrics
+    active_runs = [r for r in runs if not r.get("superseded")]
+    total_runs = len(active_runs)
 
     def _run_sort_key(run: dict) -> datetime:
         ts = run.get("merged_at") or run.get("timestamp") or ""
@@ -903,7 +930,7 @@ def _calculate_metrics(data: dict) -> dict:
 
     # Only count runs that are actually complete (merged), de-duped by slug
     complete_runs = [
-        r for r in runs if r.get("status") == "success" and get_pr_completion_state(r) == "complete"
+        r for r in active_runs if r.get("status") == RUN_STATUS_SUCCESS and get_pr_completion_state(r) == COMPLETION_COMPLETE
     ]
     unique_complete_by_slug: dict[str, dict] = {}
     for run in complete_runs:
@@ -1064,10 +1091,11 @@ def get_all_migrated_slugs() -> dict[str, str]:
 
 def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
     """
-    Mark previous completed runs for the given slugs as remigrated.
+    Mark previous completed runs for the given slugs as superseded.
 
-    Updates the pr_state to "OPEN" and adds a remigrated_at timestamp
-    to indicate these are being superseded by new migrations.
+    Adds a superseded flag and timestamp to indicate these runs have been
+    replaced by newer migrations. Does NOT change pr_state to preserve
+    GitHub truth.
 
     Args:
         slugs: List of theme slugs to mark for remigration.
@@ -1078,6 +1106,14 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
     if not is_firebase_available():
         logger.warning("Firebase not available - cannot mark runs for remigration")
         return {"updated": 0, "failed": 0, "not_found": len(slugs)}
+
+    # Performance warning for large batches
+    if len(slugs) > 10:
+        logger.warning(
+            f"Marking {len(slugs)} runs for remigration. "
+            f"This requires fetching all user data from Firebase and may be slow. "
+            f"Consider running remigrations in smaller batches for better performance."
+        )
 
     try:
         sync = FirebaseSync()
@@ -1132,11 +1168,8 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
                 if run_slug not in slugs:
                     continue
 
-                # Only consider completed runs (merged PRs)
-                if run.get("status") != "success":
-                    continue
-
-                if not (run.get("merged_at") or run.get("pr_state", "").upper() == "MERGED"):
+                # Only consider completed runs (merged PRs) using shared helper
+                if not is_complete_run(run):
                     continue
 
                 # Track the most recent run for this slug
@@ -1167,11 +1200,14 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
                 key=lambda r: r.get("merged_at") or r.get("timestamp") or ""
             )
 
-            # Mark this run as being remigrated
+            # Mark this run as superseded
+            # IMPORTANT: Do NOT change pr_state - keep it synced to GitHub reality
+            # Add superseded flag to exclude from stats
+            new_run_key = f"{slug}_{datetime.now(timezone.utc).strftime('%Y-%m-%d_%H-%M-%S')}"
             updates = {
-                "pr_state": "OPEN",  # Move back to in_review state
-                "remigrated_at": remigrated_at,
-                "remigration_note": "Superseded by new migration run"
+                "superseded": True,
+                "superseded_at": remigrated_at,
+                "superseded_by": new_run_key
             }
 
             success = sync.update_run(

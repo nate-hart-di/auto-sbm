@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from sbm.config import get_settings
 from sbm.utils.logger import logger
+from sbm.utils.run_helpers import is_complete_run
 
 if TYPE_CHECKING:
     from firebase_admin import App
@@ -414,14 +415,8 @@ class FirebaseSync:
             return None
 
         try:
-
-            def is_complete_run(run: dict) -> bool:
-                """Return True if a run represents a merged PR."""
-                if run.get("status") != "success":
-                    return False
-                if run.get("merged_at"):
-                    return True
-                return run.get("pr_state", "").upper() == "MERGED"
+            # Use shared helper function from sbm.utils.run_helpers
+            # (imported at module level)
 
             def _run_sort_key(run: dict) -> datetime:
                 ts = run.get("merged_at") or run.get("timestamp") or ""
@@ -542,13 +537,8 @@ class FirebaseSync:
             return {}
 
         try:
-
-            def is_complete_run(run: dict) -> bool:
-                if run.get("status") != "success":
-                    return False
-                if run.get("merged_at"):
-                    return True
-                return run.get("pr_state", "").upper() == "MERGED"
+            # Use shared helper function from sbm.utils.run_helpers
+            # (imported at module level)
 
             settings = get_settings()
             users_data = None

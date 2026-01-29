@@ -5,14 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.13] - 2026-01-29
+
+### Fixed
+- **CRITICAL: Remigration Data Integrity**: Fixed remigration to use `superseded` flag instead of changing `pr_state`, preserving GitHub truth
+  - Old PRs now marked with `superseded: true` and `superseded_at` timestamp
+  - PR state (OPEN/MERGED/CLOSED) remains accurate to GitHub reality
+  - Daily PR sync no longer overwrites remigration markers
+  - Stats correctly exclude superseded runs without data corruption
+
+### Added
+- **Status Constants**: Created `sbm/utils/constants.py` with type-safe constants for PR states and completion states
+- **Shared Helper Function**: Created `sbm/utils/run_helpers.py` with `is_complete_run()` to prevent duplicate logic
+- **Comprehensive Tests**: Added 18 new tests covering remigration and helper functions
+  - `tests/test_run_helpers.py`: 10 tests for shared helper
+  - `tests/test_tracker_remigration.py`: 8 tests for remigration logic
+- **Superseded State Display**: Added "Superseded" status to CLI stats with dim styling
+- **Performance Warning**: Log warning when marking >10 runs for remigration
+
+### Changed
+- **Code Deduplication**: Replaced duplicate `is_complete_run()` definitions in `firebase_sync.py` (lines 418 and 546) with shared helper
+- **Stats Filtering**: All stats calculations now exclude superseded runs automatically
+- **Completion State Priority**: Superseded state now checked first in `get_pr_completion_state()`
+
 ## [2.13.12] - 2026-01-29
 
 ### Added
 - **Remigration Support**: Added interactive prompt with three options when duplicates are detected:
   - Skip duplicates (existing behavior - proceed with remaining sites only)
-  - Remigrate (new feature - mark old PRs as superseded, move status back to "in_review", create new migrations)
+  - Remigrate (new feature - mark old PRs as superseded, create new migrations)
   - Cancel (abort the entire operation)
-- **Status Rollback**: Implemented `mark_runs_for_remigration()` to update Firebase records, changing PR state to "OPEN" and adding remigration metadata
+- **Status Tracking**: Implemented `mark_runs_for_remigration()` to update Firebase records with remigration metadata
 - **Enhanced Testing**: Updated duplicate prevention tests to cover all three action types (Skip, Remigrate, Cancel)
 
 ### Changed
