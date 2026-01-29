@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.19] - 2026-01-29
+
+### Changed
+- Detect do_shortcode('[full-map]') usage in templates to trigger map style migration
+- Add shortcode-based CommonTheme SCSS resolution fallback
+
 ## [2.13.18] - 2026-01-29
 
 ### Changed

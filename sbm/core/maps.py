@@ -208,7 +208,7 @@ def migrate_map_components(
         all_partials = shortcode_partials + template_partials
 
         # Derive SCSS from all partials
-        derived_imports = derive_map_imports_from_partials(all_partials)
+        derived_imports = derive_map_imports_from_partials(all_partials, oem_handler=oem_handler)
 
         # Combine all imports (explicit + derived)
         all_imports = map_imports + derived_imports
@@ -619,7 +619,70 @@ def find_map_shortcodes_in_functions(
     return partial_paths
 
 
-def derive_map_imports_from_partials(partial_paths: List[dict]) -> List[dict]:
+def _resolve_commontheme_scss_from_shortcode(
+    shortcode: str, oem_handler: Optional[object] = None
+) -> List[dict]:
+    """
+    Resolve CommonTheme SCSS files based on a detected shortcode.
+
+    This is a fallback for legacy templates that call do_shortcode('[full-map]')
+    without explicit @import or template-part references.
+    """
+    shortcode = shortcode.strip().lower()
+
+    keyword_map = {
+        "full-map": ["section-directions", "section-map", "mapsection", "map-row", "maprow"],
+        "section-directions": ["section-directions"],
+        "get-directions": ["section-directions", "directions"],
+        "getdirections": ["section-directions", "directions"],
+        "mapsection": ["mapsection", "section-map"],
+        "maprow": ["map-row", "maprow"],
+        "map-row": ["map-row", "maprow"],
+    }
+
+    keywords = keyword_map.get(shortcode, [shortcode])
+    common_base = Path(COMMON_THEME_DIR)
+    css_root = common_base / "css"
+    if not css_root.exists():
+        return []
+
+    patterns: list[re.Pattern] = []
+    try:
+        from sbm.oem.default import DefaultHandler
+
+        is_oem = oem_handler and not isinstance(oem_handler, DefaultHandler)
+        if is_oem and hasattr(oem_handler, "get_map_partial_patterns"):
+            for p in oem_handler.get_map_partial_patterns():
+                patterns.append(re.compile(p, re.IGNORECASE))
+    except Exception:
+        pass
+
+    matches: list[dict] = []
+    for scss_path in css_root.rglob("*.scss"):
+        rel_path = scss_path.relative_to(common_base).as_posix()
+        rel_lower = rel_path.lower()
+        if not any(k in rel_lower for k in keywords):
+            continue
+
+        if patterns and not any(p.search(rel_path) for p in patterns):
+            continue
+
+        matches.append(
+            {
+                "original_import": f"derived_from_shortcode:{shortcode}",
+                "import_path": rel_path,
+                "commontheme_relative": rel_path,
+                "commontheme_absolute": str(scss_path),
+                "filename": scss_path.name,
+            }
+        )
+
+    return matches
+
+
+def derive_map_imports_from_partials(
+    partial_paths: List[dict], oem_handler: Optional[object] = None
+) -> List[dict]:
     """
     Derive CommonTheme SCSS paths from partial paths when no explicit @import is present.
     """
@@ -627,6 +690,11 @@ def derive_map_imports_from_partials(partial_paths: List[dict]) -> List[dict]:
     for partial in partial_paths:
         partial_path = partial.get("partial_path", "")
         if not partial_path:
+            continue
+
+        if partial_path.startswith("shortcode:"):
+            shortcode = partial_path.split(":", 1)[1]
+            imports.extend(_resolve_commontheme_scss_from_shortcode(shortcode, oem_handler))
             continue
 
         # Normalize and construct a likely SCSS path in CommonTheme
@@ -966,6 +1034,24 @@ def find_template_parts_in_file(
                     f"Found map template part: {partial_path} in {Path(template_file).name}"
                 )
                 partial_paths.append(partial_info)
+
+        # Detect direct do_shortcode('[full-map]') usage in templates
+        shortcode_pattern = r"do_shortcode\s*\(\s*['\"]\s*\[([^\]\s]+)[^\]]*\]\s*['\"]\s*\)"
+        for match in re.finditer(shortcode_pattern, content, re.IGNORECASE):
+            shortcode_name = match.group(1).strip().lower()
+            if shortcode_name not in MAP_KEYWORDS:
+                continue
+
+            partial_info = {
+                "template_file": template_file,
+                "partial_path": f"shortcode:{shortcode_name}",
+                "source": "found_in_template_shortcode",
+                "shortcode": shortcode_name,
+            }
+            logger.info(
+                f"Found map shortcode usage: {shortcode_name} in {Path(template_file).name}"
+            )
+            partial_paths.append(partial_info)
 
         # Custom shortcode search is already covered by find_map_shortcodes_in_functions
         # and search_patterns above. Removing redundant keyword-only search.

@@ -178,3 +178,33 @@ def test_find_template_parts_in_file_matches_partials_section_directions(tmp_pat
 
     assert partials, "Expected to detect section-directions template part"
     assert "dealer-groups/lexus/lexusoem2/section-directions" in partials[0]["partial_path"]
+
+
+def test_do_shortcode_full_map_derives_commontheme_scss(tmp_path, monkeypatch):
+    dealer_slug = "lexusofsantafe"
+    dealer_dir = tmp_path / "dealer-themes" / dealer_slug
+    dealer_dir.mkdir(parents=True)
+
+    # Theme files
+    (dealer_dir / "css").mkdir()
+    (dealer_dir / "css" / "style.scss").write_text("// no map imports")
+    (dealer_dir / "sb-inside.scss").write_text("// sb-inside")
+    (dealer_dir / "front-page.php").write_text("<?php echo do_shortcode('[full-map]'); ?>")
+
+    monkeypatch.setattr(maps, "get_dealer_theme_dir", lambda s: str(dealer_dir))
+
+    # CommonTheme SCSS
+    common_theme = tmp_path / "CommonTheme"
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(common_theme))
+    target_dir = common_theme / "css" / "dealer-groups" / "lexus" / "lexusoem2"
+    target_dir.mkdir(parents=True)
+    (target_dir / "_section-directions.scss").write_text("// map scss")
+
+    from sbm.oem.lexus import LexusHandler
+
+    handler = LexusHandler(dealer_slug)
+    result = maps.migrate_map_components(dealer_slug, oem_handler=handler)
+
+    assert result is True
+    sb_inside = dealer_dir / "sb-inside.scss"
+    assert "// map scss" in sb_inside.read_text()
