@@ -529,7 +529,7 @@ def format_slack_payload(
         {
             "type": "section",
             "fields": [
-                {"type": "mrkdwn", "text": f"*Lines of Code*\n{metrics['lines_migrated']:,}"},
+                {"type": "mrkdwn", "text": f"*Lines Migrated*\n{metrics['lines_migrated']:,}"},
                 {"type": "mrkdwn", "text": f"*In Review (Period)*\n{metrics['in_review_count']}"},
             ],
         }

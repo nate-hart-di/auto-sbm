@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.11] - 2026-01-28
+
+### Fixed
+- **CLI Stats**: Fixed `NameError` in `sbm stats --history` and expanded team panels to include `Total Users` and `Time Saved`.
+- **Consistency**: Renamed 'Lines of Code' to 'Lines Migrated' in Slack reports for 100% parity with CLI.
+- **Validation**: Ensured 'Lines Migrated' is visible in all stat boxes across all command variations.
+
 ## [2.13.10] - 2026-01-28
 
 ### Added

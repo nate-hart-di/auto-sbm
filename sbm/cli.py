@@ -1831,8 +1831,10 @@ def stats(
             )
 
         panels = [
-            make_team_panel("Total Migrations", str(ts.get("total_migrations", 0)), "green"),
+            make_team_panel("Total Users", str(ts.get("total_users", 0)), "blue"),
+            make_team_panel("Sites Migrated", str(ts.get("total_migrations", 0)), "green"),
             make_team_panel("Lines Migrated", f"{ts.get('total_lines_migrated', 0):,}", "cyan"),
+            make_team_panel("Time Saved", f"{ts.get('total_time_saved_h', 0.0)}h", "magenta"),
         ]
         rich_console.print(Columns(panels, equal=True))
         if since_days or filter_user:
@@ -2215,8 +2217,15 @@ def stats(
                 if user_display and not user_display.startswith("@"):
                     user_display = f"@{user_display}"
 
+                # Robust timestamp formatting
+                ts_raw = run.get("timestamp", "")
+                if ts_raw and len(ts_raw) >= 19:
+                    ts_display = ts_raw[:19].replace("T", " ")
+                else:
+                    ts_display = ts_raw or "N/A"
+
                 table.add_row(
-                    _format_timestamp(run.get("timestamp")),
+                    ts_display,
                     run.get("slug", "unknown"),
                     status_display,
                     user_display,
