@@ -2734,9 +2734,10 @@ def pr_merge(ctx: click.Context, pattern: str, dry_run: bool) -> None:
             merge_state = merge_info.get("mergeStateStatus")
             auto_merge_enabled = merge_info.get("autoMergeRequest") is not None
 
-            # Update branch if needed
-            if merge_state in ["BEHIND", "DIRTY"]:
-                console.console.print("🔄 Updating branch to be current with base...")
+            # ALWAYS update branch if needed, regardless of auto-merge status
+            # BLOCKED state often means branch is behind
+            if merge_state in ["BEHIND", "DIRTY", "BLOCKED"]:
+                console.console.print(f"🔄 Branch state: {merge_state} - Updating branch...")
                 try:
                     subprocess.run(
                         ["gh", "pr", "merge", pr_number, "--update-branch"],
@@ -2745,14 +2746,33 @@ def pr_merge(ctx: click.Context, pattern: str, dry_run: bool) -> None:
                         text=True,
                         timeout=30,
                     )
-                    console.console.print("[green]✓[/green] Branch updated successfully\n")
+                    console.console.print("[green]✓[/green] Branch updated successfully")
                     time.sleep(2)  # Wait for GitHub to process
+
+                    # Re-check merge state after update
+                    merge_result_after = subprocess.run(
+                        [
+                            "gh",
+                            "pr",
+                            "view",
+                            pr_number,
+                            "--json",
+                            "mergeStateStatus",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    new_state = json.loads(merge_result_after.stdout).get("mergeStateStatus")
+                    console.console.print(f"  New state: {new_state}\n")
                 except subprocess.TimeoutExpired:
                     console.console.print("[yellow]⚠[/yellow] Branch update timed out - may complete in background\n")
                 except subprocess.CalledProcessError as e:
                     error_msg = e.stderr if e.stderr else str(e)
                     if "already up to date" not in error_msg.lower():
                         console.console.print(f"[yellow]⚠[/yellow] Could not update branch: {error_msg}\n")
+            else:
+                console.console.print(f"  Merge state: {merge_state}")
 
             # Enable auto-merge if not already enabled
             if auto_merge_enabled:
