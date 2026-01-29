@@ -222,7 +222,12 @@ class SCSSProcessor:
 
         # CRITICAL FIX: Use horizontal whitespace only [ \t] to prevent jumping newlines
         # Matches: // followed by optional // then starts a block comment /*
-        content = re.sub(r"//[ \t]*(?://[ \t]*)*[ \t]*/\*[\s\S]*?\*/", "", content)
+        content = re.sub(
+            r"^[ \t]*//[ \t]*(?://[ \t]*)*[ \t]*/\*[\s\S]*?\*/",
+            "",
+            content,
+            flags=re.MULTILINE,
+        )
 
         # Remove large asterisk comment blocks like:
         # // *************************************************************************************************
@@ -357,7 +362,10 @@ class SCSSProcessor:
         # - Handles optional semicolon with surrounding whitespace: (\\s*;)?
         # - Removes ONLY line ending characters: [\\r\\n]* (handles \\n, \\r\\n, \\r, multiple newlines)
         return re.sub(
-            r"@import\s*['\"]?[^;'\"]+['\"]?(\s*;)?[\r\n]*", "", content, flags=re.MULTILINE | re.DOTALL
+            r"^[ \t]*(?!//)(?!/\*)@import\s*(?:url\()?['\"]?[^;'\")]+['\"]?\)?\s*;?[ \t]*(?:\r?\n|\r)?",
+            "",
+            content,
+            flags=re.MULTILINE,
         )
 
     def _fix_commented_selector_blocks(self, content: str) -> str:
@@ -385,7 +393,9 @@ class SCSSProcessor:
             next_stripped = lines[j].lstrip()
             if next_stripped.startswith(("//", "/*")):
                 continue
-            if not lines[j].startswith((" ", "\t")):
+            if not lines[j].startswith((" ", "\t")) and not next_stripped.startswith(
+                ("@media", "@supports", "@container", "@layer")
+            ):
                 continue
 
             # Uncomment the selector line to avoid orphaned declarations.

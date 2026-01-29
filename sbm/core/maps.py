@@ -233,7 +233,7 @@ def migrate_map_components(
             return True
 
         if not map_imports:
-             logger.info(
+            logger.info(
                 "No explicit CommonTheme map imports found. Proceeding with derived/template migration."
             )
 
@@ -260,7 +260,7 @@ def migrate_map_components(
             interactive=interactive,
             extra_partials=all_partials,
             oem_handler=oem_handler,
-            scan_templates=False, # Skip internal scan
+            scan_templates=False,  # Skip internal scan
         )
 
         if scss_targets or copied_partials:
@@ -341,9 +341,7 @@ def find_map_partials_in_templates(slug: str, oem_handler: Optional[object] = No
     partial_paths = []
     for template_file in template_files:
         if template_file.exists():
-            partial_paths.extend(
-                find_template_parts_in_file(str(template_file), [], oem_handler)
-            )
+            partial_paths.extend(find_template_parts_in_file(str(template_file), [], oem_handler))
     return partial_paths
 
 
@@ -380,7 +378,7 @@ def find_commontheme_map_imports(
         else:
             # Default mode: Use generic keywords with start-of-segment boundary
             keyword_list = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-            search_patterns = [f"DealerInspireCommonTheme[^'\"]*(?:/|_)\\b(?:{keyword_list})"]
+            search_patterns = [f"DealerInspireCommonTheme[^'\"]*(?:/|_)(?:{keyword_list})"]
             logger.info("Using generic map keyword patterns with segment boundary")
 
         for pattern in search_patterns:

@@ -2,9 +2,11 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 from sbm.core import maps
 
+
 def test_map_keywords_includes_section_directions():
     """Test that section-directions is included in MAP_KEYWORDS."""
     assert "section-directions" in maps.MAP_KEYWORDS, "section-directions should be in MAP_KEYWORDS"
+
 
 def test_should_migrate_map_import_skips_local_file(tmp_path, monkeypatch):
     """Test that it returns False if file exists locally."""
@@ -21,6 +23,7 @@ def test_should_migrate_map_import_skips_local_file(tmp_path, monkeypatch):
     import_path = "local-map"
 
     assert maps.should_migrate_map_import(import_path, dealer_dir) == False
+
 
 def test_should_migrate_map_import_resolves_broken_path(tmp_path, monkeypatch):
     """Test Group A fix: Resolves ../../DealerInspireCommonTheme/... correctly."""
@@ -44,6 +47,7 @@ def test_should_migrate_map_import_resolves_broken_path(tmp_path, monkeypatch):
 
     assert maps.should_migrate_map_import(import_path, dealer_dir) == True
 
+
 def test_should_migrate_map_import_fails_if_not_found(tmp_path, monkeypatch):
     """Test fallback: returns False if not found anywhere."""
     dealer_dir = tmp_path / "dealer-theme"
@@ -55,6 +59,7 @@ def test_should_migrate_map_import_fails_if_not_found(tmp_path, monkeypatch):
     import_path = "non-existent-map"
 
     assert maps.should_migrate_map_import(import_path, dealer_dir) == False
+
 
 def test_migrate_map_components_group_b_scenario(tmp_path, monkeypatch):
     """
@@ -103,6 +108,7 @@ def test_migrate_map_components_group_b_scenario(tmp_path, monkeypatch):
     # Let's run it fully but with a mock processor (optional)
 
     from sbm.oem.default import DefaultHandler
+
     handler = DefaultHandler(dealer_slug)
 
     result = maps.migrate_map_components(dealer_slug, oem_handler=handler)
@@ -117,3 +123,41 @@ def test_migrate_map_components_group_b_scenario(tmp_path, monkeypatch):
     # Verify PHP was migrated (Copying is now enabled)
     partial_dest = dealer_dir / "partials" / "section-directions.php"
     assert partial_dest.exists(), "Partial should be copied"
+
+
+def test_find_commontheme_map_imports_matches_underscore_prefix(tmp_path, monkeypatch):
+    """
+    Regression test: Verify that imports with underscore-prefixed filenames
+    (e.g., _section-directions) are correctly matched by the regex.
+    """
+    dealer_dir = tmp_path / "dealer-theme"
+    dealer_dir.mkdir()
+    css_dir = dealer_dir / "css"
+    css_dir.mkdir()
+
+    # Create style.scss with underscore-prefixed import
+    style_scss = css_dir / "style.scss"
+    style_scss.write_text(
+        "@import '../../DealerInspireCommonTheme/css/dealer-groups/lexus/lexusoem2/_section-directions';"
+    )
+
+    # Setup CommonTheme
+    common_theme = tmp_path / "CommonTheme"
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(common_theme))
+
+    # Create the target file in CommonTheme
+    target_dir = common_theme / "css" / "dealer-groups" / "lexus" / "lexusoem2"
+    target_dir.mkdir(parents=True)
+    (target_dir / "_section-directions.scss").write_text("// map scss content")
+
+    # Run the function
+    from sbm.oem.default import DefaultHandler
+
+    handler = DefaultHandler("test-slug")
+    imports = maps.find_commontheme_map_imports(style_scss, handler)
+
+    # Should find exactly 1 import
+    assert len(imports) == 1, f"Expected 1 import, found {len(imports)}"
+    assert "_section-directions" in imports[0]["import_path"], (
+        "Should match underscore-prefixed filename"
+    )

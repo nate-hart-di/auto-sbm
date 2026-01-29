@@ -102,3 +102,39 @@ def test_fix_commented_selector_blocks_strips_multiple_markers():
     processed = processor._fix_commented_selector_blocks(content)
     assert ".mapRow {" in processed
     assert "// .mapRow" not in processed
+
+
+def test_comment_block_cleanup_does_not_comment_selector_after_imports():
+    processor = SCSSProcessor("test-slug")
+    content = """
+// *************************************************************************************************
+// MAP ROW
+// *************************************************************************************************
+// @import '../../DealerInspireCommonTheme/css/dealer-groups/lexus/lexusoem1/section-map';
+.mapRow{
+  @media(min-width: 1025px){
+    padding: 490px 0px 50px;
+  }
+}
+"""
+
+    processed = processor._clean_comment_blocks(processor._remove_imports(content))
+
+    assert ".mapRow{" in processed
+    assert "// .mapRow" not in processed
+    assert "@media(min-width: 1025px)" in processed
+
+
+def test_fix_commented_selector_blocks_accepts_at_rules():
+    processor = SCSSProcessor("test-slug")
+    content = """
+// .mapRow {
+@media(min-width: 1025px){
+  padding: 490px 0px 50px;
+}
+}
+"""
+
+    processed = processor._fix_commented_selector_blocks(content)
+    assert ".mapRow {" in processed
+    assert "// .mapRow" not in processed

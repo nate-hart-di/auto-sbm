@@ -1305,6 +1305,34 @@ def run_post_migration_workflow(
     closed_at = None
     success = True
 
+    # Check if there are changes to merge before creating PR
+    try:
+        # Check commit count between origin/main and HEAD
+        # We use origin/main as the base because that's what the PR targets
+        check_res = subprocess.run(
+            ["git", "rev-list", "--count", "origin/main..HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=get_platform_dir(),
+            check=False,
+        )
+
+        if check_res.returncode == 0:
+            commit_count = int(check_res.stdout.strip())
+            if commit_count == 0:
+                logger.info(
+                    f"No commits found for {slug} (branch {branch_name}). Skipping PR creation."
+                )
+                return {
+                    "success": True,
+                    "pr_url": None,
+                    "salesforce_message": "No changes required - migration skipped.",
+                    "pr_author": None,
+                    "pr_state": None,
+                }
+    except Exception as e:
+        logger.warning(f"Could not verify commit count, proceeding with PR creation attempt: {e}")
+
     if create_pr:
         logger.info(f"Creating PR for {slug}...")
         pr_result = git_create_pr(slug, branch_name)
@@ -1908,8 +1936,12 @@ def _parse_compilation_errors(logs: str) -> list[dict]:
                 if "message" not in error:
                     error["message"] = error.get("error_message", error["line_content"])
 
+                # Skip verbose object dumps from Gulp
+                if "formatted:" in line or "messageOriginal:" in line:
+                    continue
+
                 errors.append(error)
-                logger.info(f"Detected {error['type']}: {error['line_content']}")
+                logger.debug(f"Detected {error['type']}: {error['line_content']}")
 
     # Enrich errors with file/line details from multi-line log patterns
     error_details = _extract_error_details_from_logs(logs)

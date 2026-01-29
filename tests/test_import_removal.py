@@ -115,10 +115,10 @@ def test_import_removal_with_different_quote_styles():
 
 def test_import_removal_in_comments():
     """
-    Test that @import in comments is removed (expected behavior).
+    Test that @import in comments is preserved (expected behavior).
 
-    Note: The regex will match @import anywhere, including in comments.
-    This is acceptable since commented imports should be removed anyway.
+    We only remove real @import statements, not commented-out ones, to avoid
+    collapsing lines and corrupting nearby comment blocks.
     """
     processor = SCSSProcessor("test-slug")
 
@@ -129,10 +129,10 @@ def test_import_removal_in_comments():
 
     result = processor._remove_imports(content)
 
-    # Import in comment should be removed
-    assert '@import' not in result
+    # Commented import should remain
+    assert '@import "commented"' in result
 
-    # Selector should be preserved (though comment marker '//' remains)
+    # Selector should be preserved
     assert '.selector' in result
     assert 'color: red' in result
 
@@ -253,10 +253,10 @@ def test_import_removal_mixed_line_endings():
 
 def test_import_removal_multiple_newlines_after_import():
     """
-    Test that multiple newlines after import are all removed.
+    Test that import is removed without collapsing unrelated blank lines.
 
     Input: @import "file";\\n\\n\\n.selector
-    Expected: .selector (all newlines after import removed)
+    Expected: selector remains (leading blank lines acceptable)
     """
     processor = SCSSProcessor("test-slug")
 
@@ -264,9 +264,9 @@ def test_import_removal_multiple_newlines_after_import():
 
     result = processor._remove_imports(content)
 
-    # Import and ALL trailing newlines should be removed
+    # Import should be removed
     assert '@import' not in result
-    assert result.startswith('.selector')
+    assert '.selector' in result
 
 
 def test_import_removal_old_mac_line_endings():
