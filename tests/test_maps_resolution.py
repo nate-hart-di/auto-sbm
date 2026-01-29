@@ -208,3 +208,24 @@ def test_do_shortcode_full_map_derives_commontheme_scss(tmp_path, monkeypatch):
     assert result is True
     sb_inside = dealer_dir / "sb-inside.scss"
     assert "// map scss" in sb_inside.read_text()
+
+
+def test_missing_commontheme_partial_is_skipped(tmp_path, monkeypatch):
+    dealer_slug = "lexusofsantafe"
+    dealer_dir = tmp_path / "dealer-themes" / dealer_slug
+    dealer_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(maps, "get_dealer_theme_dir", lambda s: str(dealer_dir))
+
+    common_theme = tmp_path / "CommonTheme"
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(common_theme))
+    common_theme.mkdir()
+
+    partial_info = {
+        "partial_path": "dealer-groups/lexus/lexusoem2/section-directions",
+        "template_file": "front-page.php",
+        "source": "found_in_template",
+    }
+
+    status = maps.copy_partial_to_dealer_theme(dealer_slug, partial_info, interactive=False)
+    assert status == "skipped_missing"

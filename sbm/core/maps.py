@@ -1217,10 +1217,9 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
 
         # Verify source exists after fuzzy matching attempt
         if not commontheme_source.exists():
-            logger.warning(
+            logger.info(
                 f"CommonTheme partial not found: {commontheme_partial_path}.php (or fuzzy matches)"
             )
-            logger.info(f"Using first match: {commontheme_source.name}")
 
             # If it's a guess, ask user for confirmation (only in interactive mode)
             if partial_info.get("is_guess"):
@@ -1239,10 +1238,11 @@ def copy_partial_to_dealer_theme(slug: str, partial_info: dict, interactive: boo
                         return "skipped_missing"
                     return "not_found"
                 # In non-interactive mode, automatically skip missing guessed partials
-                logger.warning(f"Skipping missing guessed partial: {commontheme_partial_path}.php")
+                logger.info(f"Skipping missing guessed partial: {commontheme_partial_path}.php")
                 return "skipped_missing"
 
-            return "not_found"
+            # Non-guess missing partials should not block SCSS migration
+            return "skipped_missing"
 
         # Create directory structure only if it doesn't exist
         dealer_dest_dir.mkdir(parents=True, exist_ok=True)
