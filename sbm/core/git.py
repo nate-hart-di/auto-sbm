@@ -678,15 +678,79 @@ class GitOperations:
             logger.debug(f"Could not check PR merge status: {e}")
             return {}
 
+    def _update_branch(self, pr_url: str) -> bool:
+        """
+        Update PR branch to be current with base branch.
+
+        Returns:
+            bool: True if branch was updated successfully
+        """
+        try:
+            env = self._get_gh_env()
+
+            # Check if branch needs updating first
+            result = subprocess.run(
+                ["gh", "pr", "view", pr_url, "--json", "mergeStateStatus"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=get_platform_dir(),
+                env=env,
+            )
+
+            data = json.loads(result.stdout)
+            merge_state = data.get("mergeStateStatus")
+
+            # BEHIND means branch is behind base, DIRTY means behind and has conflicts
+            if merge_state in ["BEHIND", "DIRTY"]:
+                logger.info("🔄 Updating branch to be current with base...")
+
+                # Update the branch using gh pr
+                subprocess.run(
+                    ["gh", "pr", "merge", pr_url, "--update-branch"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    cwd=get_platform_dir(),
+                    env=env,
+                    timeout=30,
+                )
+
+                logger.info("✓ Branch updated successfully")
+                return True
+            else:
+                logger.debug(f"Branch already up-to-date (state: {merge_state})")
+                return True
+
+        except subprocess.TimeoutExpired:
+            logger.warning("⚠ Branch update timed out - may complete in background")
+            return False
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr if e.stderr else str(e)
+            # Don't fail on certain expected errors
+            if "already up to date" in error_msg.lower():
+                logger.debug("Branch already up-to-date")
+                return True
+            elif "cannot update" in error_msg.lower():
+                logger.warning(f"⚠ Cannot update branch: {error_msg}")
+                return False
+            else:
+                logger.warning(f"Could not update branch: {error_msg}")
+                return False
+
     def _enable_auto_merge(self, pr_url: str) -> bool:
         """
         Enable auto-merge on a PR with squash strategy.
+        Updates branch first if needed.
 
         Returns:
             bool: True if auto-merge was enabled successfully
         """
         try:
             env = self._get_gh_env()
+
+            # First, try to update the branch if it's behind
+            self._update_branch(pr_url)
 
             # Enable auto-merge with squash
             subprocess.run(

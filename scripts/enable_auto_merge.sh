@@ -57,6 +57,25 @@ while IFS=$'\t' read -r pr_number branch_name title pr_url; do
 
     echo ""
 
+    # Check if branch needs updating
+    needs_update=false
+    if [ "$merge_state" = "BEHIND" ] || [ "$merge_state" = "DIRTY" ]; then
+        needs_update=true
+        echo "🔄 Branch is behind base - updating..."
+        if gh pr merge "$pr_number" --update-branch 2>&1; then
+            echo "✓ Branch updated successfully"
+            # Wait a moment for GitHub to process
+            sleep 2
+            # Re-fetch merge status
+            merge_info=$(gh pr view "$pr_number" --json mergeable,mergeStateStatus,autoMergeRequest,statusCheckRollup,reviewDecision)
+            merge_state=$(echo "$merge_info" | jq -r '.mergeStateStatus')
+            echo "  New merge state: $merge_state"
+        else
+            echo "⚠ Could not update branch automatically"
+        fi
+        echo ""
+    fi
+
     # Enable auto-merge if not already enabled
     if [ "$auto_merge_enabled" = "true" ]; then
         echo "✓ Auto-merge already enabled"
@@ -76,6 +95,8 @@ while IFS=$'\t' read -r pr_number branch_name title pr_url; do
             else
                 echo "⚠ Blocked by branch protection rules"
             fi
+        elif [ "$merge_state" = "BEHIND" ] || [ "$merge_state" = "DIRTY" ]; then
+            echo "⚠ Branch needs to be updated with base (should have been updated above)"
         elif [ -n "$pending_checks" ]; then
             echo "⏳ Will merge when checks complete"
         else
@@ -89,6 +110,8 @@ while IFS=$'\t' read -r pr_number branch_name title pr_url; do
             # Check if there are blockers
             if [ "$mergeable" = "CONFLICTING" ]; then
                 echo "⚠ Cannot merge yet: PR has merge conflicts"
+            elif [ "$merge_state" = "BEHIND" ] || [ "$merge_state" = "DIRTY" ]; then
+                echo "⚠ Branch needs to be updated (will retry on next run)"
             elif [ "$review_decision" = "REVIEW_REQUIRED" ]; then
                 echo "⏳ Will merge after required reviews"
             elif [ "$review_decision" = "CHANGES_REQUESTED" ]; then
