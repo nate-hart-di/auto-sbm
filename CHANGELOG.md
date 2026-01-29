@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.10] - 2026-01-28
+
+### Added
+- **Stats Metrics Alignment**: Restored "Time Saved" to all CLI stats views and aligned with Slack reports using the `lines / 800` formula.
+- **Global Firebase Sync**: Enabled "Global Janitor" mode, allowing any authenticated user to refresh PR statuses across the team.
+- **Slack App Improvements**: Defaulted `/sbm-stats` to "week" view and fixed command parsing for custom periods and top contributors.
+- **Maintenance Scripts**: Added `scripts/delete_verification_run.py` to purge test noise from the database.
+
 ## [2.13.9] - 2026-01-28
 
 ### Fixed
