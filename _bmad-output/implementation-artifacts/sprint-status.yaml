@@ -1,0 +1,64 @@
+# generated: 2026-01-28
+# project: auto-sbm
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+generated: 2026-01-28
+project: auto-sbm
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: done
+  1-1-migration-data-schema: done
+  1-2-detailed-report-generation: done
+  1-3-enhanced-cli-history-display: done
+  1-4-history-filtering-pagination: done
+  epic-1-retrospective: optional
+
+  epic-2: done
+  2-1-firebase-infrastructure-setup: done
+  2-2-core-realtime-sync: done
+  2-3-resilience-offline-queue: done
+  2-4-team-stats-aggregation: done
+  2-5-bulk-migration-duplicate-prevention: done
+  2-6-legacy-data-import-utility: done
+  2-7-firebase-first-architecture: done
+  2-8-code-review-fixes-slack-branch: done
+  epic-2-retrospective: done
+
+  epic-3: in-progress
+  3-1-fix-stats-calculation-inflation: done
+  3-2-fix-map-migration-path-resolution: done
+  epic-3-retrospective: optional
+
+  epic-4: cancelled  # Root cause identified during investigation - actual fix is Story 3.2
+  4-1-analyze-current-map-migration-logic: done  # Provided useful context despite gaps
+  4-2-trace-scss-processing-classification-logic: cancelled  # Investigation unnecessary
+  4-3-analyze-specific-problem-prs: cancelled  # Root cause found without PR deep-dive
+  4-4-comprehensive-historical-migration-analysis: cancelled  # Not needed
+  4-5-gap-analysis-root-cause-identification: cancelled  # Root cause: broken relative paths
+  epic-4-retrospective: optional
+
+  epic-5: cancelled  # Solution implemented as Story 3.2 instead
+  5-1-design-bulletproof-solution-strategy: cancelled  # Path resolution approach defined
+  5-2-create-comprehensive-determination-report: cancelled  # Not needed
+  epic-5-retrospective: optional

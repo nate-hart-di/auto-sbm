@@ -10,3 +10,4 @@ Instructions:
 1) Read the entire contents of "/Users/nathanhart/auto-sbm/.codex/prompts/bmad-bmm-workflows-dev-story.md".
 2) Apply those instructions exactly.
 3) If additional context was supplied after the command, treat it as extra user context: $ARGUMENTS
+ust
