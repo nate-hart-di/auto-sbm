@@ -312,9 +312,31 @@ class GitOperations:
             logger.warning(f"Could not get repo info: {e}")
             return {}
 
+    def _is_sbm_dirty_state(self, repo: Repo) -> bool:
+        """Check if dirty working tree looks like a previous SBM migration."""
+        try:
+            # Check current branch name for SBM pattern
+            branch = repo.active_branch.name
+            if re.match(r"pcon-\d+-.*-sbm\d{4}$", branch):
+                return True
+
+            # Check if dirty files are SBM migration artifacts
+            changed = [item.a_path for item in repo.index.diff(None)]
+            untracked = repo.untracked_files
+            all_files = changed + untracked
+            sbm_patterns = ("sb-inside.scss", "sb-vdp.scss", "sb-vrp.scss", "sb-home.scss")
+            if any(f.endswith(p) for f in all_files for p in sbm_patterns):
+                return True
+        except Exception:
+            pass
+        return False
+
     def checkout_main_and_pull(self) -> bool:
         """
         Checkout the main branch and pull the latest changes.
+
+        If the working tree is dirty from a previous SBM migration,
+        auto-stashes changes before proceeding.
 
         Returns:
             bool: True if successful, False otherwise
@@ -324,11 +346,18 @@ class GitOperations:
             repo = self._get_repo()
 
             if repo.is_dirty(untracked_files=True):
-                logger.error(
-                    "Working tree has uncommitted changes. Commit or stash them, "
-                    "or rerun with --skip-git."
-                )
-                return False
+                if self._is_sbm_dirty_state(repo):
+                    logger.warning(
+                        "Dirty working tree from previous SBM migration detected. "
+                        "Auto-stashing changes to proceed."
+                    )
+                    repo.git.stash("save", "--include-untracked", "SBM auto-stash: dirty state from previous migration")
+                else:
+                    logger.error(
+                        "Working tree has uncommitted changes that don't appear to be "
+                        "from SBM. Commit or stash them, or rerun with --skip-git."
+                    )
+                    return False
 
             repo.heads.main.checkout()
             logger.debug("Pulling latest changes from origin/main")
@@ -441,8 +470,8 @@ class GitOperations:
             )
 
             if not add_success:
-                logger.warning("Failed to add files to git")
-                return True  # Not necessarily a failure if no files to add
+                logger.error("Failed to add files to git")
+                return False
 
             # Commit if there are changes to commit
             if repo.is_dirty(index=True):
@@ -1403,10 +1432,11 @@ PR: {pr_url}"""
             # Enable auto-merge immediately after PR creation
             self._enable_auto_merge(pr_url)
 
-            # Fetch PR metadata immediately after creation
-            from sbm.utils.github_pr import fetch_pr_metadata
+            # Fetch PR metadata and additions immediately after creation
+            from sbm.utils.github_pr import fetch_pr_additions, fetch_pr_metadata
 
             pr_metadata = fetch_pr_metadata(pr_url)
+            github_additions = fetch_pr_additions(pr_url)
 
             # Open the PR in browser after creation
             self._open_pr_in_browser(pr_url)
@@ -1422,6 +1452,7 @@ PR: {pr_url}"""
                 "title": pr_title,
                 "body": pr_body,
                 "salesforce_message": what_section,
+                "github_additions": github_additions,
             }
 
             # Add PR metadata if successfully fetched
@@ -1452,10 +1483,11 @@ PR: {pr_url}"""
                     # Enable auto-merge for existing PR (in case it wasn't enabled)
                     self._enable_auto_merge(existing_pr_url)
 
-                    # Fetch metadata for existing PR
-                    from sbm.utils.github_pr import fetch_pr_metadata
+                    # Fetch metadata and additions for existing PR
+                    from sbm.utils.github_pr import fetch_pr_additions, fetch_pr_metadata
 
                     pr_metadata = fetch_pr_metadata(existing_pr_url)
+                    existing_github_additions = fetch_pr_additions(existing_pr_url)
 
                     # Still copy Salesforce message since migration likely completed
                     pr_content = self._build_stellantis_pr_content(slug, safe_head_branch, {})
@@ -1469,6 +1501,7 @@ PR: {pr_url}"""
                         "title": pr_content["title"],
                         "existing": True,
                         "salesforce_message": what_section,
+                        "github_additions": existing_github_additions,
                     }
 
                     # Add PR metadata if successfully fetched

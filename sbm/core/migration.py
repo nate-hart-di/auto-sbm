@@ -1141,6 +1141,13 @@ def migrate_dealer_theme(
         # If post_result is a dict (legacy), extract values
         if isinstance(post_result, dict):
             if post_result.get("success"):
+                # Use GitHub additions as lines_migrated when available (more accurate)
+                gh_additions = post_result.get("github_additions")
+                if gh_additions is not None:
+                    logger.debug(
+                        f"Using GitHub additions ({gh_additions}) instead of local count ({result.lines_migrated})"
+                    )
+                    result.lines_migrated = gh_additions
                 result.mark_success(
                     pr_url=post_result.get("pr_url"),
                     salesforce_message=post_result.get("salesforce_message"),
@@ -1303,6 +1310,7 @@ def run_post_migration_workflow(
     created_at = None
     merged_at = None
     closed_at = None
+    github_additions = None
     success = True
 
     # Check if there are changes to merge before creating PR
@@ -1347,6 +1355,7 @@ def run_post_migration_workflow(
             created_at = pr_result.get("created_at")
             merged_at = pr_result.get("merged_at")
             closed_at = pr_result.get("closed_at")
+            github_additions = pr_result.get("github_additions")
         else:
             success, pr_url = pr_result
 
@@ -1377,6 +1386,7 @@ def run_post_migration_workflow(
         "created_at": created_at,
         "merged_at": merged_at,
         "closed_at": closed_at,
+        "github_additions": github_additions,
     }
 
 

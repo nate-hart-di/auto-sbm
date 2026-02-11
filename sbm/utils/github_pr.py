@@ -112,6 +112,50 @@ class GitHubPRManager:
         return None
 
     @staticmethod
+    def fetch_pr_additions(pr_url: str, max_retries: int = 2) -> Optional[int]:
+        """
+        Fetch the additions count from a GitHub PR.
+
+        This provides the GitHub-sourced line count which matches what GitHub
+        displays on the PR, unlike the local SCSS line count.
+
+        Includes retry logic because GitHub may not have computed diff stats
+        immediately after PR creation.
+
+        Args:
+            pr_url: GitHub PR URL
+            max_retries: Maximum retry attempts (default 2)
+
+        Returns:
+            Number of additions, or None if fetch failed
+        """
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    time.sleep(2**attempt)
+
+                result = subprocess.run(
+                    ["gh", "pr", "view", pr_url, "--json", "additions"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=10,
+                )
+                data = json.loads(result.stdout)
+                additions = data.get("additions")
+                if isinstance(additions, int):
+                    logger.debug(f"PR additions for {pr_url}: {additions}")
+                    return additions
+                # additions field missing or wrong type — retry
+                if attempt == max_retries - 1:
+                    return None
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    logger.debug(f"Could not fetch PR additions for {pr_url}: {e}")
+                    return None
+        return None
+
+    @staticmethod
     def enrich_run_with_pr_data(run: dict, force_refresh: bool = False) -> dict:
         """
         Add or update PR metadata fields on a run dictionary.
@@ -201,6 +245,11 @@ class GitHubPRManager:
 def fetch_pr_metadata(pr_url: str) -> Optional[dict]:
     """Fetch PR metadata from GitHub. Convenience wrapper."""
     return GitHubPRManager.fetch_pr_metadata(pr_url)
+
+
+def fetch_pr_additions(pr_url: str) -> Optional[int]:
+    """Fetch PR additions count from GitHub. Convenience wrapper."""
+    return GitHubPRManager.fetch_pr_additions(pr_url)
 
 
 def enrich_run_with_pr_data(run: dict, force_refresh: bool = False) -> dict:

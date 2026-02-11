@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.3] - 2026-02-11
+
+### Fixed
+- **Stats Accuracy**: `lines_migrated` now uses GitHub PR `additions` count instead of local SCSS output line count, matching what GitHub shows on PRs
+- **Git Retry Resilience**: `commit_changes()` now returns `False` when `git add` fails instead of silently succeeding
+- **Git Auto-Stash**: `checkout_main_and_pull()` auto-stashes dirty working tree from previous SBM migrations instead of permanently blocking retries
+- **Post-Migrate Tracking**: `sbm post-migrate` now records runs in stats so manual recoveries are visible in reporting
+- 855b976 Fix map detection for template parts
+- 34cc0bc Merge branch 'fix/log-duplication'
+- 8709d41 Fix map migration detection and SCSS cleanup (#6)
+- acaf889 Fix map migration detection and SCSS cleanup
+- 6f161a7 chore: bump version to 2.13.16
+- db46062 fix: AttributeError in remigration prompt - use console.console.print()
+- be36584 Auto-add new files
+- 2916b1f Auto-add new files
+- 8f7c278 Auto-add new files
+- ac45d4a fix: Use superseded flag for remigration instead of corrupting pr_state
+
 ## [2.15.2] - 2026-02-11
 
 ### Changed

@@ -1407,13 +1407,16 @@ def auto(
 
                 if success:
                     record_migration(theme_name)
+                    # Prefer GitHub additions over local SCSS count (use None-check, not truthiness)
+                    gh_adds = result.get("github_additions")
+                    lines = gh_adds if gh_adds is not None else result.get("lines_migrated", 0)
                     record_run(
                         slug=theme_name,
                         command="auto",
                         status="success",
                         duration=get_total_duration(),
                         automation_time=get_total_automation_time(),
-                        lines_migrated=result.get("lines_migrated", 0),
+                        lines_migrated=lines,
                         files_created_count=result.get("files_created_count", 0),
                         scss_line_count=result.get("scss_line_count", 0),
                         report_path=result.get("report_path"),
@@ -2519,6 +2522,7 @@ def post_migrate(
     interactive_git = not skip_git_prompt
     interactive_pr = not skip_pr_prompt
 
+    start_time = time.time()
     result = run_post_migration_workflow(
         theme_name,
         branch_name,
@@ -2528,8 +2532,30 @@ def post_migrate(
         interactive_git=interactive_git,
         interactive_pr=interactive_pr,
     )
+    duration = time.time() - start_time
 
     if result.get("success", False):
+        # Record the run so post-migrate recoveries appear in stats.
+        # If 'auto' already recorded a run for this slug, stats deduplication
+        # (_dedupe_runs_for_display) keeps only the most recent per slug.
+        pr_url = result.get("pr_url")
+        gh_adds = result.get("github_additions")
+        lines = gh_adds if gh_adds is not None else 0
+        record_migration(theme_name)
+        record_run(
+            slug=theme_name,
+            command="post-migrate",
+            status="success",
+            duration=duration,
+            automation_time=duration,
+            lines_migrated=lines,
+            pr_url=pr_url,
+            pr_author=result.get("pr_author"),
+            pr_state=result.get("pr_state"),
+            created_at=result.get("created_at"),
+            merged_at=result.get("merged_at"),
+            closed_at=result.get("closed_at"),
+        )
         click.echo(f"Post-migration workflow completed successfully for {theme_name}!")
     else:
         click.echo(f"Post-migration workflow failed for {theme_name}.", err=True)
