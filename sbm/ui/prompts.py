@@ -467,7 +467,7 @@ class InteractivePrompts:
         )
         console.console.print(retry_panel)
 
-        sys.stdout.write(f"\n[bold green]Rerun failed migrations? (y/n) [default: n]: [/]")
+        console.console.print("\n[bold green]Rerun failed migrations? (y/n) [default: n]: [/bold green]", end="")
         sys.stdout.flush()
 
         # Simple timed input using select
@@ -480,7 +480,7 @@ class InteractivePrompts:
                 console.console.print("\n[yellow]Prompt timed out. Defaulting to No.[/]")
                 return False
         except Exception as e:
-            logger.error(f"Error during timed prompt: {e}")
+            console.console.print(f"\n[red]Error during timed prompt: {e}[/]")
             return False
 
     @staticmethod

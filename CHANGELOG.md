@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.1] - 2026-02-11
+
+### Fixed
+- **Rich Markup Bug**: Fixed retry prompt displaying `[/]` as literal text instead of closing Rich markup tag; replaced `sys.stdout.write` with `console.console.print` for proper rendering
+- **Missing Error Handler**: Fixed undefined `logger` reference in retry prompt exception handler; now uses console output consistently
+
+### Changed
+- **Scheduled Reports - Weekdays Only**: Scheduler now skips Saturday and Sunday; only sends reports Mon-Fri
+- **Monday Weekly Report - Calendar Week**: Monday summary now covers the previous calendar week (Mon 00:00 through Sun 23:59) instead of a rolling 7-day window
+- **Slack Channel Config**: Added `SLACK_CHANNEL` to `.env` for scheduled report delivery
+
 ## [2.15.0] - 2026-01-29
 
 ### Added
