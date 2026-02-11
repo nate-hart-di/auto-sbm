@@ -1371,16 +1371,16 @@ PR: {pr_url}"""
                 git_config = self.config.git
                 if isinstance(git_config, dict):
                     pr_reviewers = reviewers or git_config.get(
-                        "default_reviewers", ["carsdotcom/fe-dev"]
+                        "default_reviewers", ["carsdotcom/fe-dev-sbm"]
                     )
                     pr_labels = labels or git_config.get("default_labels", ["fe-dev"])
                 else:
                     pr_reviewers = reviewers or getattr(
-                        git_config, "default_reviewers", ["carsdotcom/fe-dev"]
+                        git_config, "default_reviewers", ["carsdotcom/fe-dev-sbm"]
                     )
                     pr_labels = labels or getattr(git_config, "default_labels", ["fe-dev"])
             else:
-                pr_reviewers = reviewers or ["carsdotcom/fe-dev"]
+                pr_reviewers = reviewers or ["carsdotcom/fe-dev-sbm"]
                 pr_labels = labels or ["fe-dev"]
 
             # Ensure non-None values for type safety
@@ -1553,7 +1553,7 @@ def create_pr(slug, branch_name=None, **kwargs):
     # Initialize config with safe defaults
     config_dict = {
         "default_branch": "main",
-        "git": {"default_reviewers": ["carsdotcom/fe-dev"], "default_labels": ["fe-dev"]},
+        "git": {"default_reviewers": ["carsdotcom/fe-dev-sbm"], "default_labels": ["fe-dev"]},
     }
     git_ops = GitOperations(Config(config_dict))
     return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)

@@ -2478,7 +2478,7 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
     "--create-pr/--no-create-pr",
     default=True,
     help="Create a GitHub Pull Request after successful post-migration steps "
-    "(default: True, with defaults: reviewers=carsdotcom/fe-dev, labels=fe-dev).",
+    "(default: True, with defaults: reviewers=carsdotcom/fe-dev-sbm, labels=fe-dev).",
 )
 @click.option(
     "--skip-review", is_flag=True, help="Skip interactive manual review and re-validation."
@@ -2498,7 +2498,7 @@ def post_migrate(
     Git operations, and PR creation.
     This command assumes the initial migration (up to map components) has already been completed.
 
-    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev)
+    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev-sbm)
     and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation,
     use 'sbm pr <theme-name>' separately.
     """
@@ -2560,7 +2560,7 @@ def pr(ctx: click.Context) -> None:
 @click.option("--base", default="main", help="Base branch for the Pull Request (default: main).")
 @click.option("--head", help="Head branch for the Pull Request (default: current branch).")
 @click.option(
-    "--reviewers", "-r", help="Comma-separated list of reviewers (default: carsdotcom/fe-dev)."
+    "--reviewers", "-r", help="Comma-separated list of reviewers (default: carsdotcom/fe-dev-sbm)."
 )
 @click.option("--labels", "-l", help="Comma-separated list of labels (default: fe-dev).")
 @click.option("--draft", "-d", is_flag=True, default=False, help="Create as draft PR.")
@@ -2584,7 +2584,7 @@ def pr_create(
     Create a GitHub Pull Request for a given theme.
 
     By default, creates a published PR with:
-    - Reviewers: carsdotcom/fe-dev
+    - Reviewers: carsdotcom/fe-dev-sbm
     - Labels: fe-dev
     - Content: Auto-generated based on Git changes (Stellantis template)
     """
