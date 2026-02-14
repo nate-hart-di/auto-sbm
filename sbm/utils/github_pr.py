@@ -84,9 +84,7 @@ class GitHubPRManager:
 
             except subprocess.TimeoutExpired:
                 if attempt == max_retries - 1:
-                    logger.warning(
-                        f"Timeout fetching {pr_url} after {max_retries} attempts"
-                    )
+                    logger.warning(f"Timeout fetching {pr_url} after {max_retries} attempts")
                     return None
                 continue
 
@@ -112,7 +110,7 @@ class GitHubPRManager:
         return None
 
     @staticmethod
-    def fetch_pr_additions(pr_url: str, max_retries: int = 2) -> Optional[int]:
+    def fetch_pr_additions(pr_url: str, max_retries: int = 3) -> Optional[int]:
         """
         Fetch the additions count from a GitHub PR.
 
@@ -124,7 +122,7 @@ class GitHubPRManager:
 
         Args:
             pr_url: GitHub PR URL
-            max_retries: Maximum retry attempts (default 2)
+            max_retries: Maximum retry attempts (default 3)
 
         Returns:
             Number of additions, or None if fetch failed
@@ -148,10 +146,14 @@ class GitHubPRManager:
                     return additions
                 # additions field missing or wrong type — retry
                 if attempt == max_retries - 1:
+                    logger.warning(
+                        f"Could not fetch PR additions for {pr_url}: "
+                        f"additions field missing or invalid type after {max_retries} attempts"
+                    )
                     return None
             except Exception as e:
                 if attempt == max_retries - 1:
-                    logger.debug(f"Could not fetch PR additions for {pr_url}: {e}")
+                    logger.warning(f"Could not fetch PR additions for {pr_url}: {e}")
                     return None
         return None
 

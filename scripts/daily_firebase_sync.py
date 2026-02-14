@@ -178,7 +178,7 @@ def main():
                     updates["merged_at"] = pr_data["merged_at"]
                 if not run.get("pr_state") or run.get("pr_state") != "MERGED":
                     updates["pr_state"] = "MERGED"
-                if pr_data["lines"] > 0 and run.get("lines_migrated", 0) == 0:
+                if pr_data["lines"] > 0 and run.get("lines_migrated", 0) != pr_data["lines"]:
                     updates["lines_migrated"] = pr_data["lines"]
                 if run.get("status") == "pending_merge":
                     updates["status"] = "success"
