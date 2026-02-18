@@ -1,0 +1,46 @@
+# Epic Blitz — Subagent-Orchestrated Epic Implementation
+name: "epic-blitz"
+description: "Implement entire epics via background subagents with git commit gates between each"
+author: "BMad (custom)"
+
+config_source: "{project-root}/_bmad/bmm/config.yaml"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+user_skill_level: "{config_source}:user_skill_level"
+document_output_language: "{config_source}:document_output_language"
+date: system-generated
+planning_artifacts: "{config_source}:planning_artifacts"
+implementation_artifacts: "{config_source}:implementation_artifacts"
+
+installed_path: "{project-root}/_bmad/bmm/workflows/4-implementation/epic-blitz"
+template: false
+instructions: "{installed_path}/instructions.md"
+
+variables:
+  sprint_status: "{implementation_artifacts}/sprint-status.yaml"
+  epics_file: "{planning_artifacts}/epics-gui.md"
+  architecture_file: "{planning_artifacts}/architecture.md"
+  gui_rules: "{project-root}/docs/gui-rules.md"
+  project_context: "{project-root}/docs/project-context.md"
+  subagent_model: "sonnet"  # "sonnet" = fast/cheap, "opus" = accurate/expensive
+  epic_range: ""             # "2-5", "3", or "" (auto-detect next undone)
+
+# Files that change between epics — read fresh before EVERY subagent launch
+shared_files:
+  - "src/shared/types.ts"
+  - "src/server/app.ts"
+  - "src/server/db/schema.ts"
+  - "src/client/lib/api.ts"
+  - "src/client/pages/DashboardPage.tsx"
+  - "src/client/pages/SettingsPage.tsx"
+  - "src/client/pages/SiteDetailPage.tsx"
+  - "src/server/services/testService.ts"
+  - "src/server/services/settingsService.ts"
+  - "src/server/services/sshOrchestrator.ts"
+  - "src/server/plugins/sse.ts"
+
+required_inputs:
+  - sprint_status
+  - epics_file
+
+standalone: true

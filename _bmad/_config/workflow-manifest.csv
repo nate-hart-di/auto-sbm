@@ -33,3 +33,4 @@ name,description,module,path
 "testarch-trace","Generate requirements-to-tests traceability matrix, analyze coverage, and make quality gate decision (PASS/CONCERNS/FAIL/WAIVED)","bmm","_bmad/bmm/workflows/testarch/trace/workflow.yaml"
 "workflow-init","Initialize a new BMM project by determining level, type, and creating workflow path","bmm","_bmad/bmm/workflows/workflow-status/init/workflow.yaml"
 "workflow-status","Lightweight status checker - answers """"what should I do now?"""" for any agent. Reads YAML status file for workflow tracking. Use workflow-init for new projects.","bmm","_bmad/bmm/workflows/workflow-status/workflow.yaml"
+"epic-blitz","Implement entire epics via background subagents with git commit gates between each. Sequential execution, fresh context snapshots, verification gates (tsc+vitest), fix passes, and atomic commits per epic.","bmm","_bmad/bmm/workflows/4-implementation/epic-blitz/workflow.yaml"
