@@ -1803,7 +1803,12 @@ def stats(
                 elif completion_state == "closed":
                     ts_val = run.get("closed_at") or run.get("timestamp") or ""
                 elif completion_state == "superseded":
-                    ts_val = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp") or ""
+                    ts_val = (
+                        run.get("superseded_at")
+                        or run.get("merged_at")
+                        or run.get("timestamp")
+                        or ""
+                    )
                 else:
                     ts_val = run.get("merged_at") or run.get("timestamp") or ""
                 if ts_val.endswith("+00:00Z"):
@@ -1995,7 +2000,11 @@ def stats(
                     elif completion_state == "closed":
                         effective_date = run.get("closed_at") or run.get("timestamp", "")
                     elif completion_state == "superseded":
-                        effective_date = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp", "")
+                        effective_date = (
+                            run.get("superseded_at")
+                            or run.get("merged_at")
+                            or run.get("timestamp", "")
+                        )
                     else:
                         effective_date = run.get("merged_at") or run.get("timestamp", "")
 
@@ -2068,7 +2077,7 @@ def stats(
         )
 
     # Calculate local time saved
-    local_lines = metrics_local.get('total_lines_migrated', 0)
+    local_lines = metrics_local.get("total_lines_migrated", 0)
     local_hours = round(local_lines / 800.0, 1) if local_lines else 0.0
 
     metric_panels = [
@@ -2093,10 +2102,10 @@ def stats(
         rich_console.print("\n[bold cyan]Global Auto-SBM Stats[/bold cyan]")
 
         # Calculate global time saved (fallback if missing from payload)
-        global_lines = global_metrics.get('total_lines_migrated', 0)
-        global_hours = global_metrics.get('total_time_saved_h')
+        global_lines = global_metrics.get("total_lines_migrated", 0)
+        global_hours = global_metrics.get("total_time_saved_h")
         if global_hours is None:
-             global_hours = round(global_lines / 800.0, 1) if global_lines else 0.0
+            global_hours = round(global_lines / 800.0, 1) if global_lines else 0.0
 
         global_panels = [
             make_metric_panel("Total Users", str(global_metrics.get("total_users", 0)), "blue"),
@@ -2232,9 +2241,9 @@ def stats(
                 if lines_migrated > 0:
                     hours_float = lines_migrated / 800.0
                     if hours_float < 0.1:
-                         time_saved_str = "< 0.1h"
+                        time_saved_str = "< 0.1h"
                     else:
-                         time_saved_str = f"{hours_float:.1f}h"
+                        time_saved_str = f"{hours_float:.1f}h"
 
                 # Fallback to manual estimate if no lines recorded but time exists
                 elif run.get("manual_estimate_seconds", 0):
@@ -2323,7 +2332,9 @@ def stats(
                 elif completion_state == "closed":
                     effective_date = run.get("closed_at") or run.get("timestamp", "")
                 elif completion_state == "superseded":
-                    effective_date = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp", "")
+                    effective_date = (
+                        run.get("superseded_at") or run.get("merged_at") or run.get("timestamp", "")
+                    )
                 else:
                     effective_date = run.get("merged_at") or run.get("timestamp", "")
 
@@ -2481,7 +2492,7 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
     "--create-pr/--no-create-pr",
     default=True,
     help="Create a GitHub Pull Request after successful post-migration steps "
-    "(default: True, with defaults: reviewers=carsdotcom/fe-dev-sbm, labels=fe-dev).",
+    "(default: True, with defaults: reviewers=etritt-cc,messponential,abond-cc,tcollier-di,ssargent-cc, labels=fe-dev).",
 )
 @click.option(
     "--skip-review", is_flag=True, help="Skip interactive manual review and re-validation."
@@ -2501,7 +2512,7 @@ def post_migrate(
     Git operations, and PR creation.
     This command assumes the initial migration (up to map components) has already been completed.
 
-    By default, prompts to create a published PR with default reviewers (carsdotcom/fe-dev-sbm)
+    By default, prompts to create a published PR with default reviewers (etritt-cc, messponential, abond-cc, tcollier-di, ssargent-cc)
     and labels (fe-dev). Use --no-create-pr to skip. For more control over PR creation,
     use 'sbm pr <theme-name>' separately.
     """
@@ -2586,7 +2597,9 @@ def pr(ctx: click.Context) -> None:
 @click.option("--base", default="main", help="Base branch for the Pull Request (default: main).")
 @click.option("--head", help="Head branch for the Pull Request (default: current branch).")
 @click.option(
-    "--reviewers", "-r", help="Comma-separated list of reviewers (default: carsdotcom/fe-dev-sbm)."
+    "--reviewers",
+    "-r",
+    help="Comma-separated list of reviewers (default: etritt-cc,messponential,abond-cc,tcollier-di,ssargent-cc).",
 )
 @click.option("--labels", "-l", help="Comma-separated list of labels (default: fe-dev).")
 @click.option("--draft", "-d", is_flag=True, default=False, help="Create as draft PR.")
@@ -2610,7 +2623,7 @@ def pr_create(
     Create a GitHub Pull Request for a given theme.
 
     By default, creates a published PR with:
-    - Reviewers: carsdotcom/fe-dev-sbm
+    - Reviewers: etritt-cc, messponential, abond-cc, tcollier-di, ssargent-cc
     - Labels: fe-dev
     - Content: Auto-generated based on Git changes (Stellantis template)
     """
@@ -2774,11 +2787,15 @@ def pr_merge(ctx: click.Context, pattern: str, dry_run: bool) -> None:
                     console.console.print("[green]✓[/green] Branch updated successfully\n")
                     time.sleep(2)  # Wait for GitHub to process
                 except subprocess.TimeoutExpired:
-                    console.console.print("[yellow]⚠[/yellow] Branch update timed out - may complete in background\n")
+                    console.console.print(
+                        "[yellow]⚠[/yellow] Branch update timed out - may complete in background\n"
+                    )
                 except subprocess.CalledProcessError as e:
                     error_msg = e.stderr if e.stderr else str(e)
                     if "already up to date" not in error_msg.lower():
-                        console.console.print(f"[yellow]⚠[/yellow] Could not update branch: {error_msg}\n")
+                        console.console.print(
+                            f"[yellow]⚠[/yellow] Could not update branch: {error_msg}\n"
+                        )
 
             # Enable auto-merge if not already enabled
             if auto_merge_enabled:
@@ -2795,7 +2812,9 @@ def pr_merge(ctx: click.Context, pattern: str, dry_run: bool) -> None:
                     console.console.print("[green]✓[/green] Auto-merge enabled (squash strategy)\n")
                 except subprocess.CalledProcessError as e:
                     error_msg = e.stderr if e.stderr else str(e)
-                    console.console.print(f"[red]✗[/red] Failed to enable auto-merge: {error_msg}\n")
+                    console.console.print(
+                        f"[red]✗[/red] Failed to enable auto-merge: {error_msg}\n"
+                    )
 
         console.console.print(f"[bold green]✓[/bold green] Processed {len(prs)} PR(s)")
 

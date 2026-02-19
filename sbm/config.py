@@ -58,7 +58,14 @@ class GitSettings(BaseSettings):
     default_branch: str = Field(default="main", description="Default git branch")
     default_labels: list[str] = Field(default=["fe-dev"], description="Default PR labels")
     default_reviewers: list[str] = Field(
-        default=["carsdotcom/fe-dev-sbm"], description="Default PR reviewers"
+        default=[
+            "etritt-cc",
+            "messponential",
+            "abond-cc",
+            "tcollier-di",
+            "ssargent-cc",
+        ],
+        description="Default PR reviewers",
     )
 
     @field_validator("github_token")
