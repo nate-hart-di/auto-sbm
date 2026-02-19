@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.6] - 2026-02-19
+
+### Changed
+- a53a6e8 SBM: Replace bugged fe-dev-sbm group with individual reviewers (v2.15.5)
+- 0ec18f6 chore: Auto-add BMAD epic-blitz workflow files
+- 5206b11 Auto-add new files
+- 0c23ece fix: Make lines_migrated always match GitHub PR additions
+- 19899ea Fix stats accuracy and git retry resilience (v2.15.3)
+- 82e724e Update default PR reviewers from fe-dev to fe-dev-sbm
+- 5d73c84 Fix Rich markup bug in retry prompt and improve scheduled reports
+- 636e574 Add auto-merge support for PRs with CLI command (#7)
+- 54d3ba2 Skip missing map partials without warning
+- fc991ff Handle template shortcode map detection
+- 855b976 Fix map detection for template parts
+- 34cc0bc Merge branch 'fix/log-duplication'
+- 8709d41 Fix map migration detection and SCSS cleanup (#6)
+- acaf889 Fix map migration detection and SCSS cleanup
+- 6f161a7 chore: bump version to 2.13.16
+
 ## [2.15.5] - 2026-02-19
 
 ### Fixed

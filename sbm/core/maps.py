@@ -706,10 +706,6 @@ def derive_map_imports_from_partials(
         if not scss_relative.lower().endswith(".scss"):
             scss_relative = f"{scss_relative}.scss"
 
-        scss_relative = f"css/{normalized}"
-        if not scss_relative.lower().endswith(".scss"):
-            scss_relative = f"{scss_relative}.scss"
-
         commontheme_absolute = Path(COMMON_THEME_DIR) / scss_relative
 
         # Try common variants
@@ -956,6 +952,9 @@ def migrate_map_partials(
         actually_copied = []
         processed_paths = set()
 
+        # Cache for resolved valid proxy source to prevent O(N*M) disk I/O
+        valid_proxy_source = None
+
         for partial_info in partial_paths:
             p_path = partial_info.get("partial_path")
             if p_path in processed_paths:
@@ -963,9 +962,74 @@ def migrate_map_partials(
             processed_paths.add(p_path)
 
             status = copy_partial_to_dealer_theme(slug, partial_info, interactive=interactive)
+
+            # --- AUTO-HEAL: Intercept skipped_missing for shortcode-sourced partials ---
+            if (
+                status == "skipped_missing"
+                and partial_info.get("source") == "found_in_shortcode_handler"
+            ):
+                healed = False
+                shortcode_dest = partial_info.get("partial_path", "")
+
+                try:
+                    if not valid_proxy_source and extra_partials:
+                        for candidate in extra_partials:
+                            candidate_path = candidate.get("partial_path", "")
+                            candidate_source_type = candidate.get("source", "")
+                            if (
+                                not candidate_path
+                                or candidate_path.startswith("shortcode:")
+                                or candidate_source_type == "found_in_shortcode_handler"
+                            ):
+                                continue
+
+                            candidate_source = (
+                                Path(COMMON_THEME_DIR) / f"{candidate_path.lstrip('/')}.php"
+                            )
+                            if not candidate_source.exists():
+                                candidate_source = (
+                                    Path(COMMON_THEME_DIR)
+                                    / f"partials/{candidate_path.lstrip('/')}.php"
+                                )
+
+                            if candidate_source.exists():
+                                valid_proxy_source = candidate_source
+                                break
+
+                    if valid_proxy_source:
+                        dest_file = theme_dir / f"{shortcode_dest.lstrip('/')}.php"
+                        dest_file.parent.mkdir(parents=True, exist_ok=True)
+
+                        if not dest_file.exists():
+                            shutil.copy2(valid_proxy_source, dest_file)
+                            logger.info(
+                                f"🩹 Auto-healed broken shortcode partial: {dest_file.name} "
+                                f"← {valid_proxy_source.name}"
+                            )
+                            status = "copied"
+                            # actually_copied.append is handled by the fall-through loop logic
+                            healed = True
+                        else:
+                            logger.info(f"Auto-heal target already exists: {dest_file}")
+                            status = "already_exists"
+                            healed = True
+
+                except Exception as e:
+                    logger.warning(
+                        f"⚠️ Auto-heal encounter filesystem error for {shortcode_dest}: {e}"
+                    )
+
+                if not healed:
+                    logger.info(
+                        f"⚠️ Auto-heal skipped for {shortcode_dest}: "
+                        f"no valid template partial found to proxy"
+                    )
+            # --- END AUTO-HEAL ---
+
             if status == "copied":
                 success_count += 1
-                actually_copied.append(p_path)
+                if p_path not in actually_copied:
+                    actually_copied.append(p_path)
             elif status == "already_exists":
                 success_count += 1
             elif status == "skipped_missing":
@@ -1058,7 +1122,11 @@ def find_template_parts_in_file(
 
         # Pattern: function xyz_map() { ... get_template_part('...directions...') ... }
         # More flexible pattern: Use non-greedy match .*? instead of [^}]* to allow nested blocks
-        shortcode_function_pattern = r"function\s+(\w*(?:mapsection|maprow|mapbox|getdirections)\w*)\s*\([^)]*\)\s*\{(?P<body>.*?)get_template_part\s*\(\s*['\"]([^'\"]*(?:directions|getdirections|mapsection)[^'\"]*)['\"]"
+        shortcode_function_pattern = (
+            r"function\s+(\w*(?:mapsection|maprow|mapbox|getdirections)\w*)\s*"
+            r"\([^)]*\)\s*\{.*?get_template_part\s*\(\s*['\"]"
+            r"([^'\"]*(?:directions|getdirections|mapsection)[^'\"]*)['\"]"
+        )
         matches = re.finditer(shortcode_function_pattern, content, re.IGNORECASE | re.DOTALL)
 
         for match in matches:

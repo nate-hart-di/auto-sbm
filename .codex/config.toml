@@ -1,10 +1,14 @@
-model = "gpt-5.2-codex"
+model = "gpt-5.3-codex"
 model_reasoning_effort = "medium"
+personality = "pragmatic"
 [projects."/Users/nathanhart/auto-sbm"]
 trust_level = "trusted"
 
 [notice]
 hide_full_access_warning = true
+
+[notice.model_migrations]
+"gpt-5.2-codex" = "gpt-5.3-codex"
 
 [features]
 shell_snapshot = true
