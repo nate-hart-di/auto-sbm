@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto-sbm"
-version = "2.15.5"
+version = "2.15.6"
 description = "Automated Site Builder Migration Tool with Enhanced Rich UI"
 readme = "README.md"
 requires-python = ">=3.9"

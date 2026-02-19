@@ -1,0 +1,220 @@
+@@ -0,0 +1,219 @@
++//General Lexus styles (ux-loading-item, breakpoints)
++
++@media (min-width: 1025px) {
++  .fixed-top-spacer {
++    // height: 100px;
++  }
++}
++
++.contentcontainer {
++  @media (min-width: 1025px) {
++    &.container-wide {
++      padding-top: 30px;
++    }
++
++    &#di-page-composer {
++      // padding-top: 0px;
++    }
++  }
++}
++
++// @import '../../DealerInspireCommonTheme/css/components/headers/header-vertical';
++
++.topWrapper__toggle {
++  margin-right: 10px;
++}
++
++#languageDropdownDesktop {
++  color: #000 !important;
++}
++
++// @import '../../DealerInspireCommonTheme/css/components/footers/footer-basic';
++// @import '../../DealerInspireCommonTheme/css/components/footers/prefooter-widelists';
++// @import '../../DealerInspireCommonTheme/css/components/footers/fat-footer';
++
++.directionsRow__form form .button.secondary-button {
++  border: 1px solid #fff;
++  height: inherit;
++}
++
++// @import '../../DealerInspireCommonTheme/css/components/lease-calculator/lease-calculator-styled';
++// @import '../../DealerInspireCommonTheme/css/dealer-inspire-plugins/_national-offers.scss';
++
++.vdp--lightning {
++  .di-modal.location-item__link {
++    display: none;
++  }
++
++  @media (max-width: 1024px) {
++    .vdp-title--basic {
++      min-height: 75px;
++      height: auto;
++    }
++  }
++}
++
++/*************************************************************************************************
++	TABLET ELEMENT STYLING
++*************************************************************************************************/
++
++/*************************************************************************************************
++	MOBILE ELEMENT STYLING
++*************************************************************************************************/
++
++/*************************************************************************************************
++	THIRD PARTY STYLING/REQUESTS
++*************************************************************************************************/
++
++/*************************************************************************************************
++	SUPPORT REQUESTS
++*************************************************************************************************/
++//start 00376228 - fix banner hiding behind header
++@media (max-width: 1025px) {
++  .lvrp-lexus-sales {
++    margin-top: 60px;
++  }
++
++  .lvrp-lexus-special-lease {
++    margin-top: 40px;
++  }
++}
++
++//end 00376228
++
++//532758 start - hide blog byline, date, and posted in
++.blog .meta-below-title,
++.single .meta-below-title,
++.blog .meta-below-content,
++.single .meta-below-content {
++  display: none;
++}
++
++//532758 end
++
++/* OMS-1419 remove capital case from VRP/VDP vehicle titles */
++#lvrp-results-wrapper .hit-content h2.result-title .title-bottom,
++#results-page .vehicle .vehicle-title h2 a,
++#lvrp-results-wrapper .hit-content h2.result-title .title-bottom {
++  text-transform: none;
++}
++
++.vdp-title--basic .vdp-title__vehicle-info h1 {
++  text-transform: none;
++}
++
++#vehicleDetails.project-hotwheels .vdp-top-banner.box-gallery h1.vehicle-title {
++  text-transform: none;
++}
++
++/* OMS-1419 END */
++
++// 00922182
++.homepage-section {
++  .container-wide {
++    max-width: 100%;
++  }
++
++  .content-wrapper > p:first-of-type {
++    margin: 0;
++  }
++
++  p {
++    padding: 0 15px;
++  }
++
++  @media (min-width:768px) {
++    .content-wrapper {
++      padding: 0;
++    }
++  }
++}
++
++// 00922182 end
++// 2195119 - fixing action bar layout issues and body overflow problem
++@media screen and (max-width: 1024px) {
++  .bar-item--size-fill {
++    &:has(.bar-item__icon) {
++      flex: inherit;
++      margin: 0 10px;
++    }
++
++    &.bar-item--audio-eye {
++      width: 61px;
++      height: 50px;
++      margin-left: auto;
++    }
++  }
++}
++
++body:not(.inventory-template-default) .di-stacks.di-stacks--bottom {
++  position: fixed;
++}
++
++body.stacks-enabled {
++  overflow-x: hidden;
++}
++
++// e/o 2195119
++
++//02479884 - Adding Styles for Header Language & Conatct button
++#languageButtonEng,
++#languageButtonEsp {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  text-transform: capitalize;
++  padding: 14px 10px 14px;
++  font-weight: 600;
++  font-size: 1.4rem;
++  line-height: 1;
++  color: #000;
++  position: relative;
++  text-align: center;
++  cursor: pointer;
++  margin: 0 auto 0.625rem auto;
++  transition: all 0.5s ease;
++  letter-spacing: normal;
++  background: #fff;
++}
++
++.glyphicon-send:before {
++  margin-right: 10px;
++  text-decoration: none;
++  font-family: 'Glyphicons Halflings';
++
++  @media (max-width: 1024px) {
++    font-size: 21px;
++  }
++}
++
++.topWrapper__contact {
++  margin-top: -3px;
++}
++
++//End
++
++// 03322037
++.stack--action-bar .di-action-bar {
++  display: none;
++}
++
++#ab-modal--contactUs .di-modal-body .action-bar-widget-content {
++
++  .widget-item.widget-item--notClickable,
++  > hr {
++    display: none;
++  }
++}
++
++// end 03322037
++
++// 03333388
++// end 03333388
++// Start 00351124
++.meta-below-title span.updated {
++  display: none;
++}
++
++// 01124251
++// 01124251 end
