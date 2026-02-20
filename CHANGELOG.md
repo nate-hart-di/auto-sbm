@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.0] - 2026-02-20
+
+### Added
+- Expanded MAP_KEYWORDS to cover `map-section`, `directions-row`, `directions-section`, `row-map`, `directions`, `dealer-map`, `static-map`, `mapbox-row` — covers ~40 previously missed CommonTheme partials across GM, Hyundai, Mitsubishi, Penske, DGDG, and others
+- Guarded `location*` partial detection: location partials in `partials/dealer-groups/` are now detected and migrated if (and only if) their CommonTheme source file contains confirmed map markers (mapboxgl, setMapboxMarker, maps.google.com) — zero false positives
+- Broadened shortcode registration scanner from `full-map`-only to all MAP_KEYWORDS
+- MAP_REGEX_PATTERN now generated from MAP_KEYWORDS list — stays in sync automatically
+- Auto-heal now covers `found_in_location_map_template` source (location partials that are missing get proxy-healed like other sources)
+- `_resolve_commontheme_partial_file` now tries underscore-prefixed PHP variants
+
+### Fixed
+- `homecontent_pattern` regex used literal `\\b` instead of `\b` — pattern never matched anything (dead code for all prior versions)
+- `directions` keyword falsely matched `directionsForms/formDirections` (CommonTheme form utility) via word-boundary firing at captured-group start — confirmed false positive, now filtered
+- LOCATION_MAP_MARKERS HTML marker only matched double-quoted attributes — added single-quote and unquoted variants
+- Auto-heal trigger missing `found_in_shortcode_function` and `found_homecontent_directions` sources
+
 ## [2.15.6] - 2026-02-19
 
 ### Changed

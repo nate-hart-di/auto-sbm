@@ -62,9 +62,7 @@ def test_find_map_shortcodes_detects_lou_fusz_map_without_keyword(tmp_path, monk
     )
 
     # Verify it was found via shortcode handler, not keyword matching
-    lou_fusz_result = next(
-        p for p in results if "lou-fusz/map" in p.get("partial_path", "")
-    )
+    lou_fusz_result = next(p for p in results if "lou-fusz/map" in p.get("partial_path", ""))
     assert lou_fusz_result.get("source") == "found_in_shortcode_handler"
     assert lou_fusz_result.get("shortcode") == "full-map"
 
@@ -235,8 +233,8 @@ def test_auto_heal_skips_when_no_template_partial_available(tmp_path, monkeypatc
     assert "Auto-heal skipped for map/full-map" in caplog.text
 
 
-def test_auto_heal_skips_for_non_shortcode_partials(tmp_path, monkeypatch):
-    """Auto-heal logic should NOT trigger for partials with source != found_in_shortcode_handler."""
+def test_auto_heal_triggers_for_template_partials(tmp_path, monkeypatch):
+    """Auto-heal logic SHOULD trigger for partials with source == found_in_template."""
     commontheme = tmp_path / "CommonTheme"
     map_dir = commontheme / "map"
     map_dir.mkdir(parents=True)
@@ -271,11 +269,10 @@ def test_auto_heal_skips_for_non_shortcode_partials(tmp_path, monkeypatch):
         scan_templates=False,
     )
 
-    # The nonexistent-template should NOT have been auto-healed (it's not a shortcode partial)
     healed_file = dealer_theme / "map" / "nonexistent-template.php"
-    assert not healed_file.exists(), "Auto-heal should NOT trigger for non-shortcode partials"
+    assert healed_file.exists(), "Auto-heal SHOULD trigger for template partials"
+    assert "map/nonexistent-template" in copied
     assert success is True
-    assert "map/nonexistent-template" not in copied
 
 
 def test_auto_heal_handles_filesystem_error_gracefully(tmp_path, monkeypatch):
@@ -320,3 +317,208 @@ def test_auto_heal_handles_filesystem_error_gracefully(tmp_path, monkeypatch):
 
     assert success is True
     assert "map/full-map" not in copied
+
+
+def test_auto_heal_uses_static_fallback_when_no_dynamic_proxy(tmp_path, monkeypatch):
+    """M3: When extra_partials has no valid proxy but a static fallback path exists
+    in CommonTheme, auto-heal should use the fallback."""
+    commontheme = tmp_path / "CommonTheme"
+    # Create the first fallback path from the static list
+    fallback_dir = commontheme / "partials" / "dealer-groups" / "lexus" / "lexusoem1"
+    fallback_dir.mkdir(parents=True)
+    fallback_file = fallback_dir / "section-map.php"
+    fallback_file.write_text("<?php // fallback map ?>", encoding="utf-8")
+
+    dealer_theme = tmp_path / "dealer-themes" / "testdealer"
+    dealer_theme.mkdir(parents=True)
+
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(commontheme))
+    monkeypatch.setattr(maps, "get_dealer_theme_dir", lambda slug: str(dealer_theme))
+
+    # Shortcode partial that will be skipped_missing — no matching template partial
+    shortcode_partial = {
+        "template_file": "functions.php",
+        "partial_path": "map/full-map",
+        "source": "found_in_shortcode_handler",
+        "shortcode": "full-map",
+        "handler": "handler",
+    }
+
+    # extra_partials has only shortcode entries — no valid dynamic proxy
+    success, copied = maps.migrate_map_partials(
+        slug="testdealer",
+        map_imports=[],
+        interactive=False,
+        extra_partials=[shortcode_partial],
+        scan_templates=False,
+    )
+
+    healed_file = dealer_theme / "map" / "full-map.php"
+    assert healed_file.exists(), "Static fallback should have been used"
+    assert healed_file.read_text(encoding="utf-8") == "<?php // fallback map ?>"
+    assert "map/full-map" in copied
+    assert success is True
+
+
+def test_auto_heal_triggers_for_shortcode_function_source(tmp_path, monkeypatch):
+    """L1/H2: Auto-heal should also trigger for found_in_shortcode_function partials."""
+    commontheme = tmp_path / "CommonTheme"
+    map_dir = commontheme / "map"
+    map_dir.mkdir(parents=True)
+    proxy_file = map_dir / "section-map.php"
+    proxy_file.write_text("<?php // proxy ?>", encoding="utf-8")
+
+    dealer_theme = tmp_path / "dealer-themes" / "testdealer"
+    dealer_theme.mkdir(parents=True)
+
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(commontheme))
+    monkeypatch.setattr(maps, "get_dealer_theme_dir", lambda slug: str(dealer_theme))
+
+    # Partial discovered via shortcode function body — missing in CommonTheme
+    shortcode_fn_partial = {
+        "template_file": "functions.php",
+        "partial_path": "map/nonexistent-fn-map",
+        "source": "found_in_shortcode_function",
+        "function_name": "demo_mapsection",
+    }
+
+    # Valid proxy source
+    valid_partial = {
+        "template_file": "front-page.php",
+        "partial_path": "map/section-map",
+        "source": "found_in_template",
+    }
+
+    success, copied = maps.migrate_map_partials(
+        slug="testdealer",
+        map_imports=[],
+        interactive=False,
+        extra_partials=[shortcode_fn_partial, valid_partial],
+        scan_templates=False,
+    )
+
+    healed_file = dealer_theme / "map" / "nonexistent-fn-map.php"
+    assert healed_file.exists(), "Auto-heal should trigger for found_in_shortcode_function"
+    assert "map/nonexistent-fn-map" in copied
+    assert success is True
+
+
+def test_map_section_keyword_detected(tmp_path):
+    template_file = tmp_path / "front-page.php"
+    template_file.write_text(
+        "<?php get_template_part('partials/dealer-groups/gmca/chevy/map-section');",
+        encoding="utf-8",
+    )
+
+    partials = maps.find_template_parts_in_file(str(template_file), [])
+    assert any(p["partial_path"] == "dealer-groups/gmca/chevy/map-section" for p in partials)
+
+
+def test_directions_row_keyword_detected(tmp_path):
+    template_file = tmp_path / "front-page.php"
+    template_file.write_text(
+        "<?php get_template_part('partials/directions-row');",
+        encoding="utf-8",
+    )
+
+    partials = maps.find_template_parts_in_file(str(template_file), [])
+    assert any(p["partial_path"] == "directions-row" for p in partials)
+
+
+def test_location_with_map_content_detected(tmp_path, monkeypatch):
+    commontheme = tmp_path / "CommonTheme"
+    location_partial = commontheme / "partials" / "dealer-groups" / "group-a" / "location.php"
+    location_partial.parent.mkdir(parents=True)
+    location_partial.write_text(
+        "<?php mapboxgl.accessToken = 'x'; setMapboxMarker(); ?>",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(commontheme))
+
+    template_file = tmp_path / "front-page.php"
+    template_file.write_text(
+        "<?php get_template_part('partials/dealer-groups/group-a/location');",
+        encoding="utf-8",
+    )
+
+    partials = maps.find_template_parts_in_file(str(template_file), [])
+    assert any(
+        p["partial_path"] == "partials/dealer-groups/group-a/location" for p in partials
+    ), "location partial with map markers should be detected"
+
+
+def test_location_without_map_content_skipped(tmp_path, monkeypatch):
+    commontheme = tmp_path / "CommonTheme"
+    location_partial = commontheme / "partials" / "dealer-groups" / "group-a" / "locations.php"
+    location_partial.parent.mkdir(parents=True)
+    location_partial.write_text(
+        "<?php echo '<ul><li>Address only</li></ul>'; ?>",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(maps, "COMMON_THEME_DIR", str(commontheme))
+
+    template_file = tmp_path / "front-page.php"
+    template_file.write_text(
+        "<?php get_template_part('partials/dealer-groups/group-a/locations');",
+        encoding="utf-8",
+    )
+
+    partials = maps.find_template_parts_in_file(str(template_file), [])
+    assert not any(
+        "dealer-groups/group-a/locations" in p["partial_path"] for p in partials
+    ), "location partial without map markers should be skipped"
+
+
+def test_shortcode_scanner_detects_non_fullmap_keywords(tmp_path):
+    functions_path = tmp_path / "functions.php"
+    functions_path.write_text(
+        """
+        add_shortcode('map-section', 'render_map_section');
+        function render_map_section() {
+            get_template_part('partials/dealer-groups/gmca/chevy/map-section');
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    results = maps.find_map_shortcodes_in_functions(tmp_path)
+    assert any(
+        p.get("shortcode") == "map-section" and "map-section" in p.get("partial_path", "")
+        for p in results
+    ), "non-full-map shortcode registrations should be detected"
+
+
+def test_sitemap_not_detected(tmp_path):
+    template_file = tmp_path / "front-page.php"
+    template_file.write_text(
+        """
+        <?php
+        get_template_part('partials/sitemap');
+        get_template_part('partials/sitemap-page');
+        ?>
+        """,
+        encoding="utf-8",
+    )
+
+    partials = maps.find_template_parts_in_file(str(template_file), [])
+    assert partials == []
+
+
+def test_directions_forms_not_falsely_detected(tmp_path):
+    """H1 guard: 'directionsForms/formDirections' must NOT be detected.
+
+    The 'directions' keyword in MAP_KEYWORDS can match via \\b at the start
+    of the captured path group. This test ensures the false-positive filter
+    rejects 'directionsForms' (a CommonTheme form utility, not a map section).
+    """
+    template_file = tmp_path / "front-page.php"
+    template_file.write_text(
+        "<?php get_template_part('partials/directionsForms/formDirections'); ?>",
+        encoding="utf-8",
+    )
+
+    partials = maps.find_template_parts_in_file(str(template_file), [])
+    assert partials == [], (
+        "directionsForms/formDirections should not be detected — "
+        "it is a form utility, not a map section partial"
+    )

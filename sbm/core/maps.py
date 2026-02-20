@@ -34,10 +34,32 @@ MAP_KEYWORDS = [
     "full-map",
     "get-directions",
     "getdirections",
+    "map-section",
+    "directions-row",
+    "directions-section",
+    "row-map",
+    "directions",
+    "dealer-map",
+    "static-map",
+    "mapbox-row",
 ]
 
 # Shared regex for map shortcodes and template parts
-MAP_REGEX_PATTERN = r"(?i)\W(?:mapsection|section-map|section-directions|map-row|maprow|map_rt|mapbox|mapboxdirections|full-map|get-directions|getdirections)\W"
+_MAP_KEYWORD_PATTERN = "|".join([re.escape(k) for k in MAP_KEYWORDS])
+MAP_REGEX_PATTERN = rf"(?i)\W(?:{_MAP_KEYWORD_PATTERN})\W"
+
+# Location partials are mixed-content in CommonTheme. Only include location* files
+# when the resolved CommonTheme partial content confirms map behavior.
+# Note: HTML attribute markers include both single- and double-quote variants since
+# CommonTheme files are inconsistent in their quoting style.
+LOCATION_MAP_MARKERS = [
+    "mapboxgl",
+    "setMapboxMarker",
+    "maps.google.com",
+    '<div id="mapRow">',
+    "<div id='mapRow'>",
+    "id=mapRow",  # unquoted edge case
+]
 
 
 def _resolve_scss_candidates(base_dir: Path, relative_path: str) -> List[Path]:
@@ -140,6 +162,55 @@ def remove_scss_comments(content: str) -> str:
     # Remove single line comments (//)
     content = re.sub(r"//.*$", "", content, flags=re.MULTILINE)
     return content
+
+
+def _resolve_commontheme_partial_file(partial_path: str) -> Optional[Path]:
+    """Resolve a partial path to a concrete CommonTheme PHP file if present.
+
+    Tries both the exact filename and the underscore-prefixed variant
+    (e.g. map-row.php → _map-row.php) since some CommonTheme partials
+    use leading underscores as a draft/disabled convention.
+    """
+    normalized = partial_path.lstrip("/")
+    path_candidates = [normalized]
+    if not normalized.startswith("partials/"):
+        path_candidates.append(f"partials/{normalized}")
+
+    for candidate in path_candidates:
+        candidate_path = Path(COMMON_THEME_DIR) / candidate
+        parent = candidate_path.parent
+        stem = candidate_path.name  # e.g. "map-row"
+        for filename in [f"{stem}.php", f"_{stem}.php"]:
+            full = parent / filename
+            if full.exists():
+                return full
+    return None
+
+
+def _is_location_map_partial(partial_path: str) -> bool:
+    """
+    Guarded detection for location* partials:
+    - must target partials/dealer-groups/*
+    - source file must exist in CommonTheme
+    - file content must contain known map markers
+    """
+    normalized = partial_path.lstrip("/").lower()
+    if "dealer-groups/" not in normalized:
+        return False
+    if "location" not in normalized:
+        return False
+
+    source_file = _resolve_commontheme_partial_file(partial_path)
+    if not source_file:
+        return False
+
+    try:
+        source = source_file.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+
+    source_lower = source.lower()
+    return any(marker.lower() in source_lower for marker in LOCATION_MAP_MARKERS)
 
 
 _MAP_MIGRATION_REPORT: Dict[str, dict] = {}
@@ -478,18 +549,14 @@ def find_map_shortcodes_in_functions(
     # Matches: include 'path/to/file.php';
     # Matches: require_once( dirname(__FILE__) . '/path/to/file.php' );
     # Matches: require_once( '../../DealerInspireCommonTheme/path/to/file.php' );
-    # regex for finding include/require statements
-    # Matches: require_once( get_template_directory() . '/path/to/file.php' );
-    # Matches: include 'path/to/file.php';
-    # Matches: require_once( dirname(__FILE__) . '/path/to/file.php' );
-    # Matches: require_once( '../../DealerInspireCommonTheme/path/to/file.php' );
     include_pattern = re.compile(
         r"(?:require_once|include_once|require|include)\s*\(?\s*(.*?)\s*\)?\s*;", re.IGNORECASE
     )
 
     keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-    # Search specifically for 'full-map' shortcode (AC1: Fix map detection)
-    shortcode_pattern = r"add_shortcode\s*\(\s*['\"]full-map['\"]\s*,\s*([^\)\s]+)"
+    shortcode_pattern = (
+        rf"add_shortcode\s*\(\s*['\"]({keyword_pattern})['\"]\s*,\s*([^\)\s]+)"
+    )
 
     while files_to_scan:
         current_file_path, context = files_to_scan.pop(0)
@@ -506,9 +573,8 @@ def find_map_shortcodes_in_functions(
         # 1. Find shortcode registrations in this file
         shortcodes = []
         for match in re.finditer(shortcode_pattern, content, re.IGNORECASE):
-            # Pattern now matches 'full-map' specifically, so shortcode is always 'full-map'
-            shortcode = "full-map"
-            handler = match.group(1).strip().strip(",")
+            shortcode = match.group(1).strip().lower()
+            handler = match.group(2).strip().strip(",")
             shortcodes.append((shortcode, handler))
             logger.info(
                 f"Found shortcode registration in {current_file_path.name}: {shortcode} -> {handler}"
@@ -952,7 +1018,11 @@ def migrate_map_partials(
         actually_copied = []
         processed_paths = set()
 
-        # Cache for resolved valid proxy source to prevent O(N*M) disk I/O
+        # Cache for resolved valid proxy source to prevent O(N*M) disk I/O.
+        # Intentionally shared across all partials in the loop: once a valid map proxy
+        # is found (from extra_partials or fallback), it's reused for all subsequent
+        # broken partials. This is acceptable because map partials within a single
+        # dealer theme are functionally interchangeable (same map component).
         valid_proxy_source = None
 
         for partial_info in partial_paths:
@@ -963,10 +1033,19 @@ def migrate_map_partials(
 
             status = copy_partial_to_dealer_theme(slug, partial_info, interactive=interactive)
 
-            # --- AUTO-HEAL: Intercept skipped_missing for shortcode-sourced partials ---
-            if (
-                status == "skipped_missing"
-                and partial_info.get("source") == "found_in_shortcode_handler"
+            # --- AUTO-HEAL: Intercept skipped_missing for broken partials ---
+            # Covers all detection sources that could produce a missing partial:
+            #   found_in_shortcode_handler    - shortcode registration pointing to missing template
+            #   found_in_template             - get_template_part() call with missing target
+            #   found_in_shortcode_function   - map function body containing get_template_part()
+            #   found_homecontent_directions  - homecontent-getdirections pattern match
+            #   found_in_location_map_template - location* partial confirmed to contain map content
+            if status == "skipped_missing" and partial_info.get("source") in (
+                "found_in_shortcode_handler",
+                "found_in_template",
+                "found_in_shortcode_function",
+                "found_homecontent_directions",
+                "found_in_location_map_template",
             ):
                 healed = False
                 shortcode_dest = partial_info.get("partial_path", "")
@@ -996,6 +1075,23 @@ def migrate_map_partials(
                                 valid_proxy_source = candidate_source
                                 break
 
+                    # If still no valid proxy source found, try known CommonTheme map
+                    # partials as a last-resort fallback. These are dealer-group-specific
+                    # templates — using them cross-brand is imperfect but provides a
+                    # functional map rather than a broken shortcode. Generic path checked last.
+                    if not valid_proxy_source:
+                        fallback_options = [
+                            Path(COMMON_THEME_DIR)
+                            / "partials/dealer-groups/lexus/lexusoem1/section-map.php",
+                            Path(COMMON_THEME_DIR)
+                            / "partials/dealer-groups/bert-ogden/full-map.php",
+                            Path(COMMON_THEME_DIR) / "partials/map-section.php",
+                        ]
+                        for fallback in fallback_options:
+                            if fallback.exists():
+                                valid_proxy_source = fallback
+                                break
+
                     if valid_proxy_source:
                         dest_file = theme_dir / f"{shortcode_dest.lstrip('/')}.php"
                         dest_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1016,7 +1112,7 @@ def migrate_map_partials(
 
                 except Exception as e:
                     logger.warning(
-                        f"⚠️ Auto-heal encounter filesystem error for {shortcode_dest}: {e}"
+                        f"⚠️ Auto-heal encountered filesystem error for {shortcode_dest}: {e}"
                     )
 
                 if not healed:
@@ -1079,6 +1175,13 @@ def find_template_parts_in_file(
             keyword_list = "|".join([re.escape(k) for k in MAP_KEYWORDS])
             search_patterns = [f"[^'\"]*\\b(?:{keyword_list})[^'\"]*"]
 
+        # Guard: the 'directions' keyword can falsely match 'directionsForms/formDirections'
+        # because \b at the start of a captured group fires when the first char is a word char.
+        # Reject any match where the captured path segment starts with 'directions' followed
+        # immediately by a letter (i.e. it's a compound word like 'directionsForms', not a
+        # standalone path segment like 'dealer-groups/crown/directions').
+        _directions_false_positive = re.compile(r"(?i)^/?directions[a-zA-Z]")
+
         for pattern in search_patterns:
             template_part_pattern = (
                 r"get_template_part\s*\(\s*['\"](?:/)?(?:partials/)?(" + pattern + r")['\"]"
@@ -1087,6 +1190,13 @@ def find_template_parts_in_file(
 
             for match in matches:
                 partial_path = match.group(1)
+
+                if _directions_false_positive.match(partial_path):
+                    logger.debug(
+                        f"Skipping false-positive keyword match for '{partial_path}' "
+                        f"in {Path(template_file).name} ('directions' prefix of compound word)"
+                    )
+                    continue
 
                 partial_info = {
                     "template_file": template_file,
@@ -1098,6 +1208,27 @@ def find_template_parts_in_file(
                     f"Found map template part: {partial_path} in {Path(template_file).name}"
                 )
                 partial_paths.append(partial_info)
+
+        # Guarded location* support: only include if the resolved CommonTheme file
+        # under partials/dealer-groups contains map markers (mapbox/google map init).
+        generic_template_part_pattern = r"get_template_part\s*\(\s*['\"]([^'\"]+)['\"]"
+        for match in re.finditer(generic_template_part_pattern, content, re.IGNORECASE):
+            partial_path = match.group(1)
+            normalized = partial_path.lstrip("/").lower()
+            if "location" not in normalized:
+                continue
+            if not _is_location_map_partial(partial_path):
+                continue
+
+            partial_info = {
+                "template_file": template_file,
+                "partial_path": partial_path,
+                "source": "found_in_location_map_template",
+            }
+            logger.info(
+                f"Found map-bearing location partial: {partial_path} in {Path(template_file).name}"
+            )
+            partial_paths.append(partial_info)
 
         # Detect direct do_shortcode('[full-map]') usage in templates
         shortcode_pattern = r"do_shortcode\s*\(\s*['\"]\s*\[([^\]\s]+)[^\]]*\]\s*['\"]\s*\)"
@@ -1147,7 +1278,7 @@ def find_template_parts_in_file(
 
         # 4. Specifically look for homecontent-getdirections pattern with word boundaries
         homecontent_pattern = (
-            r"get_template_part\s*\(\s*['\"]([^'\"]*\\bhomecontent[^'\"]*directions\\b[^'\"]*)['\"]"
+            r"get_template_part\s*\(\s*['\"]([^'\"]*\bhomecontent[^'\"]*directions\b[^'\"]*)['\"]"
         )
         matches = re.finditer(homecontent_pattern, content, re.IGNORECASE)
 
