@@ -1236,9 +1236,9 @@ class GitOperations:
                         what_items.append(
                             "- Map components: No map shortcodes detected; migration skipped."
                         )
-                elif shortcodes and not imports:
+                elif not scss_targets and not partials_copied and skipped_reason != "already_present":
                     what_items.append(
-                        "- Map components: Map shortcodes detected but no CommonTheme map assets found; migration skipped."
+                        "- Map components: Map components detected but no CommonTheme map assets found; migration skipped."
                     )
                 else:
                     # If strictly skipped because already present (complete success without changes), suppress note
