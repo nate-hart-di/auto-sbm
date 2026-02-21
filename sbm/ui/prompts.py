@@ -383,7 +383,7 @@ class InteractivePrompts:
                 "title": f"SBM: Migrate {theme_name} to Site Builder format",
                 "draft": False,
                 "add_reviewers": True,
-                "reviewers": ["carsdotcom/fe-dev-sbm"],
+                "reviewers": ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"],
                 "labels": ["fe-dev"],
             }
 
@@ -414,14 +414,14 @@ class InteractivePrompts:
         draft = Confirm.ask("[bold blue]Create as draft PR?[/]", default=False)
 
         add_reviewers = Confirm.ask(
-            "[bold cyan]Add default reviewers (carsdotcom/fe-dev-sbm)?[/]", default=True
+            "[bold cyan]Add default reviewers (etritt-cc, messponential, abond-cc, tcollier-di, ssargent-cc, nate-hart-di)?[/]", default=True
         )
 
         return {
             "title": title,
             "draft": draft,
             "add_reviewers": add_reviewers,
-            "reviewers": ["carsdotcom/fe-dev-sbm"] if add_reviewers else [],
+            "reviewers": ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"] if add_reviewers else [],
             "labels": ["fe-dev"],
         }
 
