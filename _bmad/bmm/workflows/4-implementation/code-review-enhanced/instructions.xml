@@ -1,0 +1,299 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/_bmad/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Generate all documents in {document_output_language}</critical>
+
+  <critical>YOU ARE AN ADVERSARIAL CODE REVIEWER — Find what's wrong or missing!</critical>
+  <critical>Your purpose: Validate story file claims against actual implementation</critical>
+  <critical>Challenge everything: Are tasks marked [x] actually done? Are ACs really implemented?</critical>
+  <critical>Find 3-10 specific issues in every review minimum — no lazy "looks good" reviews</critical>
+  <critical>Read EVERY file in the File List — verify implementation against story requirements</critical>
+  <critical>Tasks marked complete but not done = CRITICAL finding</critical>
+  <critical>Acceptance Criteria not implemented = HIGH severity finding</critical>
+  <critical>Do not review files that are not part of the application's source code. Always exclude the _bmad/ and _bmad-output/ folders from the review. Always exclude IDE and CLI configuration folders like .cursor/ and .windsurf/ and .claude/</critical>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       GATE 1: LOAD STORY AND DISCOVER CHANGES
+       ═══════════════════════════════════════════════════════════════ -->
+  <step n="1" goal="Load story and discover changes">
+    <action>Use provided {{story_path}} or ask user which story file to review</action>
+    <action>Read COMPLETE story file</action>
+    <action>Set {{story_key}} = extracted key from filename (e.g., "1-2-user-authentication.md" -> "1-2-user-authentication") or story
+      metadata</action>
+    <action>Parse sections: Story, Acceptance Criteria, Tasks/Subtasks, Dev Agent Record -> File List, Change Log</action>
+
+    <!-- Discover actual changes via git -->
+    <action>Check if git repository detected in current directory</action>
+    <check if="git repository exists">
+      <action>Run `git status --porcelain` to find uncommitted changes</action>
+      <action>Run `git diff --name-only` to see modified files</action>
+      <action>Run `git diff --cached --name-only` to see staged files</action>
+      <action>Compile list of actually changed files from git output</action>
+    </check>
+
+    <!-- Cross-reference story File List vs git reality -->
+    <action>Compare story's Dev Agent Record -> File List with actual git changes</action>
+    <action>Note discrepancies:
+      - Files in git but not in story File List
+      - Files in story File List but no git changes
+      - Missing documentation of what was actually changed
+    </action>
+
+    <invoke-protocol name="discover_inputs" />
+    <action>Load {project_context} for coding standards (if exists)</action>
+  </step>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       GATE 2: BUILD REVIEW ATTACK PLAN
+       ═══════════════════════════════════════════════════════════════ -->
+  <step n="2" goal="Build review attack plan">
+    <action>Extract ALL Acceptance Criteria from story</action>
+    <action>Extract ALL Tasks/Subtasks with completion status ([x] vs [ ])</action>
+    <action>From Dev Agent Record -> File List, compile list of claimed changes</action>
+
+    <action>Create review plan:
+      1. **AC Validation**: Verify each AC is actually implemented
+      2. **Task Audit**: Verify each [x] task is really done
+      3. **Code Quality**: Security, performance, maintainability
+      4. **Test Quality**: Real tests vs placeholder assertions
+    </action>
+  </step>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       GATE 3: EXECUTE ADVERSARIAL REVIEW
+       ═══════════════════════════════════════════════════════════════ -->
+  <step n="3" goal="Execute adversarial review">
+    <critical>VALIDATE EVERY CLAIM — Check git reality vs story claims</critical>
+
+    <!-- Git vs Story Discrepancies -->
+    <action>Review git vs story File List discrepancies:
+      1. **Files changed but not in story File List** -> MEDIUM finding (incomplete documentation)
+      2. **Story lists files but no git changes** -> HIGH finding (false claims)
+      3. **Uncommitted changes not documented** -> MEDIUM finding (transparency issue)
+    </action>
+
+    <!-- Use combined file list: story File List + git discovered files -->
+    <action>Create comprehensive review file list from story File List and git changes</action>
+
+    <!-- AC Validation -->
+    <action>For EACH Acceptance Criterion:
+      1. Read the AC requirement
+      2. Search implementation files for evidence
+      3. Determine: IMPLEMENTED, PARTIAL, or MISSING
+      4. If MISSING/PARTIAL -> HIGH SEVERITY finding
+    </action>
+
+    <!-- Task Completion Audit -->
+    <action>For EACH task marked [x]:
+      1. Read the task description
+      2. Search files for evidence it was actually done
+      3. **CRITICAL**: If marked [x] but NOT DONE -> CRITICAL finding
+      4. Record specific proof (file:line)
+    </action>
+
+    <!-- Code Quality Deep Dive — READ FULL CONTEXT -->
+    <critical>For each file: read the FULL function/module containing the change, not just the flagged line. Understanding surrounding context prevents false positives and shallow fixes.</critical>
+    <action>For EACH file in comprehensive review list:
+      1. **Security**: Look for injection risks, missing validation, auth issues
+      2. **Performance**: N+1 queries, inefficient loops, missing caching
+      3. **Error Handling**: Missing try/catch, poor error messages
+      4. **Code Quality**: Complex functions, magic numbers, poor naming
+      5. **Test Quality**: Are tests real assertions or placeholders?
+      6. **Cross-file patterns**: If an issue exists here, check if the same pattern exists in other changed files — batch related findings
+    </action>
+
+    <!-- Honest assessment — no padding -->
+    <check if="total_issues_found lt 3">
+      <action>Before concluding the review found fewer than 3 issues, perform a second pass checking:
+        - Edge cases and null handling
+        - Architecture violations against loaded architecture docs
+        - Integration issues between changed files
+        - Dependency problems
+      </action>
+      <check if="still fewer than 3 issues after second pass">
+        <action>Document what was thoroughly checked and found satisfactory. A genuinely clean implementation with 1-2 real findings is better than 10 padded ones. Do NOT fabricate issues to meet a quota.</action>
+      </check>
+    </check>
+  </step>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       GATE 4: AUTO-FIX ALL ISSUES
+       ═══════════════════════════════════════════════════════════════ -->
+  <step n="4" goal="Auto-fix all issues">
+    <action>Categorize findings by severity: CRITICAL, HIGH, MEDIUM, LOW</action>
+    <action>Set {{fixed_count}} = 0</action>
+    <action>Set {{escalated_count}} = 0</action>
+    <action>Set {{mitigated_count}} = 0</action>
+
+    <!-- Present findings summary BEFORE fixing -->
+    <output>**CODE REVIEW FINDINGS, {user_name}**
+
+      **Story:** {{story_file}}
+      **Git vs Story Discrepancies:** {{git_discrepancy_count}} found
+      **Issues Found:** {{critical_count}} Critical, {{high_count}} High, {{medium_count}} Medium, {{low_count}} Low
+
+      [List each finding with severity, file:line, and one-line description]
+    </output>
+
+    <!-- ── BAIL-OUT CHECK ── -->
+    <check if="total findings exceed 15 OR (critical_count + high_count) exceed 5">
+      <critical>BAIL-OUT THRESHOLD REACHED</critical>
+      <output>**ESCALATION: Too many issues for patch-by-patch fixing.**
+        Total: {{total_count}} | Critical+High: {{critical_count + high_count}}
+        Recommend: targeted fixes on CRITICAL items only, then broader rework.
+      </output>
+      <action>STOP. Wait for user decision before proceeding.</action>
+    </check>
+
+    <!-- ── SCOPE CONSTRAINT ── -->
+    <critical>SCOPE CONSTRAINT: Only fix issues identified during Gates 1-3. If you notice unrelated problems while fixing, document them as separate findings in-story — do NOT fix them inline. Do not introduce refactors, improvements, or cleanup beyond what is needed to resolve found issues.</critical>
+
+    <!-- ── AUTO-FIX LOOP ── -->
+    <critical>Process issues in order: CRITICAL -> HIGH -> MEDIUM -> LOW. Within the same severity tier, fix isolated/self-contained issues before those with cross-file dependencies.</critical>
+
+    <action>For EACH issue, in severity order:
+
+      **1. Assess** — Confirm the issue is real and determine the fix approach.
+
+      **2. Read surrounding context** — Read the full function/module, not just the flagged line. Understand what the code is doing before changing it.
+
+      **3. Document in-story** — Add finding to Dev Agent Record under "Senior Developer Review (AI)" with severity, file:line, and description.
+
+      **4. Fix or mitigate:**
+         - If fixable within review scope: apply the fix.
+         - If proper fix exceeds review scope (e.g., requires multi-file refactoring not part of this story): apply a targeted mitigation, document the gap, and flag the full fix as a follow-up task in-story.
+
+      **5. Verify the fix:**
+         - Re-read the changed code — confirm the original issue is absent.
+         - Confirm no new lint/type errors introduced.
+         - Confirm no unintended function signature or export changes.
+
+      **6. Cascade check (CRITICAL and HIGH only):**
+         - After fixing a CRITICAL or HIGH issue, briefly check that earlier fixes in this session remain valid.
+
+      **7. Repeat** until all issues are resolved.
+    </action>
+
+    <!-- ── ROLLBACK RULE ── -->
+    <critical>ROLLBACK RULE: If a fix introduces a new CRITICAL or HIGH issue, REVERT that fix and escalate to the user rather than patching the patch. Document what was attempted and why it failed.</critical>
+
+    <!-- ── HARD-STOP TRIGGERS ── -->
+    <critical>HARD-STOP TRIGGERS — Escalate to user IMMEDIATELY if you encounter:
+      - Architectural conflicts with other stories or system contracts
+      - Breaking cross-module changes beyond story AC specifications
+      - Ambiguous ACs with multiple valid interpretations requiring product decisions
+      - Security findings that need stakeholder awareness
+      Set {{escalated_count}} += 1 for each escalation.
+    </critical>
+
+    <!-- ── SOFT-STOP TRIGGERS ── -->
+    <action>SOFT-STOP TRIGGERS — Flag for user attention but CONTINUE fixing:
+      - Inconsistent patterns that are not bugs
+      - Potential performance concerns that are not critical
+      - Convention deviations from project standards that are not functionally wrong
+      Document these as "Flagged for Attention" items in-story.
+    </action>
+
+    <!-- ── BATCHING ── -->
+    <action>BATCHING: When multiple issues affect the same file/function, group fixes into a single edit pass to minimize churn. Document each issue individually in-story even when batched.</action>
+
+    <action>After all fixes applied, set {{fixed_count}} = total issues fixed, {{mitigated_count}} = total mitigations applied.</action>
+  </step>
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       GATE 5: POST-FIX VERIFICATION AND STATUS UPDATE
+       ═══════════════════════════════════════════════════════════════ -->
+  <step n="5" goal="Post-fix verification, story update, and sprint sync">
+
+    <!-- ── REGRESSION SWEEP ── -->
+    <critical>POST-FIX REGRESSION SWEEP: Re-read ALL modified files. For each file verify:
+      1. Original issue is absent
+      2. No new lint/type errors introduced
+      3. No unintended export/signature changes
+      4. No regressions from fix interactions
+    </critical>
+
+    <!-- ── RUN TESTS ── -->
+    <action>Run project test suite if available:
+      - TypeScript projects: `npx tsc --noEmit` then test runner (vitest/jest)
+      - PHP projects: `phpunit` and `phpcs`
+      - Other: detect and run appropriate test command
+      Record pass/fail status.
+    </action>
+
+    <check if="tests fail after fixes">
+      <action>Identify which fix caused the failure. Apply targeted correction. Re-run tests. If still failing after 2 attempts, escalate to user with details.</action>
+    </check>
+
+    <!-- ── UPDATE STORY ── -->
+    <action>Update story File List with any files added/modified during fixes</action>
+    <action>Update Dev Agent Record Change Log with summary:
+      - Date, reviewer (AI), review type (code-review-enhanced)
+      - Issues found by severity
+      - Issues fixed, mitigated, and escalated
+      - Test results after fixes
+    </action>
+
+    <!-- ── DETERMINE STATUS ── -->
+    <check if="all issues fixed AND all ACs implemented AND tests pass">
+      <action>Set {{new_status}} = "done"</action>
+      <action>Update story Status field to "done"</action>
+    </check>
+    <check if="issues remain OR ACs not fully implemented OR tests failing">
+      <action>Set {{new_status}} = "in-progress"</action>
+      <action>Update story Status field to "in-progress"</action>
+    </check>
+    <action>Save story file</action>
+
+    <!-- ── SPRINT STATUS SYNC ── -->
+    <check if="{sprint_status} file exists">
+      <action>Set {{current_sprint_status}} = "enabled"</action>
+    </check>
+    <check if="{sprint_status} file does NOT exist">
+      <action>Set {{current_sprint_status}} = "no-sprint-tracking"</action>
+    </check>
+
+    <check if="{{current_sprint_status}} != 'no-sprint-tracking'">
+      <action>Load the FULL file: {sprint_status}</action>
+      <action>Find development_status key matching {{story_key}}</action>
+
+      <check if="{{new_status}} == 'done'">
+        <action>Update development_status[{{story_key}}] = "done"</action>
+        <action>Save file, preserving ALL comments and structure</action>
+        <output>Sprint status synced: {{story_key}} -> done</output>
+      </check>
+
+      <check if="{{new_status}} == 'in-progress'">
+        <action>Update development_status[{{story_key}}] = "in-progress"</action>
+        <action>Save file, preserving ALL comments and structure</action>
+        <output>Sprint status synced: {{story_key}} -> in-progress</output>
+      </check>
+
+      <check if="story key not found in sprint status">
+        <output>WARNING: Story file updated, but sprint-status sync failed: {{story_key}} not found in sprint-status.yaml</output>
+      </check>
+    </check>
+
+    <check if="{{current_sprint_status}} == 'no-sprint-tracking'">
+      <output>Story status updated (no sprint tracking configured)</output>
+    </check>
+
+    <output>**REVIEW COMPLETE**
+
+      **Story Status:** {{new_status}}
+      **Issues Fixed:** {{fixed_count}}
+      **Issues Mitigated:** {{mitigated_count}}
+      **Escalated:** {{escalated_count}}
+      **Tests:** {{test_result}}
+
+      {{#if new_status == "done"}}All issues resolved. Code review complete.{{else}}Outstanding items require attention before this story can close.{{/if}}
+    </output>
+  </step>
+
+</workflow>
