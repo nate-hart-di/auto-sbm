@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--period",
         type=str,
-        default="1",
+        default="week",
         help="Time period (daily, weekly, monthly, all or N days)",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print payload instead of sending")
@@ -110,6 +110,16 @@ def parse_args() -> argparse.Namespace:
         "--icon-url",
         type=str,
         help="Custom icon URL for the Slack message",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        help="Filter stats by user",
+    )
+    parser.add_argument(
+        "--top",
+        type=int,
+        help="Show top N contributors",
     )
     return parser.parse_args()
 
@@ -497,68 +507,42 @@ def format_slack_payload(
 
     blocks = []
 
-    # 1. Main Header with Date Context
-    blocks.append(
-        {
-            "type": "header",
-            "text": {"type": "plain_text", "text": f"SBM Stats — {date_range_str}", "emoji": False},
-        }
-    )
-
-    # 2. Command Context (Subtitle)
-    blocks.append(
-        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"Command: `{cmd_label}`"}]}
-    )
-
-    blocks.append({"type": "divider"})
-
-    # 3. Primary Metrics Grid
-    # Using bold numbers for visual impact
-    blocks.append(
-        {
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Sites Migrated*\n*{metrics['sites_migrated']}*"},
-                {"type": "mrkdwn", "text": f"*Est. Time Saved*\n*{metrics['time_saved_hours']}h*"},
-            ],
-        }
-    )
-
-    # 4. Secondary Metrics Grid
-    blocks.append(
-        {
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Lines Migrated*\n{metrics['lines_migrated']:,}"},
-                {"type": "mrkdwn", "text": f"*In Review (Period)*\n{metrics['in_review_count']}"},
-            ],
-        }
-    )
-
-    if current_in_review_count is not None:
-        in_review_text = f"Currently in review (all time): *{current_in_review_count}*"
-        if current_in_review_count == 0:
-            in_review_text += " — Auto-SBM search may show none."
-        blocks.append(
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": in_review_text,
-                    }
-                ],
-            }
-        )
-
-    blocks.append({"type": "divider"})
+    # 1. Consolidated Header & Command (User Selected Option 1)
     blocks.append(
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*Open PRs (Auto-SBM)*\n<{AUTO_SBM_OPEN_PRS_URL}|View open Auto-SBM PRs>",
+                "text": f"`{cmd_label}` ➔ *SBM Stats — {date_range_str}*",
             },
+        }
+    )
+
+    # 2. Metrics (Consolidated and Re-labeled)
+    blocks.append(
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"*{metrics['sites_migrated']}* Migrations  ·  "
+                    f"*{metrics['lines_migrated']:,}* Lines of Code  ·  "
+                    f"*{metrics['time_saved_hours']}h* Hours Saved"
+                ),
+            },
+        }
+    )
+
+    # 3. PR Link Footer
+    blocks.append(
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"🔗 *<https://github.com/carsdotcom/di-websites-platform/pulls?q=is%3Apr+is%3Aopen+-is%3Adraft+label%3Afe-dev+PCON-864+SBM|Active SBM PRs in Review ({current_in_review_count})>*",
+                }
+            ],
         }
     )
 
@@ -657,10 +641,12 @@ def main() -> None:
 
     # 2. Filter
     filtered_runs = filter_runs_by_date(all_runs, args.period)
+    if args.user:
+        filtered_runs = filter_runs_by_user(filtered_runs, args.user)
 
     # 3. Aggregate
     is_all_time = args.period.lower() == "all"
-    if is_all_time:
+    if is_all_time and not args.user:
         metrics = calculate_global_metrics_all_time()
     else:
         metrics = calculate_metrics(filtered_runs, user_migrations, is_all_time)
@@ -668,11 +654,39 @@ def main() -> None:
     current_in_review_count = len([r for r in all_runs if _get_completion_state(r) == "in_review"])
 
     # 4. Format
+    import re
+    from sbm.utils.tracker import _parse_date_input, _parse_period_to_days
+
+    start_date = None
+    end_date = None
+    is_month_only = False
+
+    if args.period.lower() != "all":
+        # Detect month-only format: M/YY or MM/YY
+        month_only_match = re.match(r"^(\d{1,2})/(\d{2,4})$", args.period.strip())
+        if month_only_match:
+            is_month_only = True
+
+        # Try flexible formats
+        parsed = _parse_date_input(args.period)
+        if parsed:
+            start_date, end_date = parsed
+        else:
+            # Try period-based
+            days = _parse_period_to_days(args.period)
+            if days:
+                end_date = datetime.now(timezone.utc)
+                start_date = end_date - timedelta(days=days)
+
     payload = format_slack_payload(
         metrics,
         args.period,
         context_label="Auto-SBM report • CLI",
+        top_n=args.top,
         current_in_review_count=current_in_review_count,
+        start_date=start_date,
+        end_date=end_date,
+        is_month_only=is_month_only,
     )
 
     # 5. Branding

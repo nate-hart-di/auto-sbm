@@ -1,6 +1,6 @@
 # Auto-SBM
 
-Current version: 2.16.1
+Current version: 2.16.2
 Auto-SBM automates DealerInspire Site Builder migrations. It converts legacy SCSS themes
 to Site Builder format, validates output, and tracks migration stats with optional Slack
 reporting.
@@ -91,9 +91,9 @@ FIREBASE__API_KEY=<fetched-via-github-actions>
 Stats commands work automatically:
 
 ```bash
-sbm stats          # Personal stats from Firebase
-sbm stats --team   # Team leaderboard
-sbm stats --history  # Run history
+sbm stats           # Personal stats from Firebase
+sbm stats --team    # Team leaderboard
+sbm stats --history # Run history
 ```
 
 ## Migration Reports
@@ -120,7 +120,6 @@ FIREBASE__CREDENTIALS_PATH=/path/to/firebase-adminsdk.json
 ```
 
 > ⚠️ Never commit the credentials JSON file to git.
-
 
 ## Slack Reporting
 
@@ -168,11 +167,12 @@ Usage:
 Scheduled reports (9am CST):
 
 ```bash
-export SLACK_CHANNELS="C0123456789,C0987654321"
+export SLACK_CHANNELS="C0123456789,C09GJ725PC2"
 python3 scripts/stats/scheduled_slack_reports.py
 ```
 
 Behavior:
+
 - Tue–Fri: daily report for previous day
 - Mon: weekly report for previous week + leaderboard
 - 1st of month: monthly report + all-time leaderboard
@@ -201,6 +201,7 @@ Suggested rules:
 ```
 
 Required env values (user installs):
+
 - `FIREBASE__API_KEY` (required for anonymous auth)
 - `FIREBASE__DATABASE_URL` (defaults to auto-sbm DB if not overridden)
 

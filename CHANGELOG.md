@@ -5,14 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.2] - 2026-02-25
+
+### Changed
+
+- Refined Slack report layout to an ultra-consolidated 3-line dashboard view
+- Prioritized command context in header with Option 1 style (`/cmd` ➔ **Ref**)
+- Re-labeled metrics to "Migrations", "Lines of Code", and "Hours Saved"
+
 ## [2.16.1] - 2026-02-20
 
 ### Changed
+
 - Replace broken fe-dev-sbm group with individual reviewers in prompts.py and git.py defaults
 
 ## [2.16.0] - 2026-02-20
 
 ### Added
+
 - Expanded MAP_KEYWORDS to cover `map-section`, `directions-row`, `directions-section`, `row-map`, `directions`, `dealer-map`, `static-map`, `mapbox-row` — covers ~40 previously missed CommonTheme partials across GM, Hyundai, Mitsubishi, Penske, DGDG, and others
 - Guarded `location*` partial detection: location partials in `partials/dealer-groups/` are now detected and migrated if (and only if) their CommonTheme source file contains confirmed map markers (mapboxgl, setMapboxMarker, maps.google.com) — zero false positives
 - Broadened shortcode registration scanner from `full-map`-only to all MAP_KEYWORDS
@@ -21,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_resolve_commontheme_partial_file` now tries underscore-prefixed PHP variants
 
 ### Fixed
+
 - `homecontent_pattern` regex used literal `\\b` instead of `\b` — pattern never matched anything (dead code for all prior versions)
 - `directions` keyword falsely matched `directionsForms/formDirections` (CommonTheme form utility) via word-boundary firing at captured-group start — confirmed false positive, now filtered
 - LOCATION_MAP_MARKERS HTML marker only matched double-quoted attributes — added single-quote and unquoted variants
@@ -29,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.15.6] - 2026-02-19
 
 ### Changed
+
 - a53a6e8 SBM: Replace bugged fe-dev-sbm group with individual reviewers (v2.15.5)
 - 0ec18f6 chore: Auto-add BMAD epic-blitz workflow files
 - 5206b11 Auto-add new files
