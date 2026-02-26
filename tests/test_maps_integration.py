@@ -1,8 +1,7 @@
 import os
-import re
-import pytest
-from pathlib import Path
+
 from sbm.core import maps
+
 
 def test_find_map_shortcodes_recursively_in_shared_files(tmp_path, monkeypatch):
     """
@@ -22,33 +21,44 @@ def test_find_map_shortcodes_recursively_in_shared_files(tmp_path, monkeypatch):
 
     # 3. Create a shared functions file in CommonTheme (mimicking user example)
     # partials/dealer-groups/darcars/toyota/shared-functions.php
-    shared_funcs_path = commontheme_dir / "partials/dealer-groups/darcars/toyota/shared-functions.php"
+    shared_funcs_path = (
+        commontheme_dir / "partials/dealer-groups/darcars/toyota/shared-functions.php"
+    )
     shared_funcs_path.parent.mkdir(parents=True, exist_ok=True)
-    shared_funcs_path.write_text("""
+    shared_funcs_path.write_text(
+        """
 <?php
 // A shared function file
 add_shortcode('full-map', 'handle_full_map_shortcode');
-    """, encoding="utf-8")
+    """,
+        encoding="utf-8",
+    )
 
     # 4. Create a shared functions file that should be IGNORED (no dealer-groups/function)
     # just an ignored include
     ignored_path = commontheme_dir / "includes/random-lib.php"
     ignored_path.parent.mkdir(parents=True, exist_ok=True)
-    ignored_path.write_text("""
+    ignored_path.write_text(
+        """
 <?php
 // Should not be scanned
 add_shortcode('ignored-map', 'handle_ignored_map');
-    """, encoding="utf-8")
+    """,
+        encoding="utf-8",
+    )
 
     # 5. Create theme functions.php that requires these files
     # Use relative path to CommonTheme logic
     functions_php = theme_dir / "functions.php"
-    functions_php.write_text(f"""
+    functions_php.write_text(
+        f"""
 <?php
 // Theme functions
 require_once( '../../CommonTheme/partials/dealer-groups/darcars/toyota/shared-functions.php' );
 include( '{ignored_path}' );
-    """, encoding="utf-8")
+    """,
+        encoding="utf-8",
+    )
 
     # NOTE: The regex in the code looks for 'DealerInspireCommonTheme' string literals for CommonTheme resolution.
     # So I need to structure the path in functions.php to match that expectation if I want it to resolve to CommonTheme.
@@ -71,13 +81,14 @@ include( '{ignored_path}' );
     rel_path_to_shared = os.path.relpath(shared_funcs_path, theme_dir)
     # On mac/linux this should work fine.
 
-    functions_php.write_text(f"""
+    functions_php.write_text(
+        f"""
 <?php
 require_once( '{rel_path_to_shared}' );
 require_once( '{ignored_path}' );
-    """, encoding="utf-8")
-
-
+    """,
+        encoding="utf-8",
+    )
 
     # 6. Run the function
     # The "start_file" is functions.php.
@@ -105,24 +116,27 @@ require_once( '{ignored_path}' );
     # Ah! The function returns partial paths derived FROM shortcodes, but only if the handler contains get_template_part.
     # So I need to update my shared function content to actually HAVE a handler with a template part.
 
-    shared_funcs_path.write_text("""
+    shared_funcs_path.write_text(
+        """
 <?php
 add_shortcode('full-map', 'handle_full_map_shortcode');
 
 function handle_full_map_shortcode() {
     get_template_part('partials/map-section');
 }
-    """, encoding="utf-8")
+    """,
+        encoding="utf-8",
+    )
 
     # Re-run
     results = maps.find_map_shortcodes_in_functions(str(theme_dir))
 
     assert len(results) >= 1
     # Check that at least one result has the correct shortcode info
-    match = next((r for r in results if r.get('shortcode') == 'full-map'), None)
+    match = next((r for r in results if r.get("shortcode") == "full-map"), None)
     assert match is not None
-    assert match['handler'] == 'handle_full_map_shortcode'
-    assert match['handler'] == 'handle_full_map_shortcode'
+    assert match["handler"] == "handle_full_map_shortcode"
+    assert match["handler"] == "handle_full_map_shortcode"
     # Verified match found via recursion
 
 
@@ -152,7 +166,7 @@ def test_migrate_map_partials_dedupe_and_priority(tmp_path, monkeypatch):
     # partial info list with duplicates
     partial_paths = [
         {"partial_path": "partials/foo"},
-        {"partial_path": "partials/foo"}, # Duplicate
+        {"partial_path": "partials/foo"},  # Duplicate
     ]
 
     # Run migration
@@ -195,17 +209,14 @@ def test_migrate_map_scss_prevents_duplicate_import(tmp_path, monkeypatch):
     # Setup: Dealer Theme style.scss importing it
     (theme_dir / "css/style.scss").write_text('@import "../../CommonTheme/css/map";')
 
-    map_imports = [{
-        "filename": "map.scss",
-        "commontheme_absolute": str(scss_file)
-    }]
+    map_imports = [{"filename": "map.scss", "commontheme_absolute": str(scss_file)}]
 
     # Run
     success, written = maps.migrate_map_scss_content("slug", map_imports)
 
     # Verify
     assert success is True
-    assert written == [] # Should be empty as it skipped
+    assert written == []  # Should be empty as it skipped
 
     # Verify no sb-inside.scss created
     assert not (theme_dir / "sb-inside.scss").exists()

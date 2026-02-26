@@ -8,9 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from sbm.utils.tracker import _read_tracker
-from sbm.utils.firebase_sync import FirebaseSync, is_firebase_available
 from firebase_admin import db
+
+from sbm.utils.firebase_sync import is_firebase_available
+from sbm.utils.tracker import _read_tracker
 
 
 def get_user_id():

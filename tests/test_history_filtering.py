@@ -9,10 +9,11 @@ Tests cover:
 - Edge cases and error handling
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from sbm.utils.tracker import filter_runs
-from sbm.utils.tracker import _dedupe_runs_for_display
+
+import pytest
+
+from sbm.utils.tracker import _dedupe_runs_for_display, filter_runs
 
 
 class TestFilterRunsByPeriod:

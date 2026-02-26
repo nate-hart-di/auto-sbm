@@ -1,5 +1,3 @@
-import json
-import logging
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -8,10 +6,9 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from sbm.utils.firebase_sync import (
-    is_firebase_available,
-    get_settings,
-    _get_user_mode_identity,
     get_firebase_db,
+    get_settings,
+    is_firebase_available,
 )
 from sbm.utils.logger import setup_logger
 

@@ -11,7 +11,6 @@ This script:
 
 import csv
 import os
-from pathlib import Path
 
 from sbm.utils.firebase_sync import get_firebase_ref
 
@@ -27,8 +26,8 @@ def extract_slug_from_url(url):
         url = f"https://{url}"
 
     try:
-        from urllib.parse import urlparse
         import re
+        from urllib.parse import urlparse
 
         parsed = urlparse(url)
         domain = parsed.netloc
@@ -63,7 +62,7 @@ def main():
     print("📊 Parsing Salesforce CSV...")
     salesforce_records = []
 
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             url = row.get("Account: Website", "").strip()
@@ -130,7 +129,7 @@ def main():
     in_firebase_not_salesforce = firebase_slugs - salesforce_slugs
     in_both = salesforce_slugs & firebase_slugs
 
-    print(f"\n📈 RESULTS:")
+    print("\n📈 RESULTS:")
     print(f"  • In both systems: {len(in_both)}")
     print(f"  • In Salesforce only: {len(in_salesforce_not_firebase)}")
     print(f"  • In Firebase only: {len(in_firebase_not_salesforce)}")
@@ -154,7 +153,7 @@ def main():
 
     # Summary
     print(f"\n{'=' * 80}")
-    print(f"SUMMARY:")
+    print("SUMMARY:")
     print(f"  Salesforce 'Transitioned' sites: {len(salesforce_slugs)}")
     print(f"  Firebase successful migrations: {len(firebase_slugs)}")
     print(

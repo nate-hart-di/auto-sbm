@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import json
-import os
-import sys
+from datetime import datetime
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
 
 # Project Root
 ROOT_DIR = Path(__file__).parent.parent.parent.resolve()

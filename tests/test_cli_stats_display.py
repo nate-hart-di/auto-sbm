@@ -1,9 +1,11 @@
+from unittest.mock import patch
+
 import pytest
 from click.testing import CliRunner
-from unittest.mock import MagicMock, patch
-from sbm.cli import cli, stats
-from sbm.ui.console import SBMConsole
+
+from sbm.cli import cli
 from sbm.config import Config
+from sbm.ui.console import SBMConsole
 
 
 @pytest.fixture

@@ -2,11 +2,11 @@
 Core path safety and security tests.
 Tests path operations for security vulnerabilities and proper handling.
 """
-import pytest
+
 import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import tempfile
+
+import pytest
 
 # Import path-related functions from the actual codebase
 # Note: Adjust imports based on actual code structure
@@ -29,7 +29,7 @@ class TestPathSecurity:
             "/etc/passwd",
             "C:\\Windows\\System32",
             "theme/../../../secret.txt",
-            "theme/../../other_theme/secret.scss"
+            "theme/../../other_theme/secret.scss",
         ]
 
         for dangerous_path in dangerous_paths:
@@ -48,11 +48,7 @@ class TestPathSecurity:
 
     def test_absolute_path_handling(self):
         """Test handling of absolute paths."""
-        absolute_paths = [
-            "/tmp/test",
-            "C:\\temp\\test",
-            "/home/user/test"
-        ]
+        absolute_paths = ["/tmp/test", "C:\\temp\\test", "/home/user/test"]
 
         for abs_path in absolute_paths:
             # Absolute paths should either be rejected or properly validated
@@ -106,7 +102,7 @@ class TestPathValidation:
             "theme_with_underscores",
             "ThemeWithCaps",
             "theme123",
-            "subfolder/theme"
+            "subfolder/theme",
         ]
 
         for valid_path in valid_paths:

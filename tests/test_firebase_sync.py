@@ -2,19 +2,19 @@
 Tests for the Firebase synchronization module.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from sbm.utils.firebase_sync import (
-    is_firebase_available,
-    get_firebase_db,
-    reset_firebase,
-    FirebaseInitializationError,
-    _initialize_firebase,
-    FirebaseSync,
-)
+import pytest
+
 from sbm.config import AutoSBMSettings, FirebaseSettings
+from sbm.utils.firebase_sync import (
+    FirebaseInitializationError,
+    FirebaseSync,
+    _initialize_firebase,
+    get_firebase_db,
+    is_firebase_available,
+    reset_firebase,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -232,7 +232,7 @@ class TestFirebaseSync:
                         "automation_seconds": 3600,
                         "merged_at": "2026-01-10T10:00:00Z",
                     }
-                }
+                },
             },
             "user2": {
                 "migrations": ["slug2", "slugx"],
@@ -244,7 +244,7 @@ class TestFirebaseSync:
                         "automation_seconds": 7200,
                         "pr_state": "MERGED",
                     }
-                }
+                },
             },
         }
 
@@ -267,7 +267,7 @@ class TestAnonymousAuth:
         settings = FirebaseSettings(
             credentials_path=None,
             database_url="https://test.firebaseio.com",
-            api_key="test-api-key"
+            api_key="test-api-key",
         )
         assert settings.is_configured() is True  # database_url + api_key required
         assert settings.is_admin_mode() is False  # no credentials

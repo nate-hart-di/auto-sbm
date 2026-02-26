@@ -880,7 +880,7 @@ class SCSSProcessor:
                     brace_count += line.count("{") - line.count("}")
                     i += 1
                 continue
-            elif stripped.startswith("@function em("):
+            if stripped.startswith("@function em("):
                 seen_em_function = True
 
             # Check for start of rem function

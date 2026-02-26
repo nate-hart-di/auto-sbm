@@ -1,6 +1,7 @@
-import unittest
 import json
+import unittest
 from datetime import datetime, timedelta, timezone
+
 from scripts.stats.report_slack import (
     AUTO_SBM_OPEN_PRS_URL,
     calculate_metrics,

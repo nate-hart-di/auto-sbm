@@ -5,13 +5,7 @@ Tests ensure that the sbm wrapper script properly isolates itself from
 other active virtual environments (e.g., di-websites-platform venv).
 """
 
-import os
-import subprocess
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open, call
-import pytest
-
+from unittest.mock import mock_open, patch
 
 # =============================================================================
 # TEST 1: Wrapper Script Environment Isolation
@@ -138,7 +132,7 @@ class TestWrapperScriptGeneration:
 
     def test_regenerate_wrapper_uses_repo_root(self):
         """Verify wrapper uses REPO_ROOT for project path."""
-        from sbm.cli import _regenerate_wrapper_script, REPO_ROOT
+        from sbm.cli import REPO_ROOT, _regenerate_wrapper_script
 
         with patch("pathlib.Path.open", mock_open()) as mock_file, patch("os.chmod"), patch(
             "pathlib.Path.mkdir"

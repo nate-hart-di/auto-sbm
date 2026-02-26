@@ -1,9 +1,9 @@
 """
 Process management utilities for SBM.
 """
+
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
@@ -33,7 +33,7 @@ def run_background_task(cmd_list: list[str]) -> None:
             # Unix-specific: detach from controlling terminal
             start_new_session=True,
             # Close file descriptors to avoid leaking them to child
-            close_fds=True
+            close_fds=True,
         )
     except Exception as e:
         logger.debug(f"Failed to spawn background task: {e}")

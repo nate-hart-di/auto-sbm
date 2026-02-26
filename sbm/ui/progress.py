@@ -149,7 +149,9 @@ class MigrationProgress:
         self.step_tasks[step_name] = task_id
         return task_id
 
-    def update_step_progress(self, step_name: str, completed: int, description: Optional[str] = None) -> None:
+    def update_step_progress(
+        self, step_name: str, completed: int, description: Optional[str] = None
+    ) -> None:
         """
         Update progress for a specific step.
 
@@ -378,7 +380,7 @@ class MigrationProgress:
         summary = {
             "total_time": self.get_total_migration_time(),
             "elapsed_time": self.get_elapsed_time(),
-            "steps": {}
+            "steps": {},
         }
 
         for step_name, timing_data in self._step_times.items():

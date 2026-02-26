@@ -1,10 +1,10 @@
 """Tests for enhanced CLI history display (Story 1-3)."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from click.testing import CliRunner
 
-from sbm.cli import _format_duration, _calculate_time_saved, cli
+from sbm.cli import _calculate_time_saved, _format_duration, cli
 
 
 class TestFormatDuration:

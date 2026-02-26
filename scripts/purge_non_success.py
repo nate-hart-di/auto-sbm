@@ -1,7 +1,8 @@
-import firebase_admin
-from firebase_admin import credentials, db
 import os
 import sys
+
+import firebase_admin
+from firebase_admin import credentials, db
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,7 +46,7 @@ def purge_non_success():
                 f"User {uid}: Deleting {len(deletions)} non-success runs (Status: {[runs[k].get('status') for k in deletions]})"
             )
             run_ref = db.reference(f"users/{uid}/runs")
-            update_payload = {k: None for k in deletions}
+            update_payload = dict.fromkeys(deletions)
             run_ref.update(update_payload)
             total_deleted += len(deletions)
 

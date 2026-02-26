@@ -316,7 +316,7 @@ def main():
         if slug in pr_cache:
             pr_data = pr_cache[slug]
         else:
-            print(f"  Searching for MERGED PR...")
+            print("  Searching for MERGED PR...")
             pr_data = get_pr_details_for_slug(slug)
             pr_cache[slug] = pr_data
 
@@ -330,7 +330,7 @@ def main():
                 print(f"  ⚠️ OPEN (not merged): {pr_data['url']} by {pr_data['author']}")
                 questionable.append({"slug": slug, "reason": "OPEN PR only", "pr": pr_data["url"]})
         else:
-            print(f"  ❌ No MERGED/OPEN SBM PR found")
+            print("  ❌ No MERGED/OPEN SBM PR found")
             questionable.append({"slug": slug, "reason": "No PR found", "pr": None})
 
         # Apply Updates to Runs

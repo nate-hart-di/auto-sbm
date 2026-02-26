@@ -1,7 +1,8 @@
-import firebase_admin
-from firebase_admin import credentials, db
 import os
 import sys
+
+import firebase_admin
+from firebase_admin import credentials, db
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -50,7 +51,7 @@ def delete_empty_users():
 
         # We can delete them one by one or via a multi-path update.
         # Multi-path update is safer/atomic-ish.
-        update_payload = {uid: None for uid in users_to_delete}
+        update_payload = dict.fromkeys(users_to_delete)
         ref.update(update_payload)
         print("Deletion complete.")
     else:

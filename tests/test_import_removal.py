@@ -3,7 +3,6 @@ Tests for SCSS @import removal to ensure it doesn't consume following content.
 Regression test for bug where _remove_imports regex was eating indentation.
 """
 
-import pytest
 from sbm.scss.processor import SCSSProcessor
 
 
@@ -20,19 +19,19 @@ def test_import_removal_preserves_indentation():
     """
     processor = SCSSProcessor("test-slug")
 
-    content = '''@import "toolbar-overlay";
+    content = """@import "toolbar-overlay";
   #side-toolbar {
     top: 230px !important;
-  }'''
+  }"""
 
     result = processor._remove_imports(content)
 
     # Should preserve the indentation of #side-toolbar
-    assert '  #side-toolbar {' in result
-    assert 'top: 230px !important' in result
+    assert "  #side-toolbar {" in result
+    assert "top: 230px !important" in result
 
     # Import should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
 
 def test_import_removal_preserves_blank_lines():
@@ -44,19 +43,19 @@ def test_import_removal_preserves_blank_lines():
     """
     processor = SCSSProcessor("test-slug")
 
-    content = '''@import "file";
+    content = """@import "file";
 
 #selector {
   color: red;
-}'''
+}"""
 
     result = processor._remove_imports(content)
 
     # Import and all trailing newlines removed
-    assert '@import' not in result
+    assert "@import" not in result
     # Content should start immediately (no leading newlines from import removal)
-    assert result.startswith('#selector') or result.startswith('\n#selector')
-    assert '#selector' in result
+    assert result.startswith("#selector") or result.startswith("\n#selector")
+    assert "#selector" in result
 
 
 def test_import_removal_handles_multiple_imports():
@@ -65,22 +64,22 @@ def test_import_removal_handles_multiple_imports():
     """
     processor = SCSSProcessor("test-slug")
 
-    content = '''@import "reset";
+    content = """@import "reset";
 @import "variables";
 @import "mixins";
 
 .content {
   margin: 0;
-}'''
+}"""
 
     result = processor._remove_imports(content)
 
     # All imports should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
     # Content should be preserved
-    assert '.content' in result
-    assert 'margin: 0' in result
+    assert ".content" in result
+    assert "margin: 0" in result
 
 
 def test_import_removal_no_trailing_content():
@@ -92,7 +91,7 @@ def test_import_removal_no_trailing_content():
     content = '@import "file";'
     result = processor._remove_imports(content)
 
-    assert result == ''
+    assert result == ""
 
 
 def test_import_removal_with_different_quote_styles():
@@ -110,7 +109,7 @@ def test_import_removal_with_different_quote_styles():
 
     for test in test_cases:
         result = processor._remove_imports(test)
-        assert '@import' not in result
+        assert "@import" not in result
 
 
 def test_import_removal_in_comments():
@@ -122,10 +121,10 @@ def test_import_removal_in_comments():
     """
     processor = SCSSProcessor("test-slug")
 
-    content = '''// @import "commented";
+    content = """// @import "commented";
 .selector {
   color: red;
-}'''
+}"""
 
     result = processor._remove_imports(content)
 
@@ -133,8 +132,8 @@ def test_import_removal_in_comments():
     assert '@import "commented"' in result
 
     # Selector should be preserved
-    assert '.selector' in result
-    assert 'color: red' in result
+    assert ".selector" in result
+    assert "color: red" in result
 
 
 def test_import_removal_windows_line_endings():
@@ -155,16 +154,16 @@ def test_import_removal_windows_line_endings():
     result = processor._remove_imports(content)
 
     # Import should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
     # Selector should be preserved (with its original \\r\\n line endings)
-    assert '.dealer-header' in result
-    assert 'color: var(--primary)' in result
+    assert ".dealer-header" in result
+    assert "color: var(--primary)" in result
 
     # Critical: No orphaned \\r at the START (import removal should be clean)
     # The file's internal \\r\\n line endings are preserved (correct behavior)
-    assert not result.startswith('\r')
-    assert result.startswith('.dealer-header')
+    assert not result.startswith("\r")
+    assert result.startswith(".dealer-header")
 
 
 def test_import_removal_without_semicolon():
@@ -181,11 +180,11 @@ def test_import_removal_without_semicolon():
     result = processor._remove_imports(content)
 
     # Import should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
     # Selector should be preserved without extra spaces
-    assert result.startswith('.selector') or result.startswith('\n.selector')
-    assert 'color: red' in result
+    assert result.startswith(".selector") or result.startswith("\n.selector")
+    assert "color: red" in result
 
 
 def test_import_removal_with_trailing_spaces():
@@ -202,10 +201,10 @@ def test_import_removal_with_trailing_spaces():
     result = processor._remove_imports(content)
 
     # Import should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
     # Indentation of selector should be preserved
-    assert '  .selector' in result
+    assert "  .selector" in result
 
 
 def test_import_removal_at_eof():
@@ -222,8 +221,8 @@ def test_import_removal_at_eof():
     result = processor._remove_imports(content)
 
     # Should be completely empty or just whitespace
-    assert result.strip() == ''
-    assert '@import' not in result
+    assert result.strip() == ""
+    assert "@import" not in result
 
 
 def test_import_removal_mixed_line_endings():
@@ -236,19 +235,21 @@ def test_import_removal_mixed_line_endings():
     processor = SCSSProcessor("test-slug")
 
     # Mix of Unix and Windows line endings
-    content = '@import "reset";\n@import "variables";\r\n@import "mixins";\n\n.content { margin: 0; }'
+    content = (
+        '@import "reset";\n@import "variables";\r\n@import "mixins";\n\n.content { margin: 0; }'
+    )
 
     result = processor._remove_imports(content)
 
     # All imports should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
     # No orphaned \\r characters
-    assert '\r' not in result
+    assert "\r" not in result
 
     # Content should be preserved
-    assert '.content' in result
-    assert 'margin: 0' in result
+    assert ".content" in result
+    assert "margin: 0" in result
 
 
 def test_import_removal_multiple_newlines_after_import():
@@ -265,8 +266,8 @@ def test_import_removal_multiple_newlines_after_import():
     result = processor._remove_imports(content)
 
     # Import should be removed
-    assert '@import' not in result
-    assert '.selector' in result
+    assert "@import" not in result
+    assert ".selector" in result
 
 
 def test_import_removal_old_mac_line_endings():
@@ -283,10 +284,10 @@ def test_import_removal_old_mac_line_endings():
     result = processor._remove_imports(content)
 
     # Import should be removed
-    assert '@import' not in result
+    assert "@import" not in result
 
     # No orphaned \\r
-    assert '\r' not in result
+    assert "\r" not in result
 
     # Selector preserved
-    assert '.selector' in result
+    assert ".selector" in result

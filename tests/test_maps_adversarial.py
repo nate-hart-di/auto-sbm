@@ -1,6 +1,5 @@
-from pathlib import Path
 from sbm.core import maps
-from unittest.mock import patch
+
 
 def test_should_migrate_map_import_sibling_structure(tmp_path, monkeypatch):
     """
@@ -45,4 +44,6 @@ def test_should_migrate_map_import_sibling_structure(tmp_path, monkeypatch):
 
     should_migrate = maps.should_migrate_map_import(import_path, dealer_theme)
 
-    assert should_migrate == True, "Should migrate external CommonTheme path, but logic thinks it is local!"
+    assert should_migrate == True, (
+        "Should migrate external CommonTheme path, but logic thinks it is local!"
+    )

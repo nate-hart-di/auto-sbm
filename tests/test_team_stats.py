@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from sbm.utils.tracker import fetch_team_stats, get_migration_stats
 
 
@@ -38,7 +40,7 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
                     "pr_state": "OPEN",
                 },
                 "push3": {"status": "failed"},  # Should be ignored
-            }
+            },
         },
         "user_b": {
             "migrations": ["site-3"],
@@ -50,7 +52,7 @@ def test_fetch_team_stats_success(mocker, mock_firebase):
                     "automation_seconds": 3600,
                     "merged_at": "2024-01-02T10:00:00+00:00",
                 }
-            }
+            },
         },
     }
 
@@ -104,7 +106,9 @@ def test_get_migration_stats_fallback(mocker):
 
 def test_get_migration_stats_team_since_filters(mocker):
     """Ensure team stats with since filter uses run data instead of cached team stats."""
-    mocker.patch("sbm.utils.tracker.fetch_team_stats", side_effect=AssertionError("should not call"))
+    mocker.patch(
+        "sbm.utils.tracker.fetch_team_stats", side_effect=AssertionError("should not call")
+    )
     mocker.patch("sbm.utils.tracker._get_user_id", return_value="test_user")
 
     run_recent = {
@@ -124,7 +128,9 @@ def test_get_migration_stats_team_since_filters(mocker):
         "pr_author": "user_b",
     }
 
-    mocker.patch("sbm.utils.tracker.get_global_reporting_data", return_value=([run_recent, run_old], {}))
+    mocker.patch(
+        "sbm.utils.tracker.get_global_reporting_data", return_value=([run_recent, run_old], {})
+    )
     mocker.patch("sbm.utils.tracker.filter_runs", return_value=[run_recent])
 
     result = get_migration_stats(team=True, since="7")

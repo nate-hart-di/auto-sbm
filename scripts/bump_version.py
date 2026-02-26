@@ -10,7 +10,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT_PATH = ROOT / "pyproject.toml"
 CHANGELOG_PATH = ROOT / "CHANGELOG.md"
@@ -70,9 +69,7 @@ def _normalize_notes(raw_notes: str) -> list[str]:
 
     normalized = []
     for line in lines:
-        if line.startswith("### "):
-            normalized.append(line)
-        elif line.startswith("- "):
+        if line.startswith("### ") or line.startswith("- "):
             normalized.append(line)
         else:
             normalized.append(f"- {line}")
@@ -143,7 +140,9 @@ def update_changelog(new_version: str, notes: list[str]) -> None:
     insert_match = re.search(r"^## \[", changelog_content, re.MULTILINE)
     if insert_match:
         insert_at = insert_match.start()
-        changelog_content = changelog_content[:insert_at] + entry_text + changelog_content[insert_at:]
+        changelog_content = (
+            changelog_content[:insert_at] + entry_text + changelog_content[insert_at:]
+        )
     else:
         changelog_content = changelog_content.strip() + "\n\n" + entry_text
 

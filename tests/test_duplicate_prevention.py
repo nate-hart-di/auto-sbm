@@ -1,11 +1,11 @@
-import pytest
-import os
-import sbm.config  # Import module to access _settings
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from click.testing import CliRunner
-from sbm.cli import cli, _expand_theme_names
-from sbm.utils.tracker import get_all_migrated_slugs
+
+import sbm.config  # Import module to access _settings
+from sbm.cli import cli
 from sbm.ui.prompts import DuplicateAction
+from sbm.utils.tracker import get_all_migrated_slugs
 
 # Mock data
 MOCK_FIREBASE_USERS = {
@@ -15,9 +15,7 @@ MOCK_FIREBASE_USERS = {
             "run2": {"slug": "site-b", "status": "failed"},  # Should not be counted
         }
     },
-    "user2": {
-        "runs": {"run3": {"slug": "site-c", "status": "success", "pr_state": "MERGED"}}
-    },
+    "user2": {"runs": {"run3": {"slug": "site-c", "status": "success", "pr_state": "MERGED"}}},
 }
 
 
@@ -25,7 +23,9 @@ MOCK_FIREBASE_USERS = {
 @patch("sbm.utils.firebase_sync.is_firebase_available", return_value=True)
 @patch("sbm.utils.firebase_sync.get_firebase_db")
 @patch("sbm.utils.firebase_sync.get_settings")
-def test_get_all_migrated_slugs_success(mock_get_settings, mock_get_db, mock_sync_avail, mock_is_avail):
+def test_get_all_migrated_slugs_success(
+    mock_get_settings, mock_get_db, mock_sync_avail, mock_is_avail
+):
     # Reset settings singleton
     sbm.config._settings = None
 
@@ -71,6 +71,7 @@ def test_auto_duplicate_warn_skip(
 
     # Mock Firebase settings with valid API key
     from unittest.mock import MagicMock
+
     mock_firebase = MagicMock()
     mock_firebase.api_key = "test-api-key"
     mock_settings = MagicMock()
@@ -106,8 +107,13 @@ def test_auto_duplicate_warn_skip(
 @patch("sbm.cli.InteractivePrompts")
 @patch("sbm.cli.get_settings")
 def test_auto_duplicate_warn_remigrate(
-    mock_get_settings, mock_prompts_class, mock_console, mock_migrate,
-    mock_mark_remigration, mock_get_slugs, mock_expand
+    mock_get_settings,
+    mock_prompts_class,
+    mock_console,
+    mock_migrate,
+    mock_mark_remigration,
+    mock_get_slugs,
+    mock_expand,
 ):
     """Test that CLI remigrates duplicates when user selects remigrate option."""
     # Reset settings singleton
@@ -115,6 +121,7 @@ def test_auto_duplicate_warn_remigrate(
 
     # Mock Firebase settings with valid API key
     from unittest.mock import MagicMock
+
     mock_firebase = MagicMock()
     mock_firebase.api_key = "test-api-key"
     mock_settings = MagicMock()
@@ -158,6 +165,7 @@ def test_auto_duplicate_warn_cancel(
 
     # Mock Firebase settings with valid API key
     from unittest.mock import MagicMock
+
     mock_firebase = MagicMock()
     mock_firebase.api_key = "test-api-key"
     mock_settings = MagicMock()

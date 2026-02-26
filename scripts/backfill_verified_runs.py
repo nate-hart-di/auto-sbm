@@ -3,9 +3,9 @@
 Backfill verified SBM runs to Firebase.
 """
 
+import logging
 import os
 import sys
-import logging
 from datetime import datetime
 
 sys.path.append(os.getcwd())
@@ -13,8 +13,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from sbm.utils.tracker import record_run, _sync_to_firebase
 from sbm.utils.firebase_sync import is_firebase_available
+from sbm.utils.tracker import record_run
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

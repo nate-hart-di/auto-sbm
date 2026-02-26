@@ -21,9 +21,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
-from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
 from rich.console import Console
 from rich.progress import track
+
+from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
 
 console = Console()
 
@@ -44,7 +45,7 @@ def get_pr_timestamps(pr_url: str, max_retries: int = 3) -> dict | None:
             # GitHub API allows ~5000 req/hr, so 0.5s = ~7200/hr buffer
             if attempt > 0:
                 # Exponential backoff on retries: 2s, 4s, 8s
-                backoff = 2 ** attempt
+                backoff = 2**attempt
                 console.print(f"[dim]Retry {attempt}/{max_retries} after {backoff}s...[/dim]")
                 time.sleep(backoff)
             else:
@@ -78,7 +79,9 @@ def get_pr_timestamps(pr_url: str, max_retries: int = 3) -> dict | None:
             }
         except subprocess.TimeoutExpired:
             if attempt == max_retries - 1:
-                console.print(f"[yellow]Timeout fetching {pr_url} after {max_retries} attempts[/yellow]")
+                console.print(
+                    f"[yellow]Timeout fetching {pr_url} after {max_retries} attempts[/yellow]"
+                )
                 return None
             continue
         except subprocess.CalledProcessError as e:
@@ -87,7 +90,9 @@ def get_pr_timestamps(pr_url: str, max_retries: int = 3) -> dict | None:
                 console.print(f"[yellow]Permanent error for {pr_url}: {e.stderr}[/yellow]")
                 return None
             if attempt == max_retries - 1:
-                console.print(f"[yellow]Error fetching {pr_url} after {max_retries} attempts: {e.stderr}[/yellow]")
+                console.print(
+                    f"[yellow]Error fetching {pr_url} after {max_retries} attempts: {e.stderr}[/yellow]"
+                )
                 return None
             continue
         except Exception as e:
@@ -148,9 +153,7 @@ def update_run_timestamps(user_id: str, run_id: str, timestamps: dict) -> bool:
         # Update timestamp fields and also standardize the "timestamp" field
         # Use same fallback logic as backfill_from_github_prs.py for consistency
         timestamp_value = (
-            timestamps["merged_at"] or
-            timestamps["created_at"] or
-            datetime.now().isoformat() + "Z"
+            timestamps["merged_at"] or timestamps["created_at"] or datetime.now().isoformat() + "Z"
         )
 
         update_data = {
@@ -208,7 +211,7 @@ def main():
                 console.print(f"  [green]✓[/green] closed_at:  {timestamps['closed_at']}")
                 console.print(f"  [green]✓[/green] state:      {timestamps['state']}")
             else:
-                console.print(f"  [red]✗[/red] Failed to fetch timestamps")
+                console.print("  [red]✗[/red] Failed to fetch timestamps")
             console.print()
 
         console.print(f"[yellow]DRY RUN: Would update {len(runs)} runs total.[/yellow]")
@@ -248,7 +251,9 @@ def main():
     console.print("\n[bold green]Migration Complete![/bold green]")
     console.print(f"Updated:  {updated}")
     console.print(f"Errors:   {errors}")
-    console.print(f"\n[dim]All runs validated against GitHub. Both created_at and merged_at tracked when available.[/dim]")
+    console.print(
+        "\n[dim]All runs validated against GitHub. Both created_at and merged_at tracked when available.[/dim]"
+    )
 
 
 if __name__ == "__main__":

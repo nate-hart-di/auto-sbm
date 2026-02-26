@@ -4,15 +4,14 @@ Tests for configuration management and environment variable loading.
 
 import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 import pytest
 from pydantic import ValidationError
 
 from sbm.config import (
     AutoSBMSettings,
     FirebaseSettings,
-    get_settings,
-    _settings,
 )
 
 

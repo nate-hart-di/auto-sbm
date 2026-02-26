@@ -5,9 +5,8 @@ This module provides Rich-enhanced interactive prompts with context panels,
 improving user experience during manual review and decision points.
 """
 
-import sys
 import select
-import time
+import sys
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -16,18 +15,19 @@ from rich.prompt import Confirm, IntPrompt, Prompt
 from rich.table import Table
 from rich.text import Text
 
+from sbm.config import get_settings
 from sbm.utils.path import get_dealer_theme_dir
 
 from .console import get_console
 from .panels import StatusPanels
-from sbm.config import get_settings
 
 
 class DuplicateAction(Enum):
     """Action to take when duplicates are detected."""
-    SKIP = "skip"           # Skip duplicates, proceed with remaining
-    REMIGRATE = "remigrate" # Remigrate duplicates, mark old runs as superseded
-    CANCEL = "cancel"       # Cancel the entire operation
+
+    SKIP = "skip"  # Skip duplicates, proceed with remaining
+    REMIGRATE = "remigrate"  # Remigrate duplicates, mark old runs as superseded
+    CANCEL = "cancel"  # Cancel the entire operation
 
 
 class InteractivePrompts:
@@ -383,7 +383,14 @@ class InteractivePrompts:
                 "title": f"SBM: Migrate {theme_name} to Site Builder format",
                 "draft": False,
                 "add_reviewers": True,
-                "reviewers": ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"],
+                "reviewers": [
+                    "etritt-cc",
+                    "messponential",
+                    "abond-cc",
+                    "tcollier-di",
+                    "ssargent-cc",
+                    "nate-hart-di",
+                ],
                 "labels": ["fe-dev"],
             }
 
@@ -414,14 +421,24 @@ class InteractivePrompts:
         draft = Confirm.ask("[bold blue]Create as draft PR?[/]", default=False)
 
         add_reviewers = Confirm.ask(
-            "[bold cyan]Add default reviewers (etritt-cc, messponential, abond-cc, tcollier-di, ssargent-cc, nate-hart-di)?[/]", default=True
+            "[bold cyan]Add default reviewers (etritt-cc, messponential, abond-cc, tcollier-di, ssargent-cc, nate-hart-di)?[/]",
+            default=True,
         )
 
         return {
             "title": title,
             "draft": draft,
             "add_reviewers": add_reviewers,
-            "reviewers": ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"] if add_reviewers else [],
+            "reviewers": [
+                "etritt-cc",
+                "messponential",
+                "abond-cc",
+                "tcollier-di",
+                "ssargent-cc",
+                "nate-hart-di",
+            ]
+            if add_reviewers
+            else [],
             "labels": ["fe-dev"],
         }
 
@@ -467,7 +484,9 @@ class InteractivePrompts:
         )
         console.console.print(retry_panel)
 
-        console.console.print("\n[bold green]Rerun failed migrations? (y/n) [default: n]: [/bold green]", end="")
+        console.console.print(
+            "\n[bold green]Rerun failed migrations? (y/n) [default: n]: [/bold green]", end=""
+        )
         sys.stdout.flush()
 
         # Simple timed input using select
@@ -476,15 +495,16 @@ class InteractivePrompts:
             if rlist:
                 response = sys.stdin.readline().strip().lower()
                 return response in ["y", "yes"]
-            else:
-                console.console.print("\n[yellow]Prompt timed out. Defaulting to No.[/]")
-                return False
+            console.console.print("\n[yellow]Prompt timed out. Defaulting to No.[/]")
+            return False
         except Exception as e:
             console.console.print(f"\n[red]Error during timed prompt: {e}[/]")
             return False
 
     @staticmethod
-    def confirm_duplicate_migration(duplicates: List[tuple], default: str = "skip") -> DuplicateAction:
+    def confirm_duplicate_migration(
+        duplicates: List[tuple], default: str = "skip"
+    ) -> DuplicateAction:
         """
         Prompt user to decide what to do with duplicate migrations.
 
@@ -502,18 +522,19 @@ class InteractivePrompts:
         console = sbm_console.console  # Get the actual Rich Console
         console.print("\n[bold cyan]What would you like to do with these duplicates?[/bold cyan]")
         console.print("  [yellow]1[/yellow] - Skip duplicates (proceed with remaining sites)")
-        console.print("  [green]2[/green] - Remigrate (mark old PRs as superseded, create new ones)")
+        console.print(
+            "  [green]2[/green] - Remigrate (mark old PRs as superseded, create new ones)"
+        )
         console.print("  [red]3[/red] - Cancel (abort the entire operation)")
 
         choice = Prompt.ask(
             "\nYour choice",
             choices=["1", "2", "3"],
-            default="1" if default == "skip" else ("2" if default == "remigrate" else "3")
+            default="1" if default == "skip" else ("2" if default == "remigrate" else "3"),
         )
 
         if choice == "1":
             return DuplicateAction.SKIP
-        elif choice == "2":
+        if choice == "2":
             return DuplicateAction.REMIGRATE
-        else:
-            return DuplicateAction.CANCEL
+        return DuplicateAction.CANCEL

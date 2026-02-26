@@ -69,7 +69,7 @@ class MigrationReportData:
             self.timestamp = datetime.now().isoformat()
 
 
-def generate_migration_report(result: "MigrationResult") -> Optional[str]:
+def generate_migration_report(result: MigrationResult) -> Optional[str]:
     """
     Generate a detailed markdown report for a migration.
 
@@ -125,7 +125,7 @@ def _coerce_float(value: object, default: float = 0.0) -> float:
         return default
 
 
-def _build_report_content(result: "MigrationResult") -> str:
+def _build_report_content(result: MigrationResult) -> str:
     """Build the markdown content for a migration report."""
     status_emoji = "✅" if result.status == "success" else "❌"
     lines_migrated = _coerce_int(getattr(result, "lines_migrated", 0))
@@ -146,8 +146,8 @@ def _build_report_content(result: "MigrationResult") -> str:
         "",
         "## Summary",
         "",
-        f"| Field | Value |",
-        f"|-------|-------|",
+        "| Field | Value |",
+        "|-------|-------|",
         f"| **Theme Slug** | `{result.slug}` |",
         f"| **Status** | {status_emoji} {result.status.upper()} |",
         f"| **Duration** | {elapsed_str} |",
@@ -216,14 +216,14 @@ def _build_report_content(result: "MigrationResult") -> str:
             "",
             "## Time Savings Analysis",
             "",
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| **Lines Migrated** | {lines_migrated:,} |",
-            f"| **Manual Estimate** | ~4 hours |",
+            "| **Manual Estimate** | ~4 hours |",
             f"| **Automation Time** | {elapsed_str} |",
             f"| **Time Saved** | ~{time_saved:.1f} hours |",
             "",
-            f"> **Calculation:** Time saved = Lines migrated ÷ 800 lines/hour",
+            "> **Calculation:** Time saved = Lines migrated ÷ 800 lines/hour",
             "",
         ]
     )
@@ -284,7 +284,7 @@ def _build_report_content(result: "MigrationResult") -> str:
     return "\n".join(lines)
 
 
-def _update_index(result: "MigrationResult", report_filename: str) -> None:
+def _update_index(result: MigrationResult, report_filename: str) -> None:
     """
     Update the index.md table of contents with the new report.
 

@@ -12,8 +12,6 @@ import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestFetchPRAdditions:
     """Test fetching GitHub PR additions for accurate stats."""
@@ -67,16 +65,38 @@ class TestCreatePRIncludesAdditions:
     @patch("sbm.core.git.GitOperations._copy_salesforce_message_to_clipboard")
     @patch("sbm.core.git.GitOperations._enable_auto_merge")
     @patch("sbm.utils.github_pr.GitHubPRManager.fetch_pr_additions", return_value=567)
-    @patch("sbm.utils.github_pr.GitHubPRManager.fetch_pr_metadata", return_value={"author": "testuser", "state": "OPEN", "created_at": "2026-01-01T00:00:00Z", "merged_at": None, "closed_at": None})
-    @patch("sbm.core.git.GitOperations._execute_gh_pr_create", return_value="https://github.com/org/repo/pull/99")
+    @patch(
+        "sbm.utils.github_pr.GitHubPRManager.fetch_pr_metadata",
+        return_value={
+            "author": "testuser",
+            "state": "OPEN",
+            "created_at": "2026-01-01T00:00:00Z",
+            "merged_at": None,
+            "closed_at": None,
+        },
+    )
+    @patch(
+        "sbm.core.git.GitOperations._execute_gh_pr_create",
+        return_value="https://github.com/org/repo/pull/99",
+    )
     @patch("sbm.core.git.GitOperations._build_stellantis_pr_content")
     @patch("sbm.core.git.GitOperations._check_gh_cli", return_value=True)
     @patch("sbm.core.git.GitOperations._is_git_repo", return_value=True)
-    @patch("sbm.core.git.GitOperations._get_repo_info", return_value={"current_branch": "test-branch"})
+    @patch(
+        "sbm.core.git.GitOperations._get_repo_info", return_value={"current_branch": "test-branch"}
+    )
     def test_create_pr_result_includes_github_additions(
-        self, mock_repo_info, mock_is_git, mock_check_gh, mock_build_content,
-        mock_execute, mock_metadata, mock_additions, mock_auto_merge,
-        mock_clipboard, mock_browser,
+        self,
+        mock_repo_info,
+        mock_is_git,
+        mock_check_gh,
+        mock_build_content,
+        mock_execute,
+        mock_metadata,
+        mock_additions,
+        mock_auto_merge,
+        mock_clipboard,
+        mock_browser,
     ):
         """Verify create_pr result dict contains github_additions."""
         from sbm.config import Config
@@ -88,7 +108,9 @@ class TestCreatePRIncludesAdditions:
             "what_section": "test what",
         }
 
-        config = Config({"default_branch": "main", "git": {"default_reviewers": [], "default_labels": []}})
+        config = Config(
+            {"default_branch": "main", "git": {"default_reviewers": [], "default_labels": []}}
+        )
         git_ops = GitOperations(config)
         result = git_ops.create_pr(slug="test-theme")
 
@@ -104,7 +126,11 @@ class TestCommitChangesErrorHandling:
     @patch("sbm.core.git.execute_command")
     @patch("sbm.core.git.GitOperations._get_repo")
     def test_commit_changes_returns_false_on_add_failure(
-        self, mock_get_repo, mock_execute, mock_theme_dir, mock_platform_dir,
+        self,
+        mock_get_repo,
+        mock_execute,
+        mock_theme_dir,
+        mock_platform_dir,
     ):
         """Verify commit_changes returns False when git add fails."""
         from sbm.config import Config
@@ -229,7 +255,12 @@ class TestPostMigrateRecordsRun:
     @patch("sbm.cli.Repo")
     @patch("sbm.cli.get_platform_dir", return_value="/fake/platform")
     def test_post_migrate_records_successful_run(
-        self, mock_platform, mock_repo_cls, mock_workflow, mock_record_migration, mock_record_run,
+        self,
+        mock_platform,
+        mock_repo_cls,
+        mock_workflow,
+        mock_record_migration,
+        mock_record_run,
     ):
         """Verify post_migrate calls record_run on success."""
         from click.testing import CliRunner
@@ -249,7 +280,16 @@ class TestPostMigrateRecordsRun:
         }
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["post-migrate", "test-theme", "--skip-review", "--skip-git-prompt", "--skip-pr-prompt"])
+        result = runner.invoke(
+            cli,
+            [
+                "post-migrate",
+                "test-theme",
+                "--skip-review",
+                "--skip-git-prompt",
+                "--skip-pr-prompt",
+            ],
+        )
 
         # Should have called record_run
         mock_record_run.assert_called_once()

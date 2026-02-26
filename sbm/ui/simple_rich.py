@@ -46,12 +46,12 @@ def print_migration_header(theme_name: str) -> None:
 def print_migration_complete(theme_name: str) -> None:
     """Print beautiful migration completion message."""
     panel = Panel(
-        f"[bold green]🎉 Migration Success![/]\n\n"
-        f"[bold]✅ Migration Completed:[/] All 6 steps finished successfully\n"
-        f"[bold]📁 Files Generated:[/] Site Builder SCSS files (sb-*.scss)\n"
-        f"[bold]🔧 Variables Converted:[/] SCSS variables → CSS custom properties\n"
-        f"[bold]🐳 Docker Environment:[/] Compilation verified successfully\n"
-        f"[bold]📋 Pull Request:[/] Created and ready for review",
+        "[bold green]🎉 Migration Success![/]\n\n"
+        "[bold]✅ Migration Completed:[/] All 6 steps finished successfully\n"
+        "[bold]📁 Files Generated:[/] Site Builder SCSS files (sb-*.scss)\n"
+        "[bold]🔧 Variables Converted:[/] SCSS variables → CSS custom properties\n"
+        "[bold]🐳 Docker Environment:[/] Compilation verified successfully\n"
+        "[bold]📋 Pull Request:[/] Created and ready for review",
         title="[bold green]✅ Migration Complete",
         border_style="green",
         padding=(1, 2),

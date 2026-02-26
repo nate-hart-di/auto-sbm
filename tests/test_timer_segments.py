@@ -2,7 +2,9 @@
 """Test script to verify timer segment functionality."""
 
 import time
-from sbm.utils.timer import start_migration_timer, timer_segment, finish_migration_timer
+
+from sbm.utils.timer import finish_migration_timer, start_migration_timer, timer_segment
+
 
 def test_timer_segments():
     """Test that timer segments are tracked correctly."""
@@ -25,6 +27,7 @@ def test_timer_segments():
     finish_migration_timer()
 
     print("\nTimer segments test completed!")
+
 
 if __name__ == "__main__":
     test_timer_segments()

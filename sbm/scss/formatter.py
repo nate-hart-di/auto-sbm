@@ -4,12 +4,11 @@ Built-in SCSS formatter for the SBM tool.
 Uses cssbeautifier (from jsbeautifier) to match VSCode's default CSS formatter behavior.
 """
 
-from typing import Optional
-
 from sbm.utils.logger import logger
 
 try:
     from cssbeautifier import beautify as css_beautify
+
     BEAUTIFIER_AVAILABLE = True
 except ImportError:
     BEAUTIFIER_AVAILABLE = False
@@ -53,18 +52,17 @@ class SCSSFormatter:
             if BEAUTIFIER_AVAILABLE:
                 # Use cssbeautifier with settings matching VSCode defaults
                 options = {
-                    'indent_size': self.indent_size,
-                    'indent_char': self.indent_char,
-                    'selector_separator_newline': True,
-                    'end_with_newline': True,
-                    'newline_between_rules': True,
-                    'space_around_combinator': True,
+                    "indent_size": self.indent_size,
+                    "indent_char": self.indent_char,
+                    "selector_separator_newline": True,
+                    "end_with_newline": True,
+                    "newline_between_rules": True,
+                    "space_around_combinator": True,
                 }
                 result = css_beautify(content, options)
                 return result
-            else:
-                # Fallback to basic formatting
-                return self._basic_format(content)
+            # Fallback to basic formatting
+            return self._basic_format(content)
 
         except Exception as e:
             logger.warning(f"SCSS formatting failed, returning original: {e}")

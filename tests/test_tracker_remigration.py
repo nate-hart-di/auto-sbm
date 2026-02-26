@@ -5,13 +5,9 @@ These tests ensure that mark_runs_for_remigration() correctly adds superseded
 flags while preserving GitHub PR state truth.
 """
 
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from sbm.utils.tracker import mark_runs_for_remigration
-
 
 # Mock Firebase data structure
 MOCK_FIREBASE_DATA = {
@@ -23,7 +19,7 @@ MOCK_FIREBASE_DATA = {
                 "pr_state": "MERGED",
                 "merged_at": "2026-01-15T10:30:00Z",
                 "pr_url": "https://github.com/dealerinspire/themes/pull/1234",
-                "timestamp": "2026-01-15T10:00:00Z"
+                "timestamp": "2026-01-15T10:00:00Z",
             },
             "toyotaoffortmyers_2026-01-16_11-00-00": {
                 "slug": "toyotaoffortmyers",
@@ -31,20 +27,20 @@ MOCK_FIREBASE_DATA = {
                 "pr_state": "MERGED",
                 "merged_at": "2026-01-16T11:30:00Z",
                 "pr_url": "https://github.com/dealerinspire/themes/pull/1235",
-                "timestamp": "2026-01-16T11:00:00Z"
+                "timestamp": "2026-01-16T11:00:00Z",
             },
             "hondaoffortmyers_2026-01-17_12-00-00": {
                 "slug": "hondaoffortmyers",
                 "status": "failed",
-                "timestamp": "2026-01-17T12:00:00Z"
+                "timestamp": "2026-01-17T12:00:00Z",
             },
             "nissanoffortmyers_2026-01-18_13-00-00": {
                 "slug": "nissanoffortmyers",
                 "status": "success",
                 "pr_state": "OPEN",
                 "created_at": "2026-01-18T13:00:00Z",
-                "timestamp": "2026-01-18T13:00:00Z"
-            }
+                "timestamp": "2026-01-18T13:00:00Z",
+            },
         }
     },
     "user2": {
@@ -55,10 +51,10 @@ MOCK_FIREBASE_DATA = {
                 "pr_state": "MERGED",
                 "merged_at": "2026-01-20T14:30:00Z",  # More recent than user1's
                 "pr_url": "https://github.com/dealerinspire/themes/pull/1236",
-                "timestamp": "2026-01-20T14:00:00Z"
+                "timestamp": "2026-01-20T14:00:00Z",
             }
         }
-    }
+    },
 }
 
 
@@ -278,9 +274,9 @@ class TestMarkRunsForRemigration:
         mock_sync.update_run.return_value = True
         mock_firebase_sync_class.return_value = mock_sync
 
-        with patch("sbm.utils.tracker.get_user_mode_identity") as mock_identity, \
-             patch("requests.get") as mock_requests_get:
-
+        with patch("sbm.utils.tracker.get_user_mode_identity") as mock_identity, patch(
+            "requests.get"
+        ) as mock_requests_get:
             mock_identity.return_value = ("user@example.com", "test_token")
 
             # Mock REST API response

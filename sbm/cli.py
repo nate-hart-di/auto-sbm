@@ -62,23 +62,23 @@ try:
 except Exception:
     import click
 from git import Repo
+from rich.table import Table
 
 from sbm.utils.tracker import (
-    get_migration_stats,
-    get_pr_completion_state,
-    record_migration,
-    record_run,
-    process_pending_syncs,
+    _dedupe_runs_for_display,
     filter_runs,
     get_global_reporting_data,
-    _dedupe_runs_for_display,
+    get_migration_stats,
+    get_pr_completion_state,
+    process_pending_syncs,
+    record_migration,
+    record_run,
 )
 
 from .config import Config, ConfigurationError, get_config, get_settings
 from .core.git import GitOperations
 from .core.migration import (
     MigrationResult,
-    MigrationStep,
     _attempt_error_fix,
     _cleanup_snapshot_files,
     _create_automation_snapshots,
@@ -101,7 +101,6 @@ from .ui.prompts import InteractivePrompts
 from .utils.logger import logger
 from .utils.path import get_dealer_theme_dir, get_platform_dir
 from .utils.timer import get_total_automation_time, get_total_duration
-from rich.table import Table
 from .utils.version_utils import get_changelog, get_version
 
 # --- Auto-run setup.sh if .sbm_setup_complete is missing or health check fails ---
@@ -983,7 +982,7 @@ def _generate_migration_report(
                     pr_url = _get_field(res, "pr_url")
 
                     if salesforce_msg:
-                        f.write(f"FED Site Builder Migration Complete:\n\n")
+                        f.write("FED Site Builder Migration Complete:\n\n")
                         f.write(f"{salesforce_msg}\n\n")
                         f.write(f"PR: {pr_url or 'N/A'}\n")
                         f.write("\n" + "-" * 40 + "\n\n")
@@ -1215,8 +1214,8 @@ def auto(
     migration_results = []
 
     # --- Bulk Migration Duplicate Prevention ---
-    from sbm.utils.tracker import get_all_migrated_slugs, mark_runs_for_remigration
     from sbm.ui.prompts import DuplicateAction
+    from sbm.utils.tracker import get_all_migrated_slugs, mark_runs_for_remigration
 
     # 1. Fetch global history (best effort)
     migrated_map = get_all_migrated_slugs()
@@ -2366,11 +2365,10 @@ def stats(
                 filter_info.append(f"user: {filter_user}")
             if filter_info:
                 rich_console.print(f"[dim]Filters applied: {', '.join(filter_info)}[/dim]")
+        elif since_days or filter_user:
+            rich_console.print("[yellow]No runs found matching the specified filters.[/yellow]")
         else:
-            if since_days or filter_user:
-                rich_console.print("[yellow]No runs found matching the specified filters.[/yellow]")
-            else:
-                rich_console.print("[yellow]No run history found.[/yellow]")
+            rich_console.print("[yellow]No run history found.[/yellow]")
 
     if show_list:
         migrations = stats_data.get("migrations", [])
@@ -2419,7 +2417,7 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
         max_to_check: Maximum number of recent runs to check (default: 10). None = unlimited.
     """
     try:
-        from sbm.utils.firebase_sync import is_firebase_available, FirebaseSync
+        from sbm.utils.firebase_sync import FirebaseSync, is_firebase_available
         from sbm.utils.github_pr import GitHubPRManager
 
         if not is_firebase_available():
@@ -2480,7 +2478,7 @@ def _update_recent_pr_statuses(max_to_check: int | None = 10) -> None:
 
                 checked += 1
 
-    except Exception as e:
+    except Exception:
         # Silent failure for background task, but log debug
         pass
 
@@ -2581,7 +2579,6 @@ def pr(ctx: click.Context) -> None:
 
     Commands for creating and managing PRs for Site Builder migrations.
     """
-    pass
 
 
 @pr.command("create")
@@ -2822,7 +2819,7 @@ def pr_merge(ctx: click.Context, pattern: str, dry_run: bool) -> None:
         console.console.print(f"[red]Error:[/red] {e.stderr if e.stderr else str(e)}", err=True)
         sys.exit(1)
     except Exception as e:
-        console.console.print(f"[red]Unexpected error:[/red] {str(e)}", err=True)
+        console.console.print(f"[red]Unexpected error:[/red] {e!s}", err=True)
         sys.exit(1)
 
 

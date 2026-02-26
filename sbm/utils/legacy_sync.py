@@ -1,6 +1,6 @@
+import glob
 import json
 import os
-import glob
 from pathlib import Path
 from typing import List, Optional
 
@@ -56,7 +56,7 @@ def sync_legacy_stats(specific_files: Optional[List[Path]] = None) -> bool:
         user_id_from_file = os.path.splitext(filename)[0]
 
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 data = json.load(f)
         except Exception as e:
             logger.error(f"Error reading legacy file {file_path}: {e}")

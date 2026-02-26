@@ -1,8 +1,6 @@
+import glob
 import json
 import os
-import glob
-from typing import Dict, List, Any
-from pathlib import Path
 
 from sbm.utils.firebase_sync import (
     get_firebase_db,
@@ -13,7 +11,6 @@ from sbm.utils.firebase_sync import (
 if not is_firebase_available():
     print("Initializing Firebase...")
     # This triggers internal initialization
-    pass
 
 if not is_firebase_available():
     print("❌ Failed to initialize Firebase. Exiting.")
@@ -49,7 +46,7 @@ def backfill_firebase():
         print(f"Processing {user_id_from_file}...")
 
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 data = json.load(f)
         except Exception as e:
             print(f"  ❌ Error reading file: {e}")
@@ -59,7 +56,7 @@ def backfill_firebase():
         legacy_migrations = data.get("migrations", [])
 
         if not legacy_runs:
-            print(f"  ⚠️ No runs found in file. Skipped.")
+            print("  ⚠️ No runs found in file. Skipped.")
             continue
 
         # Get existing Firebase data for user

@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 import click
 
@@ -408,7 +406,7 @@ class SlugRetriever:
                 click.echo(f"    ✅ Found: {slug}")
             else:
                 self.results.append({"search_term": search_term, "slug": "", "status": "not_found"})
-                click.echo(f"    ❌ Not found")
+                click.echo("    ❌ Not found")
 
     def write_output_file(self) -> None:
         """Write results to output file in JSON format matching devtools search output."""

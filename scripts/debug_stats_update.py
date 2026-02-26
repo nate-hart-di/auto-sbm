@@ -1,8 +1,7 @@
-import subprocess
 import json
-import sys
-import os
-from sbm.utils.firebase_sync import _initialize_firebase, get_firebase_db, _get_user_mode_identity
+import subprocess
+
+from sbm.utils.firebase_sync import _get_user_mode_identity, _initialize_firebase, get_firebase_db
 
 
 def debug_update():
@@ -70,7 +69,7 @@ def debug_update():
         cmd = ["gh", "pr", "view", pr_url, "--json", "createdAt,mergedAt,closedAt,state,author"]
         print(f"   Running: {' '.join(cmd)}")
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=15)
 
         if result.returncode == 0:
             print("✅ 'gh' command SUCCESS")

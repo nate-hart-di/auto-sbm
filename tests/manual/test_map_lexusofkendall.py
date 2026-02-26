@@ -1,8 +1,9 @@
 import logging
 from pathlib import Path
+
 from sbm.core.maps import migrate_map_components
-from sbm.oem.factory import OEMFactory
 from sbm.core.migration import create_sb_files, migrate_styles
+from sbm.oem.factory import OEMFactory
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # =============================================================================
 # TEST 1: Process Management (sbm/utils/processes.py)
 # =============================================================================
@@ -50,7 +49,7 @@ class TestRunBackgroundTask:
     @patch("subprocess.Popen")
     def test_background_task_uses_repo_root_cwd(self, mock_popen):
         """Verify task runs from REPO_ROOT directory."""
-        from sbm.utils.processes import run_background_task, REPO_ROOT
+        from sbm.utils.processes import REPO_ROOT, run_background_task
 
         run_background_task(["echo", "test"])
 
@@ -114,7 +113,7 @@ class TestAutoUpdateRepo:
         Verified via code review: cli.py:280-296 uses try/finally block
         to ensure stash pop is always attempted.
         """
-        pass  # Verified via code review
+        # Verified via code review
 
     @pytest.mark.skip(reason="cli.py import triggers setup.sh - verified via code review")
     @patch("subprocess.run")

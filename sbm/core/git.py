@@ -351,7 +351,11 @@ class GitOperations:
                         "Dirty working tree from previous SBM migration detected. "
                         "Auto-stashing changes to proceed."
                     )
-                    repo.git.stash("save", "--include-untracked", "SBM auto-stash: dirty state from previous migration")
+                    repo.git.stash(
+                        "save",
+                        "--include-untracked",
+                        "SBM auto-stash: dirty state from previous migration",
+                    )
                 else:
                     logger.error(
                         "Working tree has uncommitted changes that don't appear to be "
@@ -515,7 +519,7 @@ class GitOperations:
                     # If it's a non-fast-forward error, try force-with-lease
                     if "non-fast-forward" in error_msg.lower() or "rejected" in error_msg.lower():
                         logger.warning(
-                            f"Push rejected (non-fast-forward). Retrying with force-with-lease..."
+                            "Push rejected (non-fast-forward). Retrying with force-with-lease..."
                         )
                         try:
                             # Retry with force-with-lease to safely overwrite remote branch
@@ -537,11 +541,10 @@ class GitOperations:
                                     f"Successfully pushed with force-with-lease to origin/{branch_name}"
                                 )
                                 return True
-                            else:
-                                logger.error(
-                                    f"Force-with-lease push also failed for origin/{branch_name}"
-                                )
-                                return False
+                            logger.error(
+                                f"Force-with-lease push also failed for origin/{branch_name}"
+                            )
+                            return False
                         except Exception as retry_e:
                             logger.error(f"Force-with-lease push failed: {retry_e}")
                             return False
@@ -747,9 +750,8 @@ class GitOperations:
 
                 logger.info("✓ Branch updated successfully")
                 return True
-            else:
-                logger.debug(f"Branch already up-to-date (state: {merge_state})")
-                return True
+            logger.debug(f"Branch already up-to-date (state: {merge_state})")
+            return True
 
         except subprocess.TimeoutExpired:
             logger.warning("⚠ Branch update timed out - may complete in background")
@@ -760,12 +762,11 @@ class GitOperations:
             if "already up to date" in error_msg.lower():
                 logger.debug("Branch already up-to-date")
                 return True
-            elif "cannot update" in error_msg.lower():
+            if "cannot update" in error_msg.lower():
                 logger.warning(f"⚠ Cannot update branch: {error_msg}")
                 return False
-            else:
-                logger.warning(f"Could not update branch: {error_msg}")
-                return False
+            logger.warning(f"Could not update branch: {error_msg}")
+            return False
 
     def _enable_auto_merge(self, pr_url: str) -> bool:
         """
@@ -1236,54 +1237,54 @@ class GitOperations:
                         what_items.append(
                             "- Map components: No map shortcodes detected; migration skipped."
                         )
-                elif not scss_targets and not partials_copied and skipped_reason != "already_present":
+                elif (
+                    not scss_targets and not partials_copied and skipped_reason != "already_present"
+                ):
                     what_items.append(
                         "- Map components: Map components detected but no CommonTheme map assets found; migration skipped."
                     )
+                # If strictly skipped because already present (complete success without changes), suppress note
+                elif skipped_reason == "already_present":
+                    pass
                 else:
-                    # If strictly skipped because already present (complete success without changes), suppress note
-                    if skipped_reason == "already_present":
-                        pass
-                    else:
-                        parts = []
-                        if scss_targets:
-                            parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
-                        if partials_copied:
-                            # Verify if partials were actually added to git
-                            repo_root = get_platform_dir()
-                            theme_rel = os.path.relpath(get_dealer_theme_dir(slug), repo_root)
+                    parts = []
+                    if scss_targets:
+                        parts.append(f"SCSS appended to {', '.join(sorted(scss_targets))}")
+                    if partials_copied:
+                        # Verify if partials were actually added to git
+                        repo_root = get_platform_dir()
+                        theme_rel = os.path.relpath(get_dealer_theme_dir(slug), repo_root)
 
-                            valid_partials = []
-                            for p in sorted(set(partials_copied)):
-                                # Partial path is like 'partials/map-row'
-                                # Check if the corresponding .php file is in the git index
-                                rel_file = os.path.join(theme_rel, f"{p}.php")
-                                try:
-                                    # Use git ls-files to verify the file is tracked and modified/added
-                                    ls_result = subprocess.run(
-                                        ["git", "ls-files", "--error-unmatch", rel_file],
-                                        cwd=repo_root,
-                                        capture_output=True,
-                                        text=True,
+                        valid_partials = []
+                        for p in sorted(set(partials_copied)):
+                            # Partial path is like 'partials/map-row'
+                            # Check if the corresponding .php file is in the git index
+                            rel_file = os.path.join(theme_rel, f"{p}.php")
+                            try:
+                                # Use git ls-files to verify the file is tracked and modified/added
+                                ls_result = subprocess.run(
+                                    ["git", "ls-files", "--error-unmatch", rel_file],
+                                    check=False,
+                                    cwd=repo_root,
+                                    capture_output=True,
+                                    text=True,
+                                )
+                                if ls_result.returncode == 0:
+                                    valid_partials.append(p)
+                                else:
+                                    logger.debug(
+                                        f"Partial {p} not found in git index, omitting from PR"
                                     )
-                                    if ls_result.returncode == 0:
-                                        valid_partials.append(p)
-                                    else:
-                                        logger.debug(
-                                            f"Partial {p} not found in git index, omitting from PR"
-                                        )
-                                except Exception:
-                                    pass
+                            except Exception:
+                                pass
 
-                            if valid_partials:
-                                parts.append(f"Partials copied {', '.join(valid_partials)}")
-                        if parts:
-                            detail = "; ".join(parts)
-                            what_items.append(f"- Map components: {detail}")
-                        elif skipped_reason == "migration_issue":
-                            what_items.append(
-                                "- Map components: Migration issue detected (check logs)"
-                            )
+                        if valid_partials:
+                            parts.append(f"Partials copied {', '.join(valid_partials)}")
+                    if parts:
+                        detail = "; ".join(parts)
+                        what_items.append(f"- Map components: {detail}")
+                    elif skipped_reason == "migration_issue":
+                        what_items.append("- Map components: Migration issue detected (check logs)")
                         # If everything was already present, we PASS and hide the line completely.
         except Exception as e:
             logger.debug(f"Could not add map migration details to PR: {e}")
@@ -1400,16 +1401,40 @@ PR: {pr_url}"""
                 git_config = self.config.git
                 if isinstance(git_config, dict):
                     pr_reviewers = reviewers or git_config.get(
-                        "default_reviewers", ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"]
+                        "default_reviewers",
+                        [
+                            "etritt-cc",
+                            "messponential",
+                            "abond-cc",
+                            "tcollier-di",
+                            "ssargent-cc",
+                            "nate-hart-di",
+                        ],
                     )
                     pr_labels = labels or git_config.get("default_labels", ["fe-dev"])
                 else:
                     pr_reviewers = reviewers or getattr(
-                        git_config, "default_reviewers", ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"]
+                        git_config,
+                        "default_reviewers",
+                        [
+                            "etritt-cc",
+                            "messponential",
+                            "abond-cc",
+                            "tcollier-di",
+                            "ssargent-cc",
+                            "nate-hart-di",
+                        ],
                     )
                     pr_labels = labels or getattr(git_config, "default_labels", ["fe-dev"])
             else:
-                pr_reviewers = reviewers or ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"]
+                pr_reviewers = reviewers or [
+                    "etritt-cc",
+                    "messponential",
+                    "abond-cc",
+                    "tcollier-di",
+                    "ssargent-cc",
+                    "nate-hart-di",
+                ]
                 pr_labels = labels or ["fe-dev"]
 
             # Ensure non-None values for type safety
@@ -1586,7 +1611,17 @@ def create_pr(slug, branch_name=None, **kwargs):
     # Initialize config with safe defaults
     config_dict = {
         "default_branch": "main",
-        "git": {"default_reviewers": ["etritt-cc", "messponential", "abond-cc", "tcollier-di", "ssargent-cc", "nate-hart-di"], "default_labels": ["fe-dev"]},
+        "git": {
+            "default_reviewers": [
+                "etritt-cc",
+                "messponential",
+                "abond-cc",
+                "tcollier-di",
+                "ssargent-cc",
+                "nate-hart-di",
+            ],
+            "default_labels": ["fe-dev"],
+        },
     }
     git_ops = GitOperations(Config(config_dict))
     return git_ops.create_pr(slug=slug, branch_name=branch_name, **kwargs)

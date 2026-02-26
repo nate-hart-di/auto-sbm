@@ -1,5 +1,3 @@
-from datetime import datetime
-
 try:
     # Need to simulate MigrationResult interface if MigrationReportData expects it?
     # Actually generate_migration_report takes MigrationReportData or MigrationResult?
@@ -23,8 +21,8 @@ except ImportError:
     sys.path.append("/Users/nathanhart/auto-sbm")
     from sbm.utils.report_generator import MigrationReportData, generate_migration_report
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 
 def test_report_generation():

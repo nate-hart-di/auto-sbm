@@ -6,9 +6,9 @@ This script fixes the bug where lines_migrated was always recorded as 0
 from approximately Jan 6-9, 2026. Uses a default of 800 lines per migration
 (the standard used in time savings calculations: 1 hour per 800 lines).
 """
+
 import json
 from pathlib import Path
-from datetime import datetime
 
 # Project Root
 ROOT_DIR = Path(__file__).parent.parent.parent.resolve()

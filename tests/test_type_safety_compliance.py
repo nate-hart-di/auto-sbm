@@ -28,7 +28,7 @@ class TestTypeHintCoverage:
             "add_step_task",
             "update_step_progress",
             "wait_for_subprocess_completion",
-            "_cleanup_subprocess_threads"
+            "_cleanup_subprocess_threads",
         ]
 
         for method_name in critical_methods:
@@ -45,8 +45,9 @@ class TestTypeHintCoverage:
             for param_name, param in sig.parameters.items():
                 if param_name != "self":
                     # Non-self parameters should have type annotations
-                    assert param.annotation != inspect.Parameter.empty, \
+                    assert param.annotation != inspect.Parameter.empty, (
                         f"{method_name} parameter '{param_name}' missing type annotation"
+                    )
 
     def test_config_module_type_hints(self):
         """Test that config module has comprehensive type hints."""
@@ -63,8 +64,9 @@ class TestTypeHintCoverage:
             for param_name, param in sig.parameters.items():
                 if param_name != "self" and param.default == inspect.Parameter.empty:
                     # Required parameters should have type annotations
-                    assert param.annotation != inspect.Parameter.empty, \
+                    assert param.annotation != inspect.Parameter.empty, (
                         f"{func.__name__} parameter '{param_name}' missing type annotation"
+                    )
 
     def test_cli_module_critical_functions(self):
         """Test that CLI module critical functions have type hints."""
@@ -73,7 +75,9 @@ class TestTypeHintCoverage:
         # Test is_env_healthy function
         hints = getattr(is_env_healthy, "__annotations__", {})
         assert "return" in hints, "is_env_healthy missing return type annotation"
-        assert hints["return"] == bool or hints["return"] == "bool", "is_env_healthy should return bool"
+        assert hints["return"] == bool or hints["return"] == "bool", (
+            "is_env_healthy should return bool"
+        )
 
         # Test auto command function (decorated functions may lose type annotations)
         hints = getattr(auto, "__annotations__", {})
@@ -84,8 +88,9 @@ class TestTypeHintCoverage:
         sig = inspect.signature(auto)
         for param_name, param in sig.parameters.items():
             if param_name != "self":
-                assert param.annotation != inspect.Parameter.empty, \
+                assert param.annotation != inspect.Parameter.empty, (
                     f"auto command parameter '{param_name}' missing type annotation"
+                )
 
 
 class TestFutureAnnotationsUsage:
@@ -113,8 +118,9 @@ class TestFutureAnnotationsUsage:
 
         # The first import should be __future__ annotations
         first_import = lines[first_import_line].strip()
-        assert first_import == "from __future__ import annotations", \
+        assert first_import == "from __future__ import annotations", (
             f"First import should be __future__ annotations, got: {first_import}"
+        )
 
     def test_config_has_future_annotations(self):
         """Test that config module uses __future__ annotations."""
@@ -123,8 +129,9 @@ class TestFutureAnnotationsUsage:
         with open(config_path) as f:
             content = f.read()
 
-        assert "from __future__ import annotations" in content, \
+        assert "from __future__ import annotations" in content, (
             "Config module should use __future__ annotations"
+        )
 
 
 class TestClickCommandTypeHints:
@@ -150,15 +157,19 @@ class TestClickCommandTypeHints:
 
         # Boolean flag parameters should be typed as bool
         boolean_params = [
-            "skip_just", "force_reset", "create_pr",
-            "skip_post_migration", "verbose_docker"
+            "skip_just",
+            "force_reset",
+            "create_pr",
+            "skip_post_migration",
+            "verbose_docker",
         ]
 
         for param_name in boolean_params:
             if param_name in sig.parameters:
                 param = sig.parameters[param_name]
-                assert param.annotation == bool, \
+                assert param.annotation == bool, (
                     f"Parameter '{param_name}' should be typed as bool, got {param.annotation}"
+                )
 
     def test_string_arguments_typing(self):
         """Test that string arguments are properly typed."""
@@ -172,8 +183,9 @@ class TestClickCommandTypeHints:
         for param_name in string_params:
             if param_name in sig.parameters:
                 param = sig.parameters[param_name]
-                assert param.annotation == str, \
+                assert param.annotation == str, (
                     f"Parameter '{param_name}' should be typed as str, got {param.annotation}"
+                )
 
 
 class TestImportStructure:
@@ -200,8 +212,9 @@ class TestImportStructure:
             )
             has_future_annotations = "from __future__ import annotations" in content
 
-            assert has_typing_import or has_future_annotations, \
+            assert has_typing_import or has_future_annotations, (
                 f"Module {module.__name__} should import typing constructs or use __future__ annotations"
+            )
 
     def test_pydantic_imports_correct(self):
         """Test that Pydantic imports are correct in config module."""
@@ -230,8 +243,11 @@ class TestTypeComplianceValidation:
 
         for cls in critical_classes:
             # Get all methods
-            methods = [getattr(cls, name) for name in dir(cls)
-                      if callable(getattr(cls, name)) and not name.startswith("_")]
+            methods = [
+                getattr(cls, name)
+                for name in dir(cls)
+                if callable(getattr(cls, name)) and not name.startswith("_")
+            ]
 
             any_count = 0
             total_annotations = 0
@@ -245,8 +261,9 @@ class TestTypeComplianceValidation:
 
             if total_annotations > 0:
                 any_percentage = (any_count / total_annotations) * 100
-                assert any_percentage < 50, \
+                assert any_percentage < 50, (
                     f"Class {cls.__name__} has too many Any types ({any_percentage:.1f}%)"
+                )
 
     def test_optional_vs_none_usage(self):
         """Test proper usage of Optional vs None in type hints."""
@@ -265,8 +282,9 @@ class TestTypeComplianceValidation:
                 if annotation:
                     # This is a basic check - in real implementation,
                     # you'd want to check if it's Optional[SomeType]
-                    assert "Optional" in str(annotation) or "None" in str(annotation), \
+                    assert "Optional" in str(annotation) or "None" in str(annotation), (
                         f"Parameter '{param_name}' with None default should use Optional"
+                    )
 
 
 class TestModuleStructureCompliance:
@@ -289,19 +307,19 @@ class TestModuleStructureCompliance:
             sig = inspect.signature(func)
             for param_name, param in sig.parameters.items():
                 if param_name != "self":
-                    assert param.annotation != inspect.Parameter.empty or param.default != inspect.Parameter.empty, \
+                    assert (
+                        param.annotation != inspect.Parameter.empty
+                        or param.default != inspect.Parameter.empty
+                    ), (
                         f"Public function {func.__name__} parameter '{param_name}' should have type or default"
+                    )
 
     def test_class_methods_typed(self):
         """Test that important class methods are typed."""
         from sbm.ui.progress import MigrationProgress
 
         # Important methods should have type hints
-        important_methods = [
-            "add_step_task",
-            "complete_step",
-            "update_step_progress"
-        ]
+        important_methods = ["add_step_task", "complete_step", "update_step_progress"]
 
         for method_name in important_methods:
             method = getattr(MigrationProgress, method_name)

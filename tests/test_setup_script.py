@@ -7,12 +7,7 @@ with proper environment isolation and dynamic path configuration.
 
 import os
 import re
-import subprocess
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
-import pytest
-
 
 # =============================================================================
 # TEST 1: Setup Script Alias Generation

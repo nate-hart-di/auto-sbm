@@ -1,4 +1,5 @@
 import logging
+
 from sbm.scss.formatter import format_all_scss_files
 
 logging.basicConfig(level=logging.DEBUG)

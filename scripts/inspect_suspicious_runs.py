@@ -1,5 +1,4 @@
-import os
-from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db, get_settings
+from sbm.utils.firebase_sync import get_firebase_db, get_settings, is_firebase_available
 from sbm.utils.tracker import _get_user_id
 
 
@@ -29,7 +28,7 @@ def inspect_runs():
             f.write("\n".join(output))
         return
         # User mode fetch
-        pass  # Simplified for admin/dev usage for now as user likely has admin creds locally
+        # Simplified for admin/dev usage for now as user likely has admin creds locally
 
     count_zero = 0
     count_total = 0

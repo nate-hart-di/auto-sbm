@@ -1,6 +1,8 @@
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch, ANY
-from sbm.utils.tracker import process_pending_syncs, record_run, _write_tracker, _read_tracker
+
+from sbm.utils.tracker import _read_tracker, _write_tracker, process_pending_syncs, record_run
 
 
 @pytest.fixture

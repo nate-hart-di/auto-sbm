@@ -1,4 +1,3 @@
-import pytest
 from sbm.scss.processor import SCSSProcessor
 
 

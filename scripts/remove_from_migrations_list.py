@@ -1,7 +1,8 @@
-import firebase_admin
-from firebase_admin import credentials, db
 import os
 import sys
+
+import firebase_admin
+from firebase_admin import credentials, db
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,9 +48,7 @@ def clean_migrations_list():
             # Usually it's a list, but might be dict if keys are large integers
             keys_to_remove = []
             for k, v in current_data.items():
-                if v in slugs_to_delete:  # Value is slug
-                    keys_to_remove.append(k)
-                elif k in slugs_to_delete:  # Key is slug (less likely but possible)
+                if v in slugs_to_delete or k in slugs_to_delete:  # Value is slug
                     keys_to_remove.append(k)
 
             print(f"Found {len(keys_to_remove)} slugs in Dict format.")

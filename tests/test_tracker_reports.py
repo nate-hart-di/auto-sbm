@@ -1,6 +1,8 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from sbm.utils.tracker import record_run, _read_tracker
+
+from sbm.utils.tracker import _read_tracker, record_run
 
 
 class TestTrackerReports:
@@ -12,7 +14,9 @@ class TestTrackerReports:
 
     @patch("sbm.utils.tracker._get_github_login", return_value="test-user")
     @patch("sbm.utils.tracker.is_firebase_available")
-    def test_record_run_with_report_path(self, mock_is_available, mock_github_login, mock_tracker_file):
+    def test_record_run_with_report_path(
+        self, mock_is_available, mock_github_login, mock_tracker_file
+    ):
         # Setup
         mock_is_available.return_value = False
 

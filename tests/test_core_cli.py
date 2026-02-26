@@ -3,9 +3,10 @@ Core CLI command registration and functionality tests.
 Tests the Click CLI interface and command registration.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from click.testing import CliRunner
-from unittest.mock import patch, MagicMock
 
 from sbm.cli import cli
 

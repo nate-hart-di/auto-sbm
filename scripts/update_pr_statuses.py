@@ -23,10 +23,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
-from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
-from sbm.utils.github_pr import GitHubPRManager
 from rich.console import Console
 from rich.progress import track
+
+from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
+from sbm.utils.github_pr import GitHubPRManager
 
 console = Console()
 

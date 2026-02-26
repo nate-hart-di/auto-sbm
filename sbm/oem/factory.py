@@ -14,6 +14,7 @@ from sbm.utils.logger import logger
 
 from .default import DefaultHandler
 from .kia import KiaHandler
+from .landrover import LandRoverHandler
 from .lexus import LexusHandler
 from .stellantis import StellantisHandler
 
@@ -30,6 +31,7 @@ class OEMFactory:
     _handlers: ClassVar[list[type[BaseOEMHandler]]] = [
         StellantisHandler,
         KiaHandler,
+        LandRoverHandler,
         LexusHandler,
         # Add more handlers here as they are needed
     ]

@@ -127,7 +127,7 @@ def main() -> None:
                             "pr_author": metadata.get("author"),
                         }
                     )
-            if "pr_author" in update_data and update_data["pr_author"]:
+            if update_data.get("pr_author"):
                 update_data["user_id"] = update_data["pr_author"]
             elif should_fix_user_id(run):
                 update_data["user_id"] = run.get("pr_author")

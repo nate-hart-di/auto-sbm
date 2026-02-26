@@ -13,7 +13,6 @@ Designed to run as a scheduled GitHub Action.
 import json
 import subprocess
 import sys
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

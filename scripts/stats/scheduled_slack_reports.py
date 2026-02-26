@@ -15,7 +15,7 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 try:
     from zoneinfo import ZoneInfo

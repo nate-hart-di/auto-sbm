@@ -8,14 +8,13 @@ by scanning for CommonTheme @import statements and copying both SCSS and PHP par
 import re
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import click
 
 from sbm.ui.console import SBMConsole
 from sbm.utils.logger import logger
 from sbm.utils.path import get_dealer_theme_dir
-from typing import Any
 
 # CommonTheme directory path
 COMMON_THEME_DIR = "/Users/nathanhart/di-websites-platform/app/dealer-inspire/wp-content/themes/DealerInspireCommonTheme"
@@ -554,9 +553,7 @@ def find_map_shortcodes_in_functions(
     )
 
     keyword_pattern = "|".join([re.escape(k) for k in MAP_KEYWORDS])
-    shortcode_pattern = (
-        rf"add_shortcode\s*\(\s*['\"]({keyword_pattern})['\"]\s*,\s*([^\)\s]+)"
-    )
+    shortcode_pattern = rf"add_shortcode\s*\(\s*['\"]({keyword_pattern})['\"]\s*,\s*([^\)\s]+)"
 
     while files_to_scan:
         current_file_path, context = files_to_scan.pop(0)

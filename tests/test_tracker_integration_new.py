@@ -1,6 +1,8 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from sbm.utils.tracker import record_run, _read_tracker, _sync_to_firebase
+
+from sbm.utils.tracker import _read_tracker, record_run
 
 
 @pytest.fixture

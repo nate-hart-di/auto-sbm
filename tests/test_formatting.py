@@ -1,8 +1,7 @@
-import pytest
-import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import os
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from sbm.core.migration import _format_all_scss_with_prettier
 

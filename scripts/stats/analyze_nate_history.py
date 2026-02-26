@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
 RAW_DATA_DIR = ROOT_DIR / "stats" / "raw"
 
+
 def extract_slug(title: str) -> str | None:
     # Pattern 1: PCON-864: {slug} SBM FE Audit
     match1 = re.search(r"PCON-864:\s+([a-zA-Z0-9_-]+)\s+SBM FE Audit", title, re.IGNORECASE)
@@ -26,6 +27,7 @@ def extract_slug(title: str) -> str | None:
         return match3b.group(1).lower()
 
     return None
+
 
 def main() -> None:
     filepath = RAW_DATA_DIR / "nate_all_prs.json"
@@ -53,6 +55,7 @@ def main() -> None:
     print("\nMigrations List:")
     for slug in sorted(slugs.keys()):
         print(f"- {slug} ({len(slugs[slug])} PRs)")
+
 
 if __name__ == "__main__":
     main()

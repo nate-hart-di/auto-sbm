@@ -6,12 +6,13 @@ They are marked to be skipped if no credentials are found.
 """
 
 import os
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from sbm.config import AutoSBMSettings, FirebaseSettings, get_settings
-from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db, reset_firebase
+import pytest
+
+from sbm.config import AutoSBMSettings, FirebaseSettings
+from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available, reset_firebase
 
 
 # Check for credentials in common locations

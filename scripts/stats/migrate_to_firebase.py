@@ -6,10 +6,8 @@ Migrates local .sbm_migrations.json history to Firebase.
 
 import json
 import sys
-import os
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Iterable, Tuple
-import time
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 try:
     from rich.console import Console
@@ -26,7 +24,7 @@ if str(project_root) not in sys.path:
 
 try:
     from sbm.config import AutoSBMSettings
-    from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available, _initialize_firebase
+    from sbm.utils.firebase_sync import _initialize_firebase, get_firebase_db, is_firebase_available
 except ImportError as e:
     print(f"Error importing SBM modules: {e}")
     sys.exit(1)
@@ -45,9 +43,7 @@ def _load_json_with_recovery(path: Path) -> Optional[Dict[str, Any]]:
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
-        console.print(
-            f"[yellow]{path} appears corrupted; attempting partial recovery.[/yellow]"
-        )
+        console.print(f"[yellow]{path} appears corrupted; attempting partial recovery.[/yellow]")
         recovered = _recover_tracker_json(text, e)
         if recovered is None:
             console.print(f"[red]Failed to recover {path}: {e}[/red]")
@@ -149,9 +145,10 @@ def track_progress(sequence, description):
 def get_existing_signatures(user_id: str) -> set[str]:
     """Fetch existing runs to prevent duplicates (by timestamp + slug)."""
     try:
-        from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db
-        from sbm.config import get_settings
         import requests
+
+        from sbm.config import get_settings
+        from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
 
         if not is_firebase_available():
             return set()
@@ -220,7 +217,9 @@ def _merge_migrations(existing: Any, incoming: List[str]) -> List[str]:
     return merged
 
 
-def perform_migration(user_id: str, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, int]:
+def perform_migration(
+    user_id: str, history: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, int]:
     """Execute the migration process."""
     if history is None:
         history = load_local_history()
@@ -315,8 +314,9 @@ def push_migrations_list(user_id: str, migrations: List[str]) -> bool:
         return True
 
     try:
-        from sbm.config import get_settings
         import requests
+
+        from sbm.config import get_settings
 
         settings = get_settings()
         merged = migrations
@@ -363,9 +363,7 @@ def perform_global_migration() -> Dict[str, Dict[str, int]]:
     for user_id, runs, migrations in sources:
         migrations = _normalize_migrations(migrations)
         push_migrations_list(user_id, migrations)
-        console.print(
-            f"[bold blue]Migrating {len(runs)} runs for user {user_id}...[/bold blue]"
-        )
+        console.print(f"[bold blue]Migrating {len(runs)} runs for user {user_id}...[/bold blue]")
         results[user_id] = perform_migration(user_id, runs)
     return results
 

@@ -8,7 +8,6 @@ Uses prefix matching to handle truncated slugs in CSV.
 import csv
 import os
 import sys
-import re
 from urllib.parse import urlparse
 
 sys.path.append(os.getcwd())
@@ -17,7 +16,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import firebase_admin
-from firebase_admin import db, credentials
+from firebase_admin import credentials, db
+
 from sbm.config import get_settings
 
 
@@ -52,7 +52,7 @@ def load_csv_slugs(csv_path: str) -> dict[str, dict]:
     """Load CSV and extract slugs from Dev URL column."""
     slugs = {}
 
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             dev_url = row.get("Dev URL", "")
@@ -82,9 +82,7 @@ def load_firebase_slugs() -> dict[str, dict]:
             print("Error: Firebase credentials not found.")
             return {}
         cred = credentials.Certificate(settings.firebase.credentials_path)
-        firebase_admin.initialize_app(
-            cred, {"databaseURL": settings.firebase.database_url}
-        )
+        firebase_admin.initialize_app(cred, {"databaseURL": settings.firebase.database_url})
 
     ref = db.reference("users")
     users_data = ref.get()
@@ -167,7 +165,7 @@ def main():
     unmatched_db = set(db_slugs.keys()) - matched_db
 
     print(f"\n{'=' * 70}")
-    print(f"CROSS-CHECK RESULTS (with prefix matching for truncated slugs)")
+    print("CROSS-CHECK RESULTS (with prefix matching for truncated slugs)")
     print(f"{'=' * 70}")
     print(f"Matched (CSV→DB):               {len(matches)}")
     print(f"In CSV but NOT in DB:           {len(unmatched_csv)}")
@@ -193,15 +191,13 @@ def main():
     truncation_matches = {k: v for k, v in matches.items() if k != v}
     if truncation_matches:
         print(f"\n{'=' * 70}")
-        print(
-            f"TRUNCATION MATCHES: CSV slug matched to longer DB slug ({len(truncation_matches)})"
-        )
+        print(f"TRUNCATION MATCHES: CSV slug matched to longer DB slug ({len(truncation_matches)})")
         print(f"{'=' * 70}")
         for csv_slug, db_slug in sorted(truncation_matches.items()):
             print(f"  {csv_slug:<40} → {db_slug}")
 
     print(f"\n{'=' * 70}")
-    print(f"FINAL SUMMARY")
+    print("FINAL SUMMARY")
     print(f"{'=' * 70}")
     print(f"CSV Total:              {len(csv_slugs)}")
     print(f"DB Verified Total:      {len(db_slugs)}")
@@ -211,9 +207,7 @@ def main():
 
     if unmatched_db:
         print("\n" + "=" * 70)
-        print(
-            f"EXTRA IN DB DETAILS ({len(unmatched_db)}) - POTENTIAL ARCHIVE CANDIDATES"
-        )
+        print(f"EXTRA IN DB DETAILS ({len(unmatched_db)}) - POTENTIAL ARCHIVE CANDIDATES")
         print("=" * 70)
         print(f"{'Slug':<40} | {'User':<20} | {'Timestamp'}")
         print("-" * 80)

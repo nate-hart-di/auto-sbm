@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 import os
 import shutil
 import subprocess
@@ -13,8 +12,10 @@ import tempfile
 import urllib.error
 import urllib.parse
 import zipfile
+from dataclasses import dataclass
 
 from github_utils import github_request
+
 DEFAULT_REF = "main"
 
 
@@ -97,7 +98,9 @@ def _download_repo_zip(owner: str, repo: str, ref: str, dest_dir: str) -> str:
 
 
 def _run_git(args: list[str]) -> None:
-    result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    result = subprocess.run(
+        args, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     if result.returncode != 0:
         raise InstallError(result.stderr.strip() or "Git command failed.")
 
@@ -222,9 +225,7 @@ def _resolve_source(args: Args) -> Source:
     if not args.repo:
         raise InstallError("Provide --repo or --url.")
     if "://" in args.repo:
-        return _resolve_source(
-            Args(url=args.repo, repo=None, path=args.path, ref=args.ref)
-        )
+        return _resolve_source(Args(url=args.repo, repo=None, path=args.path, ref=args.ref))
 
     repo_parts = [p for p in args.repo.split("/") if p]
     if len(repo_parts) != 2:
@@ -255,9 +256,7 @@ def _parse_args(argv: list[str]) -> Args:
     )
     parser.add_argument("--ref", default=DEFAULT_REF)
     parser.add_argument("--dest", help="Destination skills directory")
-    parser.add_argument(
-        "--name", help="Destination skill name (defaults to basename of path)"
-    )
+    parser.add_argument("--name", help="Destination skill name (defaults to basename of path)")
     parser.add_argument(
         "--method",
         choices=["auto", "download", "git"],

@@ -1,6 +1,7 @@
-import sys
 import logging
+
 from rich.console import Console
+
 from sbm.utils.firebase_sync import FirebaseSync
 from sbm.utils.github_pr import GitHubPRManager
 

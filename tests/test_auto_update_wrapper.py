@@ -5,14 +5,8 @@ Tests ensure that wrapper script is automatically regenerated during
 auto-updates, so users get the latest environment isolation fixes.
 """
 
-import os
-import subprocess
-import tempfile
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open, call
-import pytest
-
+from unittest.mock import MagicMock, mock_open, patch
 
 # =============================================================================
 # TEST 1: Auto-Update Wrapper Regeneration
@@ -37,9 +31,9 @@ class TestAutoUpdateWrapperRegeneration:
         # Mock successful pip install
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("pathlib.Path.open", mock_open()), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify setup attempted
@@ -70,9 +64,9 @@ class TestAutoUpdateWrapperRegeneration:
         mock_repo_root = MagicMock()
         mock_repo_root.__truediv__.return_value = mock_path
 
-        with patch("sbm.cli.REPO_ROOT", mock_repo_root), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("sbm.cli.REPO_ROOT", mock_repo_root), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify wrapper regeneration was called
@@ -116,9 +110,9 @@ class TestAutoUpdateWrapperRegeneration:
         # Mock successful pip install
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("pathlib.Path.open", mock_open()), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify wrapper regeneration was called
@@ -156,9 +150,7 @@ class TestAutoUpdateIntegration:
 
     @patch("sbm.cli._check_and_run_setup_if_needed")
     @patch("subprocess.run")
-    def test_auto_update_calls_setup_after_pull(
-        self, mock_subprocess, mock_setup
-    ):
+    def test_auto_update_calls_setup_after_pull(self, mock_subprocess, mock_setup):
         """Verify _check_and_run_setup_if_needed is called after successful git pull."""
         from sbm.cli import auto_update_repo
 
@@ -200,10 +192,9 @@ class TestAutoUpdateIntegration:
         mock_repo_root = MagicMock()
         mock_repo_root.__truediv__.side_effect = truediv_side_effect
 
-        with patch("sbm.cli.REPO_ROOT", mock_repo_root), \
-             patch("sbm.cli.logger"), \
-             patch("sbm.cli._should_auto_update", return_value=True):
-
+        with patch("sbm.cli.REPO_ROOT", mock_repo_root), patch("sbm.cli.logger"), patch(
+            "sbm.cli._should_auto_update", return_value=True
+        ):
             auto_update_repo()
 
             # Verify git commands were attempted
@@ -211,9 +202,7 @@ class TestAutoUpdateIntegration:
 
     @patch("sbm.cli._check_and_run_setup_if_needed")
     @patch("subprocess.run")
-    def test_auto_update_skips_setup_on_no_updates(
-        self, mock_subprocess, mock_setup
-    ):
+    def test_auto_update_skips_setup_on_no_updates(self, mock_subprocess, mock_setup):
         """Verify setup is not called if there are no updates."""
         from sbm.cli import auto_update_repo
 
@@ -234,9 +223,7 @@ class TestAutoUpdateIntegration:
 
         mock_subprocess.side_effect = subprocess_side_effect
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("sbm.cli.logger"):
-
+        with patch("pathlib.Path.exists", return_value=True), patch("sbm.cli.logger"):
             auto_update_repo()
 
             # Setup should not be called (no updates)
@@ -254,18 +241,16 @@ class TestSetupCompleteMarker:
     @patch("sbm.cli._regenerate_wrapper_script")
     @patch("subprocess.run")
     @patch("pathlib.Path.exists")
-    def test_setup_creates_marker_file(
-        self, mock_exists, mock_subprocess, mock_regenerate
-    ):
+    def test_setup_creates_marker_file(self, mock_exists, mock_subprocess, mock_regenerate):
         """Verify setup creates .sbm_setup_complete marker file."""
         from sbm.cli import _check_and_run_setup_if_needed
 
         mock_exists.return_value = False
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify marker file was created
@@ -274,9 +259,7 @@ class TestSetupCompleteMarker:
     @patch("sbm.cli._regenerate_wrapper_script")
     @patch("subprocess.run")
     @patch("time.time")
-    def test_setup_deletes_old_marker_file(
-        self, mock_time, mock_subprocess, mock_regenerate
-    ):
+    def test_setup_deletes_old_marker_file(self, mock_time, mock_subprocess, mock_regenerate):
         """Verify old marker file is deleted before running setup."""
         from sbm.cli import _check_and_run_setup_if_needed
 
@@ -293,9 +276,9 @@ class TestSetupCompleteMarker:
         mock_repo_root = MagicMock()
         mock_repo_root.__truediv__.return_value = mock_path
 
-        with patch("sbm.cli.REPO_ROOT", mock_repo_root), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("sbm.cli.REPO_ROOT", mock_repo_root), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify setup attempted
@@ -304,18 +287,16 @@ class TestSetupCompleteMarker:
     @patch("sbm.cli._regenerate_wrapper_script")
     @patch("subprocess.run")
     @patch("pathlib.Path.exists")
-    def test_setup_marker_contains_timestamp(
-        self, mock_exists, mock_subprocess, mock_regenerate
-    ):
+    def test_setup_marker_contains_timestamp(self, mock_exists, mock_subprocess, mock_regenerate):
         """Verify marker file contains setup timestamp."""
         from sbm.cli import _check_and_run_setup_if_needed
 
         mock_exists.return_value = False
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("pathlib.Path.open", mock_open()) as mock_file, \
-             patch("time.strftime", return_value="2024-01-01 12:00:00") as mock_strftime:
-
+        with patch("pathlib.Path.open", mock_open()) as mock_file, patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ) as mock_strftime:
             _check_and_run_setup_if_needed()
 
             # Verify timestamp function was called
@@ -333,19 +314,18 @@ class TestDependencyUpdateProcess:
     @patch("sbm.cli._regenerate_wrapper_script")
     @patch("subprocess.run")
     @patch("pathlib.Path.exists")
-    def test_setup_runs_pip_install(
-        self, mock_exists, mock_subprocess, mock_regenerate
-    ):
+    def test_setup_runs_pip_install(self, mock_exists, mock_subprocess, mock_regenerate):
         """Verify pip install is run during setup."""
-        from sbm.cli import _check_and_run_setup_if_needed
         import sys
+
+        from sbm.cli import _check_and_run_setup_if_needed
 
         mock_exists.return_value = False
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("pathlib.Path.open", mock_open()), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify pip install was called
@@ -365,18 +345,16 @@ class TestDependencyUpdateProcess:
     @patch("sbm.cli._regenerate_wrapper_script")
     @patch("subprocess.run")
     @patch("pathlib.Path.exists")
-    def test_setup_uses_timeout_for_pip(
-        self, mock_exists, mock_subprocess, mock_regenerate
-    ):
+    def test_setup_uses_timeout_for_pip(self, mock_exists, mock_subprocess, mock_regenerate):
         """Verify pip install has a timeout to prevent hanging."""
         from sbm.cli import _check_and_run_setup_if_needed
 
         mock_exists.return_value = False
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"):
-
+        with patch("pathlib.Path.open", mock_open()), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ):
             _check_and_run_setup_if_needed()
 
             # Verify timeout was set on pip call
@@ -433,10 +411,9 @@ class TestErrorHandling:
         # Mock wrapper regeneration failure
         mock_regenerate.side_effect = OSError("Permission denied")
 
-        with patch("pathlib.Path.open", mock_open()), \
-             patch("time.strftime", return_value="2024-01-01 12:00:00"), \
-             patch("sbm.cli.logger"):
-
+        with patch("pathlib.Path.open", mock_open()), patch(
+            "time.strftime", return_value="2024-01-01 12:00:00"
+        ), patch("sbm.cli.logger"):
             # Should not raise exception even if wrapper regeneration fails
             _check_and_run_setup_if_needed()
 
@@ -448,9 +425,7 @@ class TestErrorHandling:
         # Mock git error
         mock_subprocess.return_value = MagicMock(returncode=1, stderr="fatal: error")
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("sbm.cli.logger"):
-
+        with patch("pathlib.Path.exists", return_value=True), patch("sbm.cli.logger"):
             # Should not raise exception
             auto_update_repo()
 
@@ -517,9 +492,7 @@ class TestAutoUpdateConditions:
 
         mock_subprocess.side_effect = subprocess_side_effect
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("sbm.cli.logger"):
-
+        with patch("pathlib.Path.exists", return_value=True), patch("sbm.cli.logger"):
             auto_update_repo()
 
             # Should not attempt pull (stopped at detached HEAD check)
@@ -543,9 +516,7 @@ class TestAutoUpdateConditions:
 
         mock_subprocess.side_effect = subprocess_side_effect
 
-        with patch("pathlib.Path.exists", return_value=True), \
-             patch("sbm.cli.logger"):
-
+        with patch("pathlib.Path.exists", return_value=True), patch("sbm.cli.logger"):
             auto_update_repo()
 
             # Should not attempt pull (not on master/main)

@@ -17,7 +17,6 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict
 
 # Add project root to sys.path to ensure 'sbm' package is findable
 REPO_ROOT = Path(__file__).parent.parent.parent.resolve()
@@ -160,9 +159,10 @@ def handle_sbm_stats(ack, body, say, logger):
         all_runs, user_migrations = report_slack.load_all_stats()
 
         # 2. Parse date range for header
-        from datetime import datetime, timedelta, timezone
-        from sbm.utils.tracker import _parse_date_input, _parse_period_to_days
         import re
+        from datetime import datetime, timedelta, timezone
+
+        from sbm.utils.tracker import _parse_date_input, _parse_period_to_days
 
         start_date = None
         end_date = None
@@ -246,7 +246,7 @@ def handle_sbm_stats(ack, body, say, logger):
 
     except Exception as e:
         logger.error(f"Error handling slash command: {e}")
-        say(f"⚠️ Error generating report: {str(e)}")
+        say(f"⚠️ Error generating report: {e!s}")
 
 
 if __name__ == "__main__":
@@ -273,9 +273,9 @@ if __name__ == "__main__":
         bot_user_id = auth_test["user_id"]
         bot_name = auth_test["user"]
 
-        print(f"⚡️ SBM Stats Socket Mode listener is running!")
+        print("⚡️ SBM Stats Socket Mode listener is running!")
         print(f"   Authenticated as: {bot_name} ({bot_user_id})")
-        print(f"   Listening for command: /sbm-stats")
+        print("   Listening for command: /sbm-stats")
 
         handler = SocketModeHandler(app, app_token)
         handler.start()

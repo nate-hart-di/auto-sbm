@@ -16,7 +16,6 @@ import logging
 import re
 import subprocess
 import sys
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -25,7 +24,6 @@ REPO_ROOT = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(REPO_ROOT))
 
 from sbm.utils.firebase_sync import get_firebase_db, is_firebase_available
-
 
 # Valid SBM PR title patterns
 SBM_TITLE_PATTERNS = [
@@ -156,10 +154,7 @@ def main():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
+        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
     )
     logging.info(f"Backfill started. Log file: {log_file}")
 
@@ -243,7 +238,9 @@ def main():
             # Create run entry
             run_entry = {
                 "slug": run_info["slug"],
-                "timestamp": run_info["merged_at"] or run_info["created_at"] or datetime.now().isoformat() + "Z",
+                "timestamp": run_info["merged_at"]
+                or run_info["created_at"]
+                or datetime.now().isoformat() + "Z",
                 "command": "auto",
                 "status": "success",
                 "lines_migrated": run_info["lines"],
@@ -276,7 +273,9 @@ def main():
     print(f"\n{summary}")
     logging.info(summary)
     if errors > 0:
-        logging.warning(f"Backfill completed with {errors} errors. Check log for details: {log_file}")
+        logging.warning(
+            f"Backfill completed with {errors} errors. Check log for details: {log_file}"
+        )
 
 
 if __name__ == "__main__":

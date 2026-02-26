@@ -128,7 +128,7 @@ class StyleClassifier:
                         if line[j + 1] == "/":
                             # Single line comment - ignore rest of line
                             break
-                        elif line[j + 1] == "*":
+                        if line[j + 1] == "*":
                             # Start multi-line comment
                             in_multiline_comment = True
                             j += 1

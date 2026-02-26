@@ -1,9 +1,10 @@
 import json
-from pathlib import Path
-from datetime import datetime
 import re
+from datetime import datetime
+from pathlib import Path
 
 GLOBAL_STATS_DIR = Path("stats")
+
 
 def extract_slug(title):
     # Pattern 1: PCON-864: {slug} SBM FE Audit
@@ -31,21 +32,23 @@ def extract_slug(title):
 
     # Fallback: just take the first word if it looks like a slug
     first_word = title.split()[0].lower()
-    if len(first_word) > 3: # arbitrary minimum
+    if len(first_word) > 3:  # arbitrary minimum
         return first_word
 
     return "unknown"
+
 
 def main():
     if not GLOBAL_STATS_DIR.exists():
         GLOBAL_STATS_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open("all_team_prs.json", "r") as f:
+    with open("all_team_prs.json") as f:
         historical_data = json.load(f)
 
     # Filter for SBM/DT related PRs
     relevant_data = [
-        pr for pr in historical_data
+        pr
+        for pr in historical_data
         if any(keyword in pr.get("title", "").upper() for keyword in ["SBM", "FE AUDIT", "DT"])
     ]
 
@@ -53,14 +56,16 @@ def main():
     users = {}
     for entry in relevant_data:
         author_data = entry.get("author", {})
-        if not author_data: continue
+        if not author_data:
+            continue
         author = author_data.get("login", "unknown")
 
         if author not in users:
             users[author] = {"migrations": set(), "runs": []}
 
         slug = extract_slug(entry["title"])
-        if slug == "unknown": continue
+        if slug == "unknown":
+            continue
 
         users[author]["migrations"].add(slug)
 
@@ -73,7 +78,7 @@ def main():
             "automation_seconds": 60.0,
             "lines_migrated": entry["additions"],
             "manual_estimate_seconds": 240 * 60,
-            "historical": True
+            "historical": True,
         }
         users[author]["runs"].append(run_entry)
 
@@ -90,13 +95,16 @@ def main():
             "user": user_id,
             "migrations": sorted(list(data["migrations"])),
             "runs": sorted(data["runs"], key=lambda x: x["timestamp"])[-500:],
-            "last_updated": datetime.now().isoformat() + "Z"
+            "last_updated": datetime.now().isoformat() + "Z",
         }
 
         with global_file.open("w", encoding="utf-8") as f:
             json.dump(final_data, f, indent=2)
 
-        print(f"Backfilled {len(data['runs'])} runs for {author} -> {global_file} ({len(data['migrations'])} unique sites)")
+        print(
+            f"Backfilled {len(data['runs'])} runs for {author} -> {global_file} ({len(data['migrations'])} unique sites)"
+        )
+
 
 if __name__ == "__main__":
     main()

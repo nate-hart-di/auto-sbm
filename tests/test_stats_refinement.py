@@ -1,10 +1,11 @@
-import pytest
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+import pytest
+from scripts.stats.report_slack import calculate_metrics, filter_runs_by_previous_calendar_day
 
 from sbm.core.migration import MigrationResult
 from sbm.utils.tracker import record_run
-from scripts.stats.report_slack import calculate_metrics, filter_runs_by_previous_calendar_day
 
 
 @pytest.fixture

@@ -1,7 +1,8 @@
 import os
 import sys
+
 import firebase_admin
-from firebase_admin import db, credentials
+from firebase_admin import credentials, db
 
 # Setup env
 sys.path.append(os.getcwd())
@@ -37,7 +38,7 @@ def audit():
         print("No data found in Firebase.")
         return
 
-    print(f"\nAUDIT RESULTS (Strict Criteria: Success, Lines > 0, Has PR URL)")
+    print("\nAUDIT RESULTS (Strict Criteria: Success, Lines > 0, Has PR URL)")
     print(f"{'User':<30} | {'Total Runs':<10} | {'Strict Count':<12} | {'Strict Lines':<12}")
     print("-" * 75)
 
@@ -101,7 +102,6 @@ def audit():
             # We will replicate that strict logic.
 
             # If checking duplicates, we need to store runs by slug first then sum.
-            pass
 
         # Second Pass: Select Latest Valid Run per Slug
         valid_runs_by_slug = {}
@@ -136,7 +136,7 @@ def audit():
         print(f"{user_id:<30} | {len(runs):<10} | {count:<12} | {u_lines:<12,}")
 
     print("-" * 75)
-    print(f"Total Runs (Raw DB count): variable")
+    print("Total Runs (Raw DB count): variable")
     print(f"Global Unique Verified Sites: {len(global_verified_slugs)}")
     print(f"Global Verified Lines: {total_strict_lines_sum:,}")
 

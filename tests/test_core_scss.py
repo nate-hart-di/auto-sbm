@@ -2,15 +2,14 @@
 Core SCSS processing tests.
 Tests SCSS transformation pipeline and processing.
 """
-import pytest
+
 import re
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import tempfile
+
+import pytest
 
 # Import SCSS processing functions - adjust based on actual codebase
 try:
-    from sbm.core.scss_processor import process_scss, convert_variables, process_mixins
+    from sbm.core.scss_processor import convert_variables, process_mixins, process_scss
 except ImportError:
     # If these don't exist, we'll test basic SCSS processing patterns
     process_scss = None
@@ -41,7 +40,7 @@ $margin: 10px 20px;
             r"--margin:\s*10px 20px",
             r"color:\s*var\(--primary-color\)",
             r"font-size:\s*var\(--font-size\)",
-            r"margin:\s*var\(--margin\)"
+            r"margin:\s*var\(--margin\)",
         ]
 
         if convert_variables:
@@ -53,9 +52,9 @@ $margin: 10px 20px;
                 pytest.fail(f"Variable conversion failed: {e}")
         else:
             # Test basic pattern matching for variable conversion
-            variables = re.findall(r'\$([a-zA-Z-]+):\s*([^;]+);', scss_input)
+            variables = re.findall(r"\$([a-zA-Z-]+):\s*([^;]+);", scss_input)
             assert len(variables) == 3
-            assert ('primary-color', '#007bff') in variables
+            assert ("primary-color", "#007bff") in variables
 
     def test_complex_variable_conversion(self):
         """Test complex SCSS variable conversion scenarios."""
@@ -78,13 +77,13 @@ $box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 """
 
         # Test variable extraction
-        variables = re.findall(r'\$([a-zA-Z-]+):\s*([^;]+);', scss_input)
+        variables = re.findall(r"\$([a-zA-Z-]+):\s*([^;]+);", scss_input)
         assert len(variables) == 6
 
         # Test complex values
         complex_values = [v[1] for v in variables]
-        assert '0 2px 4px rgba(0, 0, 0, 0.1)' in complex_values
-        assert 'rgb(128, 128, 128)' in complex_values
+        assert "0 2px 4px rgba(0, 0, 0, 0.1)" in complex_values
+        assert "rgb(128, 128, 128)" in complex_values
 
     def test_variable_usage_replacement(self):
         """Test replacing variable usage with CSS custom properties."""
@@ -98,8 +97,8 @@ $box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 """
 
         # Find variable usages
-        variable_usages = re.findall(r'\$([a-zA-Z-]+)', scss_with_usage)
-        expected_vars = ['primary-color', 'primary-color', 'border-color', 'base-margin']
+        variable_usages = re.findall(r"\$([a-zA-Z-]+)", scss_with_usage)
+        expected_vars = ["primary-color", "primary-color", "border-color", "base-margin"]
 
         for var in expected_vars:
             assert var in variable_usages
@@ -136,14 +135,14 @@ class TestSCSSMixinProcessing:
 """
 
         # Find mixin definitions
-        mixin_definitions = re.findall(r'@mixin\s+([a-zA-Z-]+)', scss_with_mixins)
-        assert 'button-style' in mixin_definitions
-        assert 'flex-center' in mixin_definitions
+        mixin_definitions = re.findall(r"@mixin\s+([a-zA-Z-]+)", scss_with_mixins)
+        assert "button-style" in mixin_definitions
+        assert "flex-center" in mixin_definitions
 
         # Find mixin usages
-        mixin_usages = re.findall(r'@include\s+([a-zA-Z-]+)', scss_with_mixins)
-        assert 'button-style' in mixin_usages
-        assert 'flex-center' in mixin_usages
+        mixin_usages = re.findall(r"@include\s+([a-zA-Z-]+)", scss_with_mixins)
+        assert "button-style" in mixin_usages
+        assert "flex-center" in mixin_usages
 
     def test_mixin_with_parameters(self):
         """Test mixins with parameters."""
@@ -166,7 +165,7 @@ class TestSCSSMixinProcessing:
 """
 
         # Find parameterized mixins
-        param_mixins = re.findall(r'@mixin\s+([a-zA-Z-]+)\([^)]*\)', scss_with_params)
+        param_mixins = re.findall(r"@mixin\s+([a-zA-Z-]+)\([^)]*\)", scss_with_params)
         assert len(param_mixins) >= 2
 
     def test_mixin_conversion_fallback(self):
@@ -213,10 +212,10 @@ class TestSCSSPathProcessing:
         url_patterns = re.findall(r'url\([\'"]?([^\'")]+)[\'"]?\)', scss_with_paths)
 
         expected_paths = [
-            '../images/bg.jpg',
-            '../images/hero.png',
-            '../images/icon.svg',
-            '../../assets/sprites.png'
+            "../images/bg.jpg",
+            "../images/hero.png",
+            "../images/icon.svg",
+            "../../assets/sprites.png",
         ]
 
         for path in expected_paths:
@@ -225,18 +224,14 @@ class TestSCSSPathProcessing:
     def test_path_quote_enforcement(self):
         """Test enforcement of quotes around paths."""
         paths_without_quotes = [
-            'url(../images/bg.jpg)',
-            'url(../../assets/icon.png)',
-            'url(fonts/custom.woff)'
+            "url(../images/bg.jpg)",
+            "url(../../assets/icon.png)",
+            "url(fonts/custom.woff)",
         ]
 
         for path_usage in paths_without_quotes:
             # Test pattern for adding quotes
-            quoted_version = re.sub(
-                r'url\(([^\'"][^)]+)\)',
-                r'url("\1")',
-                path_usage
-            )
+            quoted_version = re.sub(r'url\(([^\'"][^)]+)\)', r'url("\1")', path_usage)
             assert '"' in quoted_version
 
 
@@ -261,11 +256,11 @@ class TestSCSSContentProcessing:
 """
 
         # CSS comments should be preserved
-        css_comments = re.findall(r'/\*[^*]*\*+(?:[^/*][^*]*\*+)*/', scss_with_comments)
+        css_comments = re.findall(r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/", scss_with_comments)
         assert len(css_comments) >= 2
 
         # Important comments (/*!) should definitely be preserved
-        important_comments = re.findall(r'/\*![^*]*\*+(?:[^/*][^*]*\*+)*/', scss_with_comments)
+        important_comments = re.findall(r"/\*![^*]*\*+(?:[^/*][^*]*\*+)*/", scss_with_comments)
         assert len(important_comments) >= 1
 
     def test_nested_selector_handling(self):
@@ -294,10 +289,10 @@ class TestSCSSContentProcessing:
 """
 
         # Find nested structure
-        nested_patterns = re.findall(r'\s+\.(\w+)\s*{', nested_scss)
-        assert 'header' in nested_patterns
-        assert 'content' in nested_patterns
-        assert 'title' in nested_patterns
+        nested_patterns = re.findall(r"\s+\.(\w+)\s*{", nested_scss)
+        assert "header" in nested_patterns
+        assert "content" in nested_patterns
+        assert "title" in nested_patterns
 
     def test_media_query_handling(self):
         """Test handling of media queries in SCSS."""
@@ -318,10 +313,10 @@ class TestSCSSContentProcessing:
 """
 
         # Find media queries
-        media_queries = re.findall(r'@media\s*\([^)]+\)', scss_with_media)
+        media_queries = re.findall(r"@media\s*\([^)]+\)", scss_with_media)
         assert len(media_queries) == 2
-        assert 'min-width: 768px' in str(media_queries)
-        assert 'max-width: 480px' in str(media_queries)
+        assert "min-width: 768px" in str(media_queries)
+        assert "max-width: 480px" in str(media_queries)
 
 
 class TestSCSSValidation:
@@ -331,14 +326,14 @@ class TestSCSSValidation:
         """Test detection of SCSS syntax errors."""
         invalid_scss_samples = [
             ".invalid { color: blue",  # Missing closing brace
-            ".invalid { color: ; }",   # Missing value
-            ".invalid { : blue; }",    # Missing property
-            "@mixin incomplete",       # Incomplete mixin
+            ".invalid { color: ; }",  # Missing value
+            ".invalid { : blue; }",  # Missing property
+            "@mixin incomplete",  # Incomplete mixin
         ]
 
         for invalid_scss in invalid_scss_samples:
             # Basic syntax validation
-            brace_count = invalid_scss.count('{') - invalid_scss.count('}')
+            brace_count = invalid_scss.count("{") - invalid_scss.count("}")
             if brace_count != 0:
                 # Unmatched braces detected
                 assert True
@@ -361,9 +356,9 @@ $primary: #007bff;
 """
 
         # Basic validation checks
-        assert valid_scss.count('{') == valid_scss.count('}')  # Balanced braces
-        assert '$primary' in valid_scss  # Has variables
-        assert '&:hover' in valid_scss   # Has nesting
+        assert valid_scss.count("{") == valid_scss.count("}")  # Balanced braces
+        assert "$primary" in valid_scss  # Has variables
+        assert "&:hover" in valid_scss  # Has nesting
 
 
 class TestSCSSIntegration:
@@ -397,8 +392,8 @@ $secondary-color: #6c757d;
 
         # Test file reading and basic processing
         content = scss_file.read_text()
-        assert '$primary-color' in content
-        assert '.button' in content
+        assert "$primary-color" in content
+        assert ".button" in content
 
         if process_scss:
             try:

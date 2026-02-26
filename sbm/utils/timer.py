@@ -12,7 +12,6 @@ from typing import Dict, List, Optional
 
 from sbm.utils.logger import logger
 
-
 # Global timing summary storage
 _timing_summary: Dict[str, float] = {}
 _current_theme: Optional[str] = None

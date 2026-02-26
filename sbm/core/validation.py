@@ -17,6 +17,7 @@ from sbm.utils.logger import logger
 
 class CompilationStatus(Enum):
     """Enumeration of compilation status states."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
@@ -27,6 +28,7 @@ class CompilationStatus(Enum):
 @dataclass
 class CompilationAttempt:
     """Data class representing a single compilation attempt."""
+
     attempt_number: int
     timestamp: float
     status: CompilationStatus
@@ -64,7 +66,7 @@ class CompilationValidator:
         status: CompilationStatus,
         errors: Optional[List[str]] = None,
         warnings: Optional[List[str]] = None,
-        error_types: Optional[List[str]] = None
+        error_types: Optional[List[str]] = None,
     ) -> None:
         """
         Track a single compilation attempt.
@@ -91,7 +93,7 @@ class CompilationValidator:
             errors=errors or [],
             warnings=warnings or [],
             duration=duration,
-            error_types=error_types or []
+            error_types=error_types or [],
         )
 
         self._compilation_history.append(compilation_attempt)
@@ -141,7 +143,7 @@ class CompilationValidator:
                 "attempts": 0,
                 "retries": 0,
                 "duration": 0.0,
-                "final_status": None
+                "final_status": None,
             }
 
         total_duration = 0.0
@@ -168,7 +170,7 @@ class CompilationValidator:
             "total_errors": total_errors,
             "total_warnings": total_warnings,
             "error_types": list(all_error_types),
-            "success": self.is_compilation_successful()
+            "success": self.is_compilation_successful(),
         }
 
     def get_last_attempt(self) -> Optional[CompilationAttempt]:

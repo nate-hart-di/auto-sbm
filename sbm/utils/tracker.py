@@ -626,7 +626,12 @@ def get_migration_stats(
                 elif completion_state == COMPLETION_CLOSED:
                     ts_val = run.get("closed_at") or run.get("timestamp") or ""
                 elif completion_state == COMPLETION_SUPERSEDED:
-                    ts_val = run.get("superseded_at") or run.get("merged_at") or run.get("timestamp") or ""
+                    ts_val = (
+                        run.get("superseded_at")
+                        or run.get("merged_at")
+                        or run.get("timestamp")
+                        or ""
+                    )
                 else:
                     ts_val = run.get("merged_at") or run.get("timestamp") or ""
 
@@ -881,24 +886,23 @@ def get_pr_completion_state(run: dict) -> str:
 
     if merged_at:
         return COMPLETION_COMPLETE
-    elif pr_state == PR_STATE_OPEN:
+    if pr_state == PR_STATE_OPEN:
         # PR is currently open (even if it was previously closed and reopened)
         return COMPLETION_IN_REVIEW
-    elif pr_state == PR_STATE_MERGED:
+    if pr_state == PR_STATE_MERGED:
         # State says merged but no merged_at timestamp (data inconsistency)
         return COMPLETION_COMPLETE
-    elif pr_state == PR_STATE_CLOSED:
+    if pr_state == PR_STATE_CLOSED:
         # PR is closed without merge (legacy data may be missing closed_at)
         return COMPLETION_CLOSED
-    elif created_at:
+    if created_at:
         # Has created_at but no clear state - assume in review
         return COMPLETION_IN_REVIEW
-    else:
-        # Backwards compatibility: runs without new fields
-        # Cannot determine completion state without timestamps
-        # Return "unknown" to avoid incorrectly inflating stats
-        # User should run migrate_pr_timestamps.py to fix
-        return COMPLETION_UNKNOWN
+    # Backwards compatibility: runs without new fields
+    # Cannot determine completion state without timestamps
+    # Return "unknown" to avoid incorrectly inflating stats
+    # User should run migrate_pr_timestamps.py to fix
+    return COMPLETION_UNKNOWN
 
 
 def _calculate_metrics(data: dict) -> dict:
@@ -930,7 +934,10 @@ def _calculate_metrics(data: dict) -> dict:
 
     # Only count runs that are actually complete (merged), de-duped by slug
     complete_runs = [
-        r for r in active_runs if r.get("status") == RUN_STATUS_SUCCESS and get_pr_completion_state(r) == COMPLETION_COMPLETE
+        r
+        for r in active_runs
+        if r.get("status") == RUN_STATUS_SUCCESS
+        and get_pr_completion_state(r) == COMPLETION_COMPLETE
     ]
     unique_complete_by_slug: dict[str, dict] = {}
     for run in complete_runs:
@@ -1125,12 +1132,14 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
 
         if settings.firebase.is_admin_mode():
             from sbm.utils.firebase_sync import get_firebase_db
+
             db = get_firebase_db()
             ref = db.reference("users")
             users_data = ref.get()
         else:
             # User Mode: REST
             import requests
+
             from sbm.utils.firebase_sync import _get_user_mode_identity
 
             identity = _get_user_mode_identity()
@@ -1176,15 +1185,18 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
                 if run_slug not in slug_to_runs:
                     slug_to_runs[run_slug] = []
 
-                slug_to_runs[run_slug].append({
-                    "user_id": user_id,
-                    "run_key": run_key,
-                    "merged_at": run.get("merged_at"),
-                    "timestamp": run.get("timestamp")
-                })
+                slug_to_runs[run_slug].append(
+                    {
+                        "user_id": user_id,
+                        "run_key": run_key,
+                        "merged_at": run.get("merged_at"),
+                        "timestamp": run.get("timestamp"),
+                    }
+                )
 
         # Update each slug's most recent run
         from datetime import datetime, timezone
+
         remigrated_at = datetime.now(timezone.utc).isoformat()
 
         for slug in slugs:
@@ -1195,10 +1207,7 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
 
             # Find the most recent run (by merged_at or timestamp)
             runs = slug_to_runs[slug]
-            most_recent = max(
-                runs,
-                key=lambda r: r.get("merged_at") or r.get("timestamp") or ""
-            )
+            most_recent = max(runs, key=lambda r: r.get("merged_at") or r.get("timestamp") or "")
 
             # Mark this run as superseded
             # IMPORTANT: Do NOT change pr_state - keep it synced to GitHub reality
@@ -1207,13 +1216,11 @@ def mark_runs_for_remigration(slugs: list[str]) -> dict[str, int]:
             updates = {
                 "superseded": True,
                 "superseded_at": remigrated_at,
-                "superseded_by": new_run_key
+                "superseded_by": new_run_key,
             }
 
             success = sync.update_run(
-                user_id=most_recent["user_id"],
-                run_key=most_recent["run_key"],
-                updates=updates
+                user_id=most_recent["user_id"], run_key=most_recent["run_key"], updates=updates
             )
 
             if success:

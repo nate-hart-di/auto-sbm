@@ -1,6 +1,6 @@
 import argparse
-from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db, get_settings
-from sbm.utils.tracker import _get_user_id
+
+from sbm.utils.firebase_sync import get_firebase_db, get_settings, is_firebase_available
 
 
 def log(msg, file_only=False):

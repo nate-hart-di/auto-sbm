@@ -1,8 +1,9 @@
-import pytest
-from unittest.mock import patch, MagicMock
 from pathlib import Path
-from datetime import datetime
-from sbm.utils.report_generator import generate_migration_report, MigrationReportData
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from sbm.utils.report_generator import generate_migration_report
 
 
 class TestReportGenerator:

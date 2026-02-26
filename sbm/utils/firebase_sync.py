@@ -214,12 +214,11 @@ def _get_user_mode_identity() -> tuple[str, str] | None:
                         )
                         _save_auth_cache(_user_auth_state)
                         return _user_auth_state["local_id"], _user_auth_state["id_token"]
-                    else:
-                        logger.warning(
-                            "Firebase token refresh failed: %s %s",
-                            resp.status_code,
-                            resp.text[:200],
-                        )
+                    logger.warning(
+                        "Firebase token refresh failed: %s %s",
+                        resp.status_code,
+                        resp.text[:200],
+                    )
                 except Exception as e:
                     logger.debug(f"Firebase token refresh failed: {e}")
 
@@ -245,12 +244,11 @@ def _get_user_mode_identity() -> tuple[str, str] | None:
                 )
                 _save_auth_cache(_user_auth_state)
                 return _user_auth_state["local_id"], _user_auth_state["id_token"]
-            else:
-                logger.warning(
-                    "Firebase anonymous auth failed: %s %s",
-                    resp.status_code,
-                    resp.text[:200],
-                )
+            logger.warning(
+                "Firebase anonymous auth failed: %s %s",
+                resp.status_code,
+                resp.text[:200],
+            )
         except Exception as e:
             logger.debug(f"Firebase anonymous auth failed: {e}")
 
@@ -278,7 +276,7 @@ def is_firebase_available() -> bool:
         return False
 
 
-def get_firebase_db() -> "firebase_db":
+def get_firebase_db() -> firebase_db:
     """
     Get the Firebase Realtime Database reference module.
     Only available in Admin Mode.
@@ -650,9 +648,8 @@ class FirebaseSync:
             if resp.ok:
                 data = resp.json()
                 return data if isinstance(data, dict) else {}
-            else:
-                logger.debug(f"REST fetch failed for {target_uid}: {resp.status_code}")
-                return {}
+            logger.debug(f"REST fetch failed for {target_uid}: {resp.status_code}")
+            return {}
 
         except Exception as e:
             logger.debug(f"Failed to fetch user runs: {e}")
@@ -692,9 +689,8 @@ class FirebaseSync:
             if resp.ok:
                 data = resp.json()
                 return data if isinstance(data, dict) else {}
-            else:
-                logger.debug(f"Global REST fetch failed: {resp.status_code}")
-                return {}
+            logger.debug(f"Global REST fetch failed: {resp.status_code}")
+            return {}
 
         except Exception as e:
             logger.debug(f"Failed to fetch all users: {e}")
@@ -756,9 +752,8 @@ class FirebaseSync:
 
             if resp.ok:
                 return True
-            else:
-                logger.debug(f"REST update failed: {resp.status_code} {resp.text}")
-                return False
+            logger.debug(f"REST update failed: {resp.status_code} {resp.text}")
+            return False
 
         except Exception as e:
             logger.debug(f"Failed to update run: {e}")

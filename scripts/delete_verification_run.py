@@ -1,7 +1,9 @@
 import logging
+
 import requests
 from rich.console import Console
-from sbm.utils.firebase_sync import FirebaseSync, get_settings, _get_user_mode_identity
+
+from sbm.utils.firebase_sync import FirebaseSync, _get_user_mode_identity, get_settings
 
 logging.basicConfig(level=logging.DEBUG)
 console = Console()

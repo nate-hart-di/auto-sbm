@@ -146,11 +146,11 @@ def get_days_from_period(period: str) -> int:
     period = period.lower()
     if period in {"day", "daily"}:
         return 1
-    elif period in {"week", "weekly"}:
+    if period in {"week", "weekly"}:
         return 7
-    elif period in {"month", "monthly"}:
+    if period in {"month", "monthly"}:
         return 30
-    elif period == "all":
+    if period == "all":
         return 99999  # effectively "all"
     try:
         return int(period)
@@ -655,6 +655,7 @@ def main() -> None:
 
     # 4. Format
     import re
+
     from sbm.utils.tracker import _parse_date_input, _parse_period_to_days
 
     start_date = None

@@ -1,10 +1,11 @@
 import json
-from pathlib import Path
-from datetime import datetime
 import re
+from datetime import datetime
+from pathlib import Path
 
 # REPO_ROOT = Path(__file__).parent.resolve()
 GLOBAL_STATS_DIR = Path("stats")
+
 
 def extract_slug(title):
     # Pattern 1: PCON-864: {slug} SBM FE Audit
@@ -20,11 +21,12 @@ def extract_slug(title):
     # Fallback: just take the first word if it looks like a slug
     return title.split()[0].lower()
 
+
 def main():
     if not GLOBAL_STATS_DIR.exists():
         GLOBAL_STATS_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open("historical_data.json", "r") as f:
+    with open("historical_data.json") as f:
         historical_data = json.load(f)
 
     # Group by author
@@ -46,10 +48,10 @@ def main():
             "command": "auto",  # Assume auto for history
             "status": "success",
             "duration_seconds": 300.0,  # Proxy: 5 minutes
-            "automation_seconds": 60.0,   # Proxy: 1 minute
+            "automation_seconds": 60.0,  # Proxy: 1 minute
             "lines_migrated": entry["additions"],
-            "manual_estimate_seconds": 240 * 60, # 4 hours legacy proxy
-            "historical": True
+            "manual_estimate_seconds": 240 * 60,  # 4 hours legacy proxy
+            "historical": True,
         }
         users[author]["runs"].append(run_entry)
 
@@ -80,14 +82,15 @@ def main():
         final_data = {
             "user": user_id,
             "migrations": combined_migrations,
-            "runs": combined_runs[-500:], # keep last 500
-            "last_updated": datetime.now().isoformat() + "Z"
+            "runs": combined_runs[-500:],  # keep last 500
+            "last_updated": datetime.now().isoformat() + "Z",
         }
 
         with global_file.open("w", encoding="utf-8") as f:
             json.dump(final_data, f, indent=2)
 
         print(f"Backfilled {len(data['runs'])} runs for {author} -> {global_file}")
+
 
 if __name__ == "__main__":
     main()

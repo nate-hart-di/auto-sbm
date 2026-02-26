@@ -8,9 +8,9 @@ replacing the legacy JSON-based configuration system.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
-from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -183,7 +183,9 @@ class FirebaseSettings(BaseSettings):
 
     def is_user_mode(self) -> bool:
         """Check if running in user mode (anonymous auth)."""
-        return self.database_url is not None and self.api_key is not None and not self.is_admin_mode()
+        return (
+            self.database_url is not None and self.api_key is not None and not self.is_admin_mode()
+        )
 
 
 class MigrationSettings(BaseSettings):
@@ -232,7 +234,6 @@ class AutoSBMSettings(BaseSettings):
             "TRAVIS",
         ]
         return any(os.getenv(indicator) for indicator in ci_indicators)
-
 
 
 # Global settings instance - lazy loaded

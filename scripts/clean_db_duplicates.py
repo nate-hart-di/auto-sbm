@@ -1,10 +1,9 @@
-import firebase_admin
-from firebase_admin import credentials, db
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime
-import json
+
+import firebase_admin
+from firebase_admin import credentials, db
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

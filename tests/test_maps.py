@@ -442,9 +442,9 @@ def test_location_with_map_content_detected(tmp_path, monkeypatch):
     )
 
     partials = maps.find_template_parts_in_file(str(template_file), [])
-    assert any(
-        p["partial_path"] == "partials/dealer-groups/group-a/location" for p in partials
-    ), "location partial with map markers should be detected"
+    assert any(p["partial_path"] == "partials/dealer-groups/group-a/location" for p in partials), (
+        "location partial with map markers should be detected"
+    )
 
 
 def test_location_without_map_content_skipped(tmp_path, monkeypatch):
@@ -464,9 +464,9 @@ def test_location_without_map_content_skipped(tmp_path, monkeypatch):
     )
 
     partials = maps.find_template_parts_in_file(str(template_file), [])
-    assert not any(
-        "dealer-groups/group-a/locations" in p["partial_path"] for p in partials
-    ), "location partial without map markers should be skipped"
+    assert not any("dealer-groups/group-a/locations" in p["partial_path"] for p in partials), (
+        "location partial without map markers should be skipped"
+    )
 
 
 def test_shortcode_scanner_detects_non_fullmap_keywords(tmp_path):

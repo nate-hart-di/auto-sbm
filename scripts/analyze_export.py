@@ -1,6 +1,5 @@
 import json
-from pathlib import Path
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 
 def analyze(file_path):

@@ -4,19 +4,17 @@ Archive extra SBM runs in Firebase.
 Moves runs that are present in Firebase but missing from the CSV to an 'archived_runs' node.
 """
 
-import csv
-import sys
-import os
 import logging
-from urllib.parse import urlparse
+import os
+import sys
 
 sys.path.append(os.getcwd())
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from sbm.utils.firebase_sync import is_firebase_available, get_firebase_db, get_settings
-import firebase_admin
+
+from sbm.utils.firebase_sync import get_firebase_db, get_settings, is_firebase_available
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -24,9 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 from scripts.cross_check_csv_db import (
+    find_prefix_matches,
     load_csv_slugs,
     load_firebase_slugs,
-    find_prefix_matches,
 )
 
 

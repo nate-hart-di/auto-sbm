@@ -1,9 +1,10 @@
 import json
 import subprocess
 import sys
-from pathlib import Path
-from sbm.utils.tracker import get_global_reporting_data, record_run
+
 from rich.console import Console
+
+from sbm.utils.tracker import get_global_reporting_data, record_run
 
 console = Console()
 
@@ -139,9 +140,9 @@ def recover(dry_run=True):
                 total_lines_recovered += lines
                 success_count += 1
         else:
-            console.print(f"  [red]No PR found[/red]")
+            console.print("  [red]No PR found[/red]")
 
-    console.print(f"\n[bold]Recovery Complete[/bold]")
+    console.print("\n[bold]Recovery Complete[/bold]")
     console.print(f"Recovered {success_count} / {len(missing_slugs)} missing runs")
     console.print(f"Total Lines Recovered: {total_lines_recovered}")
 

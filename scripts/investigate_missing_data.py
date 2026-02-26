@@ -4,9 +4,8 @@ Investigate 32 missing SBM runs by checking GitHub for valid PRs.
 Uses `gh` CLI to search for merged PRs matching the slugs.
 """
 
-import subprocess
 import json
-import sys
+import subprocess
 import time
 
 MISSING_SLUGS = [
@@ -64,9 +63,7 @@ def search_pr(slug):
             "--limit",
             "100",  # Get more PRs to find the original migration
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=True, cwd=cwd
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=cwd)
         prs = json.loads(result.stdout)
         return prs
     except subprocess.CalledProcessError as e:

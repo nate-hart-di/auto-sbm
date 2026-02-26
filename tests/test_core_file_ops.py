@@ -2,16 +2,16 @@
 Core file operations tests.
 Tests basic file read/write/create operations work correctly.
 """
-import pytest
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock
+
 import json
+import os
+from pathlib import Path
+
+import pytest
 
 # Import file operation functions - adjust based on actual codebase
 try:
-    from sbm.core.file_operations import read_file, write_file, create_file
+    from sbm.core.file_operations import create_file, read_file, write_file
 except ImportError:
     # If these don't exist, we'll test basic file operations
     read_file = None
@@ -34,7 +34,7 @@ class TestBasicFileOperations:
         assert content == test_content
 
         # Test reading with open()
-        with open(test_file, 'r') as f:
+        with open(test_file) as f:
             content2 = f.read()
         assert content2 == test_content
 
@@ -57,7 +57,7 @@ class TestBasicFileOperations:
 
         # Test writing with open()
         test_file2 = tmp_path / "write_test2.txt"
-        with open(test_file2, 'w') as f:
+        with open(test_file2, "w") as f:
             f.write(test_content)
         assert test_file2.read_text() == test_content
 
@@ -109,7 +109,7 @@ class TestFileOperationEdgeCases:
         nonexistent = "/path/that/does/not/exist.txt"
 
         with pytest.raises(FileNotFoundError):
-            with open(nonexistent, 'r') as f:
+            with open(nonexistent) as f:
                 f.read()
 
         with pytest.raises(FileNotFoundError):
@@ -140,7 +140,7 @@ class TestFileOperationEdgeCases:
         content = empty_file.read_text()
         assert content == ""
 
-        with open(empty_file, 'r') as f:
+        with open(empty_file) as f:
             content2 = f.read()
         assert content2 == ""
 
@@ -156,7 +156,7 @@ class TestFileOperationEdgeCases:
             assert large_file.exists()
 
             # Verify content (read first 100 chars to avoid memory issues)
-            with open(large_file, 'r') as f:
+            with open(large_file) as f:
                 first_chars = f.read(100)
             assert first_chars == "A" * 100
 
@@ -173,16 +173,16 @@ class TestFileEncodingHandling:
         utf8_content = "Hello 世界! 🌍 Émojis and ünícode"
 
         # Write UTF-8 content
-        utf8_file.write_text(utf8_content, encoding='utf-8')
+        utf8_file.write_text(utf8_content, encoding="utf-8")
 
         # Read UTF-8 content
-        read_content = utf8_file.read_text(encoding='utf-8')
+        read_content = utf8_file.read_text(encoding="utf-8")
         assert read_content == utf8_content
 
     def test_binary_file_handling(self, tmp_path):
         """Test binary file handling works correctly."""
         binary_file = tmp_path / "binary.bin"
-        binary_content = b'\x00\x01\x02\x03\xFF\xFE\xFD'
+        binary_content = b"\x00\x01\x02\x03\xff\xfe\xfd"
 
         # Write binary content
         binary_file.write_bytes(binary_content)
@@ -198,20 +198,13 @@ class TestJSONFileOperations:
     def test_json_reading(self, tmp_path):
         """Test JSON file reading works correctly."""
         json_file = tmp_path / "test.json"
-        test_data = {
-            "name": "test",
-            "version": "1.0.0",
-            "settings": {
-                "enabled": True,
-                "count": 42
-            }
-        }
+        test_data = {"name": "test", "version": "1.0.0", "settings": {"enabled": True, "count": 42}}
 
         # Write JSON
         json_file.write_text(json.dumps(test_data, indent=2))
 
         # Read and parse JSON
-        with open(json_file, 'r') as f:
+        with open(json_file) as f:
             loaded_data = json.load(f)
 
         assert loaded_data == test_data
@@ -222,15 +215,15 @@ class TestJSONFileOperations:
         test_data = {
             "github_token": "test_token",
             "github_org": "test_org",
-            "default_branch": "main"
+            "default_branch": "main",
         }
 
         # Write JSON
-        with open(json_file, 'w') as f:
+        with open(json_file, "w") as f:
             json.dump(test_data, f, indent=2)
 
         # Verify written content
-        with open(json_file, 'r') as f:
+        with open(json_file) as f:
             loaded_data = json.load(f)
 
         assert loaded_data == test_data
@@ -244,7 +237,7 @@ class TestJSONFileOperations:
 
         # Should raise JSONDecodeError
         with pytest.raises(json.JSONDecodeError):
-            with open(bad_json_file, 'r') as f:
+            with open(bad_json_file) as f:
                 json.load(f)
 
 

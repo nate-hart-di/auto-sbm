@@ -1,5 +1,3 @@
-import os
-import re
 from sbm.scss.processor import SCSSProcessor
 
 
@@ -43,7 +41,7 @@ def test_import_removal():
     processed = processor._remove_imports(content)
     if "@import" in processed:
         print(
-            f"WARN: Import without semicolon NOT removed (Expected behavior for regex requiring semicolon)"
+            "WARN: Import without semicolon NOT removed (Expected behavior for regex requiring semicolon)"
         )
     else:
         print("PASS: Import without semicolon removed")

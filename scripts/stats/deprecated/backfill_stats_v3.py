@@ -14,6 +14,7 @@ if not (ROOT_DIR / "sbm").exists():
 GLOBAL_STATS_DIR = ROOT_DIR / "stats"
 RAW_DATA_DIR = GLOBAL_STATS_DIR / "raw"
 
+
 def extract_slug(title: str | None) -> str | None:
     if not title:
         return None
@@ -27,17 +28,25 @@ def extract_slug(title: str | None) -> str | None:
         return match1.group(1).lower()
 
     # Pattern 2: {slug} - SBM FE Audit (or {slug} SBM FE Audit)
-    match2 = re.search(r"^([a-zA-Z0-9_-]+)(?:\s+-\s+|\s+)(?:SBM|FE Audit|NEW SITE|DEALERTHEME|Legacy Code Migration)", title, re.IGNORECASE)
+    match2 = re.search(
+        r"^([a-zA-Z0-9_-]+)(?:\s+-\s+|\s+)(?:SBM|FE Audit|NEW SITE|DEALERTHEME|Legacy Code Migration)",
+        title,
+        re.IGNORECASE,
+    )
     if match2:
         slug = match2.group(1).lower().strip("[]")
         if slug not in ["sbm", "new", "fe", "legacy"]:
             return slug
 
     # Pattern 3: New DT - {slug} or {slug} - New DT
-    match3 = re.search(r"(?:New DT|SBM|Legacy Code Migration)\s+-\s+([a-zA-Z0-9_-]+)", title, re.IGNORECASE)
+    match3 = re.search(
+        r"(?:New DT|SBM|Legacy Code Migration)\s+-\s+([a-zA-Z0-9_-]+)", title, re.IGNORECASE
+    )
     if match3:
         return match3.group(1).lower()
-    match3b = re.search(r"([a-zA-Z0-9_-]+)\s+-\s+(?:New DT|SBM|Legacy Code Migration)", title, re.IGNORECASE)
+    match3b = re.search(
+        r"([a-zA-Z0-9_-]+)\s+-\s+(?:New DT|SBM|Legacy Code Migration)", title, re.IGNORECASE
+    )
     if match3b:
         return match3b.group(1).lower()
 
@@ -50,7 +59,7 @@ def extract_slug(title: str | None) -> str | None:
     match5 = re.search(r"^([a-zA-Z0-9_-]+)\s+SBM", title, re.IGNORECASE)
     if match5:
         slug = match5.group(1).lower()
-        if slug != "alfa": # special case like "Alfa Romeo of ... - SBM"
+        if slug != "alfa":  # special case like "Alfa Romeo of ... - SBM"
             return slug
 
     # Special Case: "Alfa Romeo of {slug} - SBM" or "BMW of {slug} - SBM"
@@ -59,6 +68,7 @@ def extract_slug(title: str | None) -> str | None:
         return match_special.group(1).lower()
 
     return None
+
 
 def process_file(filename: str, users_dict: dict[str, dict]) -> None:
     filepath = RAW_DATA_DIR / filename
@@ -81,10 +91,12 @@ def process_file(filename: str, users_dict: dict[str, dict]) -> None:
             auth_val = entry["author"]
             author = auth_val.get("login", "unknown") if isinstance(auth_val, dict) else auth_val
 
-        if author == "unknown": continue
+        if author == "unknown":
+            continue
 
         slug = extract_slug(entry.get("title", ""))
-        if not slug: continue
+        if not slug:
+            continue
 
         if author not in users_dict:
             users_dict[author] = {"migrations": set(), "runs": {}}
@@ -109,6 +121,7 @@ def process_file(filename: str, users_dict: dict[str, dict]) -> None:
                 "historical": True,
             }
     print(f"Processed {processed_count} relevant entries from {filepath}")
+
 
 def main() -> None:
     if not GLOBAL_STATS_DIR.exists():
@@ -138,14 +151,17 @@ def main() -> None:
         final_data = {
             "user": user_id,
             "migrations": all_slugs,
-            "runs": combined_runs[-500:], # keep last 500
-            "last_updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            "runs": combined_runs[-500:],  # keep last 500
+            "last_updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
 
         with global_file.open("w", encoding="utf-8") as f:
             json.dump(final_data, f, indent=2)
 
-        print(f"Overall Merge for {author}: {len(combined_runs)} runs, {len(all_slugs)} unique sites")
+        print(
+            f"Overall Merge for {author}: {len(combined_runs)} runs, {len(all_slugs)} unique sites"
+        )
+
 
 if __name__ == "__main__":
     main()

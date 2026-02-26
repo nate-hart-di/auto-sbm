@@ -40,7 +40,9 @@ def main() -> None:
             run_user_id = run.get("user_id")
             if is_unknown(pr_author) or is_unknown(run_user_id) or run_user_id != pr_author:
                 slug = run.get("slug", "unknown")
-                print(f"{user_id}\t{run_id}\t{slug}\t{pr_url}\tpr_author={pr_author}\tuser_id={run_user_id}")
+                print(
+                    f"{user_id}\t{run_id}\t{slug}\t{pr_url}\tpr_author={pr_author}\tuser_id={run_user_id}"
+                )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import os
 import sys
+
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -21,7 +22,7 @@ except FileNotFoundError:
 bot_token = vars.get("SLACK_BOT_TOKEN") or vars.get("SLACK_BOT_OAUTH")
 app_token = vars.get("SLACK_APP_TOKEN")
 
-print(f"\n--- Token Check ---")
+print("\n--- Token Check ---")
 if bot_token:
     print(f"BOT TOKEN: {bot_token[:10]}... (Length: {len(bot_token)})")
 else:
@@ -38,7 +39,7 @@ if not app_token:
 
 client = WebClient(token=app_token)
 
-print(f"\n--- Attempting apps.connections.open ---")
+print("\n--- Attempting apps.connections.open ---")
 try:
     # This is the exact call failing in local logs
     response = client.apps_connections_open(app_token=app_token)
@@ -48,7 +49,7 @@ except SlackApiError as e:
     print(f"❌ API Error: {e.response['error']}")
     print("   Full Response:", e.response.data)
 
-print(f"\n--- Checking Bot Identity ---")
+print("\n--- Checking Bot Identity ---")
 bot_client = WebClient(token=bot_token)
 try:
     auth = bot_client.auth_test()
