@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.4] - 2026-02-27
+
+### Fixed
+
+- Land Rover migrations now append required CommonTheme inside styles into `sb-inside.scss` when source `css/inside.scss` indicates `_inside-pages-v2.scss` (with `_inside-pages.scss` fallback).
+- Land Rover migrations now append National Offers styles into `sb-inside.scss` when source `css/style.scss` indicates `_national-offers.scss`.
+- Added deterministic dedupe guards to prevent duplicate Land Rover inside/offers blocks on reruns.
+- Added tests covering Land Rover predetermined style config, append behavior, and legacy fallback behavior.
+
 ## [2.16.3] - 2026-02-26
 
 ### Fixed

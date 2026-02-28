@@ -26,7 +26,7 @@ from sbm.scss.processor import SCSSProcessor
 from sbm.ui.console import get_console
 from sbm.utils.command import execute_command, execute_interactive_command
 from sbm.utils.logger import logger
-from sbm.utils.path import get_dealer_theme_dir, get_platform_dir
+from sbm.utils.path import get_common_theme_path, get_dealer_theme_dir, get_platform_dir
 from sbm.utils.timer import timer_segment
 
 from .git import commit_changes, git_operations, push_changes
@@ -666,6 +666,89 @@ def _add_map_styles(theme_path: Path, oem_handler: object | None, slug: str) -> 
     return True
 
 
+def _add_oem_predetermined_inside_styles(
+    theme_path: Path, oem_handler: object | None, slug: str
+) -> bool:
+    """Append OEM-configured CommonTheme styles into sb-inside.scss based on source indicators."""
+    if not oem_handler or not hasattr(oem_handler, "get_predetermined_inside_style_configs"):
+        return True
+
+    try:
+        configs = oem_handler.get_predetermined_inside_style_configs()
+    except Exception as e:
+        logger.warning(f"Failed to load predetermined style config from OEM handler: {e}")
+        return False
+
+    if not configs:
+        return True
+
+    inside_path = theme_path / "sb-inside.scss"
+    if not inside_path.exists():
+        return True
+
+    common_theme_root = Path(get_common_theme_path())
+    if not common_theme_root.exists():
+        logger.warning("CommonTheme path not found; skipping OEM predetermined inside styles")
+        return False
+
+    processor = SCSSProcessor(slug, exclude_nav_styles=True)
+    sb_inside_content = inside_path.read_text(encoding="utf-8", errors="ignore")
+    source_css_dir = theme_path / "css"
+    success = True
+
+    for cfg in configs:
+        label = str(cfg.get("label", "OEM Additional Styles"))
+        source_indicator_file = str(cfg.get("source_indicator_file", "")).strip()
+        indicator_patterns = [str(p) for p in cfg.get("indicator_patterns", [])]
+        candidates = [str(p) for p in cfg.get("common_theme_candidates", [])]
+        dedupe_markers = [str(p) for p in cfg.get("dedupe_markers", [])]
+
+        if not source_indicator_file or not indicator_patterns or not candidates:
+            logger.warning(f"Invalid predetermined style config for {slug}: {cfg}")
+            success = False
+            continue
+
+        source_indicator_path = source_css_dir / source_indicator_file
+        if not source_indicator_path.exists():
+            continue
+
+        source_text = source_indicator_path.read_text(encoding="utf-8", errors="ignore")
+        if not any(re.search(pattern, source_text) for pattern in indicator_patterns):
+            continue
+
+        if dedupe_markers and any(marker in sb_inside_content for marker in dedupe_markers):
+            logger.info(f"Skipping {label}; dedupe marker already present in sb-inside.scss")
+            continue
+
+        common_theme_source = None
+        for candidate in candidates:
+            candidate_path = common_theme_root / candidate
+            if candidate_path.exists():
+                common_theme_source = candidate_path
+                break
+
+        if common_theme_source is None:
+            logger.warning(
+                f"Could not resolve CommonTheme source for {label}. Tried: {candidates}"
+            )
+            success = False
+            continue
+
+        raw_styles = common_theme_source.read_text(encoding="utf-8", errors="ignore")
+        processed_styles = processor.transform_scss_content(raw_styles).strip()
+        if not processed_styles:
+            logger.warning(f"Processed {label} content is empty; skipping append")
+            continue
+
+        with inside_path.open("a", encoding="utf-8") as f:
+            f.write(f"\n\n/* {label} */\n{processed_styles}\n")
+
+        sb_inside_content += f"\n\n/* {label} */\n{processed_styles}\n"
+        logger.info(f"Added {label} to sb-inside.scss")
+
+    return success
+
+
 def add_predetermined_styles(slug: str, oem_handler: dict | object | None = None) -> bool:
     """
     Add predetermined styles for cookie disclaimer and directions row.
@@ -687,6 +770,8 @@ def add_predetermined_styles(slug: str, oem_handler: dict | object | None = None
     if not _add_directions_row_styles(theme_path, oem_handler, slug):
         success = False
     if not _add_map_styles(theme_path, oem_handler, slug):
+        success = False
+    if not _add_oem_predetermined_inside_styles(theme_path, oem_handler, slug):
         success = False
     return success
 

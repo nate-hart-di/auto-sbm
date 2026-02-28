@@ -6,6 +6,7 @@ for all OEM-specific implementations.
 """
 
 from pathlib import Path
+from typing import Any
 from typing import NoReturn
 
 from sbm.utils.logger import logger
@@ -124,3 +125,12 @@ class BaseOEMHandler:
 
     def __str__(self) -> str:
         return f"{self.name}Handler({self.slug})"
+
+    def get_predetermined_inside_style_configs(self) -> list[dict[str, Any]]:
+        """
+        Get OEM-specific CommonTheme style configs that should be appended to sb-inside.scss.
+
+        Returns:
+            list[dict[str, Any]]: Config entries describing when and how to append styles.
+        """
+        return []

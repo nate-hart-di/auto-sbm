@@ -39,3 +39,12 @@ def test_landrover_factory_dealer_info():
     # Test that OEMFactory routes correctly using dealer_info brand field
     handler = OEMFactory.create_handler("unknown", dealer_info={"brand": "Land Rover"})
     assert isinstance(handler, LandRoverHandler)
+
+
+def test_landrover_predetermined_style_configs():
+    handler = LandRoverHandler("germainlandrover")
+    configs = handler.get_predetermined_inside_style_configs()
+
+    assert len(configs) == 2
+    assert any(c["label"] == "Land Rover Inside Pages Styles" for c in configs)
+    assert any(c["label"] == "Land Rover National Offers Styles" for c in configs)
