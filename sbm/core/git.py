@@ -824,7 +824,56 @@ class GitOperations:
             logger.warning(f"Could not enable auto-merge: {error_msg}")
             return False
 
-    def _analyze_migration_changes(self) -> List[str]:
+    def _detect_added_oem_inside_style_notes(self, slug: str | None) -> List[str]:
+        """
+        Detect OEM predetermined style blocks that were actually added to sb-inside.scss.
+
+        Returns note bullets only when matching label marker comments were added in git diff.
+        """
+        if not slug:
+            return []
+
+        try:
+            from sbm.oem.factory import OEMFactory
+
+            handler = OEMFactory.detect_from_theme(slug)
+            if not hasattr(handler, "get_predetermined_inside_style_configs"):
+                return []
+
+            configs = handler.get_predetermined_inside_style_configs() or []
+            if not configs:
+                return []
+
+            repo_root = get_platform_dir()
+            theme_rel = os.path.relpath(get_dealer_theme_dir(slug), repo_root)
+            sb_inside_rel = os.path.join(theme_rel, "sb-inside.scss")
+
+            diff_result = subprocess.run(
+                ["git", "diff", "--unified=0", "main...HEAD", "--", sb_inside_rel],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=repo_root,
+            )
+            diff_text = diff_result.stdout
+            if not diff_text.strip():
+                return []
+
+            notes = []
+            for cfg in configs:
+                label = str(cfg.get("label", "")).strip()
+                if not label:
+                    continue
+                marker = f"+/* {label} */"
+                if marker in diff_text:
+                    notes.append(f"- Added {label} to sb-inside.scss")
+
+            return notes
+        except Exception as e:
+            logger.debug(f"Could not detect OEM appended style notes: {e}")
+            return []
+
+    def _analyze_migration_changes(self, slug: str | None = None) -> List[str]:
         """Analyze Git changes to determine what was actually migrated."""
         what_items = []
 
@@ -885,6 +934,10 @@ class GitOperations:
                     )
                 else:
                     what_items.append("- Created sb-inside.scss for interior page styles")
+
+                # Add OEM-specific appended style notes only when these blocks were
+                # actually added in this PR's sb-inside.scss diff.
+                what_items.extend(self._detect_added_oem_inside_style_notes(slug))
 
             # Check for VDP migration (only from lvdp.scss)
             if "sb-vdp.scss" in css_files:
@@ -1172,7 +1225,7 @@ class GitOperations:
         title = f"PCON-864: {slug} SBM FE Audit"
 
         # Get automated migration changes
-        automated_items = self._analyze_migration_changes()
+        automated_items = self._analyze_migration_changes(slug=slug)
 
         # Detect manual changes using git diff analysis
         manual_analysis = self._detect_manual_changes()

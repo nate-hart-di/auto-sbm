@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.6] - 2026-02-27
+
+### Fixed
+
+- PR “What” notes now include OEM predetermined style bullets only when those style blocks were actually added in `sb-inside.scss` for the current diff.
+- Land Rover PR notes now correctly mention appended inside/offers blocks when present and omit those notes when not added.
+- Added tests covering both note-emission and note-omission behavior for appended OEM style blocks.
+
 ## [2.16.5] - 2026-02-27
 
 ### Fixed
