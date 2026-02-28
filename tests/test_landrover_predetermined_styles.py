@@ -105,3 +105,26 @@ def test_landrover_predetermined_styles_fallback_to_legacy_inside(tmp_path, monk
     content = (theme_dir / "sb-inside.scss").read_text(encoding="utf-8")
     assert "Land Rover Inside Pages Styles" in content
     assert "#cpo-offers { color: green; }" in content
+
+
+def test_landrover_predetermined_styles_detect_inside_indicator_in_style_file(
+    tmp_path, monkeypatch
+):
+    slug = "landroverreno"
+    theme_dir = _setup_theme(tmp_path, slug)
+    common = _setup_common_theme(tmp_path)
+
+    # Theme variant: no css/inside.scss, inside import lives in css/style.scss.
+    _write(
+        theme_dir / "css/style.scss",
+        "@import '../../DealerInspireCommonTheme/css/dealer-groups/landrover/_inside-pages-v2.scss';\n",
+    )
+
+    monkeypatch.setattr(migration, "get_dealer_theme_dir", lambda _: str(theme_dir))
+    monkeypatch.setattr(migration, "get_common_theme_path", lambda: str(common))
+
+    assert migration.add_predetermined_styles(slug, LandRoverHandler(slug))
+
+    content = (theme_dir / "sb-inside.scss").read_text(encoding="utf-8")
+    assert "Land Rover Inside Pages Styles" in content
+    assert "#cpo-offers" in content

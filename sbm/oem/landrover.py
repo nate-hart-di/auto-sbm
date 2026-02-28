@@ -59,7 +59,7 @@ class LandRoverHandler(BaseOEMHandler):
         return [
             {
                 "label": "Land Rover Inside Pages Styles",
-                "source_indicator_file": "inside.scss",
+                "source_indicator_files": ["inside.scss", "style.scss"],
                 "indicator_patterns": [
                     r"_inside-pages-v2\.scss",
                     r"_inside-pages\.scss",
@@ -72,8 +72,8 @@ class LandRoverHandler(BaseOEMHandler):
             },
             {
                 "label": "Land Rover National Offers Styles",
-                "source_indicator_file": "style.scss",
-                "indicator_patterns": [r"_national-offers\.scss"],
+                "source_indicator_files": ["style.scss", "inside.scss"],
+                "indicator_patterns": [r"_national-offers(?:-land-rover)?\.scss"],
                 "common_theme_candidates": [
                     "css/dealer-inspire-plugins/_national-offers.scss",
                 ],

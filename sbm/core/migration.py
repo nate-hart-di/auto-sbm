@@ -699,21 +699,32 @@ def _add_oem_predetermined_inside_styles(
     for cfg in configs:
         label = str(cfg.get("label", "OEM Additional Styles"))
         source_indicator_file = str(cfg.get("source_indicator_file", "")).strip()
+        source_indicator_files = [str(f).strip() for f in cfg.get("source_indicator_files", [])]
         indicator_patterns = [str(p) for p in cfg.get("indicator_patterns", [])]
         candidates = [str(p) for p in cfg.get("common_theme_candidates", [])]
         dedupe_markers = [str(p) for p in cfg.get("dedupe_markers", [])]
 
-        if not source_indicator_file or not indicator_patterns or not candidates:
+        indicator_sources = [f for f in source_indicator_files if f]
+        if source_indicator_file and source_indicator_file not in indicator_sources:
+            indicator_sources.append(source_indicator_file)
+
+        if not indicator_sources or not indicator_patterns or not candidates:
             logger.warning(f"Invalid predetermined style config for {slug}: {cfg}")
             success = False
             continue
 
-        source_indicator_path = source_css_dir / source_indicator_file
-        if not source_indicator_path.exists():
-            continue
+        indicator_matched = False
+        for source_name in indicator_sources:
+            source_indicator_path = source_css_dir / source_name
+            if not source_indicator_path.exists():
+                continue
 
-        source_text = source_indicator_path.read_text(encoding="utf-8", errors="ignore")
-        if not any(re.search(pattern, source_text) for pattern in indicator_patterns):
+            source_text = source_indicator_path.read_text(encoding="utf-8", errors="ignore")
+            if any(re.search(pattern, source_text) for pattern in indicator_patterns):
+                indicator_matched = True
+                break
+
+        if not indicator_matched:
             continue
 
         if dedupe_markers and any(marker in sb_inside_content for marker in dedupe_markers):

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.16.5] - 2026-02-27
+
+### Fixed
+
+- Expanded Land Rover predetermined style indicator matching to scan both `css/inside.scss` and `css/style.scss` so themes like `landroverreno` still append inside-pages content into `sb-inside.scss`.
+- Expanded Land Rover National Offers indicator pattern to support `_national-offers-land-rover.scss` naming variants.
+- Added regression test for themes where inside-pages imports live only in `css/style.scss`.
+
 ## [2.16.4] - 2026-02-27
 
 ### Fixed
