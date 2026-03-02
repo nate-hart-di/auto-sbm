@@ -1456,12 +1456,7 @@ PR: {pr_url}"""
                     pr_reviewers = reviewers or git_config.get(
                         "default_reviewers",
                         [
-                            "etritt-cc",
-                            "messponential",
-                            "abond-cc",
-                            "tcollier-di",
-                            "ssargent-cc",
-                            "nate-hart-di",
+                            "carsdotcom/fe-dev-sbm",
                         ],
                     )
                     pr_labels = labels or git_config.get("default_labels", ["fe-dev"])
@@ -1470,23 +1465,13 @@ PR: {pr_url}"""
                         git_config,
                         "default_reviewers",
                         [
-                            "etritt-cc",
-                            "messponential",
-                            "abond-cc",
-                            "tcollier-di",
-                            "ssargent-cc",
-                            "nate-hart-di",
+                            "carsdotcom/fe-dev-sbm",
                         ],
                     )
                     pr_labels = labels or getattr(git_config, "default_labels", ["fe-dev"])
             else:
                 pr_reviewers = reviewers or [
-                    "etritt-cc",
-                    "messponential",
-                    "abond-cc",
-                    "tcollier-di",
-                    "ssargent-cc",
-                    "nate-hart-di",
+                    "carsdotcom/fe-dev-sbm",
                 ]
                 pr_labels = labels or ["fe-dev"]
 
@@ -1666,12 +1651,7 @@ def create_pr(slug, branch_name=None, **kwargs):
         "default_branch": "main",
         "git": {
             "default_reviewers": [
-                "etritt-cc",
-                "messponential",
-                "abond-cc",
-                "tcollier-di",
-                "ssargent-cc",
-                "nate-hart-di",
+                "carsdotcom/fe-dev-sbm",
             ],
             "default_labels": ["fe-dev"],
         },

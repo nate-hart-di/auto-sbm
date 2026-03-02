@@ -59,11 +59,7 @@ class GitSettings(BaseSettings):
     default_labels: list[str] = Field(default=["fe-dev"], description="Default PR labels")
     default_reviewers: list[str] = Field(
         default=[
-            "etritt-cc",
-            "messponential",
-            "abond-cc",
-            "tcollier-di",
-            "ssargent-cc",
+            "carsdotcom/fe-dev-sbm",
         ],
         description="Default PR reviewers",
     )
